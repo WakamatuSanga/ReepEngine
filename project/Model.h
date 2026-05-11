@@ -40,6 +40,7 @@ public:
     void Initialize(ModelCommon* modelCommon, const ModelData& modelData);
 
     void Draw();
+    void SetVertices(const std::vector<VertexData>& vertices);
 
     void SetTextureIndex(uint32_t index) { modelData_.material.textureIndex = index; }
 

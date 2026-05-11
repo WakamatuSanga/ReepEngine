@@ -145,11 +145,17 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Audio.cpp" />
+    <ClCompile Include="AnimationClip.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CloudVolume.cpp" />
     <ClCompile Include="D3DResourceLeakChecker.cpp" />
     <ClCompile Include="DirectXCommon.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="externals\imgui\ImGuizmo.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -190,6 +196,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </ClCompile>
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="GltfAnimationLoader.cpp" />
+    <ClCompile Include="GltfSkinnedModel.cpp" />
+    <ClCompile Include="GltfSkeletonLoader.cpp" />
     <ClCompile Include="ImGuiManager.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Logger.cpp" />
@@ -202,6 +211,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="ParticleManager.cpp" />
     <ClCompile Include="PrimitiveGenerator.cpp" />
     <ClCompile Include="SceneManager.cpp" />
+    <ClCompile Include="Skeleton.cpp" />
+    <ClCompile Include="SkinningEditor.cpp" />
     <ClCompile Include="Skybox.cpp" />
     <ClCompile Include="SkyboxCommon.cpp" />
     <ClCompile Include="Sprite.cpp" />
@@ -215,11 +226,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Audio.h" />
+    <ClInclude Include="AnimationClip.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CloudVolume.h" />
     <ClInclude Include="D3DResourceLeakChecker.h" />
     <ClInclude Include="DirectXCommon.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
+    <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
     <ClInclude Include="externals\imgui\imgui_impl_dx12.h" />
     <ClInclude Include="externals\imgui\imgui_impl_win32.h" />
@@ -229,6 +242,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="engine\math\Matrix4x4.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="GltfAnimationLoader.h" />
+    <ClInclude Include="GltfSkinnedModel.h" />
+    <ClInclude Include="GltfSkeletonLoader.h" />
     <ClInclude Include="ImGuiManager.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="IScene.h" />
@@ -242,6 +258,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="ParticleManager.h" />
     <ClInclude Include="PrimitiveGenerator.h" />
     <ClInclude Include="SceneManager.h" />
+    <ClInclude Include="Skeleton.h" />
+    <ClInclude Include="SkinningEditor.h" />
     <ClInclude Include="Skybox.h" />
     <ClInclude Include="SkyboxCommon.h" />
     <ClInclude Include="Sprite.h" />

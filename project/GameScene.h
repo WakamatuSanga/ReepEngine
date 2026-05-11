@@ -6,14 +6,20 @@
 #include "Object3d.h"
 #include "Skybox.h"
 #include "Sprite.h"
+#include "SkinningEditor.h"
+#include "Skeleton.h"
 #include "VolumetricCloudPass.h"
 #include <array>
 #include <memory>
 #include <string>
 #include <vector>
 
+class GltfSkinnedModel;
+
 class GameScene : public IScene {
 public:
+    GameScene();
+    ~GameScene() override;
     void Initialize() override;
     void Update() override;
     void Draw() override;
@@ -32,6 +38,15 @@ private:
     std::unique_ptr<Object3d> ringEffectCompareBillboard_;
     std::unique_ptr<Object3d> ringEffectComparePlaneWorld_;
     std::unique_ptr<Object3d> ringEffectCompareWorld_;
+    std::unique_ptr<SkinningEditor> skinningEditor_;
+    std::unique_ptr<Skeleton> previewSkeleton_;
+    std::unique_ptr<Skeleton> previewSkeletonSecondary_;
+    std::unique_ptr<Skeleton> walkSkeleton_;
+    std::unique_ptr<GltfSkinnedModel> walkSkinnedModel_;
+    std::unique_ptr<Object3d> walkSkinnedObject_;
+    std::unique_ptr<Skeleton> sneakWalkSkeleton_;
+    std::unique_ptr<GltfSkinnedModel> sneakWalkSkinnedModel_;
+    std::unique_ptr<Object3d> sneakWalkSkinnedObject_;
     std::unique_ptr<Sprite> debugSprite_;
     std::vector<std::unique_ptr<Object3d>> primitivePreviewObjects_;
 

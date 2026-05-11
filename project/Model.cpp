@@ -98,6 +98,12 @@ void Model::Draw() {
     commandList->DrawInstanced(static_cast<UINT>(modelData_.vertices.size()), 1, 0, 0);
 }
 
+void Model::SetVertices(const std::vector<VertexData>& vertices) {
+    assert(vertices.size() == modelData_.vertices.size());
+    modelData_.vertices = vertices;
+    std::memcpy(vertexData_, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
+}
+
 Model::ModelData Model::CreateSphereData(uint32_t subdivision) {
     ModelData data;
 
