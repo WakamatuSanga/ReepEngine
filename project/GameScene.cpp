@@ -6,6 +6,11 @@
 #include "ModelManager.h"
 #include "ParticleManager.h"
 #include "Audio.h"
+#include "GltfAnimationLoader.h"
+#include "GltfSkinnedModel.h"
+#include "GltfSkeletonLoader.h"
+#include "SkinningEditor.h"
+#include "Skeleton.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -50,6 +55,85 @@ namespace {
             degrees -= 360.0f;
         }
         return degrees;
+    }
+
+    std::unique_ptr<Skeleton> MakeHumanoidPreviewSkeleton() {
+        auto skeleton = std::make_unique<Skeleton>();
+        skeleton->name = "Humanoid Preview";
+        skeleton->joints.resize(8);
+
+        skeleton->joints[0].name = "Root";
+        skeleton->joints[0].parentIndex = -1;
+        skeleton->joints[0].children = { 1 };
+        skeleton->joints[0].localTranslate = { 2.0f, 0.0f, 0.0f };
+
+        skeleton->joints[1].name = "Spine";
+        skeleton->joints[1].parentIndex = 0;
+        skeleton->joints[1].children = { 2, 4, 6 };
+        skeleton->joints[1].localTranslate = { 0.0f, 1.2f, 0.0f };
+
+        skeleton->joints[2].name = "Chest";
+        skeleton->joints[2].parentIndex = 1;
+        skeleton->joints[2].children = { 3 };
+        skeleton->joints[2].localTranslate = { 0.0f, 0.9f, 0.0f };
+
+        skeleton->joints[3].name = "Head";
+        skeleton->joints[3].parentIndex = 2;
+        skeleton->joints[3].localTranslate = { 0.0f, 0.7f, 0.0f };
+
+        skeleton->joints[4].name = "Arm.L";
+        skeleton->joints[4].parentIndex = 1;
+        skeleton->joints[4].children = { 5 };
+        skeleton->joints[4].localTranslate = { -0.8f, 0.6f, 0.0f };
+
+        skeleton->joints[5].name = "Fore.L";
+        skeleton->joints[5].parentIndex = 4;
+        skeleton->joints[5].localTranslate = { -0.7f, 0.0f, 0.0f };
+
+        skeleton->joints[6].name = "Arm.R";
+        skeleton->joints[6].parentIndex = 1;
+        skeleton->joints[6].children = { 7 };
+        skeleton->joints[6].localTranslate = { 0.8f, 0.6f, 0.0f };
+
+        skeleton->joints[7].name = "Fore.R";
+        skeleton->joints[7].parentIndex = 6;
+        skeleton->joints[7].localTranslate = { 0.7f, 0.0f, 0.0f };
+
+        UpdateSkeletonWorldTransforms(*skeleton);
+        return skeleton;
+    }
+
+    std::unique_ptr<Skeleton> MakeChainPreviewSkeleton() {
+        auto skeleton = std::make_unique<Skeleton>();
+        skeleton->name = "Chain Preview";
+        skeleton->joints.resize(5);
+
+        skeleton->joints[0].name = "Root";
+        skeleton->joints[0].parentIndex = -1;
+        skeleton->joints[0].children = { 1 };
+        skeleton->joints[0].localTranslate = { -2.0f, 0.0f, 0.0f };
+
+        skeleton->joints[1].name = "Joint01";
+        skeleton->joints[1].parentIndex = 0;
+        skeleton->joints[1].children = { 2 };
+        skeleton->joints[1].localTranslate = { 0.0f, 1.0f, 0.0f };
+
+        skeleton->joints[2].name = "Joint02";
+        skeleton->joints[2].parentIndex = 1;
+        skeleton->joints[2].children = { 3 };
+        skeleton->joints[2].localTranslate = { 0.6f, 0.8f, 0.0f };
+
+        skeleton->joints[3].name = "Joint03";
+        skeleton->joints[3].parentIndex = 2;
+        skeleton->joints[3].children = { 4 };
+        skeleton->joints[3].localTranslate = { 0.4f, 0.8f, 0.0f };
+
+        skeleton->joints[4].name = "Tip";
+        skeleton->joints[4].parentIndex = 3;
+        skeleton->joints[4].localTranslate = { 0.2f, 0.6f, 0.0f };
+
+        UpdateSkeletonWorldTransforms(*skeleton);
+        return skeleton;
     }
 
     struct RadialBlurPreset {
@@ -111,6 +195,10 @@ namespace {
         { "Dramatic", 1u, 0.82f, 0.08f, { 0.4f, 0.9f, 1.0f, 1.0f } },
     };
 }
+
+GameScene::GameScene() = default;
+
+GameScene::~GameScene() = default;
 
 void GameScene::Initialize() {
     auto modelManager = ModelManager::GetInstance();
@@ -306,9 +394,66 @@ void GameScene::Initialize() {
     debugSprite_->SetSize({ 100.0f, 100.0f });
 
     particleManager->SetTexture(particleTexturePath_);
+
+    previewSkeleton_ = MakeHumanoidPreviewSkeleton();
+    previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
+    walkSkeleton_ = GltfSkeletonLoader::LoadFromFile("resources/human/walk.gltf");
+    sneakWalkSkeleton_ = GltfSkeletonLoader::LoadFromFile("resources/human/sneakWalk.gltf");
+    skinningEditor_ = std::make_unique<SkinningEditor>();
+    skinningEditor_->RegisterTarget("InternalSphere (preview)", previewSkeleton_.get());
+    skinningEditor_->RegisterTarget("Fence (preview)", previewSkeletonSecondary_.get());
+    if (walkSkeleton_) {
+        AnimationClip walkClip{};
+        const bool hasWalkClip = GltfAnimationLoader::LoadFirstClipFromFile(
+            "resources/human/walk.gltf",
+            *walkSkeleton_,
+            walkClip);
+        skinningEditor_->RegisterTarget("walk.gltf", walkSkeleton_.get(), hasWalkClip ? &walkClip : nullptr);
+
+        walkSkinnedModel_ = std::make_unique<GltfSkinnedModel>();
+        if (walkSkinnedModel_->Initialize(modelManager->GetModelCommon(), walkSkeleton_.get(), "resources/human/walk.gltf")) {
+            walkSkinnedObject_ = std::make_unique<Object3d>();
+            walkSkinnedObject_->Initialize(object3dCommon);
+            walkSkinnedObject_->SetModel(walkSkinnedModel_->GetModel());
+            walkSkinnedObject_->SetCamera(camera_.get());
+            walkSkinnedObject_->SetEnvironmentMapEnabled(false);
+        } else {
+            walkSkinnedModel_.reset();
+        }
+    }
+
+    if (sneakWalkSkeleton_) {
+        AnimationClip sneakWalkClip{};
+        const bool hasSneakWalkClip = GltfAnimationLoader::LoadFirstClipFromFile(
+            "resources/human/sneakWalk.gltf",
+            *sneakWalkSkeleton_,
+            sneakWalkClip);
+        skinningEditor_->RegisterTarget(
+            "sneakWalk.gltf",
+            sneakWalkSkeleton_.get(),
+            hasSneakWalkClip ? &sneakWalkClip : nullptr);
+
+        sneakWalkSkinnedModel_ = std::make_unique<GltfSkinnedModel>();
+        if (sneakWalkSkinnedModel_->Initialize(
+            modelManager->GetModelCommon(),
+            sneakWalkSkeleton_.get(),
+            "resources/human/sneakWalk.gltf")) {
+            sneakWalkSkinnedObject_ = std::make_unique<Object3d>();
+            sneakWalkSkinnedObject_->Initialize(object3dCommon);
+            sneakWalkSkinnedObject_->SetModel(sneakWalkSkinnedModel_->GetModel());
+            sneakWalkSkinnedObject_->SetCamera(camera_.get());
+            sneakWalkSkinnedObject_->SetEnvironmentMapEnabled(false);
+        } else {
+            sneakWalkSkinnedModel_.reset();
+        }
+    }
 }
 
-void GameScene::Finalize() {}
+void GameScene::Finalize() {
+    if (skinningEditor_) {
+        skinningEditor_->ClearTargets();
+    }
+}
 
 void GameScene::Update() {
     auto input = MyGame::GetInstance()->GetInput();
@@ -460,6 +605,12 @@ void GameScene::Update() {
     object3dSphere_->SetRandomTime(objectRandomTime_);
     object3d_->Update();
     object3dSphere_->Update();
+    if (walkSkinnedObject_) {
+        walkSkinnedObject_->Update();
+    }
+    if (sneakWalkSkinnedObject_) {
+        sneakWalkSkinnedObject_->Update();
+    }
     if (effectCylinder_) {
         effectCylinderTime_ += 0.016f;
         if (effectCylinderModel_) {
@@ -602,8 +753,40 @@ void GameScene::Update() {
     }
 
     particleManager->Update(camera_.get());
+    if (skinningEditor_) {
+        if (previewSkeleton_) {
+            UpdateSkeletonWorldTransforms(*previewSkeleton_);
+        }
+        if (previewSkeletonSecondary_) {
+            UpdateSkeletonWorldTransforms(*previewSkeletonSecondary_);
+        }
+        if (walkSkeleton_) {
+            UpdateSkeletonWorldTransforms(*walkSkeleton_);
+        }
+        if (sneakWalkSkeleton_) {
+            UpdateSkeletonWorldTransforms(*sneakWalkSkeleton_);
+        }
+        skinningEditor_->Update();
+        if (walkSkinnedModel_) {
+            walkSkinnedModel_->UpdateSkinning();
+        }
+        if (sneakWalkSkinnedModel_) {
+            sneakWalkSkinnedModel_->UpdateSkinning();
+        }
+    }
 
 #ifdef _DEBUG
+    if (skinningEditor_) {
+        skinningEditor_->DrawImGui();
+        skinningEditor_->DrawGizmo(camera_.get());
+        if (walkSkinnedModel_) {
+            walkSkinnedModel_->UpdateSkinning();
+        }
+        if (sneakWalkSkinnedModel_) {
+            sneakWalkSkinnedModel_->UpdateSkinning();
+        }
+        skinningEditor_->DrawDebugOverlay(camera_.get());
+    }
     ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiCond_Once);
     ImGui::Begin("DebugText");
     Vector2 spritePos = debugSprite_->GetPosition();
@@ -1200,6 +1383,13 @@ void GameScene::Draw() {
 
     object3d_->Draw();
     object3dSphere_->Draw();
+    const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
+    if (walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
+        walkSkinnedObject_->Draw();
+    }
+    if (sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
+        sneakWalkSkinnedObject_->Draw();
+    }
     if (effectCylinder_) {
         object3dCommon->CommonDrawSetting(Object3dCommon::BlendMode::kAdd);
         effectCylinder_->Draw();

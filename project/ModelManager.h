@@ -25,6 +25,7 @@ public:
 
     void LoadModel(const std::string& filePath);
     Model* FindModel(const std::string& filePath);
+    ModelCommon* GetModelCommon() const { return modelCommon_.get(); }
 
     Model* CreateSphere(const std::string& keyName, uint32_t subdivision = 16);
     Model* CreatePlane(const std::string& keyName);
