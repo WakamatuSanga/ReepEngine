@@ -19,6 +19,7 @@ public:
     GltfSkinnedModel& operator=(const GltfSkinnedModel&) = delete;
 
     bool Initialize(ModelCommon* modelCommon, Skeleton* skeleton, const std::string& gltfPath);
+    bool InitializeStatic(ModelCommon* modelCommon, const std::string& gltfPath);
     void UpdateSkinning();
 
     Model* GetModel() const { return model_.get(); }

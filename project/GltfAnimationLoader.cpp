@@ -1373,3 +1373,133 @@ bool GltfAnimationLoader::LoadFirstClipFromFile(const std::string& filePath, con
     outClip = std::move(clip);
     return true;
 }
+
+bool GltfAnimationLoader::LoadFirstNodeClipFromFile(const std::string& filePath, AnimationClip& outClip) {
+    std::string gltfText;
+    if (!LoadFileToString(filePath, gltfText)) {
+        return false;
+    }
+
+    std::vector<GltfBufferData> buffers;
+    std::vector<GltfBufferViewData> bufferViews;
+    std::vector<GltfAccessorData> accessors;
+    std::vector<GltfNodeData> nodes;
+    std::vector<GltfSkinData> skins;
+    std::vector<GltfAnimationData> animations;
+    JsonReader reader(gltfText);
+    if (!reader.Parse(buffers, bufferViews, accessors, nodes, skins, animations) ||
+        buffers.empty() || nodes.empty() || animations.empty()) {
+        return false;
+    }
+
+    std::vector<uint8_t> binary;
+    if (!LoadBinaryFile(ResolveRelativePath(filePath, buffers.front().uri), binary)) {
+        return false;
+    }
+
+    const GltfAnimationData& animation = animations.front();
+
+    AnimationClip clip{};
+    clip.name = animation.name.empty() ? std::filesystem::path(filePath).stem().string() : animation.name;
+    clip.duration = 0.0001f;
+
+    auto getOrCreateTrack = [&clip](const std::string& nodeName) -> JointTrack& {
+        if (JointTrack* track = FindJointTrack(clip, nodeName)) {
+            return *track;
+        }
+
+        JointTrack track{};
+        track.jointName = nodeName;
+        clip.tracks.push_back(std::move(track));
+        return clip.tracks.back();
+    };
+
+    for (const GltfAnimationChannelData& channel : animation.channels) {
+        if (channel.samplerIndex < 0 || channel.samplerIndex >= static_cast<int>(animation.samplers.size()) ||
+            channel.targetNode < 0 || channel.targetNode >= static_cast<int>(nodes.size())) {
+            continue;
+        }
+
+        const GltfAnimationSamplerData& sampler = animation.samplers[static_cast<size_t>(channel.samplerIndex)];
+        std::vector<float> times;
+        if (!ReadScalarFloatAccessor(binary, bufferViews, accessors, sampler.inputAccessor, times) || times.empty()) {
+            continue;
+        }
+
+        const std::string nodeName = nodes[static_cast<size_t>(channel.targetNode)].name.empty()
+            ? ("Node_" + std::to_string(channel.targetNode))
+            : nodes[static_cast<size_t>(channel.targetNode)].name;
+        JointTrack& track = getOrCreateTrack(nodeName);
+        clip.duration = (std::max)(clip.duration, times.back());
+
+        if (channel.targetPath == "translation") {
+            std::vector<Vector3> values;
+            if (!ReadVector3Accessor(binary, bufferViews, accessors, sampler.outputAccessor, values) ||
+                values.size() != times.size()) {
+                continue;
+            }
+            track.translate.keyframes.clear();
+            track.translate.keyframes.reserve(values.size());
+            for (size_t keyIndex = 0; keyIndex < values.size(); ++keyIndex) {
+                track.translate.keyframes.push_back({ times[keyIndex], values[keyIndex] });
+            }
+        } else if (channel.targetPath == "rotation") {
+            std::vector<std::array<float, 4>> quaternions;
+            if (!ReadQuaternionAccessor(binary, bufferViews, accessors, sampler.outputAccessor, quaternions) ||
+                quaternions.size() != times.size()) {
+                continue;
+            }
+            track.rotate.keyframes.clear();
+            track.rotate.keyframes.reserve(quaternions.size());
+            for (size_t keyIndex = 0; keyIndex < quaternions.size(); ++keyIndex) {
+                const std::array<float, 4>& q = quaternions[keyIndex];
+                track.rotate.keyframes.push_back({ times[keyIndex], { q[0], q[1], q[2], q[3] } });
+            }
+        } else if (channel.targetPath == "scale") {
+            std::vector<Vector3> values;
+            if (!ReadVector3Accessor(binary, bufferViews, accessors, sampler.outputAccessor, values) ||
+                values.size() != times.size()) {
+                continue;
+            }
+            track.scale.keyframes.clear();
+            track.scale.keyframes.reserve(values.size());
+            for (size_t keyIndex = 0; keyIndex < values.size(); ++keyIndex) {
+                track.scale.keyframes.push_back({ times[keyIndex], values[keyIndex] });
+            }
+        }
+    }
+
+    for (JointTrack& track : clip.tracks) {
+        std::vector<float> keyTimes;
+        for (const KeyframeVector3& key : track.translate.keyframes) { AddUniqueTime(keyTimes, key.time); }
+        for (const KeyframeQuaternion& key : track.rotate.keyframes) { AddUniqueTime(keyTimes, key.time); }
+        for (const KeyframeVector3& key : track.scale.keyframes) { AddUniqueTime(keyTimes, key.time); }
+        std::sort(keyTimes.begin(), keyTimes.end());
+
+        track.keys.clear();
+        track.keys.reserve(keyTimes.size());
+        for (float keyTime : keyTimes) {
+            Keyframe keyframe{};
+            keyframe.time = keyTime;
+            keyframe.translate = track.translate.keyframes.empty()
+                ? Vector3{ 0.0f, 0.0f, 0.0f }
+                : CalculateValue(track.translate.keyframes, keyTime);
+            if (!track.rotate.keyframes.empty()) {
+                Quaternion q = CalculateValue(track.rotate.keyframes, keyTime);
+                keyframe.rotate = QuaternionToEulerXYZ({ q.x, q.y, q.z, q.w });
+            }
+            keyframe.scale = track.scale.keyframes.empty()
+                ? Vector3{ 1.0f, 1.0f, 1.0f }
+                : CalculateValue(track.scale.keyframes, keyTime);
+            track.keys.push_back(keyframe);
+        }
+        SortJointTrackKeys(track);
+    }
+
+    if (clip.tracks.empty()) {
+        return false;
+    }
+
+    outClip = std::move(clip);
+    return true;
+}

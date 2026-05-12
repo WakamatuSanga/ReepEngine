@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationClip.h"
 #include "IScene.h"
 #include "Model.h"
 #include "Camera.h"
@@ -47,6 +48,8 @@ private:
     std::unique_ptr<Skeleton> sneakWalkSkeleton_;
     std::unique_ptr<GltfSkinnedModel> sneakWalkSkinnedModel_;
     std::unique_ptr<Object3d> sneakWalkSkinnedObject_;
+    std::unique_ptr<GltfSkinnedModel> animatedCubeModel_;
+    std::unique_ptr<Object3d> animatedCubeObject_;
     std::unique_ptr<Sprite> debugSprite_;
     std::vector<std::unique_ptr<Object3d>> primitivePreviewObjects_;
 
@@ -69,6 +72,14 @@ private:
     int targetObjectIndex_ = 1; // 0=Fence, 1=Sphere
 
     bool isSkyboxVisible_ = true;
+    bool isFenceVisible_ = true;
+    bool isSphereVisible_ = true;
+    bool isAnimatedCubeVisible_ = true;
+    bool isSkinnedModelVisible_ = true;
+    bool isEffectCylinderVisible_ = true;
+    bool isParticleVisible_ = true;
+    bool isVolumetricCloudVisible_ = true;
+    bool isDebugSpriteVisible_ = true;
     bool isSkyboxFollowCamera_ = true;
     std::string skyboxTexturePath_ = "resources/skybox/skybox.dds";
     Vector3 skyboxScale_ = { 100.0f, 100.0f, 100.0f };
@@ -115,6 +126,9 @@ private:
     bool isRingAnimationEnabled_ = false;
     bool isRingUVScrollEnabled_ = false;
     float ringAnimationTime_ = 0.0f;
+    AnimationClip animatedCubeClip_{};
+    float animatedCubeAnimationTime_ = 0.0f;
+    bool hasAnimatedCubeAnimation_ = false;
     float ringUVScrollSpeedX_ = 0.25f;
     float ringUVScrollSpeedY_ = 0.0f;
     bool isRingAlphaAnimationEnabled_ = false;
