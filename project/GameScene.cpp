@@ -261,6 +261,22 @@ void GameScene::Initialize() {
     object3dSphere_->SetRandomIntensity(objectRandomIntensity_);
     object3dSphere_->SetRandomTime(objectRandomTime_);
 
+    animatedCubeModel_ = std::make_unique<GltfSkinnedModel>();
+    if (animatedCubeModel_->InitializeStatic(modelManager->GetModelCommon(), "resources/AnimatedCube/AnimatedCube.gltf")) {
+        animatedCubeObject_ = std::make_unique<Object3d>();
+        animatedCubeObject_->Initialize(object3dCommon);
+        animatedCubeObject_->SetModel(animatedCubeModel_->GetModel());
+        animatedCubeObject_->SetCamera(camera_.get());
+        animatedCubeObject_->SetTranslate({ 0.0f, 1.5f, 4.0f });
+        animatedCubeObject_->SetScale({ 1.0f, 1.0f, 1.0f });
+        animatedCubeObject_->SetEnvironmentMapEnabled(false);
+    } else {
+        animatedCubeModel_.reset();
+    }
+    hasAnimatedCubeAnimation_ = GltfAnimationLoader::LoadFirstNodeClipFromFile(
+        "resources/AnimatedCube/AnimatedCube.gltf",
+        animatedCubeClip_);
+
     texManager->LoadTexture("resources/obj/axis/uvChecker.png");
     texManager->LoadTexture("resources/obj/fence/fence.png");
     texManager->LoadTexture("resources/obj/monsterBall/monsterBall.png");
@@ -513,6 +529,27 @@ void GameScene::Update() {
     }
     objectRandomTime_ += 0.016f;
     ringAnimationTime_ += 0.016f;
+    if (animatedCubeObject_ && hasAnimatedCubeAnimation_) {
+        constexpr float kAnimationDeltaTime = 1.0f / 60.0f;
+        animatedCubeAnimationTime_ += kAnimationDeltaTime;
+        const float duration = (std::max)(animatedCubeClip_.duration, 0.0001f);
+        if (animatedCubeAnimationTime_ >= duration) {
+            animatedCubeAnimationTime_ = std::fmod(animatedCubeAnimationTime_, duration);
+        }
+
+        if (const JointTrack* animatedCubeTrack = FindJointTrack(animatedCubeClip_, "AnimatedCube")) {
+            if (!animatedCubeTrack->translate.keyframes.empty()) {
+                animatedCubeObject_->SetTranslate(CalculateValue(animatedCubeTrack->translate.keyframes, animatedCubeAnimationTime_));
+            }
+            if (!animatedCubeTrack->rotate.keyframes.empty()) {
+                Quaternion rotation = CalculateValue(animatedCubeTrack->rotate.keyframes, animatedCubeAnimationTime_);
+                animatedCubeObject_->SetRotate(ConvertQuaternionToEulerXYZ(rotation));
+            }
+            if (!animatedCubeTrack->scale.keyframes.empty()) {
+                animatedCubeObject_->SetScale(CalculateValue(animatedCubeTrack->scale.keyframes, animatedCubeAnimationTime_));
+            }
+        }
+    }
 
     if (isRingAnimationEnabled_) {
         if (isRingAlphaAnimationEnabled_) {
@@ -605,6 +642,9 @@ void GameScene::Update() {
     object3dSphere_->SetRandomTime(objectRandomTime_);
     object3d_->Update();
     object3dSphere_->Update();
+    if (animatedCubeObject_) {
+        animatedCubeObject_->Update();
+    }
     if (walkSkinnedObject_) {
         walkSkinnedObject_->Update();
     }
@@ -1357,6 +1397,52 @@ void GameScene::Update() {
     ImGui::SeparatorText("Blend Mode");
     ImGui::Combo("Blend", &currentBlendMode_, blendModeNames_, IM_ARRAYSIZE(blendModeNames_));
     ImGui::End();
+
+    ImGui::SetNextWindowSize(ImVec2(320, 520), ImGuiCond_Once);
+    ImGui::Begin("Scene Visibility");
+    auto setAllVisibility = [this](bool isVisible) {
+        isSkyboxVisible_ = isVisible;
+        isFenceVisible_ = isVisible;
+        isSphereVisible_ = isVisible;
+        isAnimatedCubeVisible_ = isVisible;
+        isSkinnedModelVisible_ = isVisible;
+        isPrimitivePreviewVisible_ = isVisible;
+        isEffectCylinderVisible_ = isVisible;
+        isRingEffectVisible_ = isVisible;
+        isRingEffectPlaneVisible_ = isVisible;
+        isRingEffectCompareVisible_ = isVisible;
+        isParticleVisible_ = isVisible;
+        isVolumetricCloudVisible_ = isVisible;
+        isDebugSpriteVisible_ = isVisible;
+        };
+
+    if (ImGui::Button("Show All")) {
+        setAllVisibility(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hide All")) {
+        setAllVisibility(false);
+    }
+
+    ImGui::SeparatorText("Models");
+    ImGui::Checkbox("Skybox", &isSkyboxVisible_);
+    ImGui::Checkbox("Fence", &isFenceVisible_);
+    ImGui::Checkbox("Sphere", &isSphereVisible_);
+    ImGui::Checkbox("AnimatedCube", &isAnimatedCubeVisible_);
+    ImGui::Checkbox("Active Skinned Model", &isSkinnedModelVisible_);
+    ImGui::Checkbox("Primitive Preview", &isPrimitivePreviewVisible_);
+
+    ImGui::SeparatorText("Particles / Effects");
+    ImGui::Checkbox("ParticleManager", &isParticleVisible_);
+    ImGui::Checkbox("Ring Effect", &isRingEffectVisible_);
+    ImGui::Checkbox("Ring Effect Plane", &isRingEffectPlaneVisible_);
+    ImGui::Checkbox("Ring Compare", &isRingEffectCompareVisible_);
+    ImGui::Checkbox("Cylinder Portal", &isEffectCylinderVisible_);
+    ImGui::Checkbox("Volumetric Cloud", &isVolumetricCloudVisible_);
+
+    ImGui::SeparatorText("Debug");
+    ImGui::Checkbox("Debug Sprite", &isDebugSpriteVisible_);
+    ImGui::End();
 #endif
 
     if (volumetricCloudPass && cloudVolume_) {
@@ -1381,16 +1467,23 @@ void GameScene::Draw() {
 
     object3dCommon->CommonDrawSetting((Object3dCommon::BlendMode)currentBlendMode_);
 
-    object3d_->Draw();
-    object3dSphere_->Draw();
+    if (isFenceVisible_) {
+        object3d_->Draw();
+    }
+    if (isSphereVisible_) {
+        object3dSphere_->Draw();
+    }
+    if (isAnimatedCubeVisible_ && animatedCubeObject_) {
+        animatedCubeObject_->Draw();
+    }
     const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
-    if (walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
+    if (isSkinnedModelVisible_ && walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
         walkSkinnedObject_->Draw();
     }
-    if (sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
+    if (isSkinnedModelVisible_ && sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
         sneakWalkSkinnedObject_->Draw();
     }
-    if (effectCylinder_) {
+    if (isEffectCylinderVisible_ && effectCylinder_) {
         object3dCommon->CommonDrawSetting(Object3dCommon::BlendMode::kAdd);
         effectCylinder_->Draw();
         object3dCommon->CommonDrawSetting((Object3dCommon::BlendMode)currentBlendMode_);
@@ -1423,7 +1516,7 @@ void GameScene::Draw() {
         }
     }
 
-    if (volumetricCloudPass && cloudVolume_) {
+    if (isVolumetricCloudVisible_ && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
             dxCommon->TransitionDepthBuffer(
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -1440,8 +1533,12 @@ void GameScene::Draw() {
         }
     }
 
-    particleManager->Draw();
+    if (isParticleVisible_) {
+        particleManager->Draw();
+    }
 
     spriteCommon->CommonDrawSetting();
-    debugSprite_->Draw();
+    if (isDebugSpriteVisible_) {
+        debugSprite_->Draw();
+    }
 }

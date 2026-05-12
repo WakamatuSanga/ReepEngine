@@ -51,6 +51,10 @@ namespace {
         std::vector<GltfPrimitiveData> primitives;
     };
 
+    struct GltfImageData {
+        std::string uri;
+    };
+
     struct GltfSkinData {
         std::string name;
         int inverseBindMatricesAccessor = -1;
@@ -67,11 +71,13 @@ namespace {
             std::vector<GltfBufferViewData>& bufferViews,
             std::vector<GltfAccessorData>& accessors,
             std::vector<GltfMeshData>& meshes,
+            std::vector<GltfImageData>& images,
             std::vector<GltfSkinData>& skins) {
             buffers.clear();
             bufferViews.clear();
             accessors.clear();
             meshes.clear();
+            images.clear();
             skins.clear();
 
             SkipWhitespace();
@@ -104,6 +110,10 @@ namespace {
                     }
                 } else if (key == "meshes") {
                     if (!ParseMeshes(meshes)) {
+                        return false;
+                    }
+                } else if (key == "images") {
+                    if (!ParseImages(images)) {
                         return false;
                     }
                 } else if (key == "skins") {
@@ -507,6 +517,69 @@ namespace {
                     primitive.jointsAccessor = accessorIndex;
                 } else if (key == "WEIGHTS_0") {
                     primitive.weightsAccessor = accessorIndex;
+                }
+
+                SkipWhitespace();
+                if (Consume('}')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return false;
+                }
+            }
+        }
+
+        bool ParseImages(std::vector<GltfImageData>& images) {
+            if (!Consume('[')) {
+                return false;
+            }
+
+            while (true) {
+                SkipWhitespace();
+                if (Consume(']')) {
+                    return true;
+                }
+
+                GltfImageData image{};
+                if (!ParseImage(image)) {
+                    return false;
+                }
+                images.push_back(std::move(image));
+
+                SkipWhitespace();
+                if (Consume(']')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return false;
+                }
+            }
+        }
+
+        bool ParseImage(GltfImageData& image) {
+            if (!Consume('{')) {
+                return false;
+            }
+
+            while (true) {
+                SkipWhitespace();
+                if (Consume('}')) {
+                    return true;
+                }
+
+                std::string key;
+                if (!ParseString(key) || !Consume(':')) {
+                    return false;
+                }
+
+                if (key == "uri") {
+                    if (!ParseString(image.uri)) {
+                        return false;
+                    }
+                } else {
+                    if (!SkipValue()) {
+                        return false;
+                    }
                 }
 
                 SkipWhitespace();
@@ -1092,6 +1165,80 @@ namespace {
 
 GltfSkinnedModel::~GltfSkinnedModel() = default;
 
+bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::string& gltfPath) {
+    if (!modelCommon) {
+        return false;
+    }
+
+    std::string gltfText;
+    if (!LoadFileToString(gltfPath, gltfText)) {
+        return false;
+    }
+
+    std::vector<GltfBufferData> buffers;
+    std::vector<GltfBufferViewData> bufferViews;
+    std::vector<GltfAccessorData> accessors;
+    std::vector<GltfMeshData> meshes;
+    std::vector<GltfImageData> images;
+    std::vector<GltfSkinData> skins;
+    JsonReader reader(gltfText);
+    if (!reader.Parse(buffers, bufferViews, accessors, meshes, images, skins) ||
+        buffers.empty() || meshes.empty() || meshes.front().primitives.empty()) {
+        return false;
+    }
+
+    std::vector<uint8_t> binary;
+    if (!LoadBinaryFile(ResolveRelativePath(gltfPath, buffers.front().uri), binary)) {
+        return false;
+    }
+
+    const GltfPrimitiveData& primitive = meshes.front().primitives.front();
+
+    std::vector<Vector3> positions;
+    std::vector<Vector3> normals;
+    std::vector<Vector2> texcoords;
+    std::vector<uint32_t> indices;
+
+    if (!ReadVector3Accessor(binary, bufferViews, accessors, primitive.positionAccessor, positions) ||
+        !ReadVector3Accessor(binary, bufferViews, accessors, primitive.normalAccessor, normals) ||
+        !ReadVector2Accessor(binary, bufferViews, accessors, primitive.texcoordAccessor, texcoords) ||
+        !ReadIndexAccessor(binary, bufferViews, accessors, primitive.indicesAccessor, indices)) {
+        return false;
+    }
+
+    if (positions.size() != normals.size() || positions.size() != texcoords.size()) {
+        return false;
+    }
+
+    Model::ModelData modelData{};
+    modelData.vertices.reserve(indices.size());
+    for (uint32_t vertexIndex : indices) {
+        if (vertexIndex >= positions.size()) {
+            return false;
+        }
+
+        modelData.vertices.push_back({
+            { positions[vertexIndex].x, positions[vertexIndex].y, positions[vertexIndex].z, 1.0f },
+            texcoords[vertexIndex],
+            normals[vertexIndex]
+            });
+    }
+
+    const std::string texturePath = !images.empty() && !images.front().uri.empty()
+        ? ResolveRelativePath(gltfPath, images.front().uri)
+        : std::string("resources/obj/axis/uvChecker.png");
+    TextureManager::GetInstance()->LoadTexture(texturePath);
+    modelData.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath);
+
+    model_ = std::make_unique<Model>();
+    model_->Initialize(modelCommon, modelData);
+    skeleton_ = nullptr;
+    sourceVertices_.clear();
+    inverseBindMatrices_.clear();
+    jointPalette_.clear();
+    return true;
+}
+
 bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, const std::string& gltfPath) {
     if (!modelCommon || !skeleton) {
         return false;
@@ -1106,9 +1253,10 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     std::vector<GltfBufferViewData> bufferViews;
     std::vector<GltfAccessorData> accessors;
     std::vector<GltfMeshData> meshes;
+    std::vector<GltfImageData> images;
     std::vector<GltfSkinData> skins;
     JsonReader reader(gltfText);
-    if (!reader.Parse(buffers, bufferViews, accessors, meshes, skins) ||
+    if (!reader.Parse(buffers, bufferViews, accessors, meshes, images, skins) ||
         buffers.empty() || meshes.empty() || meshes.front().primitives.empty() || skins.empty()) {
         return false;
     }
