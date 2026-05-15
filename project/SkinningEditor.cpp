@@ -2,7 +2,6 @@
 #include "AnimationClip.h"
 #include "Camera.h"
 #include "Skeleton.h"
-#include "WinApp.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
@@ -17,6 +16,15 @@
 #endif
 
 namespace {
+    Vector3 RadiansToDegrees(const Vector3& radians) {
+        constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
+        return {
+            radians.x * kRadToDeg,
+            radians.y * kRadToDeg,
+            radians.z * kRadToDeg
+        };
+    }
+
 #ifdef _DEBUG
     constexpr size_t kMaxUndoHistory = 64;
 
@@ -70,8 +78,44 @@ namespace {
         };
     }
 
-    bool ProjectToScreen(const Vector3& worldPosition, const Camera* camera, ImVec2& outScreen) {
-        if (!camera) {
+    Vector3 TransformPosition(const Vector3& value, const Matrix4x4& matrix) {
+        Vector4 transformed = TransformPoint(value, matrix);
+        return { transformed.x, transformed.y, transformed.z };
+    }
+
+    Vector3 ExtractMatrixScale(const Matrix4x4& matrix) {
+        return {
+            std::sqrt(
+                (matrix.m[0][0] * matrix.m[0][0]) +
+                (matrix.m[0][1] * matrix.m[0][1]) +
+                (matrix.m[0][2] * matrix.m[0][2])),
+            std::sqrt(
+                (matrix.m[1][0] * matrix.m[1][0]) +
+                (matrix.m[1][1] * matrix.m[1][1]) +
+                (matrix.m[1][2] * matrix.m[1][2])),
+            std::sqrt(
+                (matrix.m[2][0] * matrix.m[2][0]) +
+                (matrix.m[2][1] * matrix.m[2][1]) +
+                (matrix.m[2][2] * matrix.m[2][2]))
+        };
+    }
+
+    Vector3 DegreesToRadians(const Vector3& degrees) {
+        constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
+        return {
+            degrees.x * kDegToRad,
+            degrees.y * kDegToRad,
+            degrees.z * kDegToRad
+        };
+    }
+
+    bool ProjectToScreen(
+        const Vector3& worldPosition,
+        const Camera* camera,
+        const ImVec2& viewTopLeft,
+        const ImVec2& viewSize,
+        ImVec2& outScreen) {
+        if (!camera || viewSize.x <= 0.0f || viewSize.y <= 0.0f) {
             return false;
         }
 
@@ -89,9 +133,8 @@ namespace {
             return false;
         }
 
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        outScreen.x = viewport->Pos.x + ((ndcX * 0.5f) + 0.5f) * static_cast<float>(WinApp::kClientWidth);
-        outScreen.y = viewport->Pos.y + ((-ndcY * 0.5f) + 0.5f) * static_cast<float>(WinApp::kClientHeight);
+        outScreen.x = viewTopLeft.x + ((ndcX * 0.5f) + 0.5f) * viewSize.x;
+        outScreen.y = viewTopLeft.y + ((-ndcY * 0.5f) + 0.5f) * viewSize.y;
         return true;
     }
 
@@ -121,6 +164,7 @@ namespace {
             ImGui::TreePop();
         }
     }
+
 #endif
 }
 
@@ -144,6 +188,7 @@ void SkinningEditor::Update() {
         isSelectionDragHistoryCaptured_ = false;
         isBoxSelecting_ = false;
         isGizmoActive_ = false;
+        isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
         return;
     }
@@ -151,6 +196,7 @@ void SkinningEditor::Update() {
     selectedJointIndex_ = std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->joints.size()) - 1);
     if (gizmoActiveJointIndex_ != selectedJointIndex_) {
         isGizmoActive_ = false;
+        isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
     }
     RefreshSelectionState();
@@ -196,7 +242,7 @@ void SkinningEditor::DrawImGui() {
             const bool isCurrentTarget = (targetIndex == currentTargetIndex_);
 
             ImGui::PushID(targetIndex);
-            ImGui::Text("%s%s", isCurrentTarget ? "> " : "", target.label.c_str());
+            ImGui::Text("%s%s [%s]", isCurrentTarget ? "> " : "", target.label.c_str(), target.targetType.c_str());
             ImGui::SameLine();
             if (ImGui::Button("Delete")) {
                 deleteTargetIndex = targetIndex;
@@ -212,16 +258,155 @@ void SkinningEditor::DrawImGui() {
     }
 
     if (!targets_.empty()) {
+        std::vector<std::string> targetLabelStorage;
         std::vector<const char*> targetLabels;
+        targetLabelStorage.reserve(targets_.size());
         targetLabels.reserve(targets_.size());
         for (const TargetEntry& target : targets_) {
-            targetLabels.push_back(target.label.c_str());
+            targetLabelStorage.push_back(
+                target.targetType == "failed"
+                    ? target.label + " (load failed)"
+                    : target.label);
+            targetLabels.push_back(targetLabelStorage.back().c_str());
         }
         ImGui::Combo("Target", &currentTargetIndex_, targetLabels.data(), static_cast<int>(targetLabels.size()));
         SyncTargetFromIndex();
     } else {
         ImGui::Text("Target: %s", targetLabel_.c_str());
     }
+
+    TargetEntry* activeTarget = nullptr;
+    if (currentTargetIndex_ >= 0 && currentTargetIndex_ < static_cast<int>(targets_.size())) {
+        activeTarget = &targets_[static_cast<size_t>(currentTargetIndex_)];
+    }
+
+    ImGui::SeparatorText("Target Debug");
+    if (activeTarget) {
+        ImGui::Text("Active Target: %s", activeTarget->label.c_str());
+        ImGui::Text("Active Target Type: %s", activeTarget->targetType.c_str());
+        ImGui::TextWrapped("Resolved Path: %s", activeTarget->resolvedPath.empty() ? "(none)" : activeTarget->resolvedPath.c_str());
+        ImGui::Text("Skeleton Bone Count: %d", activeTarget->boneCount);
+        ImGui::Text("Skinned Mesh: %s", activeTarget->skinnedMeshLoaded ? "loaded" : "not loaded");
+        ImGui::Text("Clip Count: %d", activeTarget->hasClip ? 1 : 0);
+        ImGui::Text("Clip: %s", activeTarget->hasClip ? activeTarget->clip.name.c_str() : "none");
+        if (activeTarget->skinnedMeshLoaded) {
+            ImGui::DragFloat(
+                "Skinned Preview Scale",
+                &activeTarget->previewInfo.previewScale,
+                0.001f,
+                0.001f,
+                1.0f,
+                "%.4f");
+            activeTarget->previewInfo.previewScale = std::clamp(activeTarget->previewInfo.previewScale, 0.001f, 1.0f);
+            ImGui::Text("Final Object World Scale: %.4f", activeTarget->previewInfo.previewScale);
+
+            Vector3 previewRotationDegrees = RadiansToDegrees(activeTarget->previewInfo.previewRotation);
+            if (ImGui::DragFloat3("Skinned Preview Rotation (deg)", &previewRotationDegrees.x, 1.0f, -360.0f, 360.0f, "%.1f")) {
+                activeTarget->previewInfo.previewRotation = DegreesToRadians(previewRotationDegrees);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Reset Rotation")) {
+                activeTarget->previewInfo.previewRotation = activeTarget->previewInfo.defaultPreviewRotation;
+                previewRotationDegrees = RadiansToDegrees(activeTarget->previewInfo.previewRotation);
+            }
+            ImGui::Text(
+                "Final Object World Rotation: %.1f, %.1f, %.1f deg",
+                previewRotationDegrees.x,
+                previewRotationDegrees.y,
+                previewRotationDegrees.z);
+
+            const BoundsInfo& sourceBounds = activeTarget->previewInfo.sourceBounds;
+            if (sourceBounds.isValid) {
+                ImGui::Text(
+                    "Local Min: %.3f, %.3f, %.3f",
+                    sourceBounds.min.x,
+                    sourceBounds.min.y,
+                    sourceBounds.min.z);
+                ImGui::Text(
+                    "Local Max: %.3f, %.3f, %.3f",
+                    sourceBounds.max.x,
+                    sourceBounds.max.y,
+                    sourceBounds.max.z);
+                ImGui::Text(
+                    "Local Size: %.3f, %.3f, %.3f",
+                    sourceBounds.size.x,
+                    sourceBounds.size.y,
+                    sourceBounds.size.z);
+                ImGui::Text(
+                    "Local Center: %.3f, %.3f, %.3f",
+                    sourceBounds.center.x,
+                    sourceBounds.center.y,
+                    sourceBounds.center.z);
+            }
+
+            const BoundsInfo& skinnedBounds = activeTarget->previewInfo.skinnedBounds;
+            if (skinnedBounds.isValid) {
+                ImGui::Text(
+                    "Initial Skinned Size: %.3f, %.3f, %.3f",
+                    skinnedBounds.size.x,
+                    skinnedBounds.size.y,
+                    skinnedBounds.size.z);
+            }
+
+            ImGui::Text(
+                "Root Node Scale: %.4f, %.4f, %.4f",
+                activeTarget->previewInfo.rootNodeScale.x,
+                activeTarget->previewInfo.rootNodeScale.y,
+                activeTarget->previewInfo.rootNodeScale.z);
+            ImGui::Text(
+                "Root Node Translation: %.3f, %.3f, %.3f",
+                activeTarget->previewInfo.rootNodeTranslation.x,
+                activeTarget->previewInfo.rootNodeTranslation.y,
+                activeTarget->previewInfo.rootNodeTranslation.z);
+            ImGui::Text(
+                "Initial Skeleton Root World T: %.3f, %.3f, %.3f",
+                activeTarget->previewInfo.skeletonRootWorldTranslation.x,
+                activeTarget->previewInfo.skeletonRootWorldTranslation.y,
+                activeTarget->previewInfo.skeletonRootWorldTranslation.z);
+            ImGui::Text(
+                "Initial Skeleton Root World S: %.4f, %.4f, %.4f",
+                activeTarget->previewInfo.skeletonRootWorldScale.x,
+                activeTarget->previewInfo.skeletonRootWorldScale.y,
+                activeTarget->previewInfo.skeletonRootWorldScale.z);
+            if (targetSkeleton_ &&
+                targetSkeleton_->root >= 0 &&
+                targetSkeleton_->root < static_cast<int32_t>(targetSkeleton_->joints.size())) {
+                const Joint& currentRoot = targetSkeleton_->joints[static_cast<size_t>(targetSkeleton_->root)];
+                const Vector3 currentRootScale = ExtractMatrixScale(currentRoot.worldMatrix);
+                const Matrix4x4 displayedRootMatrix = MatrixMath::Multipty(
+                    currentRoot.worldMatrix,
+                    GetActivePreviewWorldMatrix());
+                const Vector3 displayedRootScale = ExtractMatrixScale(displayedRootMatrix);
+                const Vector3 displayedRootPosition = TransformPosition(
+                    currentRoot.worldTranslate,
+                    GetActivePreviewWorldMatrix());
+                ImGui::Text(
+                    "Current Skeleton Root World T: %.3f, %.3f, %.3f",
+                    currentRoot.worldTranslate.x,
+                    currentRoot.worldTranslate.y,
+                    currentRoot.worldTranslate.z);
+                ImGui::Text(
+                    "Current Skeleton Root World S: %.4f, %.4f, %.4f",
+                    currentRootScale.x,
+                    currentRootScale.y,
+                    currentRootScale.z);
+                ImGui::Text(
+                    "Displayed Root Scale: %.4f, %.4f, %.4f",
+                    displayedRootScale.x,
+                    displayedRootScale.y,
+                    displayedRootScale.z);
+                ImGui::Text(
+                    "Displayed Root T: %.3f, %.3f, %.3f",
+                    displayedRootPosition.x,
+                    displayedRootPosition.y,
+                    displayedRootPosition.z);
+            }
+        }
+        if (!activeTarget->loadStatus.empty()) {
+            ImGui::TextWrapped("Load Result: %s", activeTarget->loadStatus.c_str());
+        }
+    }
+    ImGui::TextWrapped("Status: %s", statusMessage_.empty() ? "Ready." : statusMessage_.c_str());
 
     if (!targetSkeleton_) {
         ImGui::TextDisabled("No skinning target is assigned.");
@@ -269,7 +454,6 @@ void SkinningEditor::DrawImGui() {
     ImGui::Checkbox("Loop", &isLoop_);
     ImGui::DragFloat("Playback Speed", &playbackSpeed_, 0.01f, 0.0f, 4.0f, "%.2f");
     ImGui::Text("Playback State: %s", !hasClip_ ? "No Clip" : (isPlaying_ ? (isPaused_ ? "Paused" : "Playing") : "Stopped"));
-    ImGui::TextWrapped("Status: %s", statusMessage_.empty() ? "Ready." : statusMessage_.c_str());
     ImGui::Checkbox("Enable Gizmo", &isTranslateGizmoEnabled_);
     int gizmoOperationIndex = static_cast<int>(gizmoOperation_);
     if (ImGui::Combo("Gizmo Operation", &gizmoOperationIndex, kGizmoOperationLabels, IM_ARRAYSIZE(kGizmoOperationLabels))) {
@@ -288,6 +472,12 @@ void SkinningEditor::DrawImGui() {
         ImGui::EndDisabled();
         ImGui::TextDisabled("Rotate / Scale gizmo uses Local space in Step7.");
     }
+
+    ImGui::SeparatorText("Skeleton Debug Overlay");
+    ImGui::Checkbox("Show Joint Points", &showSkeletonDebugJoints_);
+    ImGui::Checkbox("Show Parent-Child Lines", &showSkeletonDebugLines_);
+    ImGui::Checkbox("Show Joint Labels", &showJointLabels_);
+    ImGui::Checkbox("Show Selected Panel", &showSelectedJointPanel_);
     ImGui::Separator();
 
     ImGui::BeginChild("SkinningHierarchy", ImVec2(240.0f, 0.0f), true);
@@ -321,7 +511,9 @@ void SkinningEditor::DrawImGui() {
             : "Local (Rotate / Scale fixed)");
         ImGui::Text("Parent Index: %d", joint.parentIndex);
         ImGui::Text("Children: %d", static_cast<int>(joint.children.size()));
+        const Vector3 displayWorldPosition = TransformPosition(joint.worldTranslate, GetActivePreviewWorldMatrix());
         ImGui::Text("World Pos: %.2f, %.2f, %.2f", joint.worldTranslate.x, joint.worldTranslate.y, joint.worldTranslate.z);
+        ImGui::Text("Display Pos: %.2f, %.2f, %.2f", displayWorldPosition.x, displayWorldPosition.y, displayWorldPosition.z);
         ImGui::Separator();
 
         bool isJointEdited = false;
@@ -1344,26 +1536,27 @@ void SkinningEditor::MoveSelectedKeysByDelta(float deltaTime) {
 
 void SkinningEditor::DrawGizmo(const Camera* camera) {
 #ifdef _DEBUG
-    if (!isOpen_ || !isTranslateGizmoEnabled_ || !targetSkeleton_ || !camera) {
+    if (!isOpen_ || !isTranslateGizmoEnabled_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
         isGizmoActive_ = false;
+        isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
         return;
     }
     if (selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
         isGizmoActive_ = false;
+        isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
         return;
     }
 
     Joint& joint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
-    Matrix4x4 editedWorldMatrix = joint.worldMatrix;
+    const Matrix4x4 previewWorldMatrix = GetActivePreviewWorldMatrix();
+    Matrix4x4 editedDisplayWorldMatrix = MatrixMath::Multipty(joint.worldMatrix, previewWorldMatrix);
 
     ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
     ImGuizmo::BeginFrame();
-    ImGuizmo::SetDrawlist(ImGui::GetForegroundDrawList());
-
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGuizmo::SetRect(viewport->Pos.x, viewport->Pos.y, viewport->Size.x, viewport->Size.y);
+    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+    ImGuizmo::SetRect(gameViewX_, gameViewY_, gameViewWidth_, gameViewHeight_);
     ImGuizmo::SetOrthographic(false);
 
     const bool isTranslateOperation = (gizmoOperation_ == GizmoOperation::Translate);
@@ -1380,12 +1573,16 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
         &camera->GetProjectionMatrix().m[0][0],
         gizmoOperation,
         gizmoMode,
-        &editedWorldMatrix.m[0][0]);
+        &editedDisplayWorldMatrix.m[0][0]);
 
     isGizmoActive_ = ImGuizmo::IsUsing();
+    isGizmoHovered_ = ImGuizmo::IsOver();
     gizmoActiveJointIndex_ = isGizmoActive_ ? selectedJointIndex_ : -1;
 
     if (isGizmoActive_) {
+        const Matrix4x4 editedWorldMatrix = MatrixMath::Multipty(
+            editedDisplayWorldMatrix,
+            MatrixMath::Inverse(previewWorldMatrix));
         Matrix4x4 localMatrix = editedWorldMatrix;
         if (joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->joints.size())) {
             const Matrix4x4& parentWorldMatrix = targetSkeleton_->joints[static_cast<size_t>(joint.parentIndex)].worldMatrix;
@@ -1426,11 +1623,17 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
 
 void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
 #ifdef _DEBUG
-    if (!isOpen_ || !targetSkeleton_ || !camera) {
+    if (!isOpen_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
+        return;
+    }
+    if (!showSkeletonDebugJoints_ && !showSkeletonDebugLines_ && !showJointLabels_ && !showSelectedJointPanel_) {
         return;
     }
 
-    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    ImDrawList* drawList = ImGui::GetWindowDrawList();
+    const ImVec2 viewTopLeft = { gameViewX_, gameViewY_ };
+    const ImVec2 viewSize = { gameViewWidth_, gameViewHeight_ };
+    const Matrix4x4 previewWorldMatrix = GetActivePreviewWorldMatrix();
     const ImU32 jointColor = IM_COL32(90, 200, 255, 120);
     const ImU32 selectedJointColor = IM_COL32(255, 180, 60, 255);
     const ImU32 activeJointColor = IM_COL32(120, 255, 120, 255);
@@ -1442,8 +1645,9 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
 
     for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->joints.size()); ++jointIndex) {
         const Joint& joint = targetSkeleton_->joints[static_cast<size_t>(jointIndex)];
+        const Vector3 jointDisplayPosition = TransformPosition(joint.worldTranslate, previewWorldMatrix);
         ImVec2 jointScreen{};
-        if (!ProjectToScreen(joint.worldTranslate, camera, jointScreen)) {
+        if (!ProjectToScreen(jointDisplayPosition, camera, viewTopLeft, viewSize, jointScreen)) {
             continue;
         }
 
@@ -1454,10 +1658,11 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
             hasSelectedJointScreen = true;
         }
 
-        if (joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->joints.size())) {
+        if (showSkeletonDebugLines_ && joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->joints.size())) {
             const Joint& parentJoint = targetSkeleton_->joints[static_cast<size_t>(joint.parentIndex)];
+            const Vector3 parentDisplayPosition = TransformPosition(parentJoint.worldTranslate, previewWorldMatrix);
             ImVec2 parentScreen{};
-            if (ProjectToScreen(parentJoint.worldTranslate, camera, parentScreen)) {
+            if (ProjectToScreen(parentDisplayPosition, camera, viewTopLeft, viewSize, parentScreen)) {
                 const bool isSelectedLink = isSelected || (joint.parentIndex == selectedJointIndex_);
                 const bool isActiveLink = isGizmoActiveJoint || (isGizmoActive_ && joint.parentIndex == gizmoActiveJointIndex_);
                 ImU32 drawColor = lineColor;
@@ -1474,18 +1679,20 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
             }
         }
 
-        ImU32 drawJointColor = jointColor;
-        float radius = 3.5f;
-        if (isSelected) {
-            drawJointColor = selectedJointColor;
-            radius = 7.0f;
+        if (showSkeletonDebugJoints_) {
+            ImU32 drawJointColor = jointColor;
+            float radius = 3.5f;
+            if (isSelected) {
+                drawJointColor = selectedJointColor;
+                radius = 7.0f;
+            }
+            if (isGizmoActiveJoint) {
+                drawJointColor = activeJointColor;
+                radius = 9.0f;
+            }
+            drawList->AddCircleFilled(jointScreen, radius, drawJointColor);
         }
-        if (isGizmoActiveJoint) {
-            drawJointColor = activeJointColor;
-            radius = 9.0f;
-        }
-        drawList->AddCircleFilled(jointScreen, radius, drawJointColor);
-        if (isSelected) {
+        if (showJointLabels_ && isSelected) {
             const char* activeOperationLabel = gizmoOperation_ == GizmoOperation::Translate
                 ? "[Translate] Selected Bone"
                 : (gizmoOperation_ == GizmoOperation::Rotate ? "[Rotate] Selected Bone" : "[Scale] Selected Bone");
@@ -1498,10 +1705,9 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
         }
     }
 
-    if (hasSelectedJointScreen && selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->joints.size())) {
+    if (showSelectedJointPanel_ && hasSelectedJointScreen && selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->joints.size())) {
         const Joint& selectedJoint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
-        const ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImVec2 panelMin = { viewport->Pos.x + 16.0f, viewport->Pos.y + 16.0f };
+        ImVec2 panelMin = { gameViewX_ + 16.0f, gameViewY_ + 16.0f };
         ImVec2 panelMax = { panelMin.x + 250.0f, panelMin.y + 52.0f };
         drawList->AddRectFilled(panelMin, panelMax, IM_COL32(0, 0, 0, 140), 6.0f);
         drawList->AddRect(panelMin, panelMax, isGizmoActive_ ? activeLineColor : selectedLineColor, 6.0f, 0, 2.0f);
@@ -1544,9 +1750,36 @@ void SkinningEditor::SetTarget(const std::string& label, Skeleton* skeleton) {
 }
 
 void SkinningEditor::RegisterTarget(const std::string& label, Skeleton* skeleton, const AnimationClip* clip) {
+    RegisterTarget(
+        label,
+        skeleton,
+        clip,
+        "preview",
+        {},
+        {},
+        skeleton ? static_cast<int>(skeleton->joints.size()) : 0,
+        false);
+}
+
+void SkinningEditor::RegisterTarget(
+    const std::string& label,
+    Skeleton* skeleton,
+    const AnimationClip* clip,
+    const std::string& targetType,
+    const std::string& resolvedPath,
+    const std::string& loadStatus,
+    int boneCount,
+    bool skinnedMeshLoaded,
+    const TargetPreviewInfo& previewInfo) {
     TargetEntry entry{};
     entry.label = label;
     entry.skeleton = skeleton;
+    entry.targetType = targetType;
+    entry.resolvedPath = resolvedPath;
+    entry.loadStatus = loadStatus;
+    entry.boneCount = boneCount;
+    entry.skinnedMeshLoaded = skinnedMeshLoaded;
+    entry.previewInfo = previewInfo;
     if (clip) {
         entry.clip = *clip;
         entry.clip.duration = (std::max)(entry.clip.duration, 0.0001f);
@@ -1557,6 +1790,66 @@ void SkinningEditor::RegisterTarget(const std::string& label, Skeleton* skeleton
         currentTargetIndex_ = 0;
         SyncTargetFromIndex();
     }
+}
+
+float SkinningEditor::GetActivePreviewScale() const {
+    if (currentTargetIndex_ < 0 || currentTargetIndex_ >= static_cast<int>(targets_.size())) {
+        return 1.0f;
+    }
+
+    return (std::max)(targets_[static_cast<size_t>(currentTargetIndex_)].previewInfo.previewScale, 0.001f);
+}
+
+Vector3 SkinningEditor::GetActivePreviewRotation() const {
+    if (currentTargetIndex_ < 0 || currentTargetIndex_ >= static_cast<int>(targets_.size())) {
+        return { 0.0f, 0.0f, 0.0f };
+    }
+
+    return targets_[static_cast<size_t>(currentTargetIndex_)].previewInfo.previewRotation;
+}
+
+Matrix4x4 SkinningEditor::GetActivePreviewWorldMatrix() const {
+    const float previewScale = GetActivePreviewScale();
+    return MatrixMath::MakeAffine(
+        { previewScale, previewScale, previewScale },
+        GetActivePreviewRotation(),
+        { 0.0f, 0.0f, 0.0f });
+}
+
+std::string SkinningEditor::BuildTargetStatusMessage(const TargetEntry& target) const {
+    std::string message = "Target: " + target.label + "\n";
+    message += "Active target type: " + target.targetType + "\n";
+    if (!target.resolvedPath.empty()) {
+        message += "Resolved path: " + target.resolvedPath + "\n";
+    }
+    message += "Skeleton bone count: " + std::to_string(target.boneCount) + "\n";
+    message += target.skinnedMeshLoaded ? "Skinned mesh: loaded\n" : "Skinned mesh: not loaded\n";
+    if (target.skinnedMeshLoaded) {
+        const Vector3 previewRotationDegrees = RadiansToDegrees(target.previewInfo.previewRotation);
+        message += "Skinned preview scale: " + std::to_string(target.previewInfo.previewScale) + "\n";
+        message +=
+            "Skinned preview rotation (deg): " +
+            std::to_string(previewRotationDegrees.x) + ", " +
+            std::to_string(previewRotationDegrees.y) + ", " +
+            std::to_string(previewRotationDegrees.z) + "\n";
+    }
+    message += "Clip count: " + std::to_string(target.hasClip ? 1 : 0) + "\n";
+    message += target.hasClip ? ("Clip: " + target.clip.name) : "Clip: none";
+    if (!target.loadStatus.empty()) {
+        message += "\n" + target.loadStatus;
+    }
+    return message;
+}
+
+bool SkinningEditor::SelectTargetByLabel(const std::string& label) {
+    for (int targetIndex = 0; targetIndex < static_cast<int>(targets_.size()); ++targetIndex) {
+        if (targets_[static_cast<size_t>(targetIndex)].label == label) {
+            currentTargetIndex_ = targetIndex;
+            SyncTargetFromIndex();
+            return true;
+        }
+    }
+    return false;
 }
 
 void SkinningEditor::ClearTarget() {
@@ -1572,6 +1865,7 @@ void SkinningEditor::ClearTarget() {
     isDraggingSelectedKey_ = false;
     isSelectionDragHistoryCaptured_ = false;
     isBoxSelecting_ = false;
+    isGizmoHovered_ = false;
 }
 
 void SkinningEditor::ClearTargets() {
@@ -1601,6 +1895,27 @@ void SkinningEditor::SetClip(const AnimationClip& clip, const std::string& statu
     if (!statusMessage.empty()) {
         statusMessage_ = statusMessage;
     }
+}
+
+void SkinningEditor::SetStatusMessage(const std::string& message) {
+    statusMessage_ = message;
+}
+
+void SkinningEditor::SetGameViewRect(float x, float y, float width, float height) {
+    gameViewX_ = x;
+    gameViewY_ = y;
+    gameViewWidth_ = width;
+    gameViewHeight_ = height;
+    hasGameViewRect_ = width > 1.0f && height > 1.0f;
+}
+
+void SkinningEditor::ClearGameViewRect() {
+    hasGameViewRect_ = false;
+    gameViewX_ = 0.0f;
+    gameViewY_ = 0.0f;
+    gameViewWidth_ = 0.0f;
+    gameViewHeight_ = 0.0f;
+    isGizmoHovered_ = false;
 }
 
 void SkinningEditor::DeleteTargetAt(int targetIndex) {
@@ -1666,6 +1981,7 @@ void SkinningEditor::SyncTargetFromIndex() {
         isPlaying_ = false;
         isPaused_ = false;
         isGizmoActive_ = false;
+        isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
         isDraggingSelectedKey_ = false;
         isSelectionDragHistoryCaptured_ = false;
@@ -1677,12 +1993,12 @@ void SkinningEditor::SyncTargetFromIndex() {
             currentClip_.duration = (std::max)(currentClip_.duration, 0.0001f);
             hasClip_ = true;
             SetBufferText(clipNameBuffer_, currentClip_.name);
-            statusMessage_ = "Loaded target clip: " + currentClip_.name;
         } else {
             currentClip_ = AnimationClip{};
             hasClip_ = false;
             SetBufferText(clipNameBuffer_, currentClip_.name);
         }
+        statusMessage_ = BuildTargetStatusMessage(target);
         syncedTargetIndex_ = currentTargetIndex_;
     } else {
         selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->joints.empty())

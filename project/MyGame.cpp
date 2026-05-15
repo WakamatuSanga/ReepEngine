@@ -101,6 +101,8 @@ void MyGame::Draw() {
     SceneManager::GetInstance()->Draw();
     dxCommon_->PrepareSwapChainForImGui();
     dxCommon_->CopyRenderTextureToSwapChain();
+    dxCommon_->PrepareRenderTextureForImGui();
     imguiManager_->Draw();
+    dxCommon_->RestoreRenderTextureAfterImGui();
     dxCommon_->PostDraw();
 }

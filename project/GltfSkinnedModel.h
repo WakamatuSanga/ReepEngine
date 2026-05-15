@@ -12,6 +12,14 @@ struct Skeleton;
 
 class GltfSkinnedModel {
 public:
+    struct Bounds {
+        bool isValid = false;
+        Vector3 min{ 0.0f, 0.0f, 0.0f };
+        Vector3 max{ 0.0f, 0.0f, 0.0f };
+        Vector3 size{ 0.0f, 0.0f, 0.0f };
+        Vector3 center{ 0.0f, 0.0f, 0.0f };
+    };
+
     GltfSkinnedModel() = default;
     ~GltfSkinnedModel();
 
@@ -24,6 +32,8 @@ public:
 
     Model* GetModel() const { return model_.get(); }
     bool IsValid() const { return model_ != nullptr; }
+    const Bounds& GetSourceBounds() const { return sourceBounds_; }
+    const Bounds& GetSkinnedBounds() const { return skinnedBounds_; }
 
 private:
     struct SourceVertex {
@@ -40,4 +50,6 @@ private:
     std::vector<SourceVertex> sourceVertices_;
     std::vector<Matrix4x4> inverseBindMatrices_;
     std::vector<Matrix4x4> jointPalette_;
+    Bounds sourceBounds_{};
+    Bounds skinnedBounds_{};
 };

@@ -18,9 +18,13 @@ namespace {
         const Model::VertexData& v0,
         const Model::VertexData& v1,
         const Model::VertexData& v2) {
+        const uint32_t firstIndex = static_cast<uint32_t>(data.vertices.size());
         data.vertices.push_back(v0);
         data.vertices.push_back(v1);
         data.vertices.push_back(v2);
+        data.indices.push_back(firstIndex);
+        data.indices.push_back(firstIndex + 1);
+        data.indices.push_back(firstIndex + 2);
     }
 
     void PushQuad(Model::ModelData& data,

@@ -16,6 +16,14 @@ struct Vector4 {
 };
 
 // 4x4行列
+// Quaternion rotation. Used by node animation and skeleton joints.
+struct Quaternion {
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    float w = 1.0f;
+};
+
 struct Matrix4x4 {
     float m[4][4];
 };

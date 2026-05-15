@@ -1,4 +1,5 @@
 #include "GltfSkinnedModel.h"
+#include "Logger.h"
 #include "Model.h"
 #include "ModelCommon.h"
 #include "Skeleton.h"
@@ -13,6 +14,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -976,6 +978,69 @@ namespace {
         return { value.x * invLength, value.y * invLength, value.z * invLength };
     }
 
+    void ExpandBounds(GltfSkinnedModel::Bounds& bounds, const Vector3& position) {
+        if (!bounds.isValid) {
+            bounds.isValid = true;
+            bounds.min = position;
+            bounds.max = position;
+            return;
+        }
+
+        bounds.min.x = (std::min)(bounds.min.x, position.x);
+        bounds.min.y = (std::min)(bounds.min.y, position.y);
+        bounds.min.z = (std::min)(bounds.min.z, position.z);
+        bounds.max.x = (std::max)(bounds.max.x, position.x);
+        bounds.max.y = (std::max)(bounds.max.y, position.y);
+        bounds.max.z = (std::max)(bounds.max.z, position.z);
+    }
+
+    void FinalizeBounds(GltfSkinnedModel::Bounds& bounds) {
+        if (!bounds.isValid) {
+            return;
+        }
+
+        bounds.size = {
+            bounds.max.x - bounds.min.x,
+            bounds.max.y - bounds.min.y,
+            bounds.max.z - bounds.min.z
+        };
+        bounds.center = {
+            (bounds.min.x + bounds.max.x) * 0.5f,
+            (bounds.min.y + bounds.max.y) * 0.5f,
+            (bounds.min.z + bounds.max.z) * 0.5f
+        };
+    }
+
+    GltfSkinnedModel::Bounds ComputeBounds(const std::vector<Vector3>& positions) {
+        GltfSkinnedModel::Bounds bounds{};
+        for (const Vector3& position : positions) {
+            ExpandBounds(bounds, position);
+        }
+        FinalizeBounds(bounds);
+        return bounds;
+    }
+
+    std::string FormatVector3(const Vector3& value) {
+        return
+            "(" + std::to_string(value.x) +
+            ", " + std::to_string(value.y) +
+            ", " + std::to_string(value.z) + ")";
+    }
+
+    void LogBounds(const std::string& label, const GltfSkinnedModel::Bounds& bounds) {
+        if (!bounds.isValid) {
+            Logger::Log("[GltfSkinnedModel] " + label + ": invalid");
+            return;
+        }
+
+        Logger::Log(
+            "[GltfSkinnedModel] " + label +
+            " min=" + FormatVector3(bounds.min) +
+            " max=" + FormatVector3(bounds.max) +
+            " size=" + FormatVector3(bounds.size) +
+            " center=" + FormatVector3(bounds.center));
+    }
+
     bool ReadVector3Accessor(
         const std::vector<uint8_t>& binary,
         const std::vector<GltfBufferViewData>& bufferViews,
@@ -1210,13 +1275,19 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
         return false;
     }
 
+    sourceBounds_ = ComputeBounds(positions);
+    skinnedBounds_ = sourceBounds_;
+
     Model::ModelData modelData{};
-    modelData.vertices.reserve(indices.size());
-    for (uint32_t vertexIndex : indices) {
-        if (vertexIndex >= positions.size()) {
+    modelData.vertices.reserve(positions.size());
+    modelData.indices = indices;
+    for (uint32_t index : modelData.indices) {
+        if (index >= positions.size()) {
             return false;
         }
+    }
 
+    for (size_t vertexIndex = 0; vertexIndex < positions.size(); ++vertexIndex) {
         modelData.vertices.push_back({
             { positions[vertexIndex].x, positions[vertexIndex].y, positions[vertexIndex].z, 1.0f },
             texcoords[vertexIndex],
@@ -1236,6 +1307,7 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
     sourceVertices_.clear();
     inverseBindMatrices_.clear();
     jointPalette_.clear();
+    LogBounds(gltfPath + " source local bounds", sourceBounds_);
     return true;
 }
 
@@ -1295,17 +1367,21 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
         return false;
     }
 
+    sourceBounds_ = ComputeBounds(positions);
+
     sourceVertices_.clear();
-    sourceVertices_.reserve(indices.size());
+    sourceVertices_.reserve(positions.size());
 
     Model::ModelData modelData{};
-    modelData.vertices.reserve(indices.size());
-
-    for (uint32_t vertexIndex : indices) {
-        if (vertexIndex >= positions.size()) {
+    modelData.vertices.reserve(positions.size());
+    modelData.indices = indices;
+    for (uint32_t index : modelData.indices) {
+        if (index >= positions.size()) {
             return false;
         }
+    }
 
+    for (size_t vertexIndex = 0; vertexIndex < positions.size(); ++vertexIndex) {
         SourceVertex sourceVertex{};
         sourceVertex.position = positions[vertexIndex];
         sourceVertex.normal = normals[vertexIndex];
@@ -1332,6 +1408,8 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     inverseBindMatrices_ = std::move(inverseBindMatrices);
     jointPalette_.resize((std::max)(inverseBindMatrices_.size(), skeleton_->joints.size()), MatrixMath::MakeIdentity4x4());
     UpdateSkinning();
+    LogBounds(gltfPath + " source local bounds", sourceBounds_);
+    LogBounds(gltfPath + " skinned bounds", skinnedBounds_);
     return true;
 }
 
@@ -1352,6 +1430,7 @@ void GltfSkinnedModel::UpdateSkinning() {
 
     std::vector<Model::VertexData> skinnedVertices;
     skinnedVertices.resize(sourceVertices_.size());
+    Bounds updatedSkinnedBounds{};
 
     for (size_t vertexIndex = 0; vertexIndex < sourceVertices_.size(); ++vertexIndex) {
         const SourceVertex& sourceVertex = sourceVertices_[vertexIndex];
@@ -1392,7 +1471,10 @@ void GltfSkinnedModel::UpdateSkinning() {
             sourceVertex.texcoord,
             skinnedNormal
         };
+        ExpandBounds(updatedSkinnedBounds, skinnedPosition);
     }
 
+    FinalizeBounds(updatedSkinnedBounds);
+    skinnedBounds_ = updatedSkinnedBounds;
     model_->SetVertices(skinnedVertices);
 }

@@ -40,9 +40,13 @@ namespace {
         const Model::VertexData& v0,
         const Model::VertexData& v1,
         const Model::VertexData& v2) {
+        const uint32_t firstIndex = static_cast<uint32_t>(data.vertices.size());
         data.vertices.push_back(v0);
         data.vertices.push_back(v1);
         data.vertices.push_back(v2);
+        data.indices.push_back(firstIndex);
+        data.indices.push_back(firstIndex + 1);
+        data.indices.push_back(firstIndex + 2);
     }
 
     void PushQuad(Model::ModelData& data,
@@ -64,6 +68,12 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     assert(modelCommon);
     modelCommon_ = modelCommon;
     modelData_ = modelData;
+    if (modelData_.indices.empty()) {
+        modelData_.indices.reserve(modelData_.vertices.size());
+        for (uint32_t index = 0; index < static_cast<uint32_t>(modelData_.vertices.size()); ++index) {
+            modelData_.indices.push_back(index);
+        }
+    }
 
     // --- 頂点バッファ作成 ---
     vertexResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(
@@ -75,6 +85,16 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
 
     vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData_));
     std::memcpy(vertexData_, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
+
+    indexResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(
+        sizeof(uint32_t) * modelData_.indices.size());
+
+    indexBufferView_.BufferLocation = indexResource_->GetGPUVirtualAddress();
+    indexBufferView_.SizeInBytes = UINT(sizeof(uint32_t) * modelData_.indices.size());
+    indexBufferView_.Format = DXGI_FORMAT_R32_UINT;
+
+    indexResource_->Map(0, nullptr, reinterpret_cast<void**>(&indexData_));
+    std::memcpy(indexData_, modelData_.indices.data(), sizeof(uint32_t) * modelData_.indices.size());
 
     // --- マテリアルリソース作成 ---
     materialResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(Material));
@@ -90,12 +110,13 @@ void Model::Draw() {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    commandList->IASetIndexBuffer(&indexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // ★修正: 最新の textureIndex を使って描画する
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureIndex));
 
-    commandList->DrawInstanced(static_cast<UINT>(modelData_.vertices.size()), 1, 0, 0);
+    commandList->DrawIndexedInstanced(static_cast<UINT>(modelData_.indices.size()), 1, 0, 0, 0);
 }
 
 void Model::SetVertices(const std::vector<VertexData>& vertices) {
@@ -467,9 +488,13 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std:
                 p.x *= -1.0f;
                 triangle[i] = { p, t, n };
             }
+            const uint32_t firstIndex = static_cast<uint32_t>(modelData.vertices.size());
             modelData.vertices.push_back(triangle[2]);
             modelData.vertices.push_back(triangle[1]);
             modelData.vertices.push_back(triangle[0]);
+            modelData.indices.push_back(firstIndex);
+            modelData.indices.push_back(firstIndex + 1);
+            modelData.indices.push_back(firstIndex + 2);
         } else if (identifier == "mtllib") {
             std::string materialFilename;
             s >> materialFilename;
