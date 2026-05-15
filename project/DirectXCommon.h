@@ -71,6 +71,8 @@ public:
     void PreDraw();
     void PrepareSwapChainForImGui();
     void CopyRenderTextureToSwapChain();
+    void PrepareRenderTextureForImGui();
+    void RestoreRenderTextureAfterImGui();
     void PostDraw();
     void CreateRenderTexture(SrvManager* srvManager);
 
@@ -79,6 +81,7 @@ public:
 
     // --- getter ---
     ID3D12Device* GetDevice() const { return device.Get(); }
+    ID3D12CommandQueue* GetCommandQueue() const { return commandQueue.Get(); }
     ID3D12GraphicsCommandList* GetCommandList() const { return commandList.Get(); }
     IDXGISwapChain4* GetSwapChain() const { return swapChain.Get(); }
 

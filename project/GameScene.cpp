@@ -9,11 +9,13 @@
 #include "GltfAnimationLoader.h"
 #include "GltfSkinnedModel.h"
 #include "GltfSkeletonLoader.h"
+#include "Logger.h"
 #include "SkinningEditor.h"
 #include "Skeleton.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <filesystem>
 #include <numbers>
 
 #ifdef _DEBUG
@@ -24,6 +26,126 @@ namespace {
     constexpr float kRingInnerRadius = 0.45f;
     constexpr float kRingOuterRadius = 1.0f;
     constexpr uint32_t kRingSubdivision = 32u;
+    constexpr bool kEnableSkinningPreviewTargets = false;
+    constexpr bool kEnableSimpleSkinSkinningTarget = false;
+
+    std::string FindResourcePathCandidate(const std::string& path) {
+        const std::array<std::filesystem::path, 6> basePaths = {
+            std::filesystem::path{},
+            std::filesystem::path{ "project" },
+            std::filesystem::path{ ".." } / "project",
+            std::filesystem::path{ ".." } / ".." / "project",
+            std::filesystem::path{ ".." } / ".." / ".." / "project",
+            std::filesystem::path{ ".." } / ".." / ".." / ".." / "project",
+        };
+
+        for (const std::filesystem::path& basePath : basePaths) {
+            const std::filesystem::path candidate = basePath.empty()
+                ? std::filesystem::path(path)
+                : basePath / path;
+            if (std::filesystem::exists(candidate)) {
+                return candidate.generic_string();
+            }
+        }
+
+        return {};
+    }
+
+    std::string ResolveResourcePath(const std::string& preferredPath, const std::string& fallbackPath = {}) {
+        if (std::string resolvedPath = FindResourcePathCandidate(preferredPath); !resolvedPath.empty()) {
+            Logger::Log("[GameScene] Resolved resource: " + preferredPath + " -> " + resolvedPath);
+            return resolvedPath;
+        }
+
+        if (!fallbackPath.empty()) {
+            if (std::string resolvedPath = FindResourcePathCandidate(fallbackPath); !resolvedPath.empty()) {
+                Logger::Log("[GameScene] Resolved resource fallback: " + preferredPath + " -> " + resolvedPath);
+                return resolvedPath;
+            }
+        }
+
+        Logger::Log(
+            "[GameScene] Resource missing: preferred=" + preferredPath +
+            " fallback=" + fallbackPath +
+            " cwd=" + std::filesystem::current_path().generic_string());
+        return preferredPath;
+    }
+
+    std::string MakeDisplayPath(const std::string& path) {
+        try {
+            return std::filesystem::absolute(std::filesystem::path(path)).lexically_normal().generic_string();
+        } catch (...) {
+            return path;
+        }
+    }
+
+    Vector3 ExtractMatrixScale(const Matrix4x4& matrix) {
+        return {
+            std::sqrt(
+                (matrix.m[0][0] * matrix.m[0][0]) +
+                (matrix.m[0][1] * matrix.m[0][1]) +
+                (matrix.m[0][2] * matrix.m[0][2])),
+            std::sqrt(
+                (matrix.m[1][0] * matrix.m[1][0]) +
+                (matrix.m[1][1] * matrix.m[1][1]) +
+                (matrix.m[1][2] * matrix.m[1][2])),
+            std::sqrt(
+                (matrix.m[2][0] * matrix.m[2][0]) +
+                (matrix.m[2][1] * matrix.m[2][1]) +
+                (matrix.m[2][2] * matrix.m[2][2]))
+        };
+    }
+
+    std::string FormatVector3(const Vector3& value) {
+        return
+            "(" + std::to_string(value.x) +
+            ", " + std::to_string(value.y) +
+            ", " + std::to_string(value.z) + ")";
+    }
+
+    Vector3 RadiansToDegrees(const Vector3& radians) {
+        constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
+        return {
+            radians.x * kRadToDeg,
+            radians.y * kRadToDeg,
+            radians.z * kRadToDeg
+        };
+    }
+
+    SkinningEditor::BoundsInfo ToBoundsInfo(const GltfSkinnedModel::Bounds& bounds) {
+        SkinningEditor::BoundsInfo result{};
+        result.isValid = bounds.isValid;
+        result.min = bounds.min;
+        result.max = bounds.max;
+        result.size = bounds.size;
+        result.center = bounds.center;
+        return result;
+    }
+
+    SkinningEditor::TargetPreviewInfo BuildTargetPreviewInfo(
+        const Skeleton* skeleton,
+        const GltfSkinnedModel* skinnedModel,
+        float previewScale,
+        const Vector3& previewRotation) {
+        SkinningEditor::TargetPreviewInfo previewInfo{};
+        previewInfo.previewScale = previewScale;
+        previewInfo.previewRotation = previewRotation;
+        previewInfo.defaultPreviewRotation = previewRotation;
+        if (skinnedModel) {
+            previewInfo.sourceBounds = ToBoundsInfo(skinnedModel->GetSourceBounds());
+            previewInfo.skinnedBounds = ToBoundsInfo(skinnedModel->GetSkinnedBounds());
+        }
+        if (skeleton &&
+            skeleton->root >= 0 &&
+            skeleton->root < static_cast<int32_t>(skeleton->joints.size())) {
+            const Joint& rootJoint = skeleton->joints[static_cast<size_t>(skeleton->root)];
+            previewInfo.rootNodeScale = rootJoint.sourceNodeScale;
+            previewInfo.rootNodeTranslation = rootJoint.sourceNodeTranslation;
+            previewInfo.skeletonRootWorldScale = ExtractMatrixScale(rootJoint.worldMatrix);
+            previewInfo.skeletonRootWorldTranslation = rootJoint.worldTranslate;
+        }
+        return previewInfo;
+    }
 
     CloudVolume::Parameters MakeRecommendedCloudParameters() {
         CloudVolume::Parameters parameters{};
@@ -411,59 +533,250 @@ void GameScene::Initialize() {
 
     particleManager->SetTexture(particleTexturePath_);
 
+    const std::string walkGltfPath = ResolveResourcePath("resources/human/walk.gltf");
+    const std::string sneakWalkGltfPath = ResolveResourcePath("resources/human/sneakWalk.gltf");
+    const std::string walkGltfDisplayPath = MakeDisplayPath(walkGltfPath);
+    const std::string sneakWalkGltfDisplayPath = MakeDisplayPath(sneakWalkGltfPath);
+
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
-    walkSkeleton_ = GltfSkeletonLoader::LoadFromFile("resources/human/walk.gltf");
-    sneakWalkSkeleton_ = GltfSkeletonLoader::LoadFromFile("resources/human/sneakWalk.gltf");
     skinningEditor_ = std::make_unique<SkinningEditor>();
-    skinningEditor_->RegisterTarget("InternalSphere (preview)", previewSkeleton_.get());
-    skinningEditor_->RegisterTarget("Fence (preview)", previewSkeletonSecondary_.get());
-    if (walkSkeleton_) {
-        AnimationClip walkClip{};
-        const bool hasWalkClip = GltfAnimationLoader::LoadFirstClipFromFile(
-            "resources/human/walk.gltf",
-            *walkSkeleton_,
-            walkClip);
-        skinningEditor_->RegisterTarget("walk.gltf", walkSkeleton_.get(), hasWalkClip ? &walkClip : nullptr);
 
-        walkSkinnedModel_ = std::make_unique<GltfSkinnedModel>();
-        if (walkSkinnedModel_->Initialize(modelManager->GetModelCommon(), walkSkeleton_.get(), "resources/human/walk.gltf")) {
-            walkSkinnedObject_ = std::make_unique<Object3d>();
-            walkSkinnedObject_->Initialize(object3dCommon);
-            walkSkinnedObject_->SetModel(walkSkinnedModel_->GetModel());
-            walkSkinnedObject_->SetCamera(camera_.get());
-            walkSkinnedObject_->SetEnvironmentMapEnabled(false);
-        } else {
-            walkSkinnedModel_.reset();
+    std::string skinningLoadStatus;
+    auto appendSkinningStatus = [&](const std::string& message) {
+        if (!skinningLoadStatus.empty()) {
+            skinningLoadStatus += "\n";
         }
-    }
+        skinningLoadStatus += message;
+        Logger::Log("[Skinning] " + message);
+    };
 
-    if (sneakWalkSkeleton_) {
-        AnimationClip sneakWalkClip{};
-        const bool hasSneakWalkClip = GltfAnimationLoader::LoadFirstClipFromFile(
-            "resources/human/sneakWalk.gltf",
-            *sneakWalkSkeleton_,
-            sneakWalkClip);
+    auto appendTargetStatus = [](std::string& targetStatus, const std::string& message) {
+        if (!targetStatus.empty()) {
+            targetStatus += "\n";
+        }
+        targetStatus += message;
+    };
+
+    auto registerGltfTarget = [&](
+        const std::string& label,
+        const std::string& gltfPath,
+        const std::string& displayPath,
+        std::unique_ptr<Skeleton>& skeleton,
+        std::unique_ptr<GltfSkinnedModel>& skinnedModel,
+        std::unique_ptr<Object3d>& skinnedObject,
+        float initialPreviewScale,
+        const Vector3& initialPreviewRotation) {
+        std::string targetStatus;
+        appendTargetStatus(targetStatus, "resolved path: " + displayPath);
+        appendTargetStatus(
+            targetStatus,
+            std::filesystem::exists(std::filesystem::path(gltfPath))
+                ? "path exists: yes"
+                : "path exists: no");
+
+        skeleton = GltfSkeletonLoader::LoadFromFile(gltfPath);
+        if (skeleton) {
+            appendTargetStatus(targetStatus, "skeleton: loaded");
+            appendTargetStatus(targetStatus, "bones: " + std::to_string(skeleton->joints.size()));
+        } else {
+            appendTargetStatus(targetStatus, "skeleton: failed");
+        }
+
+        AnimationClip clip{};
+        bool hasClip = false;
+        if (skeleton) {
+            hasClip = GltfAnimationLoader::LoadFirstClipFromFile(gltfPath, *skeleton, clip);
+            appendTargetStatus(
+                targetStatus,
+                hasClip
+                    ? ("clip: " + clip.name)
+                    : "clip: failed or not found");
+            appendTargetStatus(targetStatus, std::string("clip count: ") + (hasClip ? "1" : "0"));
+        } else {
+            appendTargetStatus(targetStatus, "clip: skipped because skeleton failed");
+            appendTargetStatus(targetStatus, "clip count: 0");
+        }
+
+        bool skinnedMeshLoaded = false;
+        if (skeleton) {
+            skinnedModel = std::make_unique<GltfSkinnedModel>();
+            if (skinnedModel->Initialize(modelManager->GetModelCommon(), skeleton.get(), gltfPath)) {
+                skinnedObject = std::make_unique<Object3d>();
+                skinnedObject->Initialize(object3dCommon);
+                skinnedObject->SetModel(skinnedModel->GetModel());
+                skinnedObject->SetCamera(camera_.get());
+                skinnedObject->SetScale({ initialPreviewScale, initialPreviewScale, initialPreviewScale });
+                skinnedObject->SetRotate(initialPreviewRotation);
+                skinnedObject->SetEnvironmentMapEnabled(false);
+                skinnedMeshLoaded = true;
+                appendTargetStatus(targetStatus, "skinned mesh: loaded");
+            } else {
+                skinnedModel.reset();
+                skinnedObject.reset();
+                appendTargetStatus(targetStatus, "skinned mesh: failed");
+            }
+        } else {
+            skinnedModel.reset();
+            skinnedObject.reset();
+            appendTargetStatus(targetStatus, "skinned mesh: skipped because skeleton failed");
+        }
+
+        const SkinningEditor::TargetPreviewInfo previewInfo = BuildTargetPreviewInfo(
+            skeleton.get(),
+            skinnedModel.get(),
+            initialPreviewScale,
+            initialPreviewRotation);
+        if (previewInfo.sourceBounds.isValid) {
+            appendTargetStatus(targetStatus, "local min: " + FormatVector3(previewInfo.sourceBounds.min));
+            appendTargetStatus(targetStatus, "local max: " + FormatVector3(previewInfo.sourceBounds.max));
+            appendTargetStatus(targetStatus, "local size: " + FormatVector3(previewInfo.sourceBounds.size));
+            appendTargetStatus(targetStatus, "local center: " + FormatVector3(previewInfo.sourceBounds.center));
+        }
+        if (previewInfo.skinnedBounds.isValid) {
+            appendTargetStatus(targetStatus, "initial skinned size: " + FormatVector3(previewInfo.skinnedBounds.size));
+        }
+        appendTargetStatus(targetStatus, "root node scale: " + FormatVector3(previewInfo.rootNodeScale));
+        appendTargetStatus(targetStatus, "root node translation: " + FormatVector3(previewInfo.rootNodeTranslation));
+        appendTargetStatus(targetStatus, "skeleton root world scale: " + FormatVector3(previewInfo.skeletonRootWorldScale));
+        appendTargetStatus(targetStatus, "skeleton root world translation: " + FormatVector3(previewInfo.skeletonRootWorldTranslation));
+        appendTargetStatus(targetStatus, "final world scale: " + std::to_string(previewInfo.previewScale));
+        appendTargetStatus(targetStatus, "preview rotation degrees: " + FormatVector3(RadiansToDegrees(previewInfo.previewRotation)));
+
+        const bool isCriticalLoadOk = skeleton && skinnedMeshLoaded;
         skinningEditor_->RegisterTarget(
-            "sneakWalk.gltf",
-            sneakWalkSkeleton_.get(),
-            hasSneakWalkClip ? &sneakWalkClip : nullptr);
+            label,
+            skeleton.get(),
+            hasClip ? &clip : nullptr,
+            isCriticalLoadOk ? "gltf" : "failed",
+            displayPath,
+            targetStatus,
+            skeleton ? static_cast<int>(skeleton->joints.size()) : 0,
+            skinnedMeshLoaded,
+            previewInfo);
 
-        sneakWalkSkinnedModel_ = std::make_unique<GltfSkinnedModel>();
-        if (sneakWalkSkinnedModel_->Initialize(
-            modelManager->GetModelCommon(),
-            sneakWalkSkeleton_.get(),
-            "resources/human/sneakWalk.gltf")) {
-            sneakWalkSkinnedObject_ = std::make_unique<Object3d>();
-            sneakWalkSkinnedObject_->Initialize(object3dCommon);
-            sneakWalkSkinnedObject_->SetModel(sneakWalkSkinnedModel_->GetModel());
-            sneakWalkSkinnedObject_->SetCamera(camera_.get());
-            sneakWalkSkinnedObject_->SetEnvironmentMapEnabled(false);
+        appendSkinningStatus(label + "\n" + targetStatus);
+    };
+
+    registerGltfTarget(
+        "walk.gltf",
+        walkGltfPath,
+        walkGltfDisplayPath,
+        walkSkeleton_,
+        walkSkinnedModel_,
+        walkSkinnedObject_,
+        0.01f,
+        { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f });
+    registerGltfTarget(
+        "sneakWalk.gltf",
+        sneakWalkGltfPath,
+        sneakWalkGltfDisplayPath,
+        sneakWalkSkeleton_,
+        sneakWalkSkinnedModel_,
+        sneakWalkSkinnedObject_,
+        0.01f,
+        { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f });
+
+    if (kEnableSimpleSkinSkinningTarget) {
+        const std::string simpleSkinGltfPath = ResolveResourcePath("resources/simpleSkin/simpleSkin.gltf");
+        const std::string simpleSkinDisplayPath = MakeDisplayPath(simpleSkinGltfPath);
+        registerGltfTarget(
+            "simpleSkin.gltf",
+            simpleSkinGltfPath,
+            simpleSkinDisplayPath,
+            simpleSkinSkeleton_,
+            simpleSkinSkinnedModel_,
+            simpleSkinSkinnedObject_,
+            1.0f,
+            { 0.0f, 0.0f, 0.0f });
+    }
+
+    if (kEnableSkinningPreviewTargets) {
+        skinningEditor_->RegisterTarget("InternalSphere (preview)", previewSkeleton_.get());
+        skinningEditor_->RegisterTarget("Fence (preview)", previewSkeletonSecondary_.get());
+    }
+
+    skinningEditor_->SelectTargetByLabel("walk.gltf");
+    skinningEditor_->SetStatusMessage(skinningLoadStatus);
+}
+
+#ifdef _DEBUG
+void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
+    if (!dxCommon || !dxCommon->GetRenderTextureResource()) {
+        gameViewTopLeft_ = { 0.0f, 0.0f };
+        gameViewSize_ = { 0.0f, 0.0f };
+        gameViewMouseLocal_ = { 0.0f, 0.0f };
+        isGameViewHovered_ = false;
+        isGameViewFocused_ = false;
+        if (skinningEditor_) {
+            skinningEditor_->ClearGameViewRect();
+        }
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(640.0f, 400.0f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Game View")) {
+        const D3D12_RESOURCE_DESC desc = dxCommon->GetRenderTextureResource()->GetDesc();
+        const float textureWidth = static_cast<float>(desc.Width);
+        const float textureHeight = static_cast<float>(desc.Height);
+        ImVec2 availableSize = ImGui::GetContentRegionAvail();
+
+        if (textureWidth > 0.0f && textureHeight > 0.0f && availableSize.x > 1.0f && availableSize.y > 1.0f) {
+            ImVec2 imageSize = availableSize;
+            const float textureAspect = textureWidth / textureHeight;
+            if (imageSize.x / imageSize.y > textureAspect) {
+                imageSize.x = imageSize.y * textureAspect;
+            } else {
+                imageSize.y = imageSize.x / textureAspect;
+            }
+
+            const ImVec2 imageTopLeft = ImGui::GetCursorScreenPos();
+            gameViewTopLeft_ = { imageTopLeft.x, imageTopLeft.y };
+            gameViewSize_ = { imageSize.x, imageSize.y };
+            if (imageSize.y > 0.0f) {
+                camera_->SetAspectRatio(imageSize.x / imageSize.y);
+                camera_->Update();
+            }
+
+            const ImTextureID textureId = static_cast<ImTextureID>(dxCommon->GetRenderTextureSRVGPUHandle().ptr);
+            ImGui::Image(textureId, imageSize, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
+
+            const ImGuiIO& io = ImGui::GetIO();
+            isGameViewHovered_ = ImGui::IsItemHovered();
+            isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            gameViewMouseLocal_ = {
+                io.MousePos.x - imageTopLeft.x,
+                io.MousePos.y - imageTopLeft.y
+            };
+            if (skinningEditor_) {
+                skinningEditor_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
+                skinningEditor_->DrawGizmo(camera_.get());
+                skinningEditor_->DrawDebugOverlay(camera_.get());
+            }
         } else {
-            sneakWalkSkinnedModel_.reset();
+            gameViewTopLeft_ = { 0.0f, 0.0f };
+            gameViewSize_ = { 0.0f, 0.0f };
+            gameViewMouseLocal_ = { 0.0f, 0.0f };
+            isGameViewHovered_ = false;
+            isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            if (skinningEditor_) {
+                skinningEditor_->ClearGameViewRect();
+            }
+            ImGui::TextDisabled("RenderTexture is not ready.");
+        }
+    } else {
+        gameViewTopLeft_ = { 0.0f, 0.0f };
+        gameViewSize_ = { 0.0f, 0.0f };
+        gameViewMouseLocal_ = { 0.0f, 0.0f };
+        isGameViewHovered_ = false;
+        isGameViewFocused_ = false;
+        if (skinningEditor_) {
+            skinningEditor_->ClearGameViewRect();
         }
     }
+    ImGui::End();
 }
+#endif
 
 void GameScene::Finalize() {
     if (skinningEditor_) {
@@ -490,8 +803,13 @@ void GameScene::Update() {
     }
 
 #ifdef _DEBUG
-    if (!ImGui::GetIO().WantCaptureMouse && input->MouseDown(Input::MouseLeft)) {
+    const ImGuiIO& imguiIO = ImGui::GetIO();
+    const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
+    const bool canRotateCameraInGameView = isGameViewHovered_ && !isGizmoInteracting;
+    const bool canMoveCameraInGameView = (isGameViewHovered_ || isGameViewFocused_) && !imguiIO.WantCaptureKeyboard && !isGizmoInteracting;
+    if (canRotateCameraInGameView && input->MouseDown(Input::MouseLeft)) {
 #else
+    const bool canMoveCameraInGameView = true;
     if (input->MouseDown(Input::MouseLeft)) {
 #endif
         Vector3 rot = camera_->GetRotate();
@@ -501,10 +819,12 @@ void GameScene::Update() {
     }
 
     Vector3 move = { 0,0,0 };
-    if (input->PushKey(DIK_W)) move.z += 1.0f;
-    if (input->PushKey(DIK_S)) move.z -= 1.0f;
-    if (input->PushKey(DIK_D)) move.x += 1.0f;
-    if (input->PushKey(DIK_A)) move.x -= 1.0f;
+    if (canMoveCameraInGameView) {
+        if (input->PushKey(DIK_W)) move.z += 1.0f;
+        if (input->PushKey(DIK_S)) move.z -= 1.0f;
+        if (input->PushKey(DIK_D)) move.x += 1.0f;
+        if (input->PushKey(DIK_A)) move.x -= 1.0f;
+    }
 
     if (move.x != 0 || move.z != 0) {
         float speed = 0.1f;
@@ -644,6 +964,21 @@ void GameScene::Update() {
     object3dSphere_->Update();
     if (animatedCubeObject_) {
         animatedCubeObject_->Update();
+    }
+    const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
+    const float activeSkinnedPreviewScale = skinningEditor_ ? skinningEditor_->GetActivePreviewScale() : 1.0f;
+    const Vector3 activeSkinnedPreviewRotation = skinningEditor_ ? skinningEditor_->GetActivePreviewRotation() : Vector3{ 0.0f, 0.0f, 0.0f };
+    auto applyActiveSkinnedPreviewTransform = [&](Object3d* object, const Skeleton* skeleton) {
+        if (object && activeSkinningTarget == skeleton) {
+            object->SetScale({ activeSkinnedPreviewScale, activeSkinnedPreviewScale, activeSkinnedPreviewScale });
+            object->SetRotate(activeSkinnedPreviewRotation);
+        }
+    };
+    applyActiveSkinnedPreviewTransform(simpleSkinSkinnedObject_.get(), simpleSkinSkeleton_.get());
+    applyActiveSkinnedPreviewTransform(walkSkinnedObject_.get(), walkSkeleton_.get());
+    applyActiveSkinnedPreviewTransform(sneakWalkSkinnedObject_.get(), sneakWalkSkeleton_.get());
+    if (simpleSkinSkinnedObject_) {
+        simpleSkinSkinnedObject_->Update();
     }
     if (walkSkinnedObject_) {
         walkSkinnedObject_->Update();
@@ -800,6 +1135,9 @@ void GameScene::Update() {
         if (previewSkeletonSecondary_) {
             UpdateSkeletonWorldTransforms(*previewSkeletonSecondary_);
         }
+        if (simpleSkinSkeleton_) {
+            UpdateSkeletonWorldTransforms(*simpleSkinSkeleton_);
+        }
         if (walkSkeleton_) {
             UpdateSkeletonWorldTransforms(*walkSkeleton_);
         }
@@ -807,6 +1145,9 @@ void GameScene::Update() {
             UpdateSkeletonWorldTransforms(*sneakWalkSkeleton_);
         }
         skinningEditor_->Update();
+        if (simpleSkinSkinnedModel_) {
+            simpleSkinSkinnedModel_->UpdateSkinning();
+        }
         if (walkSkinnedModel_) {
             walkSkinnedModel_->UpdateSkinning();
         }
@@ -818,15 +1159,18 @@ void GameScene::Update() {
 #ifdef _DEBUG
     if (skinningEditor_) {
         skinningEditor_->DrawImGui();
-        skinningEditor_->DrawGizmo(camera_.get());
-        if (walkSkinnedModel_) {
-            walkSkinnedModel_->UpdateSkinning();
-        }
-        if (sneakWalkSkinnedModel_) {
-            sneakWalkSkinnedModel_->UpdateSkinning();
-        }
-        skinningEditor_->DrawDebugOverlay(camera_.get());
     }
+    DrawGameViewImGui(dxCommon);
+    if (simpleSkinSkinnedModel_) {
+        simpleSkinSkinnedModel_->UpdateSkinning();
+    }
+    if (walkSkinnedModel_) {
+        walkSkinnedModel_->UpdateSkinning();
+    }
+    if (sneakWalkSkinnedModel_) {
+        sneakWalkSkinnedModel_->UpdateSkinning();
+    }
+
     ImGui::SetNextWindowSize(ImVec2(500, 200), ImGuiCond_Once);
     ImGui::Begin("DebugText");
     Vector2 spritePos = debugSprite_->GetPosition();
@@ -1477,6 +1821,9 @@ void GameScene::Draw() {
         animatedCubeObject_->Draw();
     }
     const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
+    if (isSkinnedModelVisible_ && simpleSkinSkinnedObject_ && activeSkinningTarget == simpleSkinSkeleton_.get()) {
+        simpleSkinSkinnedObject_->Draw();
+    }
     if (isSkinnedModelVisible_ && walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
         walkSkinnedObject_->Draw();
     }

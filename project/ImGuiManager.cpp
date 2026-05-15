@@ -1,43 +1,58 @@
 #include "ImGuiManager.h"
 
-// デバッグ時のみインクルード
 #ifdef _DEBUG
+#include "DirectXCommon.h"
 #include "SrvManager.h"
+#include "WinApp.h"
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
+
+namespace {
+	void AllocateImGuiSrvDescriptor(
+		[[maybe_unused]] ImGui_ImplDX12_InitInfo* info,
+		D3D12_CPU_DESCRIPTOR_HANDLE* outCpuHandle,
+		D3D12_GPU_DESCRIPTOR_HANDLE* outGpuHandle) {
+		SrvManager* srvManager = SrvManager::GetInstance();
+		uint32_t srvIndex = srvManager->Allocate();
+		*outCpuHandle = srvManager->GetCPUDescriptorHandle(srvIndex);
+		*outGpuHandle = srvManager->GetGPUDescriptorHandle(srvIndex);
+	}
+
+	void FreeImGuiSrvDescriptor(
+		[[maybe_unused]] ImGui_ImplDX12_InitInfo* info,
+		[[maybe_unused]] D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle,
+		[[maybe_unused]] D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle) {
+		// SrvManager currently owns a linear descriptor allocator, so descriptors are kept for the app lifetime.
+	}
+}
 #endif
 
 void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] DirectXCommon* dxCommon) {
 #ifdef _DEBUG
-	// メンバ変数に保持（デバッグ時のみ使用）
 	dxCommon_ = dxCommon;
 
-	// ImGuiのコンテキストを生成
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui::StyleColorsDark();
 
-	//ImGuiIO& io = ImGui::GetIO();
-	//(void)io;
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+#ifdef IMGUI_HAS_DOCK
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#endif
+	ApplyStyle_();
 
-	//// Win32用初期化
 	ImGui_ImplWin32_Init(winApp->GetHwnd());
 
-	// ★重要: SrvManagerからImGui用のSRVインデックスを1つ確保する
-	// これを行わないと、テクスチャとImGuiのフォントが衝突してバグや文字化けの原因になります
-	SrvManager* srvManager = SrvManager::GetInstance();
-	uint32_t useIndex = srvManager->Allocate();
-
-	// 確保したインデックスのハンドルを取得
-	ImGui_ImplDX12_Init(
-		dxCommon->GetDevice(),
-		static_cast<int>(dxCommon->GetBackBufferCount()),
-		DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-		srvManager->GetSrvDescriptorHeap(),
-		srvManager->GetCPUDescriptorHandle(useIndex), // 確保した場所のCPUハンドル
-		srvManager->GetGPUDescriptorHandle(useIndex)  // 確保した場所のGPUハンドル
-	);
+	ImGui_ImplDX12_InitInfo initInfo{};
+	initInfo.Device = dxCommon->GetDevice();
+	initInfo.CommandQueue = dxCommon->GetCommandQueue();
+	initInfo.NumFramesInFlight = static_cast<int>(dxCommon->GetBackBufferCount());
+	initInfo.RTVFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	initInfo.SrvDescriptorHeap = SrvManager::GetInstance()->GetSrvDescriptorHeap();
+	initInfo.SrvDescriptorAllocFn = AllocateImGuiSrvDescriptor;
+	initInfo.SrvDescriptorFreeFn = FreeImGuiSrvDescriptor;
+	ImGui_ImplDX12_Init(&initInfo);
 #endif
 }
 
@@ -46,6 +61,7 @@ void ImGuiManager::Begin() {
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+	BeginDockSpace_();
 #endif
 }
 
@@ -59,8 +75,6 @@ void ImGuiManager::Draw() {
 #ifdef _DEBUG
 	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
 
-	// デスクリプタヒープの設定
-	// (既に描画処理で設定されている場合が多いですが、念のため再設定)
 	ID3D12DescriptorHeap* descriptorHeaps[] = { SrvManager::GetInstance()->GetSrvDescriptorHeap() };
 	commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 
@@ -75,3 +89,81 @@ void ImGuiManager::Finalize() {
 	ImGui::DestroyContext();
 #endif
 }
+
+#ifdef _DEBUG
+void ImGuiManager::ApplyStyle_() {
+	ImGui::StyleColorsDark();
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.WindowRounding = 6.0f;
+	style.ChildRounding = 4.0f;
+	style.FrameRounding = 4.0f;
+	style.PopupRounding = 4.0f;
+	style.ScrollbarRounding = 6.0f;
+	style.GrabRounding = 4.0f;
+	style.TabRounding = 4.0f;
+	style.WindowBorderSize = 1.0f;
+	style.FrameBorderSize = 0.0f;
+	style.WindowPadding = ImVec2(10.0f, 8.0f);
+	style.FramePadding = ImVec2(8.0f, 4.0f);
+	style.ItemSpacing = ImVec2(8.0f, 6.0f);
+}
+
+void ImGuiManager::BeginDockSpace_() {
+#ifdef IMGUI_HAS_DOCK
+	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
+	ImGuiWindowFlags windowFlags =
+		ImGuiWindowFlags_MenuBar |
+		ImGuiWindowFlags_NoDocking |
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoCollapse |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoBringToFrontOnFocus |
+		ImGuiWindowFlags_NoNavFocus;
+
+	if (enableDockSpacePassthrough_) {
+		dockspaceFlags |= ImGuiDockNodeFlags_PassthruCentralNode;
+		windowFlags |= ImGuiWindowFlags_NoBackground;
+	}
+
+	const ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+	ImGui::Begin("Main DockSpace", nullptr, windowFlags);
+	ImGui::PopStyleVar(3);
+
+	if (ImGui::BeginMenuBar()) {
+		if (ImGui::BeginMenu("Window")) {
+			ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+			ImGui::Separator();
+			ImGui::MenuItem("DockSpace Passthrough", nullptr, &enableDockSpacePassthrough_);
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+
+	ImGuiID dockspaceId = ImGui::GetID("MainDockSpaceID");
+	ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
+	ImGui::End();
+#else
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("Window")) {
+			ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+			ImGui::TextDisabled("Docking requires Dear ImGui docking branch.");
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+#endif
+
+	if (showDemoWindow_) {
+		ImGui::ShowDemoWindow(&showDemoWindow_);
+	}
+}
+#endif

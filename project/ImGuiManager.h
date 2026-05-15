@@ -1,44 +1,42 @@
 #pragma once
-#include "WinApp.h"
-#include "DirectXCommon.h"
 
-// デバッグ時のみ ImGui のヘッダを含める
-#ifdef _DEBUG
-#include "externals/imgui/imgui.h"
-#include "externals/imgui/imgui_impl_dx12.h"
-#include "externals/imgui/imgui_impl_win32.h"
-#endif
+class DirectXCommon;
+class WinApp;
 
 class ImGuiManager {
 public:
 	/// <summary>
-	/// 初期化
+	/// Initialize ImGui backends.
 	/// </summary>
 	void Initialize(WinApp* winApp, DirectXCommon* dxCommon);
 
 	/// <summary>
-	/// ImGui受付開始
+	/// Begin an ImGui frame.
 	/// </summary>
 	void Begin();
 
 	/// <summary>
-	/// ImGui受付終了
+	/// End an ImGui frame.
 	/// </summary>
 	void End();
 
 	/// <summary>
-	/// 画面への描画
+	/// Draw ImGui to the current command list.
 	/// </summary>
 	void Draw();
 
 	/// <summary>
-	/// 解放
+	/// Release ImGui resources.
 	/// </summary>
 	void Finalize();
 
 private:
 #ifdef _DEBUG
-	// DirectXCommonのポインタを保持しておく
 	DirectXCommon* dxCommon_ = nullptr;
+	bool showDemoWindow_ = false;
+	bool enableDockSpacePassthrough_ = false;
+
+	void ApplyStyle_();
+	void BeginDockSpace_();
 #endif
 };

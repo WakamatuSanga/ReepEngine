@@ -9,6 +9,26 @@ struct Skeleton;
 
 class SkinningEditor {
 public:
+    struct BoundsInfo {
+        bool isValid = false;
+        Vector3 min{ 0.0f, 0.0f, 0.0f };
+        Vector3 max{ 0.0f, 0.0f, 0.0f };
+        Vector3 size{ 0.0f, 0.0f, 0.0f };
+        Vector3 center{ 0.0f, 0.0f, 0.0f };
+    };
+
+    struct TargetPreviewInfo {
+        BoundsInfo sourceBounds{};
+        BoundsInfo skinnedBounds{};
+        Vector3 rootNodeScale{ 1.0f, 1.0f, 1.0f };
+        Vector3 rootNodeTranslation{ 0.0f, 0.0f, 0.0f };
+        Vector3 skeletonRootWorldScale{ 1.0f, 1.0f, 1.0f };
+        Vector3 skeletonRootWorldTranslation{ 0.0f, 0.0f, 0.0f };
+        float previewScale = 1.0f;
+        Vector3 previewRotation{ 0.0f, 0.0f, 0.0f };
+        Vector3 defaultPreviewRotation{ 0.0f, 0.0f, 0.0f };
+    };
+
     SkinningEditor();
     void Update();
     void DrawImGui();
@@ -17,14 +37,32 @@ public:
 
     void SetTarget(const std::string& label, Skeleton* skeleton);
     void RegisterTarget(const std::string& label, Skeleton* skeleton, const AnimationClip* clip = nullptr);
+    void RegisterTarget(
+        const std::string& label,
+        Skeleton* skeleton,
+        const AnimationClip* clip,
+        const std::string& targetType,
+        const std::string& resolvedPath,
+        const std::string& loadStatus,
+        int boneCount,
+        bool skinnedMeshLoaded,
+        const TargetPreviewInfo& previewInfo = {});
+    bool SelectTargetByLabel(const std::string& label);
     void ClearTarget();
     void ClearTargets();
     void SetClip(const AnimationClip& clip, const std::string& statusMessage = {});
+    void SetStatusMessage(const std::string& message);
+    void SetGameViewRect(float x, float y, float width, float height);
+    void ClearGameViewRect();
 
     void SetOpen(bool isOpen) { isOpen_ = isOpen; }
     bool IsOpen() const { return isOpen_; }
     int GetSelectedJointIndex() const { return selectedJointIndex_; }
     const Skeleton* GetTargetSkeleton() const { return targetSkeleton_; }
+    float GetActivePreviewScale() const;
+    Vector3 GetActivePreviewRotation() const;
+    Matrix4x4 GetActivePreviewWorldMatrix() const;
+    bool IsGizmoInteracting() const { return isGizmoActive_ || isGizmoHovered_; }
 
 private:
     static constexpr float kTimeEpsilon_ = 0.0001f;
@@ -45,6 +83,12 @@ private:
         Skeleton* skeleton = nullptr;
         AnimationClip clip{};
         bool hasClip = false;
+        std::string targetType = "preview";
+        std::string resolvedPath;
+        std::string loadStatus;
+        int boneCount = 0;
+        bool skinnedMeshLoaded = false;
+        TargetPreviewInfo previewInfo{};
     };
 
     struct SelectedKeyHandle {
@@ -107,10 +151,21 @@ private:
     void DeleteTargetAt(int targetIndex);
     void SyncTargetFromIndex();
     void StoreCurrentClipToCurrentTarget();
+    std::string BuildTargetStatusMessage(const TargetEntry& target) const;
 
     bool isOpen_ = true;
     bool isTranslateGizmoEnabled_ = true;
     bool isGizmoActive_ = false;
+    bool isGizmoHovered_ = false;
+    bool showSkeletonDebugJoints_ = false;
+    bool showSkeletonDebugLines_ = false;
+    bool showJointLabels_ = false;
+    bool showSelectedJointPanel_ = false;
+    bool hasGameViewRect_ = false;
+    float gameViewX_ = 0.0f;
+    float gameViewY_ = 0.0f;
+    float gameViewWidth_ = 0.0f;
+    float gameViewHeight_ = 0.0f;
     GizmoOperation gizmoOperation_ = GizmoOperation::Translate;
     GizmoSpace gizmoSpace_ = GizmoSpace::World;
     int gizmoActiveJointIndex_ = -1;

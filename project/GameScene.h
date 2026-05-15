@@ -16,6 +16,7 @@
 #include <vector>
 
 class GltfSkinnedModel;
+class DirectXCommon;
 
 class GameScene : public IScene {
 public:
@@ -27,6 +28,10 @@ public:
     void Finalize() override;
 
 private:
+#ifdef _DEBUG
+    void DrawGameViewImGui(DirectXCommon* dxCommon);
+#endif
+
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<CloudVolume> cloudVolume_;
     std::unique_ptr<Skybox> skybox_;
@@ -42,6 +47,9 @@ private:
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
+    std::unique_ptr<Skeleton> simpleSkinSkeleton_;
+    std::unique_ptr<GltfSkinnedModel> simpleSkinSkinnedModel_;
+    std::unique_ptr<Object3d> simpleSkinSkinnedObject_;
     std::unique_ptr<Skeleton> walkSkeleton_;
     std::unique_ptr<GltfSkinnedModel> walkSkinnedModel_;
     std::unique_ptr<Object3d> walkSkinnedObject_;
@@ -162,5 +170,10 @@ private:
 
 #ifdef _DEBUG
     const char* blendModeNames_[6] = { "Normal", "Add", "Subtract", "Multiply", "Screen", "None" };
+    std::array<float, 2> gameViewTopLeft_ = { 0.0f, 0.0f };
+    std::array<float, 2> gameViewSize_ = { 0.0f, 0.0f };
+    std::array<float, 2> gameViewMouseLocal_ = { 0.0f, 0.0f };
+    bool isGameViewHovered_ = false;
+    bool isGameViewFocused_ = false;
 #endif
 };
