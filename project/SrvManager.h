@@ -11,9 +11,11 @@ public:
     void Initialize(DirectXCommon* dxCommon);
     uint32_t Allocate();
     bool CanAllocate() const;
+    void CreateCBV(uint32_t cbvIndex, ID3D12Resource* pResource, UINT sizeInBytes);
     void CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
     void CreateSRVforTexture2D(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT mipLevels);
     void CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pResource, DXGI_FORMAT format, UINT mipLevels);
+    void CreateUAVforStructuredBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
     void PreDraw();
 
     ID3D12DescriptorHeap* GetSrvDescriptorHeap() const { return dxCommon_->GetSrvDescriptorHeap(); }

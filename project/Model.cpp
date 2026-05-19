@@ -109,7 +109,9 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
 void Model::Draw() {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
-    commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
+    const D3D12_VERTEX_BUFFER_VIEW& activeVertexBufferView =
+        vertexBufferViewOverride_ ? *vertexBufferViewOverride_ : vertexBufferView_;
+    commandList->IASetVertexBuffers(0, 1, &activeVertexBufferView);
     commandList->IASetIndexBuffer(&indexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
@@ -123,6 +125,14 @@ void Model::SetVertices(const std::vector<VertexData>& vertices) {
     assert(vertices.size() == modelData_.vertices.size());
     modelData_.vertices = vertices;
     std::memcpy(vertexData_, modelData_.vertices.data(), sizeof(VertexData) * modelData_.vertices.size());
+}
+
+void Model::SetVertexBufferViewOverride(const D3D12_VERTEX_BUFFER_VIEW* vertexBufferView) {
+    vertexBufferViewOverride_ = vertexBufferView;
+}
+
+void Model::ClearVertexBufferViewOverride() {
+    vertexBufferViewOverride_ = nullptr;
 }
 
 Model::ModelData Model::CreateSphereData(uint32_t subdivision) {

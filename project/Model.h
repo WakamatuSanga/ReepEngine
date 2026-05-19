@@ -42,6 +42,8 @@ public:
 
     void Draw();
     void SetVertices(const std::vector<VertexData>& vertices);
+    void SetVertexBufferViewOverride(const D3D12_VERTEX_BUFFER_VIEW* vertexBufferView);
+    void ClearVertexBufferViewOverride();
 
     void SetTextureIndex(uint32_t index) { modelData_.material.textureIndex = index; }
 
@@ -75,6 +77,7 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
+    const D3D12_VERTEX_BUFFER_VIEW* vertexBufferViewOverride_ = nullptr;
     VertexData* vertexData_ = nullptr;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> indexResource_;

@@ -351,6 +351,9 @@
     <FxCompile Include="resources\shaders\Skybox.VS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
+    <FxCompile Include="resources\shaders\Skinning.CS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\Sprite.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
