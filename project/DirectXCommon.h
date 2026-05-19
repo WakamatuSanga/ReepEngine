@@ -106,6 +106,10 @@ public:
     D3D12_CPU_DESCRIPTOR_HANDLE GetRenderTextureSRVCPUHandle() const { return renderTextureSRVHandleCPU_; }
     D3D12_GPU_DESCRIPTOR_HANDLE GetRenderTextureSRVGPUHandle() const { return renderTextureSRVHandleGPU_; }
     uint32_t GetRenderTextureSRVIndex() const { return renderTextureSRVIndex_; }
+    ID3D12Resource* GetFinalOutputTextureResource() const { return finalOutputTextureResource_.Get(); }
+    D3D12_CPU_DESCRIPTOR_HANDLE GetFinalOutputTextureSRVCPUHandle() const { return finalOutputTextureSRVHandleCPU_; }
+    D3D12_GPU_DESCRIPTOR_HANDLE GetFinalOutputTextureSRVGPUHandle() const { return finalOutputTextureSRVHandleGPU_; }
+    uint32_t GetFinalOutputTextureSRVIndex() const { return finalOutputTextureSRVIndex_; }
     D3D12_CPU_DESCRIPTOR_HANDLE GetDepthTextureSRVCPUHandle() const { return depthTextureSRVHandleCPU_; }
     D3D12_GPU_DESCRIPTOR_HANDLE GetDepthTextureSRVGPUHandle() const { return depthTextureSRVHandleGPU_; }
     uint32_t GetDepthTextureSRVIndex() const { return depthTextureSRVIndex_; }
@@ -261,6 +265,11 @@ private:
     D3D12_CPU_DESCRIPTOR_HANDLE gaussianIntermediateSRVHandleCPU_{};
     D3D12_GPU_DESCRIPTOR_HANDLE gaussianIntermediateSRVHandleGPU_{};
     uint32_t gaussianIntermediateSRVIndex_ = 0;
+    Microsoft::WRL::ComPtr<ID3D12Resource> finalOutputTextureResource_;
+    D3D12_CPU_DESCRIPTOR_HANDLE finalOutputTextureRTVHandle_{};
+    D3D12_CPU_DESCRIPTOR_HANDLE finalOutputTextureSRVHandleCPU_{};
+    D3D12_GPU_DESCRIPTOR_HANDLE finalOutputTextureSRVHandleGPU_{};
+    uint32_t finalOutputTextureSRVIndex_ = 0;
     std::array<float, 4> renderTextureClearColor_ = { 0.05f, 0.05f, 0.1f, 1.0f };
     std::array<float, 4> normalTextureClearColor_ = { 0.5f, 0.5f, 0.5f, 1.0f };
     Microsoft::WRL::ComPtr<ID3D12RootSignature> copyRootSignature_;

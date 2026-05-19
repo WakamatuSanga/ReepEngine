@@ -1,8 +1,10 @@
 #include "GltfSkinnedModel.h"
+#include "DirectXCommon.h"
 #include "Logger.h"
 #include "Model.h"
 #include "ModelCommon.h"
 #include "Skeleton.h"
+#include "SrvManager.h"
 #include "TextureManager.h"
 #include <algorithm>
 #include <array>
@@ -20,6 +22,40 @@
 #include <vector>
 
 namespace {
+    constexpr size_t AlignConstantBufferSize(size_t sizeInBytes) {
+        return (sizeInBytes + 0xff) & ~static_cast<size_t>(0xff);
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12Resource> CreateUAVBufferResource(
+        ID3D12Device* device,
+        size_t sizeInBytes) {
+        D3D12_HEAP_PROPERTIES heapProperties{};
+        heapProperties.Type = D3D12_HEAP_TYPE_DEFAULT;
+
+        D3D12_RESOURCE_DESC resourceDesc{};
+        resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        resourceDesc.Width = sizeInBytes;
+        resourceDesc.Height = 1;
+        resourceDesc.DepthOrArraySize = 1;
+        resourceDesc.MipLevels = 1;
+        resourceDesc.SampleDesc.Count = 1;
+        resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        resourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+        Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+        HRESULT hr = device->CreateCommittedResource(
+            &heapProperties,
+            D3D12_HEAP_FLAG_NONE,
+            &resourceDesc,
+            D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+            nullptr,
+            IID_PPV_ARGS(resource.GetAddressOf()));
+        if (FAILED(hr)) {
+            resource.Reset();
+        }
+        return resource;
+    }
+
     struct GltfBufferData {
         std::string uri;
     };
@@ -1315,6 +1351,9 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     if (!modelCommon || !skeleton) {
         return false;
     }
+    if (!InitializeComputeSkinningPipeline(modelCommon)) {
+        return false;
+    }
 
     std::string gltfText;
     if (!LoadFileToString(gltfPath, gltfText)) {
@@ -1407,6 +1446,9 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     skeleton_ = skeleton;
     inverseBindMatrices_ = std::move(inverseBindMatrices);
     jointPalette_.resize((std::max)(inverseBindMatrices_.size(), skeleton_->joints.size()), MatrixMath::MakeIdentity4x4());
+    if (!InitializeComputeSkinningResources(modelCommon)) {
+        return false;
+    }
     UpdateSkinning();
     LogBounds(gltfPath + " source local bounds", sourceBounds_);
     LogBounds(gltfPath + " skinned bounds", skinnedBounds_);
@@ -1426,6 +1468,12 @@ void GltfSkinnedModel::UpdateSkinning() {
     }
     for (size_t jointIndex = paletteSize; jointIndex < jointPalette_.size(); ++jointIndex) {
         jointPalette_[jointIndex] = MatrixMath::MakeIdentity4x4();
+    }
+    if (matrixPaletteData_ && !jointPalette_.empty()) {
+        std::memcpy(
+            matrixPaletteData_,
+            jointPalette_.data(),
+            sizeof(Matrix4x4) * jointPalette_.size());
     }
 
     std::vector<Model::VertexData> skinnedVertices;
@@ -1477,4 +1525,335 @@ void GltfSkinnedModel::UpdateSkinning() {
     FinalizeBounds(updatedSkinnedBounds);
     skinnedBounds_ = updatedSkinnedBounds;
     model_->SetVertices(skinnedVertices);
+}
+
+bool GltfSkinnedModel::InitializeComputeSkinningPipeline(ModelCommon* modelCommon) {
+    if (!modelCommon) {
+        return false;
+    }
+
+    DirectXCommon* dxCommon = modelCommon->GetDxCommon();
+    if (!dxCommon) {
+        return false;
+    }
+
+    return CreateComputeRootSignature(dxCommon) && CreateComputePipelineState(dxCommon);
+}
+
+bool GltfSkinnedModel::CreateComputeRootSignature(DirectXCommon* dxCommon) {
+    if (!dxCommon) {
+        return false;
+    }
+
+    D3D12_DESCRIPTOR_RANGE descriptorRanges[4]{};
+    descriptorRanges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRanges[0].NumDescriptors = 1;
+    descriptorRanges[0].BaseShaderRegister = 0;
+    descriptorRanges[0].RegisterSpace = 0;
+    descriptorRanges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    descriptorRanges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+    descriptorRanges[1].NumDescriptors = 1;
+    descriptorRanges[1].BaseShaderRegister = 0;
+    descriptorRanges[1].RegisterSpace = 0;
+    descriptorRanges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    descriptorRanges[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRanges[2].NumDescriptors = 1;
+    descriptorRanges[2].BaseShaderRegister = 1;
+    descriptorRanges[2].RegisterSpace = 0;
+    descriptorRanges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    descriptorRanges[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRanges[3].NumDescriptors = 1;
+    descriptorRanges[3].BaseShaderRegister = 2;
+    descriptorRanges[3].RegisterSpace = 0;
+    descriptorRanges[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+    D3D12_ROOT_PARAMETER rootParameters[5]{};
+    rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParameters[0].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[0].DescriptorTable.pDescriptorRanges = &descriptorRanges[0];
+
+    rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParameters[1].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[1].DescriptorTable.pDescriptorRanges = &descriptorRanges[1];
+
+    rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParameters[2].Descriptor.ShaderRegister = 0;
+    rootParameters[2].Descriptor.RegisterSpace = 0;
+
+    rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParameters[3].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[3].DescriptorTable.pDescriptorRanges = &descriptorRanges[2];
+
+    rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    rootParameters[4].DescriptorTable.NumDescriptorRanges = 1;
+    rootParameters[4].DescriptorTable.pDescriptorRanges = &descriptorRanges[3];
+
+    D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+    rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+    rootSignatureDesc.pParameters = rootParameters;
+    rootSignatureDesc.NumParameters = _countof(rootParameters);
+
+    Microsoft::WRL::ComPtr<ID3DBlob> signatureBlob;
+    Microsoft::WRL::ComPtr<ID3DBlob> errorBlob;
+    HRESULT hr = D3D12SerializeRootSignature(
+        &rootSignatureDesc,
+        D3D_ROOT_SIGNATURE_VERSION_1,
+        signatureBlob.GetAddressOf(),
+        errorBlob.GetAddressOf());
+    if (FAILED(hr)) {
+        if (errorBlob) {
+            Logger::Log(static_cast<const char*>(errorBlob->GetBufferPointer()));
+        }
+        return false;
+    }
+
+    hr = dxCommon->GetDevice()->CreateRootSignature(
+        0,
+        signatureBlob->GetBufferPointer(),
+        signatureBlob->GetBufferSize(),
+        IID_PPV_ARGS(skinningComputeRootSignature_.ReleaseAndGetAddressOf()));
+    return SUCCEEDED(hr);
+}
+
+bool GltfSkinnedModel::CreateComputePipelineState(DirectXCommon* dxCommon) {
+    if (!dxCommon || !skinningComputeRootSignature_) {
+        return false;
+    }
+
+    Microsoft::WRL::ComPtr<IDxcBlob> computeShaderBlob =
+        dxCommon->CompileShader(L"resources/shaders/Skinning.CS.hlsl", L"cs_6_0");
+
+    D3D12_COMPUTE_PIPELINE_STATE_DESC pipelineStateDesc{};
+    pipelineStateDesc.pRootSignature = skinningComputeRootSignature_.Get();
+    pipelineStateDesc.CS = {
+        computeShaderBlob->GetBufferPointer(),
+        computeShaderBlob->GetBufferSize()
+    };
+
+    HRESULT hr = dxCommon->GetDevice()->CreateComputePipelineState(
+        &pipelineStateDesc,
+        IID_PPV_ARGS(skinningComputePipelineState_.ReleaseAndGetAddressOf()));
+    return SUCCEEDED(hr);
+}
+
+bool GltfSkinnedModel::InitializeComputeSkinningResources(ModelCommon* modelCommon) {
+    if (!modelCommon || sourceVertices_.empty()) {
+        return false;
+    }
+
+    DirectXCommon* dxCommon = modelCommon->GetDxCommon();
+    SrvManager* srvManager = SrvManager::GetInstance();
+    if (!dxCommon || !srvManager) {
+        return false;
+    }
+
+    const UINT vertexCount = static_cast<UINT>(sourceVertices_.size());
+    const UINT vertexStride = sizeof(Model::VertexData);
+    const size_t vertexBufferSize = static_cast<size_t>(vertexStride) * vertexCount;
+    const UINT influenceStride = sizeof(VertexInfluence);
+    const size_t influenceBufferSize = static_cast<size_t>(influenceStride) * vertexCount;
+    const UINT paletteCount = static_cast<UINT>(jointPalette_.size());
+    const UINT paletteStride = sizeof(Matrix4x4);
+    const size_t paletteBufferSize = static_cast<size_t>(paletteStride) * paletteCount;
+    const size_t skinningInformationBufferSize = AlignConstantBufferSize(sizeof(SkinningInformation));
+
+    skinningInformationResource_ = dxCommon->CreateBufferResource(skinningInformationBufferSize);
+    HRESULT hr = skinningInformationResource_->Map(
+        0,
+        nullptr,
+        reinterpret_cast<void**>(&skinningInformationData_));
+    if (FAILED(hr) || !skinningInformationData_) {
+        return false;
+    }
+    skinningInformationData_->numVertices = vertexCount;
+
+    inputVerticesResource_ = dxCommon->CreateBufferResource(vertexBufferSize);
+    std::vector<Model::VertexData> inputVertices;
+    inputVertices.reserve(sourceVertices_.size());
+    for (const SourceVertex& sourceVertex : sourceVertices_) {
+        inputVertices.push_back({
+            { sourceVertex.position.x, sourceVertex.position.y, sourceVertex.position.z, 1.0f },
+            sourceVertex.texcoord,
+            sourceVertex.normal
+            });
+    }
+
+    Model::VertexData* mappedInputVertices = nullptr;
+    hr = inputVerticesResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedInputVertices));
+    if (FAILED(hr) || !mappedInputVertices) {
+        return false;
+    }
+    std::memcpy(mappedInputVertices, inputVertices.data(), vertexBufferSize);
+    inputVerticesResource_->Unmap(0, nullptr);
+
+    vertexInfluenceResource_ = dxCommon->CreateBufferResource(influenceBufferSize);
+    std::vector<VertexInfluence> vertexInfluences;
+    vertexInfluences.reserve(sourceVertices_.size());
+    for (const SourceVertex& sourceVertex : sourceVertices_) {
+        VertexInfluence influence{};
+        influence.weights = sourceVertex.weights;
+        influence.indices = sourceVertex.joints;
+        vertexInfluences.push_back(influence);
+    }
+
+    VertexInfluence* mappedVertexInfluences = nullptr;
+    hr = vertexInfluenceResource_->Map(0, nullptr, reinterpret_cast<void**>(&mappedVertexInfluences));
+    if (FAILED(hr) || !mappedVertexInfluences) {
+        return false;
+    }
+    std::memcpy(mappedVertexInfluences, vertexInfluences.data(), influenceBufferSize);
+    vertexInfluenceResource_->Unmap(0, nullptr);
+
+    matrixPaletteResource_ = dxCommon->CreateBufferResource(paletteBufferSize);
+    hr = matrixPaletteResource_->Map(0, nullptr, reinterpret_cast<void**>(&matrixPaletteData_));
+    if (FAILED(hr) || !matrixPaletteData_) {
+        return false;
+    }
+    std::memcpy(matrixPaletteData_, jointPalette_.data(), paletteBufferSize);
+
+    outputVerticesResource_ = CreateUAVBufferResource(dxCommon->GetDevice(), vertexBufferSize);
+    if (!outputVerticesResource_) {
+        return false;
+    }
+    outputVerticesVertexBufferView_.BufferLocation = outputVerticesResource_->GetGPUVirtualAddress();
+    outputVerticesVertexBufferView_.SizeInBytes = static_cast<UINT>(vertexBufferSize);
+    outputVerticesVertexBufferView_.StrideInBytes = vertexStride;
+    outputVerticesState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+
+    if (!srvManager->CanAllocate()) {
+        return false;
+    }
+    skinningInformationCBVIndex_ = srvManager->Allocate();
+    skinningInformationCBVHandleCPU_ = srvManager->GetCPUDescriptorHandle(skinningInformationCBVIndex_);
+    skinningInformationCBVHandleGPU_ = srvManager->GetGPUDescriptorHandle(skinningInformationCBVIndex_);
+    srvManager->CreateCBV(
+        skinningInformationCBVIndex_,
+        skinningInformationResource_.Get(),
+        static_cast<UINT>(skinningInformationBufferSize));
+
+    if (!srvManager->CanAllocate()) {
+        return false;
+    }
+    inputVerticesSRVIndex_ = srvManager->Allocate();
+    inputVerticesSRVHandleCPU_ = srvManager->GetCPUDescriptorHandle(inputVerticesSRVIndex_);
+    inputVerticesSRVHandleGPU_ = srvManager->GetGPUDescriptorHandle(inputVerticesSRVIndex_);
+    srvManager->CreateSRVforStructuredBuffer(
+        inputVerticesSRVIndex_,
+        inputVerticesResource_.Get(),
+        vertexCount,
+        vertexStride);
+
+    if (!srvManager->CanAllocate()) {
+        return false;
+    }
+    vertexInfluenceSRVIndex_ = srvManager->Allocate();
+    vertexInfluenceSRVHandleCPU_ = srvManager->GetCPUDescriptorHandle(vertexInfluenceSRVIndex_);
+    vertexInfluenceSRVHandleGPU_ = srvManager->GetGPUDescriptorHandle(vertexInfluenceSRVIndex_);
+    srvManager->CreateSRVforStructuredBuffer(
+        vertexInfluenceSRVIndex_,
+        vertexInfluenceResource_.Get(),
+        vertexCount,
+        influenceStride);
+
+    if (!srvManager->CanAllocate()) {
+        return false;
+    }
+    matrixPaletteSRVIndex_ = srvManager->Allocate();
+    matrixPaletteSRVHandleCPU_ = srvManager->GetCPUDescriptorHandle(matrixPaletteSRVIndex_);
+    matrixPaletteSRVHandleGPU_ = srvManager->GetGPUDescriptorHandle(matrixPaletteSRVIndex_);
+    srvManager->CreateSRVforStructuredBuffer(
+        matrixPaletteSRVIndex_,
+        matrixPaletteResource_.Get(),
+        paletteCount,
+        paletteStride);
+
+    if (!srvManager->CanAllocate()) {
+        return false;
+    }
+    outputVerticesUAVIndex_ = srvManager->Allocate();
+    outputVerticesUAVHandleCPU_ = srvManager->GetCPUDescriptorHandle(outputVerticesUAVIndex_);
+    outputVerticesUAVHandleGPU_ = srvManager->GetGPUDescriptorHandle(outputVerticesUAVIndex_);
+    srvManager->CreateUAVforStructuredBuffer(
+        outputVerticesUAVIndex_,
+        outputVerticesResource_.Get(),
+        vertexCount,
+        vertexStride);
+
+    return true;
+}
+
+void GltfSkinnedModel::DispatchComputeSkinning(ID3D12GraphicsCommandList* commandList) {
+    if (!commandList ||
+        !skinningComputeRootSignature_ ||
+        !skinningComputePipelineState_ ||
+        !skinningInformationResource_ ||
+        !inputVerticesResource_ ||
+        !vertexInfluenceResource_ ||
+        !matrixPaletteResource_ ||
+        !outputVerticesResource_ ||
+        !skinningInformationData_ ||
+        skinningInformationData_->numVertices == 0) {
+        return;
+    }
+
+    if (outputVerticesState_ != D3D12_RESOURCE_STATE_UNORDERED_ACCESS) {
+        D3D12_RESOURCE_BARRIER transitionToUAV{};
+        transitionToUAV.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        transitionToUAV.Transition.pResource = outputVerticesResource_.Get();
+        transitionToUAV.Transition.StateBefore = outputVerticesState_;
+        transitionToUAV.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        transitionToUAV.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        commandList->ResourceBarrier(1, &transitionToUAV);
+        outputVerticesState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    }
+
+    ID3D12DescriptorHeap* descriptorHeaps[] = {
+        SrvManager::GetInstance()->GetSrvDescriptorHeap()
+    };
+    commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+    commandList->SetComputeRootSignature(skinningComputeRootSignature_.Get());
+    commandList->SetPipelineState(skinningComputePipelineState_.Get());
+    commandList->SetComputeRootDescriptorTable(0, inputVerticesSRVHandleGPU_);
+    commandList->SetComputeRootDescriptorTable(1, outputVerticesUAVHandleGPU_);
+    commandList->SetComputeRootConstantBufferView(2, skinningInformationResource_->GetGPUVirtualAddress());
+    commandList->SetComputeRootDescriptorTable(3, vertexInfluenceSRVHandleGPU_);
+    commandList->SetComputeRootDescriptorTable(4, matrixPaletteSRVHandleGPU_);
+
+    const UINT threadGroupCount = (skinningInformationData_->numVertices + 1023u) / 1024u;
+    commandList->Dispatch(threadGroupCount, 1, 1);
+
+    D3D12_RESOURCE_BARRIER uavBarrier{};
+    uavBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    uavBarrier.UAV.pResource = outputVerticesResource_.Get();
+    commandList->ResourceBarrier(1, &uavBarrier);
+
+    D3D12_RESOURCE_BARRIER transitionToVertexBuffer{};
+    transitionToVertexBuffer.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    transitionToVertexBuffer.Transition.pResource = outputVerticesResource_.Get();
+    transitionToVertexBuffer.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+    transitionToVertexBuffer.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    transitionToVertexBuffer.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    commandList->ResourceBarrier(1, &transitionToVertexBuffer);
+    outputVerticesState_ = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+}
+
+void GltfSkinnedModel::SetUseComputeOutputVertices(bool enabled) {
+    useComputeOutputVertices_ = enabled;
+    if (!model_) {
+        return;
+    }
+
+    if (useComputeOutputVertices_) {
+        model_->SetVertexBufferViewOverride(&outputVerticesVertexBufferView_);
+    } else {
+        model_->ClearVertexBufferViewOverride();
+    }
 }

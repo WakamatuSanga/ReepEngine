@@ -702,7 +702,7 @@ void GameScene::Initialize() {
 
 #ifdef _DEBUG
 void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
-    if (!dxCommon || !dxCommon->GetRenderTextureResource()) {
+    if (!dxCommon || !dxCommon->GetFinalOutputTextureResource()) {
         gameViewTopLeft_ = { 0.0f, 0.0f };
         gameViewSize_ = { 0.0f, 0.0f };
         gameViewMouseLocal_ = { 0.0f, 0.0f };
@@ -716,7 +716,7 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
 
     ImGui::SetNextWindowSize(ImVec2(640.0f, 400.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Game View")) {
-        const D3D12_RESOURCE_DESC desc = dxCommon->GetRenderTextureResource()->GetDesc();
+        const D3D12_RESOURCE_DESC desc = dxCommon->GetFinalOutputTextureResource()->GetDesc();
         const float textureWidth = static_cast<float>(desc.Width);
         const float textureHeight = static_cast<float>(desc.Height);
         ImVec2 availableSize = ImGui::GetContentRegionAvail();
@@ -738,7 +738,7 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
                 camera_->Update();
             }
 
-            const ImTextureID textureId = static_cast<ImTextureID>(dxCommon->GetRenderTextureSRVGPUHandle().ptr);
+            const ImTextureID textureId = static_cast<ImTextureID>(dxCommon->GetFinalOutputTextureSRVGPUHandle().ptr);
             ImGui::Image(textureId, imageSize, ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
 
             const ImGuiIO& io = ImGui::GetIO();
@@ -1774,6 +1774,19 @@ void GameScene::Update() {
     ImGui::Checkbox("Sphere", &isSphereVisible_);
     ImGui::Checkbox("AnimatedCube", &isAnimatedCubeVisible_);
     ImGui::Checkbox("Active Skinned Model", &isSkinnedModelVisible_);
+    const Skeleton* visibleSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
+    GltfSkinnedModel* activeSkinnedModel = nullptr;
+    const char* activeSkinnedModelName = "None";
+    if (visibleSkinningTarget == simpleSkinSkeleton_.get()) {
+        activeSkinnedModel = simpleSkinSkinnedModel_.get();
+        activeSkinnedModelName = "simpleSkin";
+    } else if (visibleSkinningTarget == walkSkeleton_.get()) {
+        activeSkinnedModel = walkSkinnedModel_.get();
+        activeSkinnedModelName = "walk.gltf";
+    } else if (visibleSkinningTarget == sneakWalkSkeleton_.get()) {
+        activeSkinnedModel = sneakWalkSkinnedModel_.get();
+        activeSkinnedModelName = "sneakWalk.gltf";
+    }
     ImGui::Checkbox("Primitive Preview", &isPrimitivePreviewVisible_);
 
     ImGui::SeparatorText("Particles / Effects");
@@ -1786,6 +1799,34 @@ void GameScene::Update() {
 
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Debug Sprite", &isDebugSpriteVisible_);
+    ImGui::End();
+
+    ImGui::SetNextWindowSize(ImVec2(360, 260), ImGuiCond_Once);
+    ImGui::Begin("Skinning Debug");
+    ImGui::Text("Active Target: %s", activeSkinnedModelName);
+    ImGui::Text("CPU Skinning Path: Enabled");
+    if (activeSkinnedModel) {
+        bool useComputeOutputVertices = activeSkinnedModel->IsUsingComputeOutputVertices();
+        if (ImGui::Checkbox("GPU Skinning Output VBV", &useComputeOutputVertices)) {
+            activeSkinnedModel->SetUseComputeOutputVertices(useComputeOutputVertices);
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled(useComputeOutputVertices ? "ON" : "OFF");
+
+        ImGui::SeparatorText("Resource Counts");
+        ImGui::Text("Vertex Count    : %u", activeSkinnedModel->GetVertexCount());
+        ImGui::Text("Influence Count : %u", activeSkinnedModel->GetInfluenceCount());
+        ImGui::Text("Palette Count   : %u", activeSkinnedModel->GetPaletteCount());
+        ImGui::Text("Dispatch Groups : %u", activeSkinnedModel->GetDispatchThreadGroupCount());
+        ImGui::Text("Threads / Group : 1024");
+
+        ImGui::SeparatorText("Resource State");
+        ImGui::Text("Compute Resources: %s", activeSkinnedModel->HasComputeSkinningResources() ? "Ready" : "Missing");
+        ImGui::TextDisabled("CPU/GPU max vertex delta: N/A (readback not implemented)");
+        ImGui::TextWrapped("ON compares the compute output path visually. OFF keeps the CPU-updated vertex buffer path.");
+    } else {
+        ImGui::TextDisabled("Select a skinned target in Skinning Editor.");
+    }
     ImGui::End();
 #endif
 
@@ -1807,6 +1848,17 @@ void GameScene::Draw() {
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
         skybox_->Draw();
+    }
+
+    ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
+    if (simpleSkinSkinnedModel_) {
+        simpleSkinSkinnedModel_->DispatchComputeSkinning(commandList);
+    }
+    if (walkSkinnedModel_) {
+        walkSkinnedModel_->DispatchComputeSkinning(commandList);
+    }
+    if (sneakWalkSkinnedModel_) {
+        sneakWalkSkinnedModel_->DispatchComputeSkinning(commandList);
     }
 
     object3dCommon->CommonDrawSetting((Object3dCommon::BlendMode)currentBlendMode_);

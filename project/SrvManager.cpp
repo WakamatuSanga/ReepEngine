@@ -28,6 +28,15 @@ bool SrvManager::CanAllocate() const {
     return useIndex_ < kMaxSrvCount;
 }
 
+void SrvManager::CreateCBV(uint32_t cbvIndex, ID3D12Resource* pResource, UINT sizeInBytes) {
+    D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+    cbvDesc.BufferLocation = pResource->GetGPUVirtualAddress();
+    cbvDesc.SizeInBytes = sizeInBytes;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = dxCommon_->GetSRVCPUDescriptorHandle(cbvIndex);
+    dxCommon_->GetDevice()->CreateConstantBufferView(&cbvDesc, handleCPU);
+}
+
 void SrvManager::CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride) {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
     srvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -64,6 +73,20 @@ void SrvManager::CreateSRVforTextureCube(uint32_t srvIndex, ID3D12Resource* pRes
 
     D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = dxCommon_->GetSRVCPUDescriptorHandle(srvIndex);
     dxCommon_->GetDevice()->CreateShaderResourceView(pResource, &srvDesc, handleCPU);
+}
+
+void SrvManager::CreateUAVforStructuredBuffer(uint32_t uavIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride) {
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+    uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+    uavDesc.Buffer.FirstElement = 0;
+    uavDesc.Buffer.NumElements = numElements;
+    uavDesc.Buffer.StructureByteStride = structureByteStride;
+    uavDesc.Buffer.CounterOffsetInBytes = 0;
+    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+    D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = dxCommon_->GetSRVCPUDescriptorHandle(uavIndex);
+    dxCommon_->GetDevice()->CreateUnorderedAccessView(pResource, nullptr, &uavDesc, handleCPU);
 }
 
 void SrvManager::PreDraw() {

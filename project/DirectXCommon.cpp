@@ -118,6 +118,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 {
     assert(renderTextureResource_);
     assert(normalTextureResource_);
+    assert(finalOutputTextureResource_);
     assert(depthBuffer);
     assert(dissolveNoiseTextureSRVHandleGPU_.ptr != 0);
     assert(copyRootSignature_);
@@ -127,6 +128,8 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 
     D3D12_RESOURCE_BARRIER barrier{};
     *postEffectData_ = postEffectParameters_;
+    const PostEffectParameters scenePostEffectParameters = postEffectParameters_;
+    const PostEffectParameters passthroughPostEffectParameters{};
 
     auto TransitionResource = [&](ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -157,6 +160,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 
     UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
     D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV = rtvHandles[backBufferIndex];
+    commandList->ClearRenderTargetView(finalOutputTextureRTVHandle_, renderTextureClearColor_.data(), 0, nullptr);
 
     if (postEffectParameters_.gaussianEnabled != 0) {
         assert(gaussianIntermediateResource_);
@@ -170,19 +174,23 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         TransitionResource(gaussianIntermediateResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        DrawFullscreenPass(gaussianBlurYPipelineState_.Get(), gaussianIntermediateSRVHandleGPU_, backBufferRTV);
+        DrawFullscreenPass(gaussianBlurYPipelineState_.Get(), gaussianIntermediateSRVHandleGPU_, finalOutputTextureRTVHandle_);
         TransitionResource(gaussianIntermediateResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     } else {
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        DrawFullscreenPass(copyPipelineState_.Get(), renderTextureSRVHandleGPU_, backBufferRTV);
+        DrawFullscreenPass(copyPipelineState_.Get(), renderTextureSRVHandleGPU_, finalOutputTextureRTVHandle_);
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     }
+
+    // Keep the post-effected image available to both the swapchain present path and the ImGui Game View.
+    TransitionResource(finalOutputTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    *postEffectData_ = passthroughPostEffectParameters;
+    DrawFullscreenPass(copyPipelineState_.Get(), finalOutputTextureSRVHandleGPU_, backBufferRTV);
+    *postEffectData_ = scenePostEffectParameters;
+    TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
 // --------------------
@@ -190,26 +198,17 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 // --------------------
 void DirectXCommon::PrepareRenderTextureForImGui()
 {
-    assert(renderTextureResource_);
-
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = renderTextureResource_.Get();
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    commandList->ResourceBarrier(1, &barrier);
+    // Final output is already PIXEL_SHADER_RESOURCE after CopyRenderTextureToSwapChain().
 }
 
 void DirectXCommon::RestoreRenderTextureAfterImGui()
 {
-    assert(renderTextureResource_);
+    assert(finalOutputTextureResource_);
 
     D3D12_RESOURCE_BARRIER barrier{};
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = renderTextureResource_.Get();
+    barrier.Transition.pResource = finalOutputTextureResource_.Get();
     barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
     barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
     barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -588,6 +587,16 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
         DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
         renderTextureClearColor_);
 
+    CreateOffscreenTexture(
+        finalOutputTextureResource_,
+        finalOutputTextureRTVHandle_,
+        finalOutputTextureSRVHandleCPU_,
+        finalOutputTextureSRVHandleGPU_,
+        finalOutputTextureSRVIndex_,
+        5,
+        DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+        renderTextureClearColor_);
+
     assert(srvManager->CanAllocate());
     depthTextureSRVIndex_ = srvManager->Allocate();
     depthTextureSRVHandleCPU_ = srvManager->GetCPUDescriptorHandle(depthTextureSRVIndex_);
@@ -798,7 +807,7 @@ void DirectXCommon::CreateDescriptorHeaps()
     {
         D3D12_DESCRIPTOR_HEAP_DESC desc{};
         desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        desc.NumDescriptors = 5;
+        desc.NumDescriptors = 6;
         desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         hr = device->CreateDescriptorHeap(&desc,
             IID_PPV_ARGS(&rtvDescriptorHeap));
