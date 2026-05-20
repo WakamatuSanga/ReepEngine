@@ -17,6 +17,7 @@
 
 class GltfSkinnedModel;
 class DirectXCommon;
+class GpuParticleSystem;
 
 class GameScene : public IScene {
 public:
@@ -44,6 +45,7 @@ private:
     std::unique_ptr<Object3d> ringEffectCompareBillboard_;
     std::unique_ptr<Object3d> ringEffectComparePlaneWorld_;
     std::unique_ptr<Object3d> ringEffectCompareWorld_;
+    std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
