@@ -6,12 +6,14 @@
 #include "ModelManager.h"
 #include "ParticleManager.h"
 #include "Audio.h"
+#include "GpuParticleSystem.h"
 #include "GltfAnimationLoader.h"
 #include "GltfSkinnedModel.h"
 #include "GltfSkeletonLoader.h"
 #include "Logger.h"
 #include "SkinningEditor.h"
 #include "Skeleton.h"
+#include "SrvManager.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -337,6 +339,9 @@ void GameScene::Initialize() {
     camera_ = std::make_unique<Camera>();
     camera_->SetTranslate({ 0.0f, 2.0f, -10.0f });
     camera_->SetRotate({ 0.1f, 0.0f, 0.0f });
+
+    gpuParticleSystem_ = std::make_unique<GpuParticleSystem>();
+    gpuParticleSystem_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
 
     cloudVolume_ = std::make_unique<CloudVolume>();
     cloudVolume_->GetParameters() = MakeRecommendedCloudParameters();
@@ -1128,6 +1133,9 @@ void GameScene::Update() {
     }
 
     particleManager->Update(camera_.get());
+    if (gpuParticleSystem_) {
+        gpuParticleSystem_->Update(camera_.get());
+    }
     if (skinningEditor_) {
         if (previewSkeleton_) {
             UpdateSkeletonWorldTransforms(*previewSkeleton_);
@@ -1159,6 +1167,9 @@ void GameScene::Update() {
 #ifdef _DEBUG
     if (skinningEditor_) {
         skinningEditor_->DrawImGui();
+    }
+    if (gpuParticleSystem_) {
+        gpuParticleSystem_->DrawImGui();
     }
     DrawGameViewImGui(dxCommon);
     if (simpleSkinSkinnedModel_) {
@@ -1930,6 +1941,10 @@ void GameScene::Draw() {
             D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = dxCommon->GetDepthStencilView();
             commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, &depthStencilView);
         }
+    }
+
+    if (gpuParticleSystem_) {
+        gpuParticleSystem_->Draw();
     }
 
     if (isParticleVisible_) {
