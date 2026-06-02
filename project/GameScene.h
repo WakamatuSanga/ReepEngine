@@ -1,15 +1,9 @@
 #pragma once
-#include "AnimationClip.h"
-#include "IScene.h"
-#include "Model.h"
-#include "Camera.h"
-#include "CloudVolume.h"
-#include "Object3d.h"
-#include "Skybox.h"
-#include "Sprite.h"
-#include "SkinningEditor.h"
-#include "Skeleton.h"
-#include "VolumetricCloudPass.h"
+#include "Engine/Animation/AnimationClip.h"
+#include "Engine/Scene/IScene.h"
+#include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Cloud/CloudVolume.h"
+#include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include <array>
 #include <memory>
 #include <string>
@@ -18,6 +12,12 @@
 class GltfSkinnedModel;
 class DirectXCommon;
 class GpuParticleSystem;
+class Model;
+class Object3d;
+class SkinningEditor;
+class Skybox;
+class Sprite;
+struct Skeleton;
 
 class GameScene : public IScene {
 public:

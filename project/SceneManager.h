@@ -1,5 +1,5 @@
 #pragma once
-#include "IScene.h"
+#include "Engine/Scene/IScene.h"
 #include <memory>
 
 // シーンを管理するクラス

@@ -1,5 +1,5 @@
 #pragma once
-#include "IScene.h"
+#include "Engine/Scene/IScene.h"
 
 // タイトル画面のシーン
 class TitleScene : public IScene {

@@ -7,7 +7,32 @@ struct Particle
     float4 color;
     float lifeTime;
     uint alive;
-    float2 padding;
+    uint type;
+    float padding;
+};
+
+struct ParticleType
+{
+    float4 baseColor;
+    float4 startColor;
+    float4 endColor;
+    float startScale;
+    float endScale;
+    float lifeTimeMin;
+    float lifeTimeMax;
+    float speedMin;
+    float speedMax;
+    float gravity;
+    float padding;
+    uint useAtlas;
+    uint atlasRows;
+    uint atlasColumns;
+    uint frameCount;
+    float frameSpeed;
+    uint loopAtlas;
+    uint textureIndex;
+    uint padding1;
+    float4 materialPadding;
 };
 
 struct PerView
@@ -22,4 +47,6 @@ struct VertexShaderOutput
     float2 texcoord : TEXCOORD0;
     float alive : TEXCOORD1;
     float4 color : COLOR0;
+    float4 typeColor : COLOR1;
+    nointerpolation uint textureIndex : TEXCOORD2;
 };
