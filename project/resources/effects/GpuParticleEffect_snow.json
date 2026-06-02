@@ -1,0 +1,90 @@
+{
+  "emitters": [
+    {
+      "enabled": true,
+      "position": [4.500000, 1.500000, 3.000000],
+      "radius": 0.800000,
+      "emitCount": 256,
+      "emitInterval": 1.500000,
+      "randomSeed": 4,
+      "particleTypeIndex": 3
+    }
+  ],
+  "particleTypes": [
+    {
+      "name": "Spark",
+      "baseColor": [1.000000, 0.600000, 0.180000, 0.850000],
+      "startScale": 0.065000,
+      "endScale": 0.018000,
+      "lifeTimeMin": 0.450000,
+      "lifeTimeMax": 1.250000,
+      "speedMin": 0.550000,
+      "speedMax": 1.600000,
+      "gravity": -2.800000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    },
+    {
+      "name": "Mist",
+      "baseColor": [0.200000, 0.850000, 1.000000, 0.720000],
+      "startScale": 0.055000,
+      "endScale": 0.110000,
+      "lifeTimeMin": 1.250000,
+      "lifeTimeMax": 3.500000,
+      "speedMin": 0.200000,
+      "speedMax": 0.850000,
+      "gravity": -0.080000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    },
+    {
+      "name": "Float",
+      "baseColor": [0.560000, 1.000000, 0.350000, 0.720000],
+      "startScale": 0.040000,
+      "endScale": 0.070000,
+      "lifeTimeMin": 0.900000,
+      "lifeTimeMax": 2.400000,
+      "speedMin": 0.350000,
+      "speedMax": 1.050000,
+      "gravity": 0.350000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    },
+    {
+      "name": "雪",
+      "baseColor": [0.984314, 0.984314, 0.984314, 1.000000],
+      "startScale": 0.061000,
+      "endScale": 0.031000,
+      "lifeTimeMin": 0.980000,
+      "lifeTimeMax": 3.000000,
+      "speedMin": 0.350000,
+      "speedMax": 1.050000,
+      "gravity": -1.350000,
+      "useAtlas": true,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    }
+  ],
+  "runtime": {
+    "randomEnabled": true,
+    "useFreeListEmit": true,
+    "useDeadList": true,
+    "autoRecycleDeadList": true,
+    "updateEnabled": true
+  }
+}

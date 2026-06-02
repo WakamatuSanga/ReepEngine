@@ -1,18 +1,18 @@
 #pragma once
 
-#include "WinApp.h"
-#include "DirectXCommon.h"
-#include "SrvManager.h"
-#include "TextureManager.h"
-#include "SpriteCommon.h"
-#include "Object3dCommon.h"
-#include "SkyboxCommon.h"
-#include "ModelManager.h"
-#include "ParticleManager.h"
-#include "VolumetricCloudPass.h"
-#include "Input.h"
-#include "ImGuiManager.h"
-#include "Audio.h"
+#include "Engine/Core/WinApp.h"
+#include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/SrvManager.h"
+#include "Engine/Graphics/Texture/TextureManager.h"
+#include "Engine/Graphics/Sprite/SpriteCommon.h"
+#include "Engine/Graphics/Object3d/Object3dCommon.h"
+#include "Engine/Graphics/Skybox/SkyboxCommon.h"
+#include "Engine/Graphics/Model/ModelManager.h"
+#include "Engine/Graphics/Particle/ParticleManager.h"
+#include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
+#include "Engine/Input/Input.h"
+#include "Engine/Core/ImGuiManager.h"
+#include "Engine/Audio/Audio.h"
 #include <memory>
 
 // ゲームエンジン全体を管理するクラス（シングルトン化）

@@ -7,7 +7,32 @@ struct Particle
     float4 color;
     float lifeTime;
     uint alive;
-    float2 padding;
+    uint type;
+    float padding;
+};
+
+struct ParticleType
+{
+    float4 baseColor;
+    float4 startColor;
+    float4 endColor;
+    float startScale;
+    float endScale;
+    float lifeTimeMin;
+    float lifeTimeMax;
+    float speedMin;
+    float speedMax;
+    float gravity;
+    float padding;
+    uint useAtlas;
+    uint atlasRows;
+    uint atlasColumns;
+    uint frameCount;
+    float frameSpeed;
+    uint loopAtlas;
+    uint textureIndex;
+    uint padding1;
+    float4 materialPadding;
 };
 
 struct InitializeInfo
@@ -19,10 +44,12 @@ struct InitializeInfo
     float3 emitterPosition;
     float emitterRadius;
     uint emitCount;
-    float3 padding;
+    uint particleTypeIndex;
+    float2 padding;
 };
 
 RWStructuredBuffer<Particle> gParticles : register(u0);
+StructuredBuffer<ParticleType> gParticleTypes : register(t0);
 ConstantBuffer<InitializeInfo> gInitializeInfo : register(b0);
 
 uint Hash(uint value)
@@ -71,6 +98,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     bool useEmitter = gInitializeInfo.emitterEnabled != 0u;
     uint emitCount = min(gInitializeInfo.emitCount, gInitializeInfo.particleCount);
     uint baseSeed = particleIndex ^ (gInitializeInfo.randomSeed * 747796405u) ^ 2891336453u;
+    ParticleType particleType = gParticleTypes[gInitializeInfo.particleTypeIndex];
     if (useEmitter && particleIndex >= emitCount)
     {
         Particle deadParticle;
@@ -81,7 +109,8 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         deadParticle.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
         deadParticle.lifeTime = 0.0f;
         deadParticle.alive = 0u;
-        deadParticle.padding = float2(0.0f, 0.0f);
+        deadParticle.type = gInitializeInfo.particleTypeIndex;
+        deadParticle.padding = 0.0f;
         gParticles[particleIndex] = deadParticle;
         return;
     }
@@ -95,7 +124,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             RandomRange(baseSeed ^ 0x68bc21ebu, -0.08f, 0.08f),
             RandomRange(baseSeed ^ 0x02e5be93u, -0.08f, 0.08f))
         : float2(0.0f, 0.0f);
-    float velocityScale = useRandom ? RandomRange(baseSeed ^ 0x438f34abu, 0.7f, 1.45f) : 1.0f;
+    float velocityScale = useRandom ? RandomRange(baseSeed ^ 0x438f34abu, particleType.speedMin, particleType.speedMax) : (particleType.speedMin + particleType.speedMax) * 0.5f;
     float velocityY = useRandom ? RandomRange(baseSeed ^ 0x9e3779b9u, 0.15f, 0.85f) : 0.25f + lifeRate * 0.45f;
     float velocityZ = useRandom ? RandomRange(baseSeed ^ 0xb5297a4du, -0.08f, 0.08f) : 0.0f;
     float3 colorJitter = useRandom
@@ -115,15 +144,16 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.translate = useEmitter
         ? gInitializeInfo.emitterPosition + emitterOffset
         : float3(grid.x + randomOffset.x, grid.y + randomOffset.y + 1.5f, 3.0f);
-    particle.scale = useRandom ? RandomRange(baseSeed ^ 0x165667b1u, 0.035f, 0.075f) : 0.05f;
+    particle.scale = particleType.startScale;
     particle.velocity = useEmitter
-        ? emitterVelocityDirection * (useRandom ? RandomRange(baseSeed ^ 0x438f34abu, 0.25f, 1.15f) : 0.65f)
-        : float3(direction.x * 0.25f * velocityScale, velocityY, velocityZ);
+        ? emitterVelocityDirection * velocityScale
+        : float3(direction.x * 0.25f * velocityScale, velocityY * velocityScale, velocityZ);
     particle.currentTime = 0.0f;
-    particle.color = float4(saturate(float3(0.2f + colorRate * 0.8f, 0.85f, 1.0f - colorRate * 0.5f) + colorJitter), 0.75f);
-    particle.lifeTime = useRandom ? RandomRange(baseSeed ^ 0x85ebca6bu, 1.0f, 3.5f) : lerp(1.5f, 3.0f, lifeRate);
+    particle.color = float4(saturate(particleType.baseColor.rgb + colorJitter * (0.25f + colorRate * 0.25f)), particleType.baseColor.a);
+    particle.lifeTime = useRandom ? RandomRange(baseSeed ^ 0x85ebca6bu, particleType.lifeTimeMin, particleType.lifeTimeMax) : lerp(particleType.lifeTimeMin, particleType.lifeTimeMax, lifeRate);
     particle.alive = 1u;
-    particle.padding = float2(0.0f, 0.0f);
+    particle.type = gInitializeInfo.particleTypeIndex;
+    particle.padding = 0.0f;
 
     gParticles[particleIndex] = particle;
 }
