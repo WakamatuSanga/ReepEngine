@@ -148,6 +148,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Animation\AnimationClip.cpp" />
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudVolume.cpp" />
+    <ClCompile Include="engine\Graphics\Effect\CylinderEffect.cpp" />
+    <ClCompile Include="engine\Graphics\Effect\PrimitiveEffectSystem.cpp" />
+    <ClCompile Include="engine\Graphics\Effect\RingEffect.cpp" />
+    <ClCompile Include="engine\Graphics\Effect\RotatingPlaneHitEffect.cpp" />
     <ClCompile Include="engine\Core\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="engine\Core\DirectXCommon.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
@@ -236,6 +240,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Animation\AnimationClip.h" />
     <ClInclude Include="engine\Graphics\Camera\Camera.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudVolume.h" />
+    <ClInclude Include="engine\Graphics\Effect\CylinderEffect.h" />
+    <ClInclude Include="engine\Graphics\Effect\PrimitiveEffectSystem.h" />
+    <ClInclude Include="engine\Graphics\Effect\PrimitiveEffectTypes.h" />
+    <ClInclude Include="engine\Graphics\Effect\RingEffect.h" />
+    <ClInclude Include="engine\Graphics\Effect\RotatingPlaneHitEffect.h" />
     <ClInclude Include="engine\Core\D3DResourceLeakChecker.h" />
     <ClInclude Include="engine\Core\DirectXCommon.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
