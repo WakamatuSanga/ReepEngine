@@ -42,6 +42,18 @@ const char* ToBlendName(D3D12_BLEND blend) {
 	}
 }
 
+const char* ToEmitterShapeLabel(GpuParticle::EmitterShape shape) {
+	switch (GpuParticle::ClampEmitterShape(shape)) {
+	case GpuParticle::EmitterShape::Box:
+		return "Box";
+	case GpuParticle::EmitterShape::Cone:
+		return "Cone";
+	case GpuParticle::EmitterShape::Sphere:
+	default:
+		return "Sphere";
+	}
+}
+
 GpuParticle::ParticleType MakeResetParticleType(size_t index, const std::string& currentName) {
 	GpuParticle::State defaultState;
 	GpuParticle::EnsureDefaultParticleTypes(defaultState);
@@ -73,7 +85,15 @@ void DrawEmitterList(const GpuParticle::State& state, int& selectedEmitterIndex)
 	for (size_t emitterIndex = 0; emitterIndex < state.emitters.size(); ++emitterIndex) {
 		const GpuParticle::Emitter& emitter = state.emitters[emitterIndex];
 		char label[96]{};
-		snprintf(label, sizeof(label), "%zu: %s  Count %u  Type %u", emitterIndex, emitter.enabled ? "Enabled" : "Disabled", emitter.emitCount, emitter.particleTypeIndex);
+		snprintf(
+			label,
+			sizeof(label),
+			"%zu: %s  %s  Count %u  Type %u",
+			emitterIndex,
+			emitter.enabled ? "Enabled" : "Disabled",
+			ToEmitterShapeLabel(emitter.shape),
+			emitter.emitCount,
+			emitter.particleTypeIndex);
 		if (ImGui::Selectable(label, selectedEmitterIndex == static_cast<int>(emitterIndex))) {
 			selectedEmitterIndex = static_cast<int>(emitterIndex);
 		}
@@ -98,6 +118,21 @@ bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
 	changed |= ImGui::Checkbox("エミッター有効 (Enabled)", &emitter.enabled);
 	changed |= ImGui::DragFloat3("発生位置 (Position)", &emitter.position.x, 0.05f, -10.0f, 10.0f, "%.2f");
 	changed |= ImGui::DragFloat("発生半径 (Radius)", &emitter.radius, 0.01f, 0.0f, 5.0f, "%.2f");
+	const char* shapeItems[] = {
+		"Sphere",
+		"Box",
+		"Cone",
+	};
+	int shapeIndex = static_cast<int>(GpuParticle::ClampEmitterShape(emitter.shape));
+	if (ImGui::Combo("発生形状 (Emitter Shape)", &shapeIndex, shapeItems, IM_ARRAYSIZE(shapeItems))) {
+		emitter.shape = static_cast<GpuParticle::EmitterShape>(std::clamp(shapeIndex, 0, static_cast<int>(GpuParticle::kEmitterShapeCount - 1)));
+		changed = true;
+	}
+	if (emitter.shape == GpuParticle::EmitterShape::Box) {
+		changed |= ImGui::DragFloat3("箱サイズ (Box Size)", &emitter.boxSize.x, 0.01f, 0.0f, 10.0f, "%.2f");
+	} else if (emitter.shape == GpuParticle::EmitterShape::Cone) {
+		changed |= ImGui::DragFloat("円錐高さ (Cone Height)", &emitter.coneHeight, 0.01f, 0.001f, 10.0f, "%.2f");
+	}
 	int emitCount = static_cast<int>(emitter.emitCount);
 	if (ImGui::DragInt("発生数 (Emit Count)", &emitCount, 1.0f, 0, static_cast<int>(GpuParticle::kParticleCount))) {
 		emitter.emitCount = static_cast<uint32_t>(std::clamp(emitCount, 0, static_cast<int>(GpuParticle::kParticleCount)));
@@ -106,6 +141,11 @@ bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
 	if (ImGui::DragFloat("発生間隔 (Emit Interval)", &emitter.emitInterval, 0.01f, 0.0f, 10.0f, "%.2f sec")) {
 		emitter.emitInterval = (std::max)(0.0f, emitter.emitInterval);
 		emitter.emitTimer = 0.0f;
+		changed = true;
+	}
+	if (ImGui::DragFloat("発生レート (Emission Rate)", &emitter.emissionRate, 0.1f, 0.0f, 5000.0f, "%.1f / sec")) {
+		emitter.emissionRate = (std::max)(emitter.emissionRate, 0.0f);
+		emitter.emissionAccumulator = 0.0f;
 		changed = true;
 	}
 	changed |= ImGui::InputScalar("乱数シード (Random Seed)", ImGuiDataType_U32, &emitter.randomSeed);
@@ -127,7 +167,15 @@ bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
 		ImGui::EndCombo();
 	}
 	ImGui::Text("発生タイマー (Emit Timer): %.2f / %.2f", emitter.emitTimer, emitter.emitInterval);
+	ImGui::Text("発生レート蓄積 (Emission Accumulator): %.3f", emitter.emissionAccumulator);
+	ImGui::Text("発生待ち数 (Pending Emit Count): %u", emitter.pendingEmitCount);
 	ImGui::Text("発生待ち (Pending Emit): %s", emitter.pendingEmit ? "true" : "false");
+	emitter.shape = GpuParticle::ClampEmitterShape(emitter.shape);
+	emitter.boxSize.x = (std::max)(emitter.boxSize.x, 0.0f);
+	emitter.boxSize.y = (std::max)(emitter.boxSize.y, 0.0f);
+	emitter.boxSize.z = (std::max)(emitter.boxSize.z, 0.0f);
+	emitter.coneHeight = (std::max)(emitter.coneHeight, 0.001f);
+	emitter.emissionRate = (std::max)(emitter.emissionRate, 0.0f);
 	return changed;
 #else
 	(void)state;
@@ -192,6 +240,7 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	result.changed |= ImGui::DragFloat("速度 最小 (Speed Min)", &type.speedMin, 0.01f, 0.0f, 20.0f, "%.2f");
 	result.changed |= ImGui::DragFloat("速度 最大 (Speed Max)", &type.speedMax, 0.01f, 0.0f, 20.0f, "%.2f");
 	result.changed |= ImGui::DragFloat("重力 (Gravity)", &type.gravity, 0.01f, -20.0f, 20.0f, "%.2f");
+	result.changed |= ImGui::DragFloat("空気抵抗 (Drag)", &type.drag, 0.01f, 0.0f, 10.0f, "%.2f");
 	result.changed |= ImGui::Checkbox("アトラス使用 (Use Atlas)", &type.useAtlas);
 	int atlasRows = static_cast<int>(type.atlasRows);
 	if (ImGui::DragInt("アトラス行数 (Atlas Rows)", &atlasRows, 0.05f, 1, 64)) {
@@ -216,6 +265,7 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	type.lifeTimeMax = (std::max)(type.lifeTimeMax, type.lifeTimeMin);
 	type.speedMin = (std::max)(type.speedMin, 0.0f);
 	type.speedMax = (std::max)(type.speedMax, type.speedMin);
+	type.drag = (std::max)(type.drag, 0.0f);
 	type.atlasRows = (std::max)(type.atlasRows, 1u);
 	type.atlasColumns = (std::max)(type.atlasColumns, 1u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);
@@ -299,6 +349,7 @@ void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResource
 				selectedType.startColor.x, selectedType.startColor.y, selectedType.startColor.z, selectedType.startColor.w);
 			ImGui::Text("選択Type EndColor RGBA: %.3f, %.3f, %.3f, %.3f",
 				selectedType.endColor.x, selectedType.endColor.y, selectedType.endColor.z, selectedType.endColor.w);
+			ImGui::Text("選択Type Drag: %.3f", selectedType.drag);
 			ImGui::TextUnformatted("Normal color は VS で StartColor から EndColor へ寿命補間されます。");
 		}
 		if (selectedEmitterIndex_ >= 0 && selectedEmitterIndex_ < static_cast<int>(state.emitters.size())) {

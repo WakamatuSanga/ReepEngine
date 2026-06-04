@@ -23,7 +23,7 @@ struct ParticleType
     float speedMin;
     float speedMax;
     float gravity;
-    float padding;
+    float drag;
     uint useAtlas;
     uint atlasRows;
     uint atlasColumns;
@@ -43,6 +43,10 @@ struct EmitterInfo
     uint particleTypeIndex;
     float3 emitterPosition;
     float emitterRadius;
+    float3 emitterBoxSize;
+    float emitterConeHeight;
+    uint emitterShape;
+    float3 padding;
 };
 
 RWStructuredBuffer<Particle> gParticles : register(u0);
@@ -79,6 +83,51 @@ float3 RandomUnitVector(uint seed)
     return normalize(value + float3(0.001f, 0.001f, 0.001f));
 }
 
+float3 MakeSphereEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, uint emitCount, float radius)
+{
+    float angle = float(emitIndex) / max(float(emitCount), 1.0f) * 6.28318530718f;
+    float3 deterministicDirection = normalize(float3(cos(angle), sin(angle), 0.25f) + float3(0.001f, 0.001f, 0.001f));
+    float3 emitterDirection = useRandom ? RandomUnitVector(baseSeed ^ 0x7f4a7c15u) : deterministicDirection;
+    float distanceRate = useRandom ? pow(Random01(baseSeed ^ 0x94d049bbu), 1.0f / 3.0f) : float(emitIndex % 16u) / 15.0f;
+    return emitterDirection * distanceRate * max(radius, 0.0f);
+}
+
+float3 MakeBoxEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, float3 boxSize)
+{
+    float3 rate = useRandom
+        ? float3(
+            Random01(baseSeed ^ 0x68bc21ebu),
+            Random01(baseSeed ^ 0x02e5be93u),
+            Random01(baseSeed ^ 0x9e3779b9u))
+        : frac(float3(float(emitIndex) * 0.754877666f, float(emitIndex) * 0.569840291f, float(emitIndex) * 0.438235197f) + float3(0.13f, 0.37f, 0.61f));
+    return (rate - 0.5f) * max(boxSize, 0.0f);
+}
+
+float3 MakeConeEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, uint emitCount, float radius, float height)
+{
+    float angle = useRandom
+        ? RandomRange(baseSeed ^ 0xb5297a4du, 0.0f, 6.28318530718f)
+        : float(emitIndex) / max(float(emitCount), 1.0f) * 6.28318530718f;
+    float heightRate = useRandom ? Random01(baseSeed ^ 0x85ebca6bu) : frac(float(emitIndex) * 0.381966011f);
+    float radialRate = useRandom ? sqrt(Random01(baseSeed ^ 0x27d4eb2fu)) : frac(float(emitIndex) * 0.754877666f);
+    float coneRadius = max(radius, 0.0f) * (1.0f - heightRate);
+    float radialDistance = radialRate * coneRadius;
+    return float3(cos(angle) * radialDistance, heightRate * max(height, 0.001f), sin(angle) * radialDistance);
+}
+
+float3 MakeEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, uint emitCount)
+{
+    if (gEmitterInfo.emitterShape == 1u)
+    {
+        return MakeBoxEmitterOffset(baseSeed, useRandom, emitIndex, gEmitterInfo.emitterBoxSize);
+    }
+    if (gEmitterInfo.emitterShape == 2u)
+    {
+        return MakeConeEmitterOffset(baseSeed, useRandom, emitIndex, emitCount, gEmitterInfo.emitterRadius, gEmitterInfo.emitterConeHeight);
+    }
+    return MakeSphereEmitterOffset(baseSeed, useRandom, emitIndex, emitCount, gEmitterInfo.emitterRadius);
+}
+
 [numthreads(1024, 1, 1)]
 void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
@@ -93,11 +142,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     bool useRandom = gEmitterInfo.randomEnabled != 0u;
     ParticleType particleType = gParticleTypes[gEmitterInfo.particleTypeIndex];
 
-    float angle = float(emitIndex) / max(float(gEmitterInfo.emitCount), 1.0f) * 6.28318530718f;
-    float3 deterministicDirection = normalize(float3(cos(angle), sin(angle), 0.25f) + float3(0.001f, 0.001f, 0.001f));
-    float3 emitterDirection = useRandom ? RandomUnitVector(baseSeed ^ 0x7f4a7c15u) : deterministicDirection;
-    float distanceRate = useRandom ? pow(Random01(baseSeed ^ 0x94d049bbu), 1.0f / 3.0f) : float(emitIndex % 16u) / 15.0f;
-    float3 emitterOffset = emitterDirection * distanceRate * gEmitterInfo.emitterRadius;
+    float3 emitterOffset = MakeEmitterOffset(baseSeed, useRandom, emitIndex, gEmitterInfo.emitCount);
     float3 velocityDirection = normalize(emitterOffset + float3(0.001f, 0.25f, 0.001f));
     float colorRate = Random01(baseSeed ^ 0x3f6e4a1bu);
     float3 colorJitter = useRandom

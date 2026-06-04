@@ -45,6 +45,7 @@ inline void NormalizeParticleEffectType(ParticleType& type) {
 	type.lifeTimeMax = (std::max)(type.lifeTimeMax, type.lifeTimeMin);
 	type.speedMin = (std::max)(type.speedMin, 0.0f);
 	type.speedMax = (std::max)(type.speedMax, type.speedMin);
+	type.drag = (std::max)(type.drag, 0.0f);
 	type.atlasRows = std::clamp(type.atlasRows, 1u, 64u);
 	type.atlasColumns = std::clamp(type.atlasColumns, 1u, 64u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);
@@ -53,9 +54,17 @@ inline void NormalizeParticleEffectType(ParticleType& type) {
 
 inline void NormalizeParticleEffectEmitter(Emitter& emitter) {
 	emitter.radius = (std::max)(emitter.radius, 0.0f);
+	emitter.shape = ClampEmitterShape(emitter.shape);
+	emitter.boxSize.x = (std::max)(emitter.boxSize.x, 0.0f);
+	emitter.boxSize.y = (std::max)(emitter.boxSize.y, 0.0f);
+	emitter.boxSize.z = (std::max)(emitter.boxSize.z, 0.0f);
+	emitter.coneHeight = (std::max)(emitter.coneHeight, 0.001f);
 	emitter.emitCount = (std::min)(emitter.emitCount, kParticleCount);
 	emitter.emitInterval = (std::max)(emitter.emitInterval, 0.0f);
+	emitter.emissionRate = (std::max)(emitter.emissionRate, 0.0f);
 	emitter.emitTimer = 0.0f;
+	emitter.emissionAccumulator = 0.0f;
+	emitter.pendingEmitCount = 0;
 	emitter.pendingEmit = false;
 }
 

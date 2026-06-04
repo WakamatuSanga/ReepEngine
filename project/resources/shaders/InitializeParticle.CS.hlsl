@@ -23,7 +23,7 @@ struct ParticleType
     float speedMin;
     float speedMax;
     float gravity;
-    float padding;
+    float drag;
     uint useAtlas;
     uint atlasRows;
     uint atlasColumns;
@@ -43,9 +43,12 @@ struct InitializeInfo
     uint emitterEnabled;
     float3 emitterPosition;
     float emitterRadius;
+    float3 emitterBoxSize;
+    float emitterConeHeight;
     uint emitCount;
     uint particleTypeIndex;
-    float2 padding;
+    uint emitterShape;
+    float padding;
 };
 
 RWStructuredBuffer<Particle> gParticles : register(u0);
@@ -79,6 +82,51 @@ float3 RandomUnitVector(uint seed)
         RandomRange(seed ^ 0xb5297a4du, -1.0f, 1.0f),
         RandomRange(seed ^ 0x9e3779b9u, -1.0f, 1.0f));
     return normalize(value + float3(0.001f, 0.001f, 0.001f));
+}
+
+float3 MakeSphereEmitterOffset(uint baseSeed, bool useRandom, uint particleIndex, uint emitCount, float radius)
+{
+    float angle = float(particleIndex) / max(float(emitCount), 1.0f) * 6.28318530718f;
+    float3 deterministicDirection = normalize(float3(cos(angle), sin(angle), 0.25f) + float3(0.001f, 0.001f, 0.001f));
+    float3 emitterDirection = useRandom ? RandomUnitVector(baseSeed ^ 0x7f4a7c15u) : deterministicDirection;
+    float distanceRate = useRandom ? pow(Random01(baseSeed ^ 0x94d049bbu), 1.0f / 3.0f) : float(particleIndex % 16u) / 15.0f;
+    return emitterDirection * distanceRate * max(radius, 0.0f);
+}
+
+float3 MakeBoxEmitterOffset(uint baseSeed, bool useRandom, uint particleIndex, float3 boxSize)
+{
+    float3 rate = useRandom
+        ? float3(
+            Random01(baseSeed ^ 0x68bc21ebu),
+            Random01(baseSeed ^ 0x02e5be93u),
+            Random01(baseSeed ^ 0x9e3779b9u))
+        : frac(float3(float(particleIndex) * 0.754877666f, float(particleIndex) * 0.569840291f, float(particleIndex) * 0.438235197f) + float3(0.13f, 0.37f, 0.61f));
+    return (rate - 0.5f) * max(boxSize, 0.0f);
+}
+
+float3 MakeConeEmitterOffset(uint baseSeed, bool useRandom, uint particleIndex, uint emitCount, float radius, float height)
+{
+    float angle = useRandom
+        ? RandomRange(baseSeed ^ 0xb5297a4du, 0.0f, 6.28318530718f)
+        : float(particleIndex) / max(float(emitCount), 1.0f) * 6.28318530718f;
+    float heightRate = useRandom ? Random01(baseSeed ^ 0x85ebca6bu) : frac(float(particleIndex) * 0.381966011f);
+    float radialRate = useRandom ? sqrt(Random01(baseSeed ^ 0x27d4eb2fu)) : frac(float(particleIndex) * 0.754877666f);
+    float coneRadius = max(radius, 0.0f) * (1.0f - heightRate);
+    float radialDistance = radialRate * coneRadius;
+    return float3(cos(angle) * radialDistance, heightRate * max(height, 0.001f), sin(angle) * radialDistance);
+}
+
+float3 MakeEmitterOffset(uint baseSeed, bool useRandom, uint particleIndex, uint emitCount)
+{
+    if (gInitializeInfo.emitterShape == 1u)
+    {
+        return MakeBoxEmitterOffset(baseSeed, useRandom, particleIndex, gInitializeInfo.emitterBoxSize);
+    }
+    if (gInitializeInfo.emitterShape == 2u)
+    {
+        return MakeConeEmitterOffset(baseSeed, useRandom, particleIndex, emitCount, gInitializeInfo.emitterRadius, gInitializeInfo.emitterConeHeight);
+    }
+    return MakeSphereEmitterOffset(baseSeed, useRandom, particleIndex, emitCount, gInitializeInfo.emitterRadius);
 }
 
 [numthreads(1024, 1, 1)]
@@ -133,11 +181,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             RandomRange(baseSeed ^ 0xc2b2ae35u, -0.08f, 0.08f),
             RandomRange(baseSeed ^ 0x27d4eb2fu, -0.10f, 0.10f))
         : float3(0.0f, 0.0f, 0.0f);
-    float angle = float(particleIndex) / max(float(emitCount), 1.0f) * 6.28318530718f;
-    float3 deterministicEmitterDirection = normalize(float3(cos(angle), sin(angle), 0.25f) + float3(0.001f, 0.001f, 0.001f));
-    float3 emitterDirection = useRandom ? RandomUnitVector(baseSeed ^ 0x7f4a7c15u) : deterministicEmitterDirection;
-    float emitterDistance = (useRandom ? pow(Random01(baseSeed ^ 0x94d049bbu), 1.0f / 3.0f) : lifeRate) * gInitializeInfo.emitterRadius;
-    float3 emitterOffset = emitterDirection * emitterDistance;
+    float3 emitterOffset = MakeEmitterOffset(baseSeed, useRandom, particleIndex, emitCount);
     float3 emitterVelocityDirection = normalize(emitterOffset + float3(0.001f, 0.25f, 0.001f));
 
     Particle particle;

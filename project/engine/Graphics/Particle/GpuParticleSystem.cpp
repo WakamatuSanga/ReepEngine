@@ -30,6 +30,29 @@ float RandomRange(uint32_t seed, float minValue, float maxValue) {
 	return minValue + (maxValue - minValue) * Random01(seed);
 }
 
+uint32_t ConsumeEmissionRateCount(GpuParticle::Emitter& emitter, float deltaTime) {
+	if (emitter.emissionRate <= 0.0f || deltaTime <= 0.0f) {
+		return 0;
+	}
+
+	emitter.emissionAccumulator += emitter.emissionRate * deltaTime;
+	const uint32_t emitCount = static_cast<uint32_t>(emitter.emissionAccumulator);
+	if (emitCount == 0) {
+		return 0;
+	}
+	emitter.emissionAccumulator -= static_cast<float>(emitCount);
+	return (std::min)(emitCount, GpuParticle::kParticleCount);
+}
+
+void QueueEmitterEmit(GpuParticle::State& state, GpuParticle::Emitter& emitter, uint32_t emitCount) {
+	if (emitCount == 0) {
+		return;
+	}
+	emitter.pendingEmit = true;
+	emitter.pendingEmitCount = (std::min)(emitter.pendingEmitCount + emitCount, GpuParticle::kParticleCount);
+	state.needsEmitDispatch = true;
+}
+
 }
 
 GpuParticleSystem::GpuParticleSystem() = default;
@@ -84,7 +107,29 @@ void GpuParticleSystem::Update(const Camera* camera) {
 	}
 
 	for (GpuParticle::Emitter& emitter : state_.emitters) {
-		if (!emitter.enabled || emitter.emitInterval <= 0.0f) {
+		if (!emitter.enabled) {
+			continue;
+		}
+
+		if (emitter.emissionRate > 0.0f) {
+			const uint32_t emitCount = ConsumeEmissionRateCount(emitter, state_.deltaTime);
+			if (emitCount == 0) {
+				continue;
+			}
+			if (state_.useFreeListEmit) {
+				QueueEmitterEmit(state_, emitter, emitCount);
+			} else {
+				const float remainingAccumulator = emitter.emissionAccumulator;
+				GpuParticle::RequestInitialize(state_);
+				emitter.pendingEmit = true;
+				emitter.pendingEmitCount = emitCount;
+				emitter.emissionAccumulator = remainingAccumulator;
+				break;
+			}
+			continue;
+		}
+
+		if (emitter.emitInterval <= 0.0f) {
 			continue;
 		}
 		emitter.emitTimer += state_.deltaTime;
@@ -92,8 +137,7 @@ void GpuParticleSystem::Update(const Camera* camera) {
 			continue;
 		}
 		if (state_.useFreeListEmit) {
-			emitter.pendingEmit = true;
-			state_.needsEmitDispatch = true;
+			QueueEmitterEmit(state_, emitter, emitter.emitCount);
 		} else {
 			GpuParticle::RequestInitialize(state_);
 			break;

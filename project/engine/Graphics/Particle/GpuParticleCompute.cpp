@@ -81,6 +81,30 @@ void InsertUavBarrier(ID3D12GraphicsCommandList* commandList) {
 	commandList->ResourceBarrier(1, &barrier);
 }
 
+Vector3 MakePositiveVector3(const Vector3& value) {
+	return {
+		(std::max)(value.x, 0.0f),
+		(std::max)(value.y, 0.0f),
+		(std::max)(value.z, 0.0f),
+	};
+}
+
+void WriteEmitterShapeSettings(const GpuParticle::Emitter& emitter, GpuParticle::InitializeInfo& info) {
+	info.emitterBoxSize = MakePositiveVector3(emitter.boxSize);
+	info.emitterConeHeight = (std::max)(emitter.coneHeight, 0.001f);
+	info.emitterShape = static_cast<uint32_t>(GpuParticle::ClampEmitterShape(emitter.shape));
+	info.padding = 0.0f;
+}
+
+void WriteEmitterShapeSettings(const GpuParticle::Emitter& emitter, GpuParticle::EmitterInfo& info) {
+	info.emitterBoxSize = MakePositiveVector3(emitter.boxSize);
+	info.emitterConeHeight = (std::max)(emitter.coneHeight, 0.001f);
+	info.emitterShape = static_cast<uint32_t>(GpuParticle::ClampEmitterShape(emitter.shape));
+	info.padding[0] = 0.0f;
+	info.padding[1] = 0.0f;
+	info.padding[2] = 0.0f;
+}
+
 }
 
 bool GpuParticleCompute::Initialize(DirectXCommon* dxCommon, const GpuParticle::State& state) {
@@ -106,6 +130,7 @@ bool GpuParticleCompute::CreateConstantBuffers(const GpuParticle::State& state) 
 	initializeInfoData_->emitterEnabled = (state.isEmitterEnabled && primaryEmitter.enabled) ? 1u : 0u;
 	initializeInfoData_->emitterPosition = primaryEmitter.position;
 	initializeInfoData_->emitterRadius = primaryEmitter.radius;
+	WriteEmitterShapeSettings(primaryEmitter, *initializeInfoData_);
 	initializeInfoData_->emitCount = primaryEmitter.emitCount;
 	initializeInfoData_->particleTypeIndex = primaryEmitter.particleTypeIndex;
 
@@ -124,6 +149,7 @@ bool GpuParticleCompute::CreateConstantBuffers(const GpuParticle::State& state) 
 	emitterInfoData_->particleTypeIndex = primaryEmitter.particleTypeIndex;
 	emitterInfoData_->emitterPosition = primaryEmitter.position;
 	emitterInfoData_->emitterRadius = primaryEmitter.radius;
+	WriteEmitterShapeSettings(primaryEmitter, *emitterInfoData_);
 
 	recycleInfoResource_ = dxCommon_->CreateBufferResource(GpuParticle::AlignConstantBufferSize(sizeof(GpuParticle::RecycleInfo)));
 	recycleInfoResource_->Map(0, nullptr, reinterpret_cast<void**>(&recycleInfoData_));
@@ -249,13 +275,17 @@ void GpuParticleCompute::DispatchInitializeIfNeeded(
 
 	resources.TransitionParticleResource(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	const GpuParticle::Emitter& emitter = GpuParticle::GetPrimaryEmitter(state);
+	const float emissionAccumulator = emitter.emissionAccumulator;
+	const bool shouldRestoreEmissionAccumulator = emitter.emissionRate > 0.0f;
 	initializeInfoData_->particleCount = GpuParticle::kParticleCount;
 	initializeInfoData_->randomEnabled = state.isRandomInitializeEnabled ? 1u : 0u;
 	initializeInfoData_->randomSeed = emitter.randomSeed;
 	initializeInfoData_->emitterEnabled = ((state.isEmitterEnabled && emitter.enabled) || state.useFreeListEmit) ? 1u : 0u;
 	initializeInfoData_->emitterPosition = emitter.position;
 	initializeInfoData_->emitterRadius = emitter.radius;
-	initializeInfoData_->emitCount = state.useFreeListEmit ? 0u : (std::min)(emitter.emitCount, GpuParticle::kParticleCount);
+	WriteEmitterShapeSettings(emitter, *initializeInfoData_);
+	const uint32_t initializeEmitCount = emitter.pendingEmitCount > 0 ? emitter.pendingEmitCount : emitter.emitCount;
+	initializeInfoData_->emitCount = state.useFreeListEmit ? 0u : (std::min)(initializeEmitCount, GpuParticle::kParticleCount);
 	initializeInfoData_->particleTypeIndex = emitter.particleTypeIndex;
 
 	commandList->SetComputeRootSignature(initializeRootSignature_.Get());
@@ -270,6 +300,9 @@ void GpuParticleCompute::DispatchInitializeIfNeeded(
 	state.needsInitializeDispatch = false;
 	state.elapsedTimeSinceInitialize = 0.0f;
 	GpuParticle::ResetEmitterTimersAndPending(state);
+	if (shouldRestoreEmissionAccumulator && !state.emitters.empty()) {
+		state.emitters.front().emissionAccumulator = emissionAccumulator;
+	}
 	state.activeCountEstimate = state.useFreeListEmit
 		? 0u
 		: (state.isEmitterEnabled ? GpuParticle::GetEnabledEmitterEmitCountSum(state) : GpuParticle::kParticleCount);
@@ -291,7 +324,13 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 			continue;
 		}
 
-		uint32_t actualEmitCount = (std::min)(emitter.emitCount, GpuParticle::kParticleCount);
+		const uint32_t requestedEmitCount = emitter.pendingEmitCount > 0 ? emitter.pendingEmitCount : emitter.emitCount;
+		if (requestedEmitCount == 0) {
+			emitter.pendingEmit = false;
+			emitter.pendingEmitCount = 0;
+			continue;
+		}
+		uint32_t actualEmitCount = (std::min)(requestedEmitCount, GpuParticle::kParticleCount);
 		actualEmitCount = (std::min)(actualEmitCount, state.freeListRemainingEstimate);
 		if (actualEmitCount == 0) {
 			hasPendingEmit = true;
@@ -304,6 +343,7 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		emitterInfoData_->particleTypeIndex = emitter.particleTypeIndex;
 		emitterInfoData_->emitterPosition = emitter.position;
 		emitterInfoData_->emitterRadius = emitter.radius;
+		WriteEmitterShapeSettings(emitter, *emitterInfoData_);
 		commandList->SetComputeRootSignature(emitRootSignature_.Get());
 		commandList->SetPipelineState(emitPipelineState_.Get());
 		commandList->SetComputeRootDescriptorTable(0, resources.GetParticleUavHandle());
@@ -317,8 +357,15 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		state.activeCountEstimate = (std::min)(state.activeCountEstimate + actualEmitCount, GpuParticle::kParticleCount);
 		state.emitBatchEstimates.push_back({ actualEmitCount, 0.0f, GpuParticle::GetParticleType(state, emitter.particleTypeIndex).lifeTimeMax });
 		totalEmitCount += actualEmitCount;
-		emitter.pendingEmit = false;
-		emitter.emitTimer = 0.0f;
+		if (actualEmitCount < requestedEmitCount) {
+			emitter.pendingEmitCount = requestedEmitCount - actualEmitCount;
+			emitter.pendingEmit = true;
+			hasPendingEmit = true;
+		} else {
+			emitter.pendingEmit = false;
+			emitter.pendingEmitCount = 0;
+			emitter.emitTimer = 0.0f;
+		}
 	}
 	state.lastEmitDispatchCount = totalEmitCount;
 	state.needsEmitDispatch = hasPendingEmit;

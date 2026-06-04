@@ -53,6 +53,7 @@ struct ParticleType {
 	float speedMin;
 	float speedMax;
 	float gravity;
+	float drag = 0.0f;
 	bool useAtlas = false;
 	uint32_t atlasRows = 1;
 	uint32_t atlasColumns = 1;
@@ -72,7 +73,7 @@ struct ParticleTypeForGPU {
 	float speedMin;
 	float speedMax;
 	float gravity;
-	float padding;
+	float drag;
 	uint32_t useAtlas;
 	uint32_t atlasRows;
 	uint32_t atlasColumns;
@@ -86,6 +87,7 @@ struct ParticleTypeForGPU {
 static_assert(sizeof(ParticleTypeForGPU) == 128, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, endColor) == 32, "endColor offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, drag) == 76, "drag offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, useAtlas) == 80, "useAtlas offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, atlasRows) == 84, "atlasRows offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, atlasColumns) == 88, "atlasColumns offset must match HLSL ParticleType.");
@@ -94,6 +96,13 @@ static_assert(offsetof(ParticleTypeForGPU, frameSpeed) == 96, "frameSpeed offset
 static_assert(offsetof(ParticleTypeForGPU, loopAtlas) == 100, "loopAtlas offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, textureIndex) == 104, "textureIndex offset must match HLSL ParticleType.");
 
+enum class EmitterShape : uint32_t {
+	Sphere = 0,
+	Box = 1,
+	Cone = 2,
+};
+inline constexpr uint32_t kEmitterShapeCount = 3;
+
 struct InitializeInfo {
 	uint32_t particleCount;
 	uint32_t randomEnabled;
@@ -101,10 +110,16 @@ struct InitializeInfo {
 	uint32_t emitterEnabled;
 	Vector3 emitterPosition;
 	float emitterRadius;
+	Vector3 emitterBoxSize;
+	float emitterConeHeight;
 	uint32_t emitCount;
 	uint32_t particleTypeIndex;
-	float padding[2];
+	uint32_t emitterShape;
+	float padding;
 };
+static_assert(sizeof(InitializeInfo) == 64, "InitializeInfo must match the HLSL constant buffer layout.");
+static_assert(offsetof(InitializeInfo, emitterBoxSize) == 32, "emitterBoxSize offset must match HLSL InitializeInfo.");
+static_assert(offsetof(InitializeInfo, emitCount) == 48, "emitCount offset must match HLSL InitializeInfo.");
 
 struct UpdateInfo {
 	uint32_t particleCount;
@@ -120,15 +135,28 @@ struct EmitterInfo {
 	uint32_t particleTypeIndex;
 	Vector3 emitterPosition;
 	float emitterRadius;
+	Vector3 emitterBoxSize;
+	float emitterConeHeight;
+	uint32_t emitterShape;
+	float padding[3];
 };
+static_assert(sizeof(EmitterInfo) == 64, "EmitterInfo must match the HLSL constant buffer layout.");
+static_assert(offsetof(EmitterInfo, emitterBoxSize) == 32, "emitterBoxSize offset must match HLSL EmitterInfo.");
+static_assert(offsetof(EmitterInfo, emitterShape) == 48, "emitterShape offset must match HLSL EmitterInfo.");
 
 struct Emitter {
 	bool enabled = true;
 	Vector3 position = { 0.0f, 1.5f, 3.0f };
 	float radius = 0.8f;
+	EmitterShape shape = EmitterShape::Sphere;
+	Vector3 boxSize = { 1.0f, 1.0f, 1.0f };
+	float coneHeight = 1.2f;
 	uint32_t emitCount = 256;
 	float emitInterval = 1.5f;
+	float emissionRate = 0.0f;
 	float emitTimer = 0.0f;
+	float emissionAccumulator = 0.0f;
+	uint32_t pendingEmitCount = 0;
 	uint32_t randomSeed = 1;
 	uint32_t particleTypeIndex = 0;
 	bool pendingEmit = false;
@@ -214,6 +242,7 @@ inline void EnsureDefaultParticleTypes(State& state) {
 		0.55f,
 		1.60f,
 		-2.8f,
+		0.20f,
 		});
 	state.particleTypes.push_back({
 		"Mist",
@@ -229,6 +258,7 @@ inline void EnsureDefaultParticleTypes(State& state) {
 		0.20f,
 		0.85f,
 		-0.08f,
+		1.00f,
 		});
 	state.particleTypes.push_back({
 		"Float",
@@ -244,6 +274,7 @@ inline void EnsureDefaultParticleTypes(State& state) {
 		0.35f,
 		1.05f,
 		0.35f,
+		0.40f,
 		});
 }
 
@@ -279,8 +310,15 @@ inline void ClampEmitterParticleTypeIndices(State& state) {
 inline void ResetEmitterTimersAndPending(State& state) {
 	for (Emitter& emitter : state.emitters) {
 		emitter.emitTimer = 0.0f;
+		emitter.emissionAccumulator = 0.0f;
+		emitter.pendingEmitCount = 0;
 		emitter.pendingEmit = false;
 	}
+}
+
+inline EmitterShape ClampEmitterShape(EmitterShape shape) {
+	const uint32_t shapeIndex = static_cast<uint32_t>(shape);
+	return shapeIndex < kEmitterShapeCount ? shape : EmitterShape::Sphere;
 }
 
 inline uint32_t GetEnabledEmitterEmitCountSum(const State& state) {
@@ -312,8 +350,9 @@ inline void RequestEmit(State& state) {
 	state.needsEmitDispatch = true;
 	state.lastEmitDispatchCount = 0;
 	for (Emitter& emitter : state.emitters) {
-		if (emitter.enabled) {
+		if (emitter.enabled && emitter.emitCount > 0) {
 			emitter.pendingEmit = true;
+			emitter.pendingEmitCount = (std::min)(emitter.emitCount, kParticleCount);
 		}
 	}
 }

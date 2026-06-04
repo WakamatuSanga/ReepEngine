@@ -62,6 +62,18 @@ const char* ToJsonBool(bool value) {
 	return value ? "true" : "false";
 }
 
+const char* ToEmitterShapeJsonString(GpuParticle::EmitterShape shape) {
+	switch (GpuParticle::ClampEmitterShape(shape)) {
+	case GpuParticle::EmitterShape::Box:
+		return "Box";
+	case GpuParticle::EmitterShape::Cone:
+		return "Cone";
+	case GpuParticle::EmitterShape::Sphere:
+	default:
+		return "Sphere";
+	}
+}
+
 class JsonReader {
 public:
 	explicit JsonReader(std::string_view source)
@@ -276,6 +288,38 @@ private:
 		return false;
 	}
 
+	bool ParseEmitterShape(GpuParticle::EmitterShape& value) {
+		SkipWhitespace();
+		if (position_ < source_.size() && source_[position_] == '"') {
+			std::string shapeName;
+			if (!ParseString(shapeName)) {
+				return false;
+			}
+			if (shapeName == "Sphere" || shapeName == "sphere") {
+				value = GpuParticle::EmitterShape::Sphere;
+				return true;
+			}
+			if (shapeName == "Box" || shapeName == "box") {
+				value = GpuParticle::EmitterShape::Box;
+				return true;
+			}
+			if (shapeName == "Cone" || shapeName == "cone") {
+				value = GpuParticle::EmitterShape::Cone;
+				return true;
+			}
+			return false;
+		}
+
+		uint32_t shapeIndex = 0;
+		if (!ParseUint(shapeIndex)) {
+			return false;
+		}
+		value = shapeIndex < GpuParticle::kEmitterShapeCount
+			? static_cast<GpuParticle::EmitterShape>(shapeIndex)
+			: GpuParticle::EmitterShape::Sphere;
+		return true;
+	}
+
 	bool ParseVector3(Vector3& value) {
 		Vector3 parsed{};
 		if (!Consume('[') || !ParseFloat(parsed.x) || !Consume(',') || !ParseFloat(parsed.y) || !Consume(',') || !ParseFloat(parsed.z) || !Consume(']')) {
@@ -351,12 +395,28 @@ private:
 				if (!ParseFloat(emitter.radius)) {
 					return false;
 				}
+			} else if (key == "shape") {
+				if (!ParseEmitterShape(emitter.shape)) {
+					return false;
+				}
+			} else if (key == "boxSize") {
+				if (!ParseVector3(emitter.boxSize)) {
+					return false;
+				}
+			} else if (key == "coneHeight") {
+				if (!ParseFloat(emitter.coneHeight)) {
+					return false;
+				}
 			} else if (key == "emitCount") {
 				if (!ParseUint(emitter.emitCount)) {
 					return false;
 				}
 			} else if (key == "emitInterval") {
 				if (!ParseFloat(emitter.emitInterval)) {
+					return false;
+				}
+			} else if (key == "emissionRate") {
+				if (!ParseFloat(emitter.emissionRate)) {
 					return false;
 				}
 			} else if (key == "randomSeed") {
@@ -422,7 +482,8 @@ private:
 		bool hasBaseColor = false;
 		bool hasStartColor = false;
 		bool hasEndColor = false;
-		auto finalizeType = [&type, &hasBaseColor, &hasStartColor, &hasEndColor]() {
+		bool hasDrag = false;
+		auto finalizeType = [&type, &hasBaseColor, &hasStartColor, &hasEndColor, &hasDrag]() {
 			if (!hasStartColor) {
 				type.startColor = type.baseColor;
 			}
@@ -431,6 +492,9 @@ private:
 			}
 			if (!hasBaseColor) {
 				type.baseColor = type.startColor;
+			}
+			if (!hasDrag) {
+				type.drag = 0.0f;
 			}
 			GpuParticle::NormalizeParticleEffectType(type);
 		};
@@ -497,6 +561,11 @@ private:
 				if (!ParseFloat(type.gravity)) {
 					return false;
 				}
+			} else if (key == "drag") {
+				if (!ParseFloat(type.drag)) {
+					return false;
+				}
+				hasDrag = true;
 			} else if (key == "useAtlas") {
 				if (!ParseBool(type.useAtlas)) {
 					return false;
@@ -684,8 +753,16 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			WriteVector3(stream, emitter.position);
 			stream << ",\n";
 			stream << "      \"radius\": " << emitter.radius << ",\n";
+			stream << "      \"shape\": ";
+			WriteJsonString(stream, ToEmitterShapeJsonString(emitter.shape));
+			stream << ",\n";
+			stream << "      \"boxSize\": ";
+			WriteVector3(stream, emitter.boxSize);
+			stream << ",\n";
+			stream << "      \"coneHeight\": " << emitter.coneHeight << ",\n";
 			stream << "      \"emitCount\": " << emitter.emitCount << ",\n";
 			stream << "      \"emitInterval\": " << emitter.emitInterval << ",\n";
+			stream << "      \"emissionRate\": " << emitter.emissionRate << ",\n";
 			stream << "      \"randomSeed\": " << emitter.randomSeed << ",\n";
 			stream << "      \"particleTypeIndex\": " << emitter.particleTypeIndex << "\n";
 			stream << "    }" << (index + 1 < outputData.emitters.size() ? "," : "") << "\n";
@@ -717,6 +794,7 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"speedMin\": " << type.speedMin << ",\n";
 			stream << "      \"speedMax\": " << type.speedMax << ",\n";
 			stream << "      \"gravity\": " << type.gravity << ",\n";
+			stream << "      \"drag\": " << type.drag << ",\n";
 			stream << "      \"useAtlas\": " << ToJsonBool(type.useAtlas) << ",\n";
 			stream << "      \"atlasRows\": " << type.atlasRows << ",\n";
 			stream << "      \"atlasColumns\": " << type.atlasColumns << ",\n";
