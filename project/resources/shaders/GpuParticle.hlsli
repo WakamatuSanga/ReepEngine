@@ -23,7 +23,7 @@ struct ParticleType
     float speedMin;
     float speedMax;
     float gravity;
-    float padding;
+    float drag;
     uint useAtlas;
     uint atlasRows;
     uint atlasColumns;

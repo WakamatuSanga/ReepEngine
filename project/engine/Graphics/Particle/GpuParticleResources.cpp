@@ -181,7 +181,7 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.speedMin = (std::max)(source.speedMin, 0.0f);
 		destination.speedMax = (std::max)(source.speedMax, destination.speedMin);
 		destination.gravity = source.gravity;
-		destination.padding = 0.0f;
+		destination.drag = (std::max)(source.drag, 0.0f);
 		destination.useAtlas = source.useAtlas ? 1u : 0u;
 		destination.atlasRows = (std::max)(source.atlasRows, 1u);
 		destination.atlasColumns = (std::max)(source.atlasColumns, 1u);

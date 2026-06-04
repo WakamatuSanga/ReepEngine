@@ -23,7 +23,7 @@ struct ParticleType
     float speedMin;
     float speedMax;
     float gravity;
-    float padding;
+    float drag;
     uint useAtlas;
     uint atlasRows;
     uint atlasColumns;
@@ -67,6 +67,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.currentTime += gUpdateInfo.deltaTime;
     ParticleType particleType = gParticleTypes[particle.type];
     particle.velocity.y += particleType.gravity * gUpdateInfo.deltaTime;
+    particle.velocity *= exp(-max(particleType.drag, 0.0f) * gUpdateInfo.deltaTime);
     particle.translate += particle.velocity * gUpdateInfo.deltaTime;
     particle.currentTime = min(particle.currentTime, particle.lifeTime);
     particle.scale = lerp(particleType.startScale, particleType.endScale, saturate(particle.currentTime / max(particle.lifeTime, 0.0001f)));
