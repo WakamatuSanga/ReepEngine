@@ -74,25 +74,10 @@ namespace {
         };
     }
 
-    LevelTransform MakeEventLocalTransform(const LevelObject& object) {
-        return {
-            object.eventFlag.position,
-            object.eventFlag.rotation,
-            object.eventFlag.scale,
-        };
-    }
-
     LevelTransform GetObjectLocalTransform(const LevelObject& object, bool axisConversionEnabled) {
         return axisConversionEnabled
             ? BlenderToEngineTransform(object.transform)
             : object.transform;
-    }
-
-    LevelTransform GetEventLocalTransform(const LevelObject& object, bool axisConversionEnabled) {
-        const LevelTransform local = MakeEventLocalTransform(object);
-        return axisConversionEnabled
-            ? BlenderToEngineTransform(local)
-            : local;
     }
 
     Vector3 GetEventSize(const LevelObject& object, bool axisConversionEnabled) {
@@ -209,11 +194,10 @@ namespace {
             Model* model = GetEventModel(sphere, style);
 
             if (model && object3dCommon && camera) {
-                const LevelTransform eventLocal = GetEventLocalTransform(object, axisConversionEnabled);
-                EventVisualTransform eventWorld = CombineTransform(parentTransform, eventLocal);
+                EventVisualTransform eventWorld = objectWorld;
                 const Vector3 eventSize = GetEventSize(object, axisConversionEnabled);
                 eventWorld.scaling = ScaleVector3(
-                    MultiplyVector3(eventWorld.scaling, ScaleVector3(eventSize, 0.5f)),
+                    MultiplyVector3(AbsVector3(objectWorld.scaling), ScaleVector3(eventSize, 0.5f)),
                     scaleMultiplier);
 
                 auto visual = std::make_unique<LevelEventVisualObject>();
@@ -256,8 +240,17 @@ void LevelEventVisualizer::Clear() {
     visuals_.clear();
 }
 
-void LevelEventVisualizer::Rebuild(const LevelSceneData& sceneData, bool axisConversionEnabled) {
+void LevelEventVisualizer::Rebuild(
+    const LevelSceneData& sceneData,
+    bool axisConversionEnabled,
+    uint64_t frameCounter) {
+    if (pauseEventVisualRebuild_) {
+        return;
+    }
+
     visuals_.clear();
+    ++rebuildCount_;
+    lastRebuildFrame_ = frameCounter;
     if (!object3dCommon_ || !camera_) {
         return;
     }
@@ -276,17 +269,26 @@ void LevelEventVisualizer::Rebuild(const LevelSceneData& sceneData, bool axisCon
     }
 }
 
-void LevelEventVisualizer::Update() {
+void LevelEventVisualizer::Update(uint64_t frameCounter) {
+    if (freezeEventVisuals_) {
+        return;
+    }
+
     for (const auto& visual : visuals_) {
         if (visual && visual->object) {
             visual->object->Update();
         }
     }
+    lastMatrixUpdateFrame_ = frameCounter;
 }
 
-void LevelEventVisualizer::Draw() {
+void LevelEventVisualizer::Draw(uint64_t frameCounter) {
     if (!showEventFlags_ || !object3dCommon_) {
         return;
+    }
+
+    if (updateMatricesWithLatestCamera_) {
+        Update(frameCounter);
     }
 
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
@@ -314,10 +316,16 @@ bool LevelEventVisualizer::DrawImGui() {
     if (ImGui::Checkbox("無効イベントフラグも表示 (Show Disabled Event Flags)", &showDisabledEventFlags_)) {
         needsRebuild = true;
     }
+    ImGui::Checkbox("イベント表示を固定 (Freeze Event Visuals)", &freezeEventVisuals_);
+    ImGui::Checkbox("イベント表示再構築を一時停止 (Pause Event Visual Rebuild)", &pauseEventVisualRebuild_);
+    ImGui::Checkbox("最新カメラで行列更新 (Update Matrices With Latest Camera)", &updateMatricesWithLatestCamera_);
     if (ImGui::Button("イベント表示を再構築 (Rebuild Event Visuals)")) {
         needsRebuild = true;
     }
-    ImGui::Text("イベント表示数 (Event Visual Count): %zu", visuals_.size());
+    ImGui::Text("イベント表示オブジェクト数 (Event Visual Object Count): %zu", visuals_.size());
+    ImGui::Text("イベント表示再構築回数 (Event Visual Rebuild Count): %llu", static_cast<unsigned long long>(rebuildCount_));
+    ImGui::Text("最後のイベント表示再構築フレーム (Last Event Visual Rebuild Frame): %llu", static_cast<unsigned long long>(lastRebuildFrame_));
+    ImGui::Text("最後のイベント表示行列更新フレーム (Last Event Visual Matrix Update Frame): %llu", static_cast<unsigned long long>(lastMatrixUpdateFrame_));
     return needsRebuild;
 #else
     return false;

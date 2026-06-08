@@ -75,14 +75,6 @@ namespace {
         };
     }
 
-    LevelTransform MakeEventLocalTransform(const LevelObject& object) {
-        return {
-            object.eventFlag.position,
-            object.eventFlag.rotation,
-            object.eventFlag.scale,
-        };
-    }
-
     LevelTransform ConvertTransform(const LevelTransform& transform, bool axisConversionEnabled) {
         return axisConversionEnabled ? BlenderToEngineTransform(transform) : transform;
     }
@@ -104,12 +96,9 @@ namespace {
             ConvertTransform(object.transform, axisConversionEnabled));
 
         if (object.isEventFlag) {
-            const EventConnectionWorldTransform eventWorld = CombineTransform(
-                parentTransform,
-                ConvertTransform(MakeEventLocalTransform(object), axisConversionEnabled));
             endpoints.push_back({
                 GetFlagId(object),
-                eventWorld.translation,
+                objectWorld.translation,
                 object.eventFlag.nextFlagIds,
                 });
         }
@@ -180,8 +169,17 @@ void LevelEventConnectionVisualizer::Clear() {
     missingFlagLinkCount_ = 0;
 }
 
-void LevelEventConnectionVisualizer::Rebuild(const LevelSceneData& sceneData, bool axisConversionEnabled) {
+void LevelEventConnectionVisualizer::Rebuild(
+    const LevelSceneData& sceneData,
+    bool axisConversionEnabled,
+    uint64_t frameCounter) {
+    if (pauseFlagLinkRebuild_) {
+        return;
+    }
+
     Clear();
+    ++rebuildCount_;
+    lastRebuildFrame_ = frameCounter;
     if (!object3dCommon_ || !camera_) {
         return;
     }
@@ -230,17 +228,22 @@ void LevelEventConnectionVisualizer::Rebuild(const LevelSceneData& sceneData, bo
     }
 }
 
-void LevelEventConnectionVisualizer::Update() {
+void LevelEventConnectionVisualizer::Update(uint64_t frameCounter) {
     for (const auto& link : links_) {
         if (link && link->object) {
             link->object->Update();
         }
     }
+    lastMatrixUpdateFrame_ = frameCounter;
 }
 
-void LevelEventConnectionVisualizer::Draw() {
+void LevelEventConnectionVisualizer::Draw(uint64_t frameCounter) {
     if (!showFlagLinks_ || !object3dCommon_) {
         return;
+    }
+
+    if (updateMatricesWithLatestCamera_) {
+        Update(frameCounter);
     }
 
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
@@ -261,6 +264,11 @@ bool LevelEventConnectionVisualizer::DrawImGui() {
     ImGui::ColorEdit4("フラグ接続線の色 (Flag Link Color)", flagLinkColor_.data());
     ImGui::Text("フラグ接続線数 (Flag Link Count): %zu", links_.size());
     ImGui::Text("不明なフラグ接続数 (Missing Flag Link Count): %zu", missingFlagLinkCount_);
+    ImGui::Checkbox("フラグ接続線再構築を一時停止 (Pause Flag Link Rebuild)", &pauseFlagLinkRebuild_);
+    ImGui::Checkbox("最新カメラで接続線行列更新 (Update Matrices With Latest Camera)", &updateMatricesWithLatestCamera_);
+    ImGui::Text("フラグ接続線再構築回数 (Flag Link Rebuild Count): %llu", static_cast<unsigned long long>(rebuildCount_));
+    ImGui::Text("最後のフラグ接続線再構築フレーム (Last Flag Link Rebuild Frame): %llu", static_cast<unsigned long long>(lastRebuildFrame_));
+    ImGui::Text("最後のフラグ接続線行列更新フレーム (Last Flag Link Matrix Update Frame): %llu", static_cast<unsigned long long>(lastMatrixUpdateFrame_));
     if (ImGui::Button("フラグ接続線を再構築 (Rebuild Flag Links)")) {
         needsRebuild = true;
     }

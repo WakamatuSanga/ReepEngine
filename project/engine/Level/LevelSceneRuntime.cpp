@@ -109,8 +109,8 @@ void LevelSceneRuntime::Update() {
     }
 
     if (objectDebugVisualizer_) { objectDebugVisualizer_->Update(frameCounter_); }
-    if (eventVisualizer_) { eventVisualizer_->Update(); }
-    if (connectionVisualizer_) { connectionVisualizer_->Update(); }
+    if (eventVisualizer_) { eventVisualizer_->Update(frameCounter_); }
+    if (connectionVisualizer_) { connectionVisualizer_->Update(frameCounter_); }
 }
 
 void LevelSceneRuntime::Draw() {
@@ -118,8 +118,8 @@ void LevelSceneRuntime::Draw() {
         objectDebugVisualizer_->Update(frameCounter_);
         objectDebugVisualizer_->Draw();
     }
-    if (eventVisualizer_) { eventVisualizer_->Draw(); }
-    if (connectionVisualizer_) { connectionVisualizer_->Draw(); }
+    if (eventVisualizer_) { eventVisualizer_->Draw(frameCounter_); }
+    if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
 }
 
 void LevelSceneRuntime::DrawImGui() {
@@ -268,18 +268,18 @@ void LevelSceneRuntime::RebuildDebugObjects() {
         objectDebugVisualizer_->Rebuild(sceneData_, axisConversionEnabled_);
     }
     if (eventVisualizer_) {
-        eventVisualizer_->Rebuild(sceneData_, axisConversionEnabled_);
+        eventVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
     if (connectionVisualizer_) {
-        connectionVisualizer_->Rebuild(sceneData_, axisConversionEnabled_);
+        connectionVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
     if (objectDebugVisualizer_) {
         objectDebugVisualizer_->Update(frameCounter_);
     }
     if (eventVisualizer_) {
-        eventVisualizer_->Update();
+        eventVisualizer_->Update(frameCounter_);
     }
     if (connectionVisualizer_) {
-        connectionVisualizer_->Update();
+        connectionVisualizer_->Update(frameCounter_);
     }
 }

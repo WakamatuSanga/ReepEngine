@@ -218,7 +218,7 @@ def _append_event_flag_properties(json_object, object, transform_json, collider_
     flag_id = _custom_string(object, "event_flag_id", object_id)
     display_name = _custom_string(object, "event_display_name", object.name)
     description = _custom_string(object, "event_description")
-    trigger_type = _custom_string(object, "event_trigger_type", "Enter")
+    trigger_type = _custom_string(object, "event_trigger_type", "PlayerEnter")
     shape_type = _custom_string(object, "event_shape_type", collider_json.get("type", "Box"))
     one_shot = _to_bool(object["event_one_shot"], True) if "event_one_shot" in object else True
     initially_enabled = (

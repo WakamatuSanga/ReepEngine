@@ -15,7 +15,11 @@ import bpy
 
 from .create_ico_sphere import MYADDON_OT_create_ico_sphere
 from .add_collider import MYADDON_OT_add_collider
-from .add_event_flag import MYADDON_OT_add_event_flag_properties
+from .add_event_flag import (
+    MYADDON_OT_add_event_flag_properties,
+    MYADDON_OT_set_event_flag_shape,
+    VIEW3D_PT_level_event_flag_editor,
+)
 from .add_filename import MYADDON_OT_add_filename
 from .export_scene import WM_OT_level_export, MYADDON_OT_export_scene
 from .import_scene import MYADDON_OT_import_scene
@@ -36,12 +40,14 @@ classes = (
     MYADDON_OT_add_filename,
     MYADDON_OT_add_collider,
     MYADDON_OT_add_event_flag_properties,
+    MYADDON_OT_set_event_flag_shape,
     MYADDON_OT_export_scene,
     MYADDON_OT_import_scene,
     OBJECT_PT_file_name,
     OBJECT_PT_collider,
     MYADDON_OT_send_live_sync,
     VIEW3D_PT_level_live_sync,
+    VIEW3D_PT_level_event_flag_editor,
     TOPBAR_MT_my_menu,
 )
 
