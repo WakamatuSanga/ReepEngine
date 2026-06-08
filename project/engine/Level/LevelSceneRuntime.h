@@ -4,14 +4,12 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <vector>
 
 class Camera;
 class LevelEventConnectionVisualizer;
 class LevelEventVisualizer;
+class LevelObjectDebugVisualizer;
 class LevelSceneLoader;
-struct LevelSceneDebugObject;
-struct LevelSceneRuntimeTransform;
 class Object3dCommon;
 
 class LevelSceneRuntime {
@@ -39,26 +37,16 @@ private:
     void SetPathBufferText(const std::string& text);
     void RequestRebuild(const std::string& applySource);
     void RebuildDebugObjects();
-    void UpdateDebugObjectMatrices();
-    void BuildDebugObjectsRecursive(
-        const LevelObject& object,
-        const LevelSceneRuntimeTransform& parentTransform);
 
     std::unique_ptr<LevelSceneLoader> loader_;
+    std::unique_ptr<LevelObjectDebugVisualizer> objectDebugVisualizer_;
     std::unique_ptr<LevelEventVisualizer> eventVisualizer_;
     std::unique_ptr<LevelEventConnectionVisualizer> connectionVisualizer_;
     LevelSceneData sceneData_;
-    std::vector<std::unique_ptr<LevelSceneDebugObject>> debugObjects_;
-    Object3dCommon* object3dCommon_ = nullptr;
-    Camera* camera_ = nullptr;
     std::array<char, 260> jsonPathBuffer_{};
     std::string jsonPath_ = "resources/level_editor/level_editor.json";
     std::string lastLoadStatus_;
     std::string lastResolvedPath_;
-    int drawMode_ = 0;
-    bool showLevelObjects_ = true;
-    bool showDebugColliders_ = true;
-    bool showBlenderHelpers_ = false;
     bool axisConversionEnabled_ = true;
     bool freezeDebugObjects_ = false;
     bool pauseLiveApply_ = false;
@@ -67,10 +55,8 @@ private:
     uint64_t frameCounter_ = 0;
     uint64_t rebuildCount_ = 0;
     uint64_t lastRebuildFrame_ = 0;
-    uint64_t lastDebugMatrixUpdateFrame_ = 0;
     uint64_t lastPacketApplied_ = 0;
     bool liveAutoApplyEnabled_ = true;
-    size_t missingModelCount_ = 0;
     int selectedObjectIndex_ = -1;
     std::string lastApplySource_ = "(none)";
     std::string pendingRebuildSource_;

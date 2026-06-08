@@ -26,31 +26,31 @@ namespace {
 
 void DrawLevelObjectEventDetailsImGui(const LevelObject& object) {
 #ifdef _DEBUG
-    ImGui::Text("objectId: %s", object.objectId.empty() ? "(none)" : object.objectId.c_str());
-    ImGui::Text("editorLabel: %s", object.editorLabel.empty() ? "(none)" : object.editorLabel.c_str());
+    ImGui::Text("オブジェクトID (objectId): %s", object.objectId.empty() ? "(none)" : object.objectId.c_str());
+    ImGui::Text("エディタラベル (editorLabel): %s", object.editorLabel.empty() ? "(none)" : object.editorLabel.c_str());
     ImGui::Text(
-        "editorDescription: %s",
+        "エディタ説明 (editorDescription): %s",
         object.editorDescription.empty() ? "(none)" : object.editorDescription.c_str());
-    ImGui::Text("isEventFlag: %s", object.isEventFlag ? "true" : "false");
-    ImGui::Text("eventFlagId: %s", object.eventFlagId.empty() ? "(none)" : object.eventFlagId.c_str());
+    ImGui::Text("イベントフラグか (isEventFlag): %s", object.isEventFlag ? "true" : "false");
+    ImGui::Text("イベントフラグID (eventFlagId): %s", object.eventFlagId.empty() ? "(none)" : object.eventFlagId.c_str());
 
     if (!object.isEventFlag) {
         return;
     }
 
     ImGui::Separator();
-    ImGui::Text("event.displayName: %s", object.eventFlag.displayName.c_str());
-    ImGui::TextWrapped("event.description: %s", object.eventFlag.description.c_str());
-    ImGui::Text("event.triggerType: %s", object.eventFlag.triggerType.c_str());
-    ImGui::Text("event.shapeType: %s", object.eventFlag.shapeType.c_str());
-    ImGui::Text("event.oneShot: %s", object.eventFlag.oneShot ? "true" : "false");
-    ImGui::Text("event.initiallyEnabled: %s", object.eventFlag.initiallyEnabled ? "true" : "false");
-    ImGui::Text("event.visibleInEditor: %s", object.eventFlag.visibleInEditor ? "true" : "false");
-    ImGui::Text("event.size: %s", FormatVector3(object.eventFlag.size).c_str());
+    ImGui::Text("表示名 (event.displayName): %s", object.eventFlag.displayName.c_str());
+    ImGui::TextWrapped("説明 (event.description): %s", object.eventFlag.description.c_str());
+    ImGui::Text("発火種類 (event.triggerType): %s", object.eventFlag.triggerType.c_str());
+    ImGui::Text("形状種類 (event.shapeType): %s", object.eventFlag.shapeType.c_str());
+    ImGui::Text("一度だけ (event.oneShot): %s", object.eventFlag.oneShot ? "true" : "false");
+    ImGui::Text("初期有効 (event.initiallyEnabled): %s", object.eventFlag.initiallyEnabled ? "true" : "false");
+    ImGui::Text("エディタ表示 (event.visibleInEditor): %s", object.eventFlag.visibleInEditor ? "true" : "false");
+    ImGui::Text("サイズ (event.size): %s", FormatVector3(object.eventFlag.size).c_str());
 
     if (object.eventFlag.nextFlagIds.empty()) {
-        ImGui::TextUnformatted("event.nextFlagIds: (none)");
-    } else if (ImGui::TreeNode("event.nextFlagIds")) {
+        ImGui::TextUnformatted("次フラグID (event.nextFlagIds): (none)");
+    } else if (ImGui::TreeNode("次フラグID (event.nextFlagIds)")) {
         for (const std::string& nextFlagId : object.eventFlag.nextFlagIds) {
             ImGui::BulletText("%s", nextFlagId.c_str());
         }
@@ -58,8 +58,8 @@ void DrawLevelObjectEventDetailsImGui(const LevelObject& object) {
     }
 
     if (object.eventFlag.objectActions.empty()) {
-        ImGui::TextUnformatted("event.objectActions: (none)");
-    } else if (ImGui::TreeNode("event.objectActions")) {
+        ImGui::TextUnformatted("対象オブジェクト操作 (event.objectActions): (none)");
+    } else if (ImGui::TreeNode("対象オブジェクト操作 (event.objectActions)")) {
         for (const LevelEventObjectAction& action : object.eventFlag.objectActions) {
             ImGui::BulletText(
                 "%s / %s / %s",
@@ -82,22 +82,22 @@ bool DrawLevelEventDebugImGui(
 #ifdef _DEBUG
     bool needsRebuild = false;
     const LevelEventValidationResult validation = ValidateLevelEventLinks(sceneData);
-    ImGui::Text("Event Flag Count: %zu", CountEventFlags(sceneData));
-    ImGui::Text("Missing Link Count: %zu", validation.GetMissingLinkCount());
+    ImGui::Text("イベントフラグ数 (Event Flag Count): %zu", CountEventFlags(sceneData));
+    ImGui::Text("不明な接続数 (Missing Link Count): %zu", validation.GetMissingLinkCount());
 
-    if (ImGui::TreeNode("Selected Event Flag")) {
+    if (ImGui::TreeNode("選択中イベントフラグ (Selected Event Flag)")) {
         if (selectedObject && selectedObject->isEventFlag) {
             DrawLevelObjectEventDetailsImGui(*selectedObject);
         } else {
-            ImGui::TextDisabled("Select an EventFlag object in Object Tree.");
+            ImGui::TextDisabled("オブジェクトツリーでEventFlagを選択してください。 (Select an EventFlag object in Object Tree.)");
         }
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Link Validation")) {
+    if (ImGui::TreeNode("接続チェック (Link Validation)")) {
         if (validation.missingFlagLinks.empty()) {
-            ImGui::TextUnformatted("Missing Flag Links: none");
-        } else if (ImGui::TreeNode("Missing Flag Links")) {
+            ImGui::TextUnformatted("不明なフラグ接続: なし (Missing Flag Links: none)");
+        } else if (ImGui::TreeNode("不明なフラグ接続 (Missing Flag Links)")) {
             for (const LevelEventFlagLink& link : validation.missingFlagLinks) {
                 ImGui::BulletText("%s -> %s", link.sourceFlagId.c_str(), link.targetFlagId.c_str());
             }
@@ -105,8 +105,8 @@ bool DrawLevelEventDebugImGui(
         }
 
         if (validation.missingObjectLinks.empty()) {
-            ImGui::TextUnformatted("Missing Object Links: none");
-        } else if (ImGui::TreeNode("Missing Object Links")) {
+            ImGui::TextUnformatted("不明なオブジェクト接続: なし (Missing Object Links: none)");
+        } else if (ImGui::TreeNode("不明なオブジェクト接続 (Missing Object Links)")) {
             for (const LevelEventObjectActionLink& link : validation.missingObjectLinks) {
                 const char* target = link.targetObjectId.empty()
                     ? link.targetObjectName.c_str()
@@ -118,12 +118,12 @@ bool DrawLevelEventDebugImGui(
         ImGui::TreePop();
     }
 
-    if (eventVisualizer && ImGui::TreeNode("Event Flag Visuals")) {
+    if (eventVisualizer && ImGui::TreeNode("イベント表示 (Event Flag Visuals)")) {
         needsRebuild = eventVisualizer->DrawImGui() || needsRebuild;
         ImGui::TreePop();
     }
 
-    if (connectionVisualizer && ImGui::TreeNode("Flag Links")) {
+    if (connectionVisualizer && ImGui::TreeNode("フラグ接続線 (Flag Links)")) {
         needsRebuild = connectionVisualizer->DrawImGui() || needsRebuild;
         ImGui::TreePop();
     }

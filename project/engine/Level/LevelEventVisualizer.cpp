@@ -303,21 +303,21 @@ void LevelEventVisualizer::Draw() {
 bool LevelEventVisualizer::DrawImGui() {
 #ifdef _DEBUG
     bool needsRebuild = false;
-    ImGui::Checkbox("Show Event Flags", &showEventFlags_);
-    if (ImGui::SliderFloat("Event Flag Alpha", &eventFlagAlpha_, 0.05f, 0.85f, "%.2f")) {
+    ImGui::Checkbox("イベントフラグ表示 (Show Event Flags)", &showEventFlags_);
+    if (ImGui::SliderFloat("イベントフラグ透明度 (Event Flag Alpha)", &eventFlagAlpha_, 0.05f, 0.85f, "%.2f")) {
         eventFlagAlpha_ = std::clamp(eventFlagAlpha_, 0.05f, 0.85f);
     }
-    if (ImGui::SliderFloat("Event Flag Scale Multiplier", &eventFlagScaleMultiplier_, 0.1f, 4.0f, "%.2f")) {
+    if (ImGui::SliderFloat("イベントフラグ表示倍率 (Event Flag Scale Multiplier)", &eventFlagScaleMultiplier_, 0.1f, 4.0f, "%.2f")) {
         eventFlagScaleMultiplier_ = std::clamp(eventFlagScaleMultiplier_, 0.1f, 4.0f);
         needsRebuild = true;
     }
-    if (ImGui::Checkbox("Show Disabled Event Flags", &showDisabledEventFlags_)) {
+    if (ImGui::Checkbox("無効イベントフラグも表示 (Show Disabled Event Flags)", &showDisabledEventFlags_)) {
         needsRebuild = true;
     }
-    if (ImGui::Button("Rebuild Event Visuals")) {
+    if (ImGui::Button("イベント表示を再構築 (Rebuild Event Visuals)")) {
         needsRebuild = true;
     }
-    ImGui::Text("Event Visual Count: %zu", visuals_.size());
+    ImGui::Text("イベント表示数 (Event Visual Count): %zu", visuals_.size());
     return needsRebuild;
 #else
     return false;

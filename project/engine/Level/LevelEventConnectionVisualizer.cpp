@@ -257,11 +257,11 @@ void LevelEventConnectionVisualizer::Draw() {
 bool LevelEventConnectionVisualizer::DrawImGui() {
 #ifdef _DEBUG
     bool needsRebuild = false;
-    ImGui::Checkbox("Show Flag Links", &showFlagLinks_);
-    ImGui::ColorEdit4("Flag Link Color", flagLinkColor_.data());
-    ImGui::Text("Flag Link Count: %zu", links_.size());
-    ImGui::Text("Missing Flag Link Count: %zu", missingFlagLinkCount_);
-    if (ImGui::Button("Rebuild Flag Links")) {
+    ImGui::Checkbox("フラグ接続線を表示 (Show Flag Links)", &showFlagLinks_);
+    ImGui::ColorEdit4("フラグ接続線の色 (Flag Link Color)", flagLinkColor_.data());
+    ImGui::Text("フラグ接続線数 (Flag Link Count): %zu", links_.size());
+    ImGui::Text("不明なフラグ接続数 (Missing Flag Link Count): %zu", missingFlagLinkCount_);
+    if (ImGui::Button("フラグ接続線を再構築 (Rebuild Flag Links)")) {
         needsRebuild = true;
     }
     return needsRebuild;

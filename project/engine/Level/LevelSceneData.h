@@ -26,6 +26,7 @@ struct LevelObject {
     std::string type;
     std::string editorLabel;
     std::string editorDescription;
+    std::string primitiveShape;
     bool isEventFlag = false;
     std::string eventFlagId;
     LevelEventFlag eventFlag;

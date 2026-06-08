@@ -237,6 +237,10 @@ namespace {
                     if (!ParseString(object.editorDescription)) {
                         return Fail("Invalid editor_description.");
                     }
+                } else if (key == "primitive_shape" || key == "primitiveShape") {
+                    if (!ParseString(object.primitiveShape)) {
+                        return Fail("Invalid primitive_shape.");
+                    }
                 } else if (key == "is_event_flag" || key == "isEventFlag") {
                     if (!ParseBoolValue(object.isEventFlag)) {
                         return Fail("Invalid is_event_flag.");

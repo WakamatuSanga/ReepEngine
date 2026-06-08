@@ -175,6 +175,27 @@ def _custom_string(object, key, default=""):
     return _to_string(object[key], default)
 
 
+def _infer_primitive_shape(object):
+    if "primitive_shape" in object:
+        return _custom_string(object, "primitive_shape")
+    if object.type == "EMPTY":
+        return "Empty"
+    if object.type != "MESH":
+        return ""
+
+    names = [object.name.lower()]
+    if object.data:
+        names.append(object.data.name.lower())
+    joined_name = " ".join(names)
+    if "plane" in joined_name:
+        return "Plane"
+    if "sphere" in joined_name or "ico" in joined_name:
+        return "Sphere"
+    if "cube" in joined_name or "box" in joined_name:
+        return "Cube"
+    return ""
+
+
 def _append_editor_properties(json_object, object):
     if "object_id" in object:
         json_object["object_id"] = _custom_string(object, "object_id")
@@ -182,6 +203,9 @@ def _append_editor_properties(json_object, object):
         json_object["editor_label"] = _custom_string(object, "editor_label")
     if "editor_description" in object:
         json_object["editor_description"] = _custom_string(object, "editor_description")
+    primitive_shape = _infer_primitive_shape(object)
+    if primitive_shape:
+        json_object["primitive_shape"] = primitive_shape
 
 
 def _append_event_flag_properties(json_object, object, transform_json, collider_json):
