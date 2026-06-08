@@ -18,6 +18,8 @@
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include "Engine/Utility/Logger.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
+#include "Engine/Level/LevelSceneRuntime.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -462,6 +464,10 @@ void GameScene::Initialize() {
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
     skinningEditor_ = std::make_unique<SkinningEditor>();
+    levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
+    levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
+    blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
+    blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
     std::string skinningLoadStatus;
     auto appendSkinningStatus = [&](const std::string& message) {
@@ -703,6 +709,8 @@ void GameScene::Finalize() {
     if (skinningEditor_) {
         skinningEditor_->ClearTargets();
     }
+    blenderLiveSync_.reset();
+    levelSceneRuntime_.reset();
 }
 
 void GameScene::Update() {
@@ -720,6 +728,12 @@ void GameScene::Update() {
     if (input->PushKey(DIK_T)) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->Update();
+    }
+    if (blenderLiveSync_) {
+        blenderLiveSync_->Update();
     }
 
 #ifdef _DEBUG
@@ -898,6 +912,12 @@ void GameScene::Update() {
     }
     if (gpuParticleSystem_) {
         gpuParticleSystem_->DrawImGui();
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->DrawImGui();
+    }
+    if (blenderLiveSync_) {
+        blenderLiveSync_->DrawImGui();
     }
     DrawGameViewImGui(dxCommon);
     if (simpleSkinSkinnedModel_) {
@@ -1467,6 +1487,9 @@ void GameScene::Draw() {
         for (auto& primitivePreviewObject : primitivePreviewObjects_) {
             primitivePreviewObject->Draw();
         }
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->Draw();
     }
     if (primitiveEffectSystem_) {
         primitiveEffectSystem_->Draw();

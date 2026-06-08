@@ -146,6 +146,17 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClCompile Include="engine\Audio\Audio.cpp" />
     <ClCompile Include="engine\Animation\AnimationClip.cpp" />
+    <ClCompile Include="engine\Editor\BlenderSync\BlenderLauncher.cpp" />
+    <ClCompile Include="engine\Editor\BlenderSync\BlenderLiveSync.cpp" />
+    <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp" />
+    <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
+    <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
+    <ClCompile Include="engine\Level\LevelEventData.cpp" />
+    <ClCompile Include="engine\Level\LevelEventVisualizer.cpp" />
+    <ClCompile Include="engine\Level\LevelSceneData.cpp" />
+    <ClCompile Include="engine\Level\LevelSceneLoader.cpp" />
+    <ClCompile Include="engine\Level\LevelSceneRuntime.cpp" />
+    <ClCompile Include="engine\Level\LevelTransformConverter.cpp" />
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudVolume.cpp" />
     <ClCompile Include="engine\Graphics\Effect\CylinderEffect.cpp" />
@@ -238,6 +249,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClInclude Include="engine\Audio\Audio.h" />
     <ClInclude Include="engine\Animation\AnimationClip.h" />
+    <ClInclude Include="engine\Editor\BlenderSync\BlenderLauncher.h" />
+    <ClInclude Include="engine\Editor\BlenderSync\BlenderLiveSync.h" />
+    <ClInclude Include="engine\Editor\BlenderSync\BlenderSyncTypes.h" />
+    <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h" />
+    <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
+    <ClInclude Include="engine\Level\LevelEventDebugView.h" />
+    <ClInclude Include="engine\Level\LevelEventData.h" />
+    <ClInclude Include="engine\Level\LevelEventVisualizer.h" />
+    <ClInclude Include="engine\Level\LevelSceneData.h" />
+    <ClInclude Include="engine\Level\LevelSceneLoader.h" />
+    <ClInclude Include="engine\Level\LevelSceneRuntime.h" />
+    <ClInclude Include="engine\Level\LevelTransformConverter.h" />
     <ClInclude Include="engine\Graphics\Camera\Camera.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudVolume.h" />
     <ClInclude Include="engine\Graphics\Effect\CylinderEffect.h" />

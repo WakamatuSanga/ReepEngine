@@ -10,8 +10,10 @@
 #include <vector>
 
 class GltfSkinnedModel;
+class BlenderLiveSync;
 class DirectXCommon;
 class GpuParticleSystem;
+class LevelSceneRuntime;
 class Model;
 class Object3d;
 class PrimitiveEffectSystem;
@@ -42,6 +44,8 @@ private:
     std::unique_ptr<PrimitiveEffectSystem> primitiveEffectSystem_;
     std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
+    std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
+    std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
     std::unique_ptr<Skeleton> simpleSkinSkeleton_;
