@@ -120,9 +120,10 @@ LevelEventValidationResult ValidateLevelEventLinks(const LevelSceneData& sceneDa
     }
 
     for (const LevelEventObjectActionLink& link : CollectObjectActionLinks(sceneData)) {
-        const bool hasObjectId = ContainsNonEmptyValue(objectIds, link.targetObjectId);
-        const bool hasObjectName = ContainsNonEmptyValue(objectNames, link.targetObjectName);
-        if (!hasObjectId && !hasObjectName) {
+        const bool hasTarget = !link.targetObjectId.empty()
+            ? ContainsNonEmptyValue(objectIds, link.targetObjectId)
+            : ContainsNonEmptyValue(objectNames, link.targetObjectName);
+        if (!hasTarget) {
             result.missingObjectLinks.push_back(link);
         }
     }

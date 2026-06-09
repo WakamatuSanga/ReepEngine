@@ -638,6 +638,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
         if (skinningEditor_) {
             skinningEditor_->ClearGameViewRect();
         }
+        if (levelSceneRuntime_) {
+            levelSceneRuntime_->ClearGameViewRect();
+        }
         return;
     }
 
@@ -680,6 +683,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
                 skinningEditor_->DrawGizmo(camera_.get());
                 skinningEditor_->DrawDebugOverlay(camera_.get());
             }
+            if (levelSceneRuntime_) {
+                levelSceneRuntime_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
+            }
         } else {
             gameViewTopLeft_ = { 0.0f, 0.0f };
             gameViewSize_ = { 0.0f, 0.0f };
@@ -688,6 +694,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
             isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
             if (skinningEditor_) {
                 skinningEditor_->ClearGameViewRect();
+            }
+            if (levelSceneRuntime_) {
+                levelSceneRuntime_->ClearGameViewRect();
             }
             ImGui::TextDisabled("RenderTexture is not ready.");
         }
@@ -699,6 +708,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
         isGameViewFocused_ = false;
         if (skinningEditor_) {
             skinningEditor_->ClearGameViewRect();
+        }
+        if (levelSceneRuntime_) {
+            levelSceneRuntime_->ClearGameViewRect();
         }
     }
     ImGui::End();
@@ -913,13 +925,13 @@ void GameScene::Update() {
     if (gpuParticleSystem_) {
         gpuParticleSystem_->DrawImGui();
     }
+    DrawGameViewImGui(dxCommon);
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();
     }
     if (blenderLiveSync_) {
         blenderLiveSync_->DrawImGui();
     }
-    DrawGameViewImGui(dxCommon);
     if (simpleSkinSkinnedModel_) {
         simpleSkinSkinnedModel_->UpdateSkinning();
     }

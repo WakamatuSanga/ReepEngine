@@ -189,6 +189,12 @@
     <ClCompile Include="engine\Level\LevelEventData.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Level\LevelEventLabelVisualizer.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\LevelEventObjectActionVisualizer.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Level\LevelEventVisualizer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
@@ -396,6 +402,12 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventData.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelEventLabelVisualizer.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelEventObjectActionVisualizer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventVisualizer.h">

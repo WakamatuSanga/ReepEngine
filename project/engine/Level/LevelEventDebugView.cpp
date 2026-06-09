@@ -1,6 +1,8 @@
 #include "LevelEventDebugView.h"
 #include "LevelEventConnectionVisualizer.h"
 #include "LevelEventData.h"
+#include "LevelEventLabelVisualizer.h"
+#include "LevelEventObjectActionVisualizer.h"
 #include "LevelEventVisualizer.h"
 #include "LevelSceneData.h"
 #include <cstdio>
@@ -78,7 +80,9 @@ bool DrawLevelEventDebugImGui(
     const LevelSceneData& sceneData,
     const LevelObject* selectedObject,
     LevelEventVisualizer* eventVisualizer,
-    LevelEventConnectionVisualizer* connectionVisualizer) {
+    LevelEventConnectionVisualizer* connectionVisualizer,
+    LevelEventObjectActionVisualizer* objectActionVisualizer,
+    LevelEventLabelVisualizer* labelVisualizer) {
 #ifdef _DEBUG
     bool needsRebuild = false;
     const LevelEventValidationResult validation = ValidateLevelEventLinks(sceneData);
@@ -127,12 +131,24 @@ bool DrawLevelEventDebugImGui(
         needsRebuild = connectionVisualizer->DrawImGui() || needsRebuild;
         ImGui::TreePop();
     }
+
+    if (objectActionVisualizer && ImGui::TreeNode("オブジェクト影響線 (Object Action Links)")) {
+        needsRebuild = objectActionVisualizer->DrawImGui() || needsRebuild;
+        ImGui::TreePop();
+    }
+
+    if (labelVisualizer && ImGui::TreeNode("イベントラベル (Event Labels)")) {
+        needsRebuild = labelVisualizer->DrawImGui() || needsRebuild;
+        ImGui::TreePop();
+    }
     return needsRebuild;
 #else
     (void)sceneData;
     (void)selectedObject;
     (void)eventVisualizer;
     (void)connectionVisualizer;
+    (void)objectActionVisualizer;
+    (void)labelVisualizer;
     return false;
 #endif
 }

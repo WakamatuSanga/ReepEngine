@@ -152,6 +152,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
     <ClCompile Include="engine\Level\LevelEventData.cpp" />
+    <ClCompile Include="engine\Level\LevelEventLabelVisualizer.cpp" />
+    <ClCompile Include="engine\Level\LevelEventObjectActionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelObjectDebugVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelSceneData.cpp" />
@@ -257,6 +259,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventDebugView.h" />
     <ClInclude Include="engine\Level\LevelEventData.h" />
+    <ClInclude Include="engine\Level\LevelEventLabelVisualizer.h" />
+    <ClInclude Include="engine\Level\LevelEventObjectActionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventVisualizer.h" />
     <ClInclude Include="engine\Level\LevelObjectDebugVisualizer.h" />
     <ClInclude Include="engine\Level\LevelSceneData.h" />

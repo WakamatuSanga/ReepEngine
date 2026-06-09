@@ -16,9 +16,17 @@ import bpy
 from .create_ico_sphere import MYADDON_OT_create_ico_sphere
 from .add_collider import MYADDON_OT_add_collider
 from .add_event_flag import (
+    MYADDON_PG_event_object_action,
     MYADDON_OT_add_event_flag_properties,
+    MYADDON_OT_initialize_object_editor_info,
     MYADDON_OT_set_event_flag_shape,
+    MYADDON_OT_add_event_object_action,
+    MYADDON_OT_remove_event_object_action,
+    MYADDON_OT_set_event_object_action_type,
+    MYADDON_OT_load_event_object_actions_from_raw,
     VIEW3D_PT_level_event_flag_editor,
+    register_event_flag_editor_properties,
+    unregister_event_flag_editor_properties,
 )
 from .add_filename import MYADDON_OT_add_filename
 from .export_scene import WM_OT_level_export, MYADDON_OT_export_scene
@@ -39,8 +47,14 @@ classes = (
     WM_OT_level_export,
     MYADDON_OT_add_filename,
     MYADDON_OT_add_collider,
+    MYADDON_PG_event_object_action,
     MYADDON_OT_add_event_flag_properties,
+    MYADDON_OT_initialize_object_editor_info,
     MYADDON_OT_set_event_flag_shape,
+    MYADDON_OT_add_event_object_action,
+    MYADDON_OT_remove_event_object_action,
+    MYADDON_OT_set_event_object_action_type,
+    MYADDON_OT_load_event_object_actions_from_raw,
     MYADDON_OT_export_scene,
     MYADDON_OT_import_scene,
     OBJECT_PT_file_name,
@@ -88,6 +102,7 @@ def register():
     register_live_sync()
     for cls in classes:
         _register_class_once(cls)
+    register_event_flag_editor_properties()
 
     try:
         bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
@@ -124,6 +139,7 @@ def unregister():
         finally:
             DrawCollider.handle = None
 
+    unregister_event_flag_editor_properties()
     for cls in reversed(classes):
         _unregister_class_if_registered(cls)
     unregister_live_sync()

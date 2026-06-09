@@ -7,6 +7,8 @@
 
 class Camera;
 class LevelEventConnectionVisualizer;
+class LevelEventLabelVisualizer;
+class LevelEventObjectActionVisualizer;
 class LevelEventVisualizer;
 class LevelObjectDebugVisualizer;
 class LevelSceneLoader;
@@ -21,6 +23,8 @@ public:
     void Update();
     void Draw();
     void DrawImGui();
+    void SetGameViewRect(float x, float y, float width, float height);
+    void ClearGameViewRect();
     void ApplySceneData(
         const LevelSceneData& sceneData,
         const std::string& statusMessage,
@@ -42,6 +46,8 @@ private:
     std::unique_ptr<LevelObjectDebugVisualizer> objectDebugVisualizer_;
     std::unique_ptr<LevelEventVisualizer> eventVisualizer_;
     std::unique_ptr<LevelEventConnectionVisualizer> connectionVisualizer_;
+    std::unique_ptr<LevelEventObjectActionVisualizer> objectActionVisualizer_;
+    std::unique_ptr<LevelEventLabelVisualizer> labelVisualizer_;
     LevelSceneData sceneData_;
     std::array<char, 260> jsonPathBuffer_{};
     std::string jsonPath_ = "resources/level_editor/level_editor.json";

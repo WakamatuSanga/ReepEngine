@@ -1,6 +1,8 @@
 #include "LevelSceneRuntime.h"
 #include "LevelEventConnectionVisualizer.h"
 #include "LevelEventDebugView.h"
+#include "LevelEventLabelVisualizer.h"
+#include "LevelEventObjectActionVisualizer.h"
 #include "LevelEventVisualizer.h"
 #include "LevelObjectDebugVisualizer.h"
 #include "LevelSceneLoader.h"
@@ -94,9 +96,13 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     objectDebugVisualizer_ = std::make_unique<LevelObjectDebugVisualizer>();
     eventVisualizer_ = std::make_unique<LevelEventVisualizer>();
     connectionVisualizer_ = std::make_unique<LevelEventConnectionVisualizer>();
+    objectActionVisualizer_ = std::make_unique<LevelEventObjectActionVisualizer>();
+    labelVisualizer_ = std::make_unique<LevelEventLabelVisualizer>();
     objectDebugVisualizer_->Initialize(object3dCommon, camera);
     eventVisualizer_->Initialize(object3dCommon, camera);
     connectionVisualizer_->Initialize(object3dCommon, camera);
+    objectActionVisualizer_->Initialize(object3dCommon, camera);
+    labelVisualizer_->Initialize(camera);
     SetPathBufferText(jsonPath_);
     LoadJsonFromBuffer();
 }
@@ -111,6 +117,7 @@ void LevelSceneRuntime::Update() {
     if (objectDebugVisualizer_) { objectDebugVisualizer_->Update(frameCounter_); }
     if (eventVisualizer_) { eventVisualizer_->Update(frameCounter_); }
     if (connectionVisualizer_) { connectionVisualizer_->Update(frameCounter_); }
+    if (objectActionVisualizer_) { objectActionVisualizer_->Update(frameCounter_); }
 }
 
 void LevelSceneRuntime::Draw() {
@@ -120,10 +127,15 @@ void LevelSceneRuntime::Draw() {
     }
     if (eventVisualizer_) { eventVisualizer_->Draw(frameCounter_); }
     if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
+    if (objectActionVisualizer_) { objectActionVisualizer_->Draw(frameCounter_); }
 }
 
 void LevelSceneRuntime::DrawImGui() {
 #ifdef _DEBUG
+    if (labelVisualizer_) {
+        labelVisualizer_->DrawOverlay();
+    }
+
     ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("レベルエディタ確認 (Level Editor Debug)")) {
         ImGui::End();
@@ -178,7 +190,12 @@ void LevelSceneRuntime::DrawImGui() {
 
     if (ImGui::TreeNode("イベントフラグ確認 (Event Flag Debug)")) {
         if (DrawLevelEventDebugImGui(
-            sceneData_, selectedObject, eventVisualizer_.get(), connectionVisualizer_.get())) {
+            sceneData_,
+            selectedObject,
+            eventVisualizer_.get(),
+            connectionVisualizer_.get(),
+            objectActionVisualizer_.get(),
+            labelVisualizer_.get())) {
             RequestRebuild("Manual");
         }
         ImGui::TreePop();
@@ -200,6 +217,18 @@ void LevelSceneRuntime::DrawImGui() {
 
     ImGui::End();
 #endif
+}
+
+void LevelSceneRuntime::SetGameViewRect(float x, float y, float width, float height) {
+    if (labelVisualizer_) {
+        labelVisualizer_->SetViewportRect(x, y, width, height);
+    }
+}
+
+void LevelSceneRuntime::ClearGameViewRect() {
+    if (labelVisualizer_) {
+        labelVisualizer_->ClearViewportRect();
+    }
 }
 
 void LevelSceneRuntime::ApplySceneData(
@@ -241,6 +270,12 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
         if (connectionVisualizer_) {
             connectionVisualizer_->Clear();
         }
+        if (objectActionVisualizer_) {
+            objectActionVisualizer_->Clear();
+        }
+        if (labelVisualizer_) {
+            labelVisualizer_->Clear();
+        }
         rebuildDirty_ = false;
     }
 }
@@ -273,6 +308,12 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     if (connectionVisualizer_) {
         connectionVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
+    if (objectActionVisualizer_) {
+        objectActionVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
+    }
+    if (labelVisualizer_) {
+        labelVisualizer_->Rebuild(sceneData_, axisConversionEnabled_);
+    }
     if (objectDebugVisualizer_) {
         objectDebugVisualizer_->Update(frameCounter_);
     }
@@ -281,5 +322,8 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     }
     if (connectionVisualizer_) {
         connectionVisualizer_->Update(frameCounter_);
+    }
+    if (objectActionVisualizer_) {
+        objectActionVisualizer_->Update(frameCounter_);
     }
 }
