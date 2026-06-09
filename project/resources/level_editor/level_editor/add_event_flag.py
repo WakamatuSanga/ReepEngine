@@ -14,6 +14,17 @@ ACTION_TYPE_PRESETS = (
     "Custom",
 )
 
+ACTION_TYPE_DISPLAY_NAMES = {
+    "PlayEffect": "エフェクト再生 (PlayEffect)",
+    "OpenDoor": "扉を開く (OpenDoor)",
+    "EnableObject": "オブジェクト有効化 (EnableObject)",
+    "DisableObject": "オブジェクト無効化 (DisableObject)",
+    "SpawnEnemy": "敵を出現 (SpawnEnemy)",
+    "StartDialogue": "会話開始 (StartDialogue)",
+    "MoveObject": "オブジェクト移動 (MoveObject)",
+    "Custom": "カスタム処理 (Custom)",
+}
+
 _is_syncing_actions = False
 
 
@@ -394,20 +405,25 @@ def _draw_editor_properties(layout, obj):
 def _draw_action_type_presets(layout, index):
     row = layout.row(align=True)
     for preset in ACTION_TYPE_PRESETS[:4]:
-        op = row.operator(MYADDON_OT_set_event_object_action_type.bl_idname, text=preset)
+        op = row.operator(
+            MYADDON_OT_set_event_object_action_type.bl_idname,
+            text=ACTION_TYPE_DISPLAY_NAMES.get(preset, preset))
         op.index = index
         op.action_type = preset
     row = layout.row(align=True)
     for preset in ACTION_TYPE_PRESETS[4:]:
-        op = row.operator(MYADDON_OT_set_event_object_action_type.bl_idname, text=preset)
+        op = row.operator(
+            MYADDON_OT_set_event_object_action_type.bl_idname,
+            text=ACTION_TYPE_DISPLAY_NAMES.get(preset, preset))
         op.index = index
         op.action_type = preset
 
 
 def _draw_object_actions(layout, obj):
     box = layout.box()
-    box.label(text="=== ObjectAction編集 (Object Actions) ===")
-    box.label(text="EventFlagが発動した時に、対象Objectへ何をするかを設定します")
+    box.label(text="=== 対象オブジェクトへの処理設定 (Object Actions) ===")
+    box.label(text="このイベントフラグが発動した時に、対象Objectへ何をするかを設定します")
+    box.label(text="赤線は EventFlag から対象Object への影響関係を表します")
     action_row = box.row(align=True)
     action_row.operator(MYADDON_OT_add_event_object_action.bl_idname, text="アクション追加 (Add Object Action)", icon='ADD')
     action_row.operator(
@@ -427,15 +443,20 @@ def _draw_object_actions(layout, obj):
     for index, action in enumerate(obj.level_event_object_actions):
         action_box = box.box()
         row = action_box.row(align=True)
-        row.label(text=f"Action {index + 1}")
+        row.label(text=f"処理 {index + 1} (Action {index + 1})")
         remove = row.operator(MYADDON_OT_remove_event_object_action.bl_idname, text="アクション削除 (Remove Object Action)", icon='REMOVE')
         remove.index = index
 
+        action_box.label(text="例: EffectSpawn_01")
+        action_box.label(text="対象Objectの名前を入れると赤線で接続されます")
         action_box.prop(action, "target_object_name", text="対象オブジェクト名 (Target Object Name)")
         action_box.prop(action, "target_object_id", text="対象オブジェクトID (Target Object ID)")
-        action_box.prop(action, "action_type", text="アクション種類 (Action Type)")
+        action_box.prop(action, "action_type", text="実行する処理の種類 (Action Type)")
         _draw_action_type_presets(action_box, index)
-        action_box.prop(action, "action_description", text="アクション説明 (Action Description)")
+        action_box.prop(action, "action_description", text="画面に表示する説明文 (Action Description)")
+        action_box.label(text="例: パーティクルを再生する")
+        action_box.label(text="例: Door_01を開く")
+        action_box.label(text="例: 敵を3体出現させる")
 
     raw_box = box.box()
     raw_box.label(text="互換用Raw文字列 (Raw event_object_actions)")
@@ -468,7 +489,7 @@ class VIEW3D_PT_level_event_flag_editor(bpy.types.Panel):
 
         if not bool(obj.get("is_event_flag", False)):
             layout.label(text="このObjectはEventFlagではありません")
-            layout.label(text="このObjectを発動対象にする場合は、EventFlag側のObjectActionで指定してください")
+            layout.label(text="このObjectは発動対象にできます。ObjectActionはEventFlag側で設定してください。")
             layout.label(text="上のボタンでEventFlag用プロパティを追加できます")
             return
 
