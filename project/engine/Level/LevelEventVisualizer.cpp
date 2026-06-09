@@ -1,4 +1,5 @@
 #include "LevelEventVisualizer.h"
+#include "LevelEventRuntime.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -21,6 +22,7 @@ namespace {
         kEnabled,
         kOneShot,
         kDisabled,
+        kFired,
     };
 
     struct EventVisualTransform {
@@ -91,6 +93,13 @@ namespace {
         return ToLowerString(shapeType) == "sphere";
     }
 
+    std::string GetFlagId(const LevelObject& object) {
+        if (!object.eventFlag.id.empty()) {
+            return object.eventFlag.id;
+        }
+        return object.eventFlagId;
+    }
+
     EventVisualStyle GetVisualStyle(const LevelObject& object) {
         if (!object.eventFlag.initiallyEnabled) {
             return EventVisualStyle::kDisabled;
@@ -108,6 +117,8 @@ namespace {
                 return "LevelEventFlagSphereOneShot";
             case EventVisualStyle::kDisabled:
                 return "LevelEventFlagSphereDisabled";
+            case EventVisualStyle::kFired:
+                return "LevelEventFlagSphereFired";
             case EventVisualStyle::kEnabled:
             default:
                 return "LevelEventFlagSphereEnabled";
@@ -119,6 +130,8 @@ namespace {
             return "LevelEventFlagBoxOneShot";
         case EventVisualStyle::kDisabled:
             return "LevelEventFlagBoxDisabled";
+        case EventVisualStyle::kFired:
+            return "LevelEventFlagBoxFired";
         case EventVisualStyle::kEnabled:
         default:
             return "LevelEventFlagBoxEnabled";
@@ -131,6 +144,8 @@ namespace {
             return { 1.0f, 0.72f, 0.18f, alpha };
         case EventVisualStyle::kDisabled:
             return { 0.45f, 0.48f, 0.52f, alpha * 0.65f };
+        case EventVisualStyle::kFired:
+            return { 0.18f, 1.0f, 0.25f, (std::max)(alpha, 0.45f) };
         case EventVisualStyle::kEnabled:
         default:
             return { 0.18f, 0.85f, 0.95f, alpha };
@@ -170,6 +185,8 @@ namespace {
 struct LevelEventVisualObject {
     std::unique_ptr<Object3d> object;
     Model* model = nullptr;
+    std::string flagId;
+    bool sphere = false;
     EventVisualStyle style = EventVisualStyle::kEnabled;
 };
 
@@ -182,13 +199,14 @@ namespace {
         float scaleMultiplier,
         Object3dCommon* object3dCommon,
         Camera* camera,
+        const LevelEventRuntime* runtimeStateProvider,
         std::vector<std::unique_ptr<LevelEventVisualObject>>& visuals) {
         const LevelTransform objectLocal = GetObjectLocalTransform(object, axisConversionEnabled);
         const EventVisualTransform objectWorld = CombineTransform(parentTransform, objectLocal);
 
         if (object.isEventFlag &&
             object.eventFlag.visibleInEditor &&
-            (object.eventFlag.initiallyEnabled || showDisabledEventFlags)) {
+            (runtimeStateProvider || object.eventFlag.initiallyEnabled || showDisabledEventFlags)) {
             const EventVisualStyle style = GetVisualStyle(object);
             const bool sphere = IsSphereShape(object.eventFlag.shapeType);
             Model* model = GetEventModel(sphere, style);
@@ -202,6 +220,8 @@ namespace {
 
                 auto visual = std::make_unique<LevelEventVisualObject>();
                 visual->model = model;
+                visual->flagId = GetFlagId(object);
+                visual->sphere = sphere;
                 visual->style = style;
                 visual->object = std::make_unique<Object3d>();
                 visual->object->Initialize(object3dCommon);
@@ -222,6 +242,7 @@ namespace {
                 scaleMultiplier,
                 object3dCommon,
                 camera,
+                runtimeStateProvider,
                 visuals);
         }
     }
@@ -234,6 +255,10 @@ LevelEventVisualizer::~LevelEventVisualizer() = default;
 void LevelEventVisualizer::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object3dCommon_ = object3dCommon;
     camera_ = camera;
+}
+
+void LevelEventVisualizer::SetRuntimeStateProvider(const LevelEventRuntime* runtime) {
+    runtimeStateProvider_ = runtime;
 }
 
 void LevelEventVisualizer::Clear() {
@@ -265,6 +290,7 @@ void LevelEventVisualizer::Rebuild(
             eventFlagScaleMultiplier_,
             object3dCommon_,
             camera_,
+            runtimeStateProvider_,
             visuals_);
     }
 }
@@ -297,7 +323,24 @@ void LevelEventVisualizer::Draw(uint64_t frameCounter) {
             continue;
         }
 
-        ApplyModelMaterial(visual->model, GetStyleColor(visual->style, eventFlagAlpha_));
+        EventVisualStyle drawStyle = visual->style;
+        if (runtimeStateProvider_ && !visual->flagId.empty()) {
+            if (runtimeStateProvider_->IsFlagFired(visual->flagId)) {
+                if (!runtimeStateProvider_->ShouldShowFiredFlags()) {
+                    continue;
+                }
+                drawStyle = EventVisualStyle::kFired;
+            } else if (!runtimeStateProvider_->IsFlagActive(visual->flagId)) {
+                if (!showDisabledEventFlags_) {
+                    continue;
+                }
+                drawStyle = EventVisualStyle::kDisabled;
+            }
+        }
+
+        visual->model = GetEventModel(visual->sphere, drawStyle);
+        visual->object->SetModel(visual->model);
+        ApplyModelMaterial(visual->model, GetStyleColor(drawStyle, eventFlagAlpha_));
         visual->object->Draw();
     }
 }

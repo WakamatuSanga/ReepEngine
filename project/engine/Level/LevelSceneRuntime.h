@@ -9,6 +9,7 @@ class Camera;
 class LevelEventConnectionVisualizer;
 class LevelEventLabelVisualizer;
 class LevelEventObjectActionVisualizer;
+class LevelEventRuntime;
 class LevelEventVisualizer;
 class LevelObjectDebugVisualizer;
 class LevelSceneLoader;
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<LevelEventConnectionVisualizer> connectionVisualizer_;
     std::unique_ptr<LevelEventObjectActionVisualizer> objectActionVisualizer_;
     std::unique_ptr<LevelEventLabelVisualizer> labelVisualizer_;
+    std::unique_ptr<LevelEventRuntime> eventRuntime_;
     LevelSceneData sceneData_;
     std::array<char, 260> jsonPathBuffer_{};
     std::string jsonPath_ = "resources/level_editor/level_editor.json";

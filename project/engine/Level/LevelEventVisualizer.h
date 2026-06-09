@@ -5,6 +5,7 @@
 #include <vector>
 
 class Camera;
+class LevelEventRuntime;
 class Object3dCommon;
 struct LevelEventVisualObject;
 struct LevelSceneData;
@@ -15,6 +16,7 @@ public:
     ~LevelEventVisualizer();
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
+    void SetRuntimeStateProvider(const LevelEventRuntime* runtime);
     void Clear();
     void Rebuild(const LevelSceneData& sceneData, bool axisConversionEnabled, uint64_t frameCounter = 0);
     void Update(uint64_t frameCounter);
@@ -30,6 +32,7 @@ private:
     std::vector<std::unique_ptr<LevelEventVisualObject>> visuals_;
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    const LevelEventRuntime* runtimeStateProvider_ = nullptr;
     bool showEventFlags_ = true;
     bool showDisabledEventFlags_ = false;
     bool freezeEventVisuals_ = false;
