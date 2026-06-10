@@ -155,6 +155,10 @@ namespace {
                         return false;
                     }
                     hasObjects = true;
+                } else if (key == "rails") {
+                    if (!ParseRailArray(sceneData.rails)) {
+                        return false;
+                    }
                 } else if (!SkipValue()) {
                     return false;
                 }
@@ -197,6 +201,186 @@ namespace {
                 }
                 if (!Consume(',')) {
                     return Fail("Expected comma in object array.");
+                }
+            }
+        }
+
+        bool ParseRailArray(std::vector<LevelRail>& rails) {
+            rails.clear();
+            if (!Consume('[')) {
+                return Fail("Expected rail array.");
+            }
+
+            while (true) {
+                if (Consume(']')) {
+                    return true;
+                }
+
+                LevelRail rail;
+                if (!ParseRail(rail)) {
+                    return false;
+                }
+                if (!rail.railId.empty() || !rail.name.empty() || !rail.points.empty()) {
+                    rails.push_back(std::move(rail));
+                }
+
+                if (Consume(']')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return Fail("Expected comma in rail array.");
+                }
+            }
+        }
+
+        bool ParseRail(LevelRail& rail) {
+            if (!Consume('{')) {
+                return Fail("Expected rail object.");
+            }
+
+            while (true) {
+                if (Consume('}')) {
+                    if (rail.railId.empty()) {
+                        rail.railId = rail.name;
+                    }
+                    if (rail.name.empty()) {
+                        rail.name = rail.railId;
+                    }
+                    return true;
+                }
+
+                std::string key;
+                if (!ParseString(key) || !Consume(':')) {
+                    return Fail("Invalid rail member.");
+                }
+
+                if (key == "rail_id" || key == "railId" || key == "id") {
+                    if (!ParseString(rail.railId)) {
+                        return Fail("Invalid rail_id.");
+                    }
+                } else if (key == "name" || key == "rail_name" || key == "railName") {
+                    if (!ParseString(rail.name)) {
+                        return Fail("Invalid rail name.");
+                    }
+                } else if (key == "rail_type" || key == "railType" || key == "type") {
+                    if (!ParseString(rail.railType)) {
+                        return Fail("Invalid rail type.");
+                    }
+                } else if (key == "loop" || key == "rail_loop" || key == "railLoop") {
+                    if (!ParseBoolValue(rail.loop)) {
+                        return Fail("Invalid rail loop.");
+                    }
+                } else if (key == "visible" || key == "visibleInEditor" ||
+                    key == "visible_in_editor" || key == "rail_visible_in_editor") {
+                    if (!ParseBoolValue(rail.visibleInEditor)) {
+                        return Fail("Invalid rail visibleInEditor.");
+                    }
+                } else if (key == "speed" || key == "rail_speed" || key == "railSpeed") {
+                    double speed = 0.0;
+                    if (!ParseNumber(speed)) {
+                        return Fail("Invalid rail speed.");
+                    }
+                    rail.speed = static_cast<float>(speed);
+                } else if (key == "points") {
+                    if (!ParseRailPointArray(rail.points)) {
+                        return Fail("Invalid rail points.");
+                    }
+                } else if (!SkipValue()) {
+                    return false;
+                }
+
+                if (Consume('}')) {
+                    if (rail.railId.empty()) {
+                        rail.railId = rail.name;
+                    }
+                    if (rail.name.empty()) {
+                        rail.name = rail.railId;
+                    }
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return Fail("Expected comma in rail.");
+                }
+            }
+        }
+
+        bool ParseRailPointArray(std::vector<Vector3>& points) {
+            points.clear();
+            if (!Consume('[')) {
+                return false;
+            }
+
+            while (true) {
+                if (Consume(']')) {
+                    return true;
+                }
+
+                Vector3 point{};
+                if (!ParseRailPointValue(point)) {
+                    return false;
+                }
+                points.push_back(point);
+
+                if (Consume(']')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return Fail("Expected comma in rail point array.");
+                }
+            }
+        }
+
+        bool ParseRailPointValue(Vector3& point) {
+            SkipWhitespace();
+            if (Peek() == '[') {
+                return ParseVector3(point);
+            }
+
+            if (!Consume('{')) {
+                return false;
+            }
+
+            bool hasX = false;
+            bool hasY = false;
+            bool hasZ = false;
+            while (true) {
+                if (Consume('}')) {
+                    return hasX && hasY && hasZ;
+                }
+
+                std::string key;
+                if (!ParseString(key) || !Consume(':')) {
+                    return Fail("Invalid rail point member.");
+                }
+
+                double value = 0.0;
+                if (key == "x") {
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid rail point x.");
+                    }
+                    point.x = static_cast<float>(value);
+                    hasX = true;
+                } else if (key == "y") {
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid rail point y.");
+                    }
+                    point.y = static_cast<float>(value);
+                    hasY = true;
+                } else if (key == "z") {
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid rail point z.");
+                    }
+                    point.z = static_cast<float>(value);
+                    hasZ = true;
+                } else if (!SkipValue()) {
+                    return false;
+                }
+
+                if (Consume('}')) {
+                    return hasX && hasY && hasZ;
+                }
+                if (!Consume(',')) {
+                    return Fail("Expected comma in rail point.");
                 }
             }
         }

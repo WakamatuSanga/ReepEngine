@@ -175,6 +175,30 @@ def _custom_string(object, key, default=""):
     return _to_string(object[key], default)
 
 
+def _custom_float(object, key, default=0.0):
+    if key not in object:
+        return default
+    try:
+        return float(object[key])
+    except (TypeError, ValueError):
+        return default
+
+
+def _custom_int(object, key, default=0):
+    if key not in object:
+        return default
+    try:
+        return int(object[key])
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_id(text, prefix):
+    safe = "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in str(text))
+    safe = safe.strip("_")
+    return f"{prefix}_{safe}" if safe else prefix
+
+
 def _infer_primitive_shape(object):
     if "primitive_shape" in object:
         return _custom_string(object, "primitive_shape")
@@ -206,6 +230,165 @@ def _append_editor_properties(json_object, object):
     primitive_shape = _infer_primitive_shape(object)
     if primitive_shape:
         json_object["primitive_shape"] = primitive_shape
+
+
+def _vector_to_json(vector):
+    return {
+        "x": float(vector.x),
+        "y": float(vector.y),
+        "z": float(vector.z),
+    }
+
+
+def _edge_key(a, b):
+    return (a, b) if a < b else (b, a)
+
+
+def _trace_ordered_mesh_points(vertices, edges):
+    if not vertices:
+        return []
+    if not edges:
+        return vertices
+
+    adjacency = {index: [] for index in range(len(vertices))}
+    unused_edges = set()
+    for edge in edges:
+        a, b = int(edge[0]), int(edge[1])
+        if a == b:
+            continue
+        adjacency.setdefault(a, []).append(b)
+        adjacency.setdefault(b, []).append(a)
+        unused_edges.add(_edge_key(a, b))
+
+    ordered = []
+    while unused_edges:
+        component_vertices = {index for edge in unused_edges for index in edge}
+        endpoints = [index for index in component_vertices if len(adjacency.get(index, [])) <= 1]
+        current = min(endpoints) if endpoints else min(component_vertices)
+        previous = None
+        path = [current]
+
+        while True:
+            candidates = [
+                index for index in adjacency.get(current, [])
+                if _edge_key(current, index) in unused_edges
+            ]
+            if not candidates:
+                break
+            if previous in candidates and len(candidates) > 1:
+                candidates.remove(previous)
+            next_index = candidates[0]
+            unused_edges.discard(_edge_key(current, next_index))
+            if next_index == path[0]:
+                break
+            path.append(next_index)
+            previous, current = current, next_index
+
+        ordered.extend(vertices[index] for index in path)
+
+    return ordered
+
+
+def _distance_between(a, b):
+    return (a - b).length
+
+
+def _resample_points(points, sample_count):
+    if len(points) <= 2 or len(points) <= sample_count:
+        return points
+
+    distances = [0.0]
+    total_length = 0.0
+    for index in range(1, len(points)):
+        total_length += _distance_between(points[index - 1], points[index])
+        distances.append(total_length)
+
+    if total_length <= 0.00001:
+        return [points[0], points[-1]]
+
+    result = []
+    for sample_index in range(sample_count):
+        target = total_length * sample_index / max(sample_count - 1, 1)
+        segment_index = 1
+        while segment_index < len(distances) and distances[segment_index] < target:
+            segment_index += 1
+        if segment_index >= len(points):
+            result.append(points[-1])
+            continue
+        prev_distance = distances[segment_index - 1]
+        next_distance = distances[segment_index]
+        ratio = 0.0 if next_distance <= prev_distance else (target - prev_distance) / (next_distance - prev_distance)
+        result.append(points[segment_index - 1].lerp(points[segment_index], ratio))
+    return result
+
+
+def _sample_curve_control_points(object):
+    points = []
+    for spline in object.data.splines:
+        if spline.type == "BEZIER":
+            for point in spline.bezier_points:
+                points.append(object.matrix_world @ point.co)
+        else:
+            for point in spline.points:
+                points.append(object.matrix_world @ mathutils.Vector((point.co.x, point.co.y, point.co.z)))
+    return points
+
+
+def _sample_curve_points(object, sample_count):
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    evaluated_object = object.evaluated_get(depsgraph)
+    mesh = None
+    try:
+        mesh = evaluated_object.to_mesh()
+        if mesh:
+            vertices = [evaluated_object.matrix_world @ vertex.co for vertex in mesh.vertices]
+            edges = [(edge.vertices[0], edge.vertices[1]) for edge in mesh.edges]
+            points = _trace_ordered_mesh_points(vertices, edges)
+            if points:
+                return _resample_points(points, sample_count)
+    except RuntimeError as error:
+        print(f"[LevelEditor] Curve rail sampling failed for {object.name}: {error}")
+    finally:
+        if mesh:
+            evaluated_object.to_mesh_clear()
+
+    return _resample_points(_sample_curve_control_points(object), sample_count)
+
+
+def _is_curve_cyclic(object):
+    if object.type != "CURVE" or not object.data:
+        return False
+    return any(getattr(spline, "use_cyclic_u", False) for spline in object.data.splines)
+
+
+def _build_rail_json(object):
+    sample_count = max(2, min(_custom_int(object, "rail_sample_count", 64), 128))
+    points = _sample_curve_points(object, sample_count)
+    if len(points) < 2:
+        return None
+
+    rail_id = _custom_string(object, "rail_id", _safe_id(object.name, "rail"))
+    return {
+        "rail_id": rail_id,
+        "name": _custom_string(object, "rail_name", object.name),
+        "rail_type": _custom_string(object, "rail_type", "Curve"),
+        "loop": _to_bool(object["rail_loop"], _is_curve_cyclic(object)) if "rail_loop" in object else _is_curve_cyclic(object),
+        "speed": _custom_float(object, "rail_speed", 1.0),
+        "visibleInEditor": _to_bool(object["rail_visible_in_editor"], True)
+        if "rail_visible_in_editor" in object else True,
+        "points": [_vector_to_json(point) for point in points],
+    }
+
+
+def build_rails_json():
+    rails = []
+    for obj in bpy.context.scene.objects:
+        if obj.type != "CURVE":
+            continue
+        rail = _build_rail_json(obj)
+        if rail:
+            rails.append(rail)
+    return rails
 
 
 def _append_event_flag_properties(json_object, object, transform_json, collider_json):
@@ -301,6 +484,7 @@ def build_scene_json():
     json_object_root = {
         "name": "scene",
         "objects": [],
+        "rails": build_rails_json(),
     }
 
     for obj in bpy.context.scene.objects:

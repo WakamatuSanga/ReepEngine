@@ -52,6 +52,12 @@
     <Filter Include="ヘッダー ファイル\engine\Editor\BlenderSync">
       <UniqueIdentifier>{fa4ec536-22dd-44c2-88b9-5fc5c1d1849d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Player">
+      <UniqueIdentifier>{18771bee-399b-4de6-b66d-51ae715bc7cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Player">
+      <UniqueIdentifier>{5be9c3ec-8a5f-4e4c-a8e1-2b9c71483651}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\application">
       <UniqueIdentifier>{da05e6c8-cb16-4e6c-bed8-45a4c3322b9f}</UniqueIdentifier>
     </Filter>
@@ -180,6 +186,9 @@
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp">
       <Filter>ソース ファイル\engine\Editor\BlenderSync</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\Player.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
@@ -202,6 +211,9 @@
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelObjectDebugVisualizer.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelSceneData.cpp">
@@ -398,6 +410,9 @@
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h">
       <Filter>ヘッダー ファイル\engine\Editor\BlenderSync</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Player\Player.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
@@ -420,6 +435,12 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelObjectDebugVisualizer.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelRailData.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelRailDebugVisualizer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelSceneData.h">

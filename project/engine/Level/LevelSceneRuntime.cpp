@@ -6,6 +6,7 @@
 #include "LevelEventRuntime.h"
 #include "LevelEventVisualizer.h"
 #include "LevelObjectDebugVisualizer.h"
+#include "LevelRailDebugVisualizer.h"
 #include "LevelSceneLoader.h"
 #include <algorithm>
 #include <cstdint>
@@ -100,12 +101,14 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     objectActionVisualizer_ = std::make_unique<LevelEventObjectActionVisualizer>();
     labelVisualizer_ = std::make_unique<LevelEventLabelVisualizer>();
     eventRuntime_ = std::make_unique<LevelEventRuntime>();
+    railDebugVisualizer_ = std::make_unique<LevelRailDebugVisualizer>();
     objectDebugVisualizer_->Initialize(object3dCommon, camera);
     eventVisualizer_->Initialize(object3dCommon, camera);
     connectionVisualizer_->Initialize(object3dCommon, camera);
     objectActionVisualizer_->Initialize(object3dCommon, camera);
     labelVisualizer_->Initialize(camera);
     eventRuntime_->Initialize(object3dCommon, camera);
+    railDebugVisualizer_->Initialize(object3dCommon, camera);
     eventVisualizer_->SetRuntimeStateProvider(eventRuntime_.get());
     SetPathBufferText(jsonPath_);
     LoadJsonFromBuffer();
@@ -123,6 +126,7 @@ void LevelSceneRuntime::Update() {
     if (connectionVisualizer_) { connectionVisualizer_->Update(frameCounter_); }
     if (objectActionVisualizer_) { objectActionVisualizer_->Update(frameCounter_); }
     if (eventRuntime_) { eventRuntime_->Update(frameCounter_); }
+    if (railDebugVisualizer_) { railDebugVisualizer_->Update(frameCounter_); }
 }
 
 void LevelSceneRuntime::Draw() {
@@ -133,6 +137,7 @@ void LevelSceneRuntime::Draw() {
     if (eventVisualizer_) { eventVisualizer_->Draw(frameCounter_); }
     if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
     if (objectActionVisualizer_) { objectActionVisualizer_->Draw(frameCounter_); }
+    if (railDebugVisualizer_) { railDebugVisualizer_->Draw(frameCounter_); }
     if (eventRuntime_) { eventRuntime_->Draw(frameCounter_); }
 }
 
@@ -169,6 +174,8 @@ void LevelSceneRuntime::DrawImGui() {
     ImGui::Text("軸変換 (Axis Conversion): %s", axisConversionEnabled_ ? "Blender(x,y,z) -> Engine(x,z,y)" : "OFF");
     ImGui::Text("シーン名 (Scene Name): %s", sceneData_.name.empty() ? "(none)" : sceneData_.name.c_str());
     ImGui::Text("オブジェクト数 (Object Count): %zu", sceneData_.GetObjectCount());
+    ImGui::Text("レール数 (Rail Count): %zu", sceneData_.rails.size());
+    ImGui::Text("レール点数 (Rail Point Count): %zu", sceneData_.GetRailPointCount());
     ImGui::Text("表示オブジェクト数 (Visible Object Count): %zu", objectDebugVisualizer_ ? objectDebugVisualizer_->GetVisibleObjectCount() : 0);
     ImGui::Text("不明モデル数 (Missing Model Count): %zu", objectDebugVisualizer_ ? objectDebugVisualizer_->GetMissingModelCount() : 0);
     ImGui::Text("デバッグ表示数 (Debug Object Count): %zu", objectDebugVisualizer_ ? objectDebugVisualizer_->GetDebugObjectCount() : 0);
@@ -209,6 +216,13 @@ void LevelSceneRuntime::DrawImGui() {
 
     if (eventRuntime_ && ImGui::TreeNode("イベント実行確認 (Event Runtime Debug)")) {
         eventRuntime_->DrawImGui();
+        ImGui::TreePop();
+    }
+
+    if (railDebugVisualizer_ && ImGui::TreeNode("レール確認 (Rail Debug)")) {
+        if (railDebugVisualizer_->DrawImGui()) {
+            RequestRebuild("Manual");
+        }
         ImGui::TreePop();
     }
 
@@ -290,6 +304,9 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
         if (eventRuntime_) {
             eventRuntime_->Clear();
         }
+        if (railDebugVisualizer_) {
+            railDebugVisualizer_->Clear();
+        }
         rebuildDirty_ = false;
     }
 }
@@ -319,6 +336,9 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     if (eventRuntime_) {
         eventRuntime_->Rebuild(sceneData_, axisConversionEnabled_);
     }
+    if (railDebugVisualizer_) {
+        railDebugVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
+    }
     if (eventVisualizer_) {
         eventVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
@@ -345,5 +365,8 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     }
     if (eventRuntime_) {
         eventRuntime_->Update(frameCounter_);
+    }
+    if (railDebugVisualizer_) {
+        railDebugVisualizer_->Update(frameCounter_);
     }
 }

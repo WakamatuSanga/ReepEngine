@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/Level/LevelEventData.h"
+#include "Engine/Level/LevelRailData.h"
 #include "Engine/math/Matrix4x4.h"
 #include <cstddef>
 #include <string>
@@ -40,7 +41,9 @@ struct LevelObject {
 struct LevelSceneData {
     std::string name;
     std::vector<LevelObject> objects;
+    std::vector<LevelRail> rails;
 
     void Clear();
     size_t GetObjectCount() const;
+    size_t GetRailPointCount() const;
 };

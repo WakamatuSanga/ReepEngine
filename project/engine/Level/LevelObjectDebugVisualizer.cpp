@@ -66,6 +66,10 @@ namespace {
         return lowerType == "light" || lowerType == "camera";
     }
 
+    bool IsRailObjectType(const std::string& type) {
+        return ToLowerString(type) == "curve";
+    }
+
     bool HasObjExtension(const std::string& filePath) {
         return ToLowerString(std::filesystem::path(filePath).extension().string()) == ".obj";
     }
@@ -154,7 +158,9 @@ void LevelObjectDebugVisualizer::Rebuild(const LevelSceneData& sceneData, bool a
             : object.transform;
         const RuntimeTransform worldTransform = CombineTransform(parentTransform, localTransform);
         const bool isBlenderHelper = IsBlenderHelperType(object.type);
-        const bool shouldCreateDebugObject = !object.isEventFlag && (!isBlenderHelper || showBlenderHelpers_);
+        const bool isRailObject = IsRailObjectType(object.type);
+        const bool shouldCreateDebugObject =
+            !object.isEventFlag && !isRailObject && (!isBlenderHelper || showBlenderHelpers_);
 
         auto debugObject = std::make_unique<DebugObject>();
         debugObject->source = &object;

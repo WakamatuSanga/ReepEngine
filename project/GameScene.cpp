@@ -20,6 +20,7 @@
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
 #include "Engine/Level/LevelSceneRuntime.h"
+#include "Engine/Game/Player/Player.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -464,6 +465,8 @@ void GameScene::Initialize() {
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
     skinningEditor_ = std::make_unique<SkinningEditor>();
+    player_ = std::make_unique<Player>();
+    player_->Initialize(object3dCommon, camera_.get());
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
     levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
@@ -723,6 +726,10 @@ void GameScene::Finalize() {
     }
     blenderLiveSync_.reset();
     levelSceneRuntime_.reset();
+    if (player_) {
+        player_->Finalize();
+    }
+    player_.reset();
 }
 
 void GameScene::Update() {
@@ -748,14 +755,30 @@ void GameScene::Update() {
         blenderLiveSync_->Update();
     }
 
+    bool isPlayerUsingWASD = false;
 #ifdef _DEBUG
     const ImGuiIO& imguiIO = ImGui::GetIO();
     const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
+    const bool canUsePlayerInputInGameView =
+        (isGameViewHovered_ || isGameViewFocused_) &&
+        !isGizmoInteracting;
+    if (player_) {
+        player_->SetGameViewInputActive(canUsePlayerInputInGameView);
+        isPlayerUsingWASD = player_->UsesWASDInput();
+    }
     const bool canRotateCameraInGameView = isGameViewHovered_ && !isGizmoInteracting;
-    const bool canMoveCameraInGameView = (isGameViewHovered_ || isGameViewFocused_) && !imguiIO.WantCaptureKeyboard && !isGizmoInteracting;
+    const bool canMoveCameraInGameView =
+        (isGameViewHovered_ || isGameViewFocused_) &&
+        !imguiIO.WantCaptureKeyboard &&
+        !isGizmoInteracting &&
+        !isPlayerUsingWASD;
     if (canRotateCameraInGameView && input->MouseDown(Input::MouseLeft)) {
 #else
-    const bool canMoveCameraInGameView = true;
+    if (player_) {
+        player_->SetGameViewInputActive(true);
+        isPlayerUsingWASD = player_->UsesWASDInput();
+    }
+    const bool canMoveCameraInGameView = !isPlayerUsingWASD;
     if (input->MouseDown(Input::MouseLeft)) {
 #endif
         Vector3 rot = camera_->GetRotate();
@@ -784,6 +807,9 @@ void GameScene::Update() {
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     camera_->Update();
+    if (player_) {
+        player_->Update(1.0f / 60.0f);
+    }
     if (cloudVolume_) {
         // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
         cloudVolume_->Update(1.0f / 60.0f);
@@ -926,6 +952,9 @@ void GameScene::Update() {
         gpuParticleSystem_->DrawImGui();
     }
     DrawGameViewImGui(dxCommon);
+    if (player_) {
+        player_->DrawImGui();
+    }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();
     }
@@ -1502,6 +1531,9 @@ void GameScene::Draw() {
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->Draw();
+    }
+    if (player_) {
+        player_->Draw();
     }
     if (primitiveEffectSystem_) {
         primitiveEffectSystem_->Draw();

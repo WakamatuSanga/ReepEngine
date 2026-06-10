@@ -16,6 +16,7 @@ class GpuParticleSystem;
 class LevelSceneRuntime;
 class Model;
 class Object3d;
+class Player;
 class PrimitiveEffectSystem;
 class SkinningEditor;
 class Skybox;
@@ -46,6 +47,7 @@ private:
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
+    std::unique_ptr<Player> player_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
     std::unique_ptr<Skeleton> simpleSkinSkeleton_;
