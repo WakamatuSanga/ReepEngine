@@ -41,6 +41,10 @@ from .live_sync import (
     register_live_sync,
     unregister_live_sync,
 )
+from .rail_editor import (
+    MYADDON_OT_initialize_rail_info,
+    VIEW3D_PT_level_rail_editor,
+)
 
 classes = (
     MYADDON_OT_create_ico_sphere,
@@ -60,8 +64,10 @@ classes = (
     OBJECT_PT_file_name,
     OBJECT_PT_collider,
     MYADDON_OT_send_live_sync,
+    MYADDON_OT_initialize_rail_info,
     VIEW3D_PT_level_live_sync,
     VIEW3D_PT_level_event_flag_editor,
+    VIEW3D_PT_level_rail_editor,
     TOPBAR_MT_my_menu,
 )
 

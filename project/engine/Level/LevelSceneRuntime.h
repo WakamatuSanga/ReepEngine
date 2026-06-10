@@ -12,6 +12,7 @@ class LevelEventObjectActionVisualizer;
 class LevelEventRuntime;
 class LevelEventVisualizer;
 class LevelRailDebugVisualizer;
+class LevelRailRuntime;
 class LevelObjectDebugVisualizer;
 class LevelSceneLoader;
 class Object3dCommon;
@@ -52,6 +53,7 @@ private:
     std::unique_ptr<LevelEventLabelVisualizer> labelVisualizer_;
     std::unique_ptr<LevelEventRuntime> eventRuntime_;
     std::unique_ptr<LevelRailDebugVisualizer> railDebugVisualizer_;
+    std::unique_ptr<LevelRailRuntime> railRuntime_;
     LevelSceneData sceneData_;
     std::array<char, 260> jsonPathBuffer_{};
     std::string jsonPath_ = "resources/level_editor/level_editor.json";

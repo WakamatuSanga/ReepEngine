@@ -216,6 +216,9 @@
     <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Level\LevelRailRuntime.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Level\LevelSceneData.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
@@ -441,6 +444,9 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelRailDebugVisualizer.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelRailRuntime.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelSceneData.h">

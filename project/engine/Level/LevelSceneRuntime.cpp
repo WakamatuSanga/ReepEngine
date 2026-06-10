@@ -7,6 +7,7 @@
 #include "LevelEventVisualizer.h"
 #include "LevelObjectDebugVisualizer.h"
 #include "LevelRailDebugVisualizer.h"
+#include "LevelRailRuntime.h"
 #include "LevelSceneLoader.h"
 #include <algorithm>
 #include <cstdint>
@@ -102,6 +103,7 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     labelVisualizer_ = std::make_unique<LevelEventLabelVisualizer>();
     eventRuntime_ = std::make_unique<LevelEventRuntime>();
     railDebugVisualizer_ = std::make_unique<LevelRailDebugVisualizer>();
+    railRuntime_ = std::make_unique<LevelRailRuntime>();
     objectDebugVisualizer_->Initialize(object3dCommon, camera);
     eventVisualizer_->Initialize(object3dCommon, camera);
     connectionVisualizer_->Initialize(object3dCommon, camera);
@@ -109,6 +111,7 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     labelVisualizer_->Initialize(camera);
     eventRuntime_->Initialize(object3dCommon, camera);
     railDebugVisualizer_->Initialize(object3dCommon, camera);
+    railRuntime_->Initialize(object3dCommon, camera);
     eventVisualizer_->SetRuntimeStateProvider(eventRuntime_.get());
     SetPathBufferText(jsonPath_);
     LoadJsonFromBuffer();
@@ -127,6 +130,7 @@ void LevelSceneRuntime::Update() {
     if (objectActionVisualizer_) { objectActionVisualizer_->Update(frameCounter_); }
     if (eventRuntime_) { eventRuntime_->Update(frameCounter_); }
     if (railDebugVisualizer_) { railDebugVisualizer_->Update(frameCounter_); }
+    if (railRuntime_) { railRuntime_->Update(1.0f / 60.0f, frameCounter_); }
 }
 
 void LevelSceneRuntime::Draw() {
@@ -138,6 +142,7 @@ void LevelSceneRuntime::Draw() {
     if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
     if (objectActionVisualizer_) { objectActionVisualizer_->Draw(frameCounter_); }
     if (railDebugVisualizer_) { railDebugVisualizer_->Draw(frameCounter_); }
+    if (railRuntime_) { railRuntime_->Draw(frameCounter_); }
     if (eventRuntime_) { eventRuntime_->Draw(frameCounter_); }
 }
 
@@ -226,6 +231,13 @@ void LevelSceneRuntime::DrawImGui() {
         ImGui::TreePop();
     }
 
+    if (railRuntime_ && ImGui::TreeNode("レール実行確認 (Rail Runtime Debug)")) {
+        if (railRuntime_->DrawImGui()) {
+            RequestRebuild("Manual");
+        }
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("オブジェクトツリー (Object Tree)")) {
         if (sceneData_.objects.empty()) {
             ImGui::TextDisabled("オブジェクトが読み込まれていません。 (No objects loaded.)");
@@ -307,6 +319,9 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
         if (railDebugVisualizer_) {
             railDebugVisualizer_->Clear();
         }
+        if (railRuntime_) {
+            railRuntime_->Clear();
+        }
         rebuildDirty_ = false;
     }
 }
@@ -339,6 +354,9 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     if (railDebugVisualizer_) {
         railDebugVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
+    if (railRuntime_) {
+        railRuntime_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
+    }
     if (eventVisualizer_) {
         eventVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
     }
@@ -368,5 +386,8 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     }
     if (railDebugVisualizer_) {
         railDebugVisualizer_->Update(frameCounter_);
+    }
+    if (railRuntime_) {
+        railRuntime_->Update(1.0f / 60.0f, frameCounter_);
     }
 }
