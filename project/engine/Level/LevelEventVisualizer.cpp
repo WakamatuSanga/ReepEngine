@@ -31,6 +31,16 @@ namespace {
         Vector3 scaling{ 1.0f, 1.0f, 1.0f };
     };
 
+    struct EventVisualDiagnostics {
+        size_t total = 0;
+        size_t visible = 0;
+        size_t hiddenVisibleInEditorFalse = 0;
+        size_t hiddenDisabled = 0;
+        size_t hiddenCameraRigDebug = 0;
+        size_t hiddenNoVisualObject = 0;
+        size_t hiddenRuntimeInactive = 0;
+    };
+
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
     }
@@ -98,6 +108,42 @@ namespace {
             return object.eventFlag.id;
         }
         return object.eventFlagId;
+    }
+
+    std::string BuildHiddenReasonSummary(
+        bool showEventFlags,
+        const EventVisualDiagnostics& diagnostics,
+        size_t hiddenCount) {
+        std::string summary;
+        auto appendReason = [&summary](const std::string& reason) {
+            if (!summary.empty()) {
+                summary += ", ";
+            }
+            summary += reason;
+            };
+
+        if (!showEventFlags && hiddenCount > 0) {
+            appendReason("show event flags off");
+        }
+        if (diagnostics.hiddenVisibleInEditorFalse > 0) {
+            appendReason("visible_in_editor false");
+        }
+        if (diagnostics.hiddenDisabled > 0) {
+            appendReason("disabled hidden");
+        }
+        if (diagnostics.hiddenCameraRigDebug > 0) {
+            appendReason("camera rig hide debug");
+        }
+        if (diagnostics.hiddenNoVisualObject > 0) {
+            appendReason("no visual object");
+        }
+        if (diagnostics.hiddenRuntimeInactive > 0) {
+            appendReason("runtime inactive but hidden");
+        }
+        if (summary.empty()) {
+            summary = hiddenCount > 0 ? "unknown" : "none";
+        }
+        return summary;
     }
 
     EventVisualStyle GetVisualStyle(const LevelObject& object) {
@@ -200,11 +246,23 @@ namespace {
         Object3dCommon* object3dCommon,
         Camera* camera,
         const LevelEventRuntime* runtimeStateProvider,
+        EventVisualDiagnostics& diagnostics,
         std::vector<std::unique_ptr<LevelEventVisualObject>>& visuals) {
         const LevelTransform objectLocal = GetObjectLocalTransform(object, axisConversionEnabled);
         const EventVisualTransform objectWorld = CombineTransform(parentTransform, objectLocal);
 
-        if (object.isEventFlag &&
+        if (object.isEventFlag) {
+            ++diagnostics.total;
+        }
+
+        if (object.isEventFlag && !object.eventFlag.visibleInEditor) {
+            ++diagnostics.hiddenVisibleInEditorFalse;
+        } else if (object.isEventFlag &&
+            !runtimeStateProvider &&
+            !object.eventFlag.initiallyEnabled &&
+            !showDisabledEventFlags) {
+            ++diagnostics.hiddenDisabled;
+        } else if (object.isEventFlag &&
             object.eventFlag.visibleInEditor &&
             (runtimeStateProvider || object.eventFlag.initiallyEnabled || showDisabledEventFlags)) {
             const EventVisualStyle style = GetVisualStyle(object);
@@ -230,6 +288,9 @@ namespace {
                 visual->object->SetEnvironmentMapEnabled(false);
                 ApplyTransform(*visual->object, eventWorld);
                 visuals.push_back(std::move(visual));
+                ++diagnostics.visible;
+            } else {
+                ++diagnostics.hiddenNoVisualObject;
             }
         }
 
@@ -243,6 +304,7 @@ namespace {
                 object3dCommon,
                 camera,
                 runtimeStateProvider,
+                diagnostics,
                 visuals);
         }
     }
@@ -274,11 +336,9 @@ void LevelEventVisualizer::Rebuild(
     }
 
     visuals_.clear();
+    EventVisualDiagnostics diagnostics;
     ++rebuildCount_;
     lastRebuildFrame_ = frameCounter;
-    if (!object3dCommon_ || !camera_) {
-        return;
-    }
 
     const EventVisualTransform identity{};
     for (const LevelObject& object : sceneData.objects) {
@@ -291,8 +351,21 @@ void LevelEventVisualizer::Rebuild(
             object3dCommon_,
             camera_,
             runtimeStateProvider_,
+            diagnostics,
             visuals_);
     }
+
+    totalEventFlagCount_ = diagnostics.total;
+    visibleEventFlagCount_ = diagnostics.visible;
+    hiddenVisibleInEditorFalseCount_ = diagnostics.hiddenVisibleInEditorFalse;
+    baseHiddenDisabledCount_ = diagnostics.hiddenDisabled;
+    hiddenDisabledCount_ = diagnostics.hiddenDisabled;
+    hiddenCameraRigDebugCount_ = 0;
+    hiddenNoVisualObjectCount_ = diagnostics.hiddenNoVisualObject;
+    hiddenEventFlagCount_ = totalEventFlagCount_ > visibleEventFlagCount_
+        ? totalEventFlagCount_ - visibleEventFlagCount_
+        : 0;
+    hiddenReasonSummary_ = BuildHiddenReasonSummary(showEventFlags_, diagnostics, hiddenEventFlagCount_);
 }
 
 void LevelEventVisualizer::Update(uint64_t frameCounter) {
@@ -309,7 +382,18 @@ void LevelEventVisualizer::Update(uint64_t frameCounter) {
 }
 
 void LevelEventVisualizer::Draw(uint64_t frameCounter) {
-    if (!showEventFlags_ || !object3dCommon_) {
+    if (!showEventFlags_ || externalDebugHidden_ || !object3dCommon_) {
+        EventVisualDiagnostics diagnostics;
+        diagnostics.hiddenVisibleInEditorFalse = hiddenVisibleInEditorFalseCount_;
+        diagnostics.hiddenNoVisualObject = hiddenNoVisualObjectCount_;
+        diagnostics.hiddenDisabled = baseHiddenDisabledCount_;
+        diagnostics.hiddenCameraRigDebug = externalDebugHidden_ ? visuals_.size() : 0;
+        visibleEventFlagCount_ = 0;
+        hiddenDisabledCount_ = diagnostics.hiddenDisabled;
+        hiddenCameraRigDebugCount_ = diagnostics.hiddenCameraRigDebug;
+        hiddenRuntimeInactiveCount_ = 0;
+        hiddenEventFlagCount_ = totalEventFlagCount_;
+        hiddenReasonSummary_ = BuildHiddenReasonSummary(showEventFlags_, diagnostics, hiddenEventFlagCount_);
         return;
     }
 
@@ -318,6 +402,9 @@ void LevelEventVisualizer::Draw(uint64_t frameCounter) {
     }
 
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
+    size_t drawVisibleCount = 0;
+    size_t runtimeHiddenDisabledCount = 0;
+    size_t runtimeInactiveHiddenCount = 0;
     for (const auto& visual : visuals_) {
         if (!visual || !visual->object) {
             continue;
@@ -331,7 +418,9 @@ void LevelEventVisualizer::Draw(uint64_t frameCounter) {
                 }
                 drawStyle = EventVisualStyle::kFired;
             } else if (!runtimeStateProvider_->IsFlagActive(visual->flagId)) {
-                if (!showDisabledEventFlags_) {
+                if (!showRuntimeInactiveFlags_ && !showDisabledEventFlags_) {
+                    ++runtimeHiddenDisabledCount;
+                    ++runtimeInactiveHiddenCount;
                     continue;
                 }
                 drawStyle = EventVisualStyle::kDisabled;
@@ -342,13 +431,30 @@ void LevelEventVisualizer::Draw(uint64_t frameCounter) {
         visual->object->SetModel(visual->model);
         ApplyModelMaterial(visual->model, GetStyleColor(drawStyle, eventFlagAlpha_));
         visual->object->Draw();
+        ++drawVisibleCount;
     }
+
+    EventVisualDiagnostics diagnostics;
+    diagnostics.visible = drawVisibleCount;
+    diagnostics.hiddenVisibleInEditorFalse = hiddenVisibleInEditorFalseCount_;
+    diagnostics.hiddenDisabled = baseHiddenDisabledCount_ + runtimeHiddenDisabledCount;
+    diagnostics.hiddenNoVisualObject = hiddenNoVisualObjectCount_;
+    diagnostics.hiddenRuntimeInactive = runtimeInactiveHiddenCount;
+    visibleEventFlagCount_ = drawVisibleCount;
+    hiddenDisabledCount_ = diagnostics.hiddenDisabled;
+    hiddenRuntimeInactiveCount_ = diagnostics.hiddenRuntimeInactive;
+    hiddenCameraRigDebugCount_ = 0;
+    hiddenEventFlagCount_ = totalEventFlagCount_ > visibleEventFlagCount_
+        ? totalEventFlagCount_ - visibleEventFlagCount_
+        : 0;
+    hiddenReasonSummary_ = BuildHiddenReasonSummary(showEventFlags_, diagnostics, hiddenEventFlagCount_);
 }
 
 bool LevelEventVisualizer::DrawImGui() {
 #ifdef _DEBUG
     bool needsRebuild = false;
     ImGui::Checkbox("イベントフラグ表示 (Show Event Flags)", &showEventFlags_);
+    ImGui::Checkbox("非アクティブフラグを表示 (Show Runtime Inactive Flags)", &showRuntimeInactiveFlags_);
     if (ImGui::SliderFloat("イベントフラグ透明度 (Event Flag Alpha)", &eventFlagAlpha_, 0.05f, 0.85f, "%.2f")) {
         eventFlagAlpha_ = std::clamp(eventFlagAlpha_, 0.05f, 0.85f);
     }
@@ -366,6 +472,15 @@ bool LevelEventVisualizer::DrawImGui() {
         needsRebuild = true;
     }
     ImGui::Text("イベント表示オブジェクト数 (Event Visual Object Count): %zu", visuals_.size());
+    ImGui::Text("EventFlag total count: %zu", totalEventFlagCount_);
+    ImGui::Text("Visible EventFlag count: %zu", visibleEventFlagCount_);
+    ImGui::Text("Hidden EventFlag count: %zu", hiddenEventFlagCount_);
+    ImGui::TextWrapped("Hidden reason: %s", hiddenReasonSummary_.c_str());
+    ImGui::Text("visible_in_editor false: %zu", hiddenVisibleInEditorFalseCount_);
+    ImGui::Text("disabled hidden: %zu", hiddenDisabledCount_);
+    ImGui::Text("camera rig hide debug: %zu", hiddenCameraRigDebugCount_);
+    ImGui::Text("no visual object: %zu", hiddenNoVisualObjectCount_);
+    ImGui::Text("runtime inactive but hidden: %zu", hiddenRuntimeInactiveCount_);
     ImGui::Text("イベント表示再構築回数 (Event Visual Rebuild Count): %llu", static_cast<unsigned long long>(rebuildCount_));
     ImGui::Text("最後のイベント表示再構築フレーム (Last Event Visual Rebuild Frame): %llu", static_cast<unsigned long long>(lastRebuildFrame_));
     ImGui::Text("最後のイベント表示行列更新フレーム (Last Event Visual Matrix Update Frame): %llu", static_cast<unsigned long long>(lastMatrixUpdateFrame_));
@@ -377,4 +492,8 @@ bool LevelEventVisualizer::DrawImGui() {
 
 size_t LevelEventVisualizer::GetVisualCount() const {
     return visuals_.size();
+}
+
+void LevelEventVisualizer::SetExternalDebugHidden(bool hidden) {
+    externalDebugHidden_ = hidden;
 }

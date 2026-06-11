@@ -32,6 +32,7 @@ public:
     void Update(uint64_t frameCounter);
     void Draw(uint64_t frameCounter);
     bool DrawImGui();
+    void SetExternalDebugVisibility(bool hideRails, bool hideRailPoints);
 
     size_t GetRailCount() const { return railSummaries_.size(); }
     size_t GetRailPointCount() const { return railPointCount_; }
@@ -49,6 +50,8 @@ private:
     std::array<float, 4> railPointColor_{ 1.0f, 0.82f, 0.12f, 0.95f };
     bool showRails_ = true;
     bool showRailPoints_ = true;
+    bool externalHideRails_ = false;
+    bool externalHideRailPoints_ = false;
     bool pauseRailRebuild_ = false;
     bool updateMatricesWithLatestCamera_ = true;
     float railLineThickness_ = 0.045f;

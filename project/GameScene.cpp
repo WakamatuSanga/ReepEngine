@@ -18,9 +18,12 @@
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include "Engine/Utility/Logger.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/Camera/EditorCameraController.h"
 #include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
 #include "Engine/Level/LevelSceneRuntime.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -465,10 +468,16 @@ void GameScene::Initialize() {
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
     skinningEditor_ = std::make_unique<SkinningEditor>();
+    editorCameraController_ = std::make_unique<EditorCameraController>();
+    editorCameraController_->Initialize(camera_.get());
     player_ = std::make_unique<Player>();
     player_->Initialize(object3dCommon, camera_.get());
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
     levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
+    playerRailController_ = std::make_unique<PlayerRailController>();
+    playerRailController_->Initialize(player_.get(), levelSceneRuntime_->GetRailRuntime());
+    railShooterCameraRig_ = std::make_unique<RailShooterCameraRig>();
+    railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
@@ -724,7 +733,19 @@ void GameScene::Finalize() {
     if (skinningEditor_) {
         skinningEditor_->ClearTargets();
     }
+    if (editorCameraController_) {
+        editorCameraController_->Finalize();
+    }
+    editorCameraController_.reset();
     blenderLiveSync_.reset();
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->Finalize();
+    }
+    railShooterCameraRig_.reset();
+    if (playerRailController_) {
+        playerRailController_->Finalize();
+    }
+    playerRailController_.reset();
     levelSceneRuntime_.reset();
     if (player_) {
         player_->Finalize();
@@ -755,58 +776,62 @@ void GameScene::Update() {
         blenderLiveSync_->Update();
     }
 
-    bool isPlayerUsingWASD = false;
+    const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
 #ifdef _DEBUG
     const ImGuiIO& imguiIO = ImGui::GetIO();
     const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
+    const bool isImGuiInputActive = imguiIO.WantTextInput || ImGui::IsAnyItemActive();
+    if (editorCameraController_) {
+        editorCameraController_->Update(
+            1.0f / 60.0f,
+            input,
+            isGameViewHovered_,
+            isGameViewFocused_,
+            isImGuiInputActive,
+            isGizmoInteracting,
+            isCameraRigActive);
+    }
     const bool canUsePlayerInputInGameView =
         (isGameViewHovered_ || isGameViewFocused_) &&
-        !isGizmoInteracting;
+        !isGizmoInteracting &&
+        !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive());
     if (player_) {
         player_->SetGameViewInputActive(canUsePlayerInputInGameView);
-        isPlayerUsingWASD = player_->UsesWASDInput();
     }
-    const bool canRotateCameraInGameView = isGameViewHovered_ && !isGizmoInteracting;
-    const bool canMoveCameraInGameView =
-        (isGameViewHovered_ || isGameViewFocused_) &&
-        !imguiIO.WantCaptureKeyboard &&
-        !isGizmoInteracting &&
-        !isPlayerUsingWASD;
-    if (canRotateCameraInGameView && input->MouseDown(Input::MouseLeft)) {
 #else
+    if (editorCameraController_) {
+        editorCameraController_->Update(
+            1.0f / 60.0f,
+            input,
+            true,
+            true,
+            false,
+            false,
+            isCameraRigActive);
+    }
     if (player_) {
-        player_->SetGameViewInputActive(true);
-        isPlayerUsingWASD = player_->UsesWASDInput();
+        player_->SetGameViewInputActive(!(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()));
     }
-    const bool canMoveCameraInGameView = !isPlayerUsingWASD;
-    if (input->MouseDown(Input::MouseLeft)) {
 #endif
-        Vector3 rot = camera_->GetRotate();
-        rot.y += input->MouseDeltaX() * 0.0025f;
-        rot.x += input->MouseDeltaY() * 0.0025f;
-        camera_->SetRotate(rot);
-    }
-
-    Vector3 move = { 0,0,0 };
-    if (canMoveCameraInGameView) {
-        if (input->PushKey(DIK_W)) move.z += 1.0f;
-        if (input->PushKey(DIK_S)) move.z -= 1.0f;
-        if (input->PushKey(DIK_D)) move.x += 1.0f;
-        if (input->PushKey(DIK_A)) move.x -= 1.0f;
-    }
-
-    if (move.x != 0 || move.z != 0) {
-        float speed = 0.1f;
-        Vector3 rot = camera_->GetRotate();
-        Vector3 trans = camera_->GetTranslate();
-        trans.x += (move.x * std::cos(rot.y) + move.z * std::sin(rot.y)) * speed;
-        trans.z += (move.x * -std::sin(rot.y) + move.z * std::cos(rot.y)) * speed;
-        camera_->SetTranslate(trans);
-    }
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->Update(1.0f / 60.0f);
+    }
+    if (levelSceneRuntime_) {
+        const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
+        levelSceneRuntime_->SetCameraRigPreviewState(
+            cameraRigActiveForDebug,
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailDebugWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailPointsWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideEventDebugWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPreviewModeEnabled());
+    }
     camera_->Update();
+    if (playerRailController_) {
+        playerRailController_->Update(1.0f / 60.0f);
+    }
     if (player_) {
         player_->Update(1.0f / 60.0f);
     }
@@ -951,9 +976,18 @@ void GameScene::Update() {
     if (gpuParticleSystem_) {
         gpuParticleSystem_->DrawImGui();
     }
+    if (editorCameraController_) {
+        editorCameraController_->DrawImGui();
+    }
     DrawGameViewImGui(dxCommon);
     if (player_) {
         player_->DrawImGui();
+    }
+    if (playerRailController_) {
+        playerRailController_->DrawImGui();
+    }
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->DrawImGui();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();

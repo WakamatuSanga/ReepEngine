@@ -146,10 +146,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClCompile Include="engine\Audio\Audio.cpp" />
     <ClCompile Include="engine\Animation\AnimationClip.cpp" />
+    <ClCompile Include="engine\Editor\Camera\EditorCameraController.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLauncher.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLiveSync.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
     <ClCompile Include="engine\Level\LevelEventData.cpp" />
@@ -159,6 +162,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Level\LevelEventVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelObjectDebugVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp" />
+    <ClCompile Include="engine\Level\LevelRailEvaluator.cpp" />
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp" />
     <ClCompile Include="engine\Level\LevelSceneData.cpp" />
     <ClCompile Include="engine\Level\LevelSceneLoader.cpp" />
@@ -256,11 +260,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ItemGroup>
     <ClInclude Include="engine\Audio\Audio.h" />
     <ClInclude Include="engine\Animation\AnimationClip.h" />
+    <ClInclude Include="engine\Editor\Camera\EditorCameraController.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderLauncher.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderLiveSync.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderSyncTypes.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h" />
+    <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
+    <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventDebugView.h" />
     <ClInclude Include="engine\Level\LevelEventData.h" />
@@ -271,6 +278,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Level\LevelObjectDebugVisualizer.h" />
     <ClInclude Include="engine\Level\LevelRailData.h" />
     <ClInclude Include="engine\Level\LevelRailDebugVisualizer.h" />
+    <ClInclude Include="engine\Level\LevelRailEvaluator.h" />
     <ClInclude Include="engine\Level\LevelRailRuntime.h" />
     <ClInclude Include="engine\Level\LevelSceneData.h" />
     <ClInclude Include="engine\Level\LevelSceneLoader.h" />

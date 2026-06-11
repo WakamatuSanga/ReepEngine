@@ -221,7 +221,7 @@ void LevelRailDebugVisualizer::Update(uint64_t frameCounter) {
 }
 
 void LevelRailDebugVisualizer::Draw(uint64_t frameCounter) {
-    if (!showRails_ || !object3dCommon_) {
+    if (!showRails_ || externalHideRails_ || !object3dCommon_) {
         return;
     }
 
@@ -238,7 +238,7 @@ void LevelRailDebugVisualizer::Draw(uint64_t frameCounter) {
         line->object->Draw();
     }
 
-    if (!showRailPoints_) {
+    if (!showRailPoints_ || externalHideRailPoints_) {
         return;
     }
     for (const auto& point : pointObjects_) {
@@ -248,6 +248,11 @@ void LevelRailDebugVisualizer::Draw(uint64_t frameCounter) {
         ApplyModelMaterial(point->model, railPointColor_);
         point->object->Draw();
     }
+}
+
+void LevelRailDebugVisualizer::SetExternalDebugVisibility(bool hideRails, bool hideRailPoints) {
+    externalHideRails_ = hideRails;
+    externalHideRailPoints_ = hideRailPoints;
 }
 
 bool LevelRailDebugVisualizer::DrawImGui() {

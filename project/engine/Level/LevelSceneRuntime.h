@@ -28,6 +28,12 @@ public:
     void DrawImGui();
     void SetGameViewRect(float x, float y, float width, float height);
     void ClearGameViewRect();
+    void SetCameraRigPreviewState(
+        bool cameraRigActive,
+        bool hideRailDebug,
+        bool hideRailPoints,
+        bool hideEventDebug,
+        bool gameplayPreviewMode);
     void ApplySceneData(
         const LevelSceneData& sceneData,
         const std::string& statusMessage,
@@ -35,6 +41,7 @@ public:
     void SetLiveSyncDiagnostics(bool autoApplyEnabled, uint64_t lastPacketApplied);
 
     const LevelSceneData& GetSceneData() const { return sceneData_; }
+    LevelRailRuntime* GetRailRuntime() const { return railRuntime_.get(); }
     const std::string& GetLastLoadStatus() const { return lastLoadStatus_; }
     bool IsLiveApplyPaused() const { return pauseLiveApply_; }
     bool IsRebuildOnlyWhenJsonChangedEnabled() const { return rebuildOnlyWhenJsonChanged_; }
@@ -44,6 +51,9 @@ private:
     void SetPathBufferText(const std::string& text);
     void RequestRebuild(const std::string& applySource);
     void RebuildDebugObjects();
+    bool ShouldHideRailDebug() const;
+    bool ShouldHideRailPoints() const;
+    bool ShouldHideEventDebug() const;
 
     std::unique_ptr<LevelSceneLoader> loader_;
     std::unique_ptr<LevelObjectDebugVisualizer> objectDebugVisualizer_;
@@ -64,6 +74,11 @@ private:
     bool pauseLiveApply_ = false;
     bool rebuildOnlyWhenJsonChanged_ = true;
     bool rebuildDirty_ = false;
+    bool cameraRigActiveForDebug_ = false;
+    bool hideRailDebugWhileCameraRigActive_ = true;
+    bool hideRailPointsWhileCameraRigActive_ = true;
+    bool hideEventDebugWhileCameraRigActive_ = true;
+    bool gameplayPreviewMode_ = false;
     uint64_t frameCounter_ = 0;
     uint64_t rebuildCount_ = 0;
     uint64_t lastRebuildFrame_ = 0;

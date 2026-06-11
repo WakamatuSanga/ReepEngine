@@ -138,17 +138,35 @@ void LevelSceneRuntime::Draw() {
         objectDebugVisualizer_->Update(frameCounter_);
         objectDebugVisualizer_->Draw();
     }
-    if (eventVisualizer_) { eventVisualizer_->Draw(frameCounter_); }
-    if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
-    if (objectActionVisualizer_) { objectActionVisualizer_->Draw(frameCounter_); }
-    if (railDebugVisualizer_) { railDebugVisualizer_->Draw(frameCounter_); }
-    if (railRuntime_) { railRuntime_->Draw(frameCounter_); }
-    if (eventRuntime_) { eventRuntime_->Draw(frameCounter_); }
+    const bool hideEventDebug = ShouldHideEventDebug();
+    const bool hideRailDebug = ShouldHideRailDebug();
+    const bool hideRailPoints = ShouldHideRailPoints();
+
+    if (eventVisualizer_) {
+        eventVisualizer_->SetExternalDebugHidden(hideEventDebug);
+    }
+    if (!hideEventDebug) {
+        if (eventVisualizer_) { eventVisualizer_->Draw(frameCounter_); }
+        if (connectionVisualizer_) { connectionVisualizer_->Draw(frameCounter_); }
+        if (objectActionVisualizer_) { objectActionVisualizer_->Draw(frameCounter_); }
+        if (eventRuntime_) { eventRuntime_->Draw(frameCounter_); }
+    } else if (eventVisualizer_) {
+        eventVisualizer_->Draw(frameCounter_);
+    }
+
+    if (railDebugVisualizer_) {
+        railDebugVisualizer_->SetExternalDebugVisibility(hideRailDebug, hideRailPoints);
+        railDebugVisualizer_->Draw(frameCounter_);
+    }
+    if (railRuntime_) {
+        railRuntime_->SetExternalDebugActorHidden(hideRailDebug || gameplayPreviewMode_);
+        railRuntime_->Draw(frameCounter_);
+    }
 }
 
 void LevelSceneRuntime::DrawImGui() {
 #ifdef _DEBUG
-    if (labelVisualizer_) {
+    if (labelVisualizer_ && !ShouldHideEventDebug()) {
         labelVisualizer_->DrawOverlay();
     }
 
@@ -193,6 +211,11 @@ void LevelSceneRuntime::DrawImGui() {
     ImGui::Text("自動反映有効 (Auto Apply Enabled): %s", liveAutoApplyEnabled_ ? "true" : "false");
     ImGui::Text("最後に反映したパケット (Last Packet Applied): %llu", static_cast<unsigned long long>(lastPacketApplied_));
     ImGui::Text("再構築待ち (Rebuild Dirty): %s", rebuildDirty_ ? "true" : "false");
+    ImGui::Text("CameraRig Active For Debug: %s", cameraRigActiveForDebug_ ? "true" : "false");
+    ImGui::Text("Gameplay Preview Mode: %s", gameplayPreviewMode_ ? "true" : "false");
+    ImGui::Text("Rail Debug Hidden By CameraRig: %s", ShouldHideRailDebug() ? "true" : "false");
+    ImGui::Text("Rail Points Hidden By CameraRig: %s", ShouldHideRailPoints() ? "true" : "false");
+    ImGui::Text("Event Debug Hidden By CameraRig: %s", ShouldHideEventDebug() ? "true" : "false");
 
     const LevelObject* selectedObject = FindObjectByTreeIndex(sceneData_, selectedObjectIndex_);
     if (ImGui::TreeNode("選択中オブジェクト情報 (Selected Object Info)")) {
@@ -266,6 +289,19 @@ void LevelSceneRuntime::ClearGameViewRect() {
     if (labelVisualizer_) {
         labelVisualizer_->ClearViewportRect();
     }
+}
+
+void LevelSceneRuntime::SetCameraRigPreviewState(
+    bool cameraRigActive,
+    bool hideRailDebug,
+    bool hideRailPoints,
+    bool hideEventDebug,
+    bool gameplayPreviewMode) {
+    cameraRigActiveForDebug_ = cameraRigActive;
+    hideRailDebugWhileCameraRigActive_ = hideRailDebug;
+    hideRailPointsWhileCameraRigActive_ = hideRailPoints;
+    hideEventDebugWhileCameraRigActive_ = hideEventDebug;
+    gameplayPreviewMode_ = gameplayPreviewMode;
 }
 
 void LevelSceneRuntime::ApplySceneData(
@@ -390,4 +426,16 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     if (railRuntime_) {
         railRuntime_->Update(1.0f / 60.0f, frameCounter_);
     }
+}
+
+bool LevelSceneRuntime::ShouldHideRailDebug() const {
+    return cameraRigActiveForDebug_ && (gameplayPreviewMode_ || hideRailDebugWhileCameraRigActive_);
+}
+
+bool LevelSceneRuntime::ShouldHideRailPoints() const {
+    return cameraRigActiveForDebug_ && (gameplayPreviewMode_ || hideRailPointsWhileCameraRigActive_);
+}
+
+bool LevelSceneRuntime::ShouldHideEventDebug() const {
+    return cameraRigActiveForDebug_ && (gameplayPreviewMode_ || hideEventDebugWhileCameraRigActive_);
 }

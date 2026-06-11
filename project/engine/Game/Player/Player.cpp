@@ -214,8 +214,25 @@ void Player::DrawImGui() {
         lastDPressed_ ? "true" : "false");
     ImGui::Text("Raw Move Input: %.1f, %.1f", lastRawMoveInput_.x, lastRawMoveInput_.y);
     ImGui::Text("Input Applied: %s", lastInputApplied_ ? "true" : "false");
+    ImGui::Text("Base Mode: %s", baseMode_ == BaseMode::Rail ? "Rail" : "CameraFront");
+    ImGui::Text("External Base Valid: %s", hasExternalBase_ ? "true" : "false");
     if (ImGui::Button("Load / Reload Model")) {
         LoadModel();
+        UpdateObjectTransform();
+        if (object_) {
+            object_->Update();
+        }
+    }
+
+    ImGui::SeparatorText("Rail Shooter Preview");
+    ImGui::TextDisabled("CameraRig確認用の見た目プリセットです。PlayerはCameraFrontのままです。");
+    ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 4.0");
+    if (ImGui::Button("Rail Shooter Preset")) {
+        distanceFromCamera_ = 4.0f;
+        modelScale_ = { 0.45f, 0.45f, 0.45f };
+        modelRotation_ = { 0.0f, 3.14159265f, 0.0f };
+        ResetPosition();
+        UpdateWorldPosition();
         UpdateObjectTransform();
         if (object_) {
             object_->Update();
@@ -237,6 +254,7 @@ void Player::DrawImGui() {
 
     UpdateWorldPosition();
     ImGui::Text("Base Position: %.3f, %.3f, %.3f", basePosition_.x, basePosition_.y, basePosition_.z);
+    ImGui::Text("Base Forward: %.3f, %.3f, %.3f", baseForward_.x, baseForward_.y, baseForward_.z);
     ImGui::Text("World Position: %.3f, %.3f, %.3f", worldPosition_.x, worldPosition_.y, worldPosition_.z);
     ImGui::End();
 #endif
@@ -244,6 +262,23 @@ void Player::DrawImGui() {
 
 void Player::SetGameViewInputActive(bool isActive) {
     gameViewInputActive_ = isActive;
+}
+
+void Player::SetBaseMode(BaseMode baseMode) {
+    baseMode_ = baseMode;
+}
+
+void Player::SetExternalBasePosition(const Vector3& position) {
+    externalBasePosition_ = position;
+    hasExternalBase_ = true;
+}
+
+void Player::SetExternalBaseForward(const Vector3& forward) {
+    externalBaseForward_ = forward;
+}
+
+void Player::SetExternalBaseUp(const Vector3& up) {
+    externalBaseUp_ = up;
 }
 
 bool Player::UsesWASDInput() const {
@@ -302,7 +337,14 @@ void Player::UpdateWorldPosition() {
     const Vector3 cameraUp = GetCameraUp(*camera_);
     const Vector3 cameraForward = GetCameraForward(*camera_);
 
-    basePosition_ = AddVector3(cameraPosition, ScaleVector3(cameraForward, distanceFromCamera_));
+    if (baseMode_ == BaseMode::Rail && hasExternalBase_) {
+        basePosition_ = externalBasePosition_;
+        baseForward_ = Normalize(externalBaseForward_, cameraForward);
+    } else {
+        basePosition_ = AddVector3(cameraPosition, ScaleVector3(cameraForward, distanceFromCamera_));
+        baseForward_ = cameraForward;
+    }
+
     worldPosition_ = AddVector3(
         AddVector3(basePosition_, ScaleVector3(cameraRight, localOffsetX_)),
         ScaleVector3(cameraUp, localOffsetY_));

@@ -88,6 +88,18 @@ bool DrawLevelEventDebugImGui(
     const LevelEventValidationResult validation = ValidateLevelEventLinks(sceneData);
     ImGui::Text("イベントフラグ数 (Event Flag Count): %zu", CountEventFlags(sceneData));
     ImGui::Text("不明な接続数 (Missing Link Count): %zu", validation.GetMissingLinkCount());
+    if (eventVisualizer) {
+        ImGui::SeparatorText("EventFlag Visibility Diagnostics");
+        ImGui::Text("EventFlag total count: %zu", eventVisualizer->GetTotalEventFlagCount());
+        ImGui::Text("Visible EventFlag count: %zu", eventVisualizer->GetVisibleEventFlagCount());
+        ImGui::Text("Hidden EventFlag count: %zu", eventVisualizer->GetHiddenEventFlagCount());
+        ImGui::TextWrapped("Hidden reason: %s", eventVisualizer->GetHiddenReasonSummary().c_str());
+        ImGui::Text("visible_in_editor false: %zu", eventVisualizer->GetHiddenVisibleInEditorFalseCount());
+        ImGui::Text("disabled hidden: %zu", eventVisualizer->GetHiddenDisabledCount());
+        ImGui::Text("camera rig hide debug: %zu", eventVisualizer->GetHiddenCameraRigDebugCount());
+        ImGui::Text("no visual object: %zu", eventVisualizer->GetHiddenNoVisualObjectCount());
+        ImGui::Text("runtime inactive but hidden: %zu", eventVisualizer->GetHiddenRuntimeInactiveCount());
+    }
 
     if (ImGui::TreeNode("選択中イベントフラグ (Selected Event Flag)")) {
         if (selectedObject && selectedObject->isEventFlag) {

@@ -17,14 +17,6 @@
 namespace {
     constexpr float kMinSegmentLength = 0.0001f;
 
-    struct RailRuntimeSegment {
-        Vector3 start{ 0.0f, 0.0f, 0.0f };
-        Vector3 end{ 0.0f, 0.0f, 0.0f };
-        Vector3 forward{ 0.0f, 0.0f, 1.0f };
-        float length = 0.0f;
-        size_t segmentIndex = 0;
-    };
-
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
     }
@@ -122,54 +114,42 @@ struct LevelRailRuntimeRail {
     float speed = 1.0f;
     float totalLength = 0.0f;
     std::vector<Vector3> points;
-    std::vector<RailRuntimeSegment> segments;
+    LevelRailSampleTable sampleTable;
 };
 
 namespace {
+    LevelRailEvaluation ToRuntimeEvaluation(const LevelRailSampleEvaluation& evaluation) {
+        return {
+            evaluation.valid,
+            evaluation.position,
+            evaluation.forward,
+            evaluation.segmentIndex,
+            evaluation.totalLength,
+            evaluation.distance,
+            evaluation.t,
+        };
+    }
+
     LevelRailEvaluation EvaluateRailByDistance(
         const LevelRailRuntimeRail& rail,
         float distance,
-        bool loopEnabled) {
-        LevelRailEvaluation result;
-        result.totalLength = rail.totalLength;
-        if (rail.points.empty()) {
+        bool loopEnabled,
+        float forwardLookAheadDistance) {
+        LevelRailEvaluation result = ToRuntimeEvaluation(
+            LevelRailEvaluator::EvaluateByDistance(rail.sampleTable, distance, loopEnabled));
+        if (!result.valid || forwardLookAheadDistance <= 0.0f || result.totalLength <= kMinSegmentLength) {
             return result;
         }
 
-        result.valid = true;
-        if (rail.segments.empty() || rail.totalLength <= kMinSegmentLength) {
-            result.position = rail.points.front();
-            result.forward = { 0.0f, 0.0f, 1.0f };
-            result.distance = 0.0f;
-            result.t = 0.0f;
-            result.segmentIndex = 0;
+        const LevelRailSampleEvaluation lookAhead = LevelRailEvaluator::EvaluateByDistance(
+            rail.sampleTable,
+            result.distance + forwardLookAheadDistance,
+            loopEnabled);
+        if (!lookAhead.valid) {
             return result;
         }
 
-        result.distance = loopEnabled
-            ? WrapDistance(distance, rail.totalLength)
-            : ClampDistance(distance, rail.totalLength);
-        result.t = NormalizeT(result.distance, rail.totalLength);
-
-        float accumulatedLength = 0.0f;
-        for (const RailRuntimeSegment& segment : rail.segments) {
-            const float segmentEnd = accumulatedLength + segment.length;
-            const bool isLastSegment = &segment == &rail.segments.back();
-            if (result.distance <= segmentEnd || isLastSegment) {
-                const float localDistance = std::clamp(result.distance - accumulatedLength, 0.0f, segment.length);
-                const float segmentT = segment.length > kMinSegmentLength ? localDistance / segment.length : 0.0f;
-                result.position = AddVector3(segment.start, ScaleVector3(SubtractVector3(segment.end, segment.start), segmentT));
-                result.forward = segment.forward;
-                result.segmentIndex = segment.segmentIndex;
-                return result;
-            }
-            accumulatedLength = segmentEnd;
-        }
-
-        const RailRuntimeSegment& lastSegment = rail.segments.back();
-        result.position = lastSegment.end;
-        result.forward = lastSegment.forward;
-        result.segmentIndex = lastSegment.segmentIndex;
+        result.forward = NormalizeOrForward(SubtractVector3(lookAhead.position, result.position));
         return result;
     }
 }
@@ -211,27 +191,16 @@ void LevelRailRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConvers
             rail->points.push_back(ConvertRailPoint(point, axisConversionEnabled));
         }
 
-        if (rail->points.size() >= 2) {
-            const size_t segmentCount = rail->loop ? rail->points.size() : rail->points.size() - 1;
-            for (size_t index = 0; index < segmentCount; ++index) {
-                const Vector3& start = rail->points[index];
-                const Vector3& end = rail->points[(index + 1) % rail->points.size()];
-                const Vector3 diff = SubtractVector3(end, start);
-                const float length = Length(diff);
-                if (length <= kMinSegmentLength) {
-                    continue;
-                }
-
-                RailRuntimeSegment segment;
-                segment.start = start;
-                segment.end = end;
-                segment.forward = NormalizeOrForward(diff);
-                segment.length = length;
-                segment.segmentIndex = index;
-                rail->totalLength += length;
-                rail->segments.push_back(segment);
-            }
-        }
+        const RailInterpolationMode activeMode = useSmoothedRailEvaluation_
+            ? interpolationMode_
+            : RailInterpolationMode::Linear;
+        LevelRailEvaluator::BuildSampleTable(
+            rail->sampleTable,
+            rail->points,
+            rail->loop,
+            activeMode,
+            smoothingSubdivisionsPerSegment_);
+        rail->totalLength = rail->sampleTable.totalLength;
 
         rails_.push_back(std::move(rail));
     }
@@ -272,7 +241,7 @@ void LevelRailRuntime::Update(float deltaTime, uint64_t frameCounter) {
 }
 
 void LevelRailRuntime::Draw(uint64_t frameCounter) {
-    if (!runtimeEnabled_ || !showDebugRailActor_ || !object3dCommon_ || !currentEvaluation_.valid) {
+    if (!runtimeEnabled_ || !showDebugRailActor_ || externalHideDebugActor_ || !object3dCommon_ || !currentEvaluation_.valid) {
         return;
     }
 
@@ -292,6 +261,10 @@ void LevelRailRuntime::Draw(uint64_t frameCounter) {
     }
 }
 
+void LevelRailRuntime::SetExternalDebugActorHidden(bool hidden) {
+    externalHideDebugActor_ = hidden;
+}
+
 bool LevelRailRuntime::DrawImGui() {
 #ifdef _DEBUG
     bool needsRebuild = false;
@@ -300,6 +273,23 @@ bool LevelRailRuntime::DrawImGui() {
     ImGui::Checkbox("Auto Play", &autoPlay_);
     ImGui::Checkbox("ループ (Loop)", &debugLoop_);
     ImGui::Checkbox("最新カメラでActor行列更新 (Update Matrices With Latest Camera)", &updateMatricesWithLatestCamera_);
+    if (ImGui::Checkbox("補間済みRail評価を使う (Use Smoothed Rail Evaluation)", &useSmoothedRailEvaluation_)) {
+        needsRebuild = true;
+    }
+    const char* interpolationModeNames[] = { "Linear", "CatmullRom" };
+    int interpolationModeIndex = interpolationMode_ == RailInterpolationMode::CatmullRom ? 1 : 0;
+    if (ImGui::Combo("Rail Interpolation Mode", &interpolationModeIndex, interpolationModeNames, 2)) {
+        interpolationMode_ = interpolationModeIndex == 1 ? RailInterpolationMode::CatmullRom : RailInterpolationMode::Linear;
+        needsRebuild = true;
+    }
+    if (ImGui::SliderInt("Smoothing Subdivisions Per Segment", &smoothingSubdivisionsPerSegment_, 1, 32)) {
+        smoothingSubdivisionsPerSegment_ = std::clamp(smoothingSubdivisionsPerSegment_, 1, 64);
+        needsRebuild = true;
+    }
+    ImGui::DragFloat("Forward LookAhead Distance", &forwardLookAheadDistance_, 0.01f, 0.0f, 5.0f, "%.2f");
+    if (ImGui::Button("補間Railを再構築 (Rebuild Smoothed Rails)")) {
+        needsRebuild = true;
+    }
 
     ImGui::Text("Rail Count: %zu", rails_.size());
     if (rails_.empty()) {
@@ -317,7 +307,9 @@ bool LevelRailRuntime::DrawImGui() {
             const LevelRailRuntimeRail& candidate = *rails_[index];
             const std::string label =
                 (candidate.name.empty() ? candidate.railId : candidate.name) +
-                " [" + std::to_string(candidate.points.size()) + " pts]##rail_" + std::to_string(index);
+                " [" + std::to_string(candidate.points.size()) +
+                " -> " + std::to_string(candidate.sampleTable.sampledPoints.size()) +
+                " pts]##rail_" + std::to_string(index);
             const bool selected = selectedRailIndex_ == static_cast<int>(index);
             if (ImGui::Selectable(label.c_str(), selected)) {
                 selectedRailIndex_ = static_cast<int>(index);
@@ -337,8 +329,10 @@ bool LevelRailRuntime::DrawImGui() {
         return needsRebuild;
     }
 
-    ImGui::Text("Selected Rail Point Count: %zu", rail->points.size());
+    ImGui::Text("Original Point Count: %zu", rail->points.size());
+    ImGui::Text("Sampled Point Count: %zu", rail->sampleTable.sampledPoints.size());
     ImGui::Text("Selected Rail Total Length: %.3f", rail->totalLength);
+    ImGui::Text("Interpolation Mode: %s", LevelRailEvaluator::GetModeName(rail->sampleTable.interpolationMode));
     ImGui::Text("rail_id: %s", rail->railId.empty() ? "(none)" : rail->railId.c_str());
     ImGui::Text("name: %s", rail->name.empty() ? "(none)" : rail->name.c_str());
     ImGui::Text("rail_loop: %s", rail->loop ? "true" : "false");
@@ -398,7 +392,7 @@ LevelRailEvaluation LevelRailRuntime::EvaluateByT(const std::string& railId, flo
         return {};
     }
     const float clampedT = std::clamp(t, 0.0f, 1.0f);
-    return EvaluateRailByDistance(*rail, clampedT * rail->totalLength, rail->loop);
+    return EvaluateRailByDistance(*rail, clampedT * rail->totalLength, rail->loop, forwardLookAheadDistance_);
 }
 
 LevelRailEvaluation LevelRailRuntime::EvaluateByDistance(const std::string& railId, float distance) const {
@@ -406,7 +400,36 @@ LevelRailEvaluation LevelRailRuntime::EvaluateByDistance(const std::string& rail
     if (!rail) {
         return {};
     }
-    return EvaluateRailByDistance(*rail, distance, rail->loop);
+    return EvaluateRailByDistance(*rail, distance, rail->loop, forwardLookAheadDistance_);
+}
+
+LevelRailEvaluation LevelRailRuntime::EvaluateByDistance(const std::string& railId, float distance, bool loopEnabled) const {
+    const LevelRailRuntimeRail* rail = FindRailById(railId);
+    if (!rail) {
+        return {};
+    }
+    return EvaluateRailByDistance(*rail, distance, loopEnabled, forwardLookAheadDistance_);
+}
+
+size_t LevelRailRuntime::GetRailCount() const {
+    return rails_.size();
+}
+
+bool LevelRailRuntime::GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outInfo) const {
+    if (index >= rails_.size() || !rails_[index]) {
+        return false;
+    }
+
+    const LevelRailRuntimeRail& rail = *rails_[index];
+    outInfo.railId = rail.railId;
+    outInfo.name = rail.name;
+    outInfo.railType = rail.railType;
+    outInfo.loop = rail.loop;
+    outInfo.speed = rail.speed;
+    outInfo.totalLength = rail.totalLength;
+    outInfo.pointCount = rail.points.size();
+    outInfo.sampledPointCount = rail.sampleTable.sampledPoints.size();
+    return true;
 }
 
 const LevelRailRuntimeRail* LevelRailRuntime::FindRailById(const std::string& railId) const {
@@ -461,7 +484,7 @@ void LevelRailRuntime::UpdateCurrentEvaluation() {
             : ClampDistance(railDistance_, rail->totalLength);
         railT_ = NormalizeT(railDistance_, rail->totalLength);
     }
-    currentEvaluation_ = EvaluateRailByDistance(*rail, railDistance_, shouldLoop);
+    currentEvaluation_ = EvaluateRailByDistance(*rail, railDistance_, shouldLoop, forwardLookAheadDistance_);
 }
 
 void LevelRailRuntime::UpdateDebugActorVisual(uint64_t frameCounter) {

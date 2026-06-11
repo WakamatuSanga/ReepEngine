@@ -52,11 +52,23 @@
     <Filter Include="ヘッダー ファイル\engine\Editor\BlenderSync">
       <UniqueIdentifier>{fa4ec536-22dd-44c2-88b9-5fc5c1d1849d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Editor\Camera">
+      <UniqueIdentifier>{e217527a-4fc4-4f77-a42c-7c4f36ec0f14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Editor\Camera">
+      <UniqueIdentifier>{09700cad-4df2-4b82-8c74-17ab4859f11e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\Game\Player">
       <UniqueIdentifier>{18771bee-399b-4de6-b66d-51ae715bc7cf}</UniqueIdentifier>
     </Filter>
     <Filter Include="ヘッダー ファイル\engine\Game\Player">
       <UniqueIdentifier>{5be9c3ec-8a5f-4e4c-a8e1-2b9c71483651}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Camera">
+      <UniqueIdentifier>{398aa9d9-f541-4edc-8c24-fef20b555ee1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Camera">
+      <UniqueIdentifier>{ca9e2159-7f27-43a2-a85c-d92c4517e9f0}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\application">
       <UniqueIdentifier>{da05e6c8-cb16-4e6c-bed8-45a4c3322b9f}</UniqueIdentifier>
@@ -186,7 +198,16 @@
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp">
       <Filter>ソース ファイル\engine\Editor\BlenderSync</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Editor\Camera\EditorCameraController.cpp">
+      <Filter>ソース ファイル\engine\Editor\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp">
@@ -214,6 +235,9 @@
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\LevelRailEvaluator.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp">
@@ -413,7 +437,16 @@
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h">
       <Filter>ヘッダー ファイル\engine\Editor\BlenderSync</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Editor\Camera\EditorCameraController.h">
+      <Filter>ヘッダー ファイル\engine\Editor\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h">
+      <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerRailController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h">
@@ -444,6 +477,9 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelRailDebugVisualizer.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\LevelRailEvaluator.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelRailRuntime.h">

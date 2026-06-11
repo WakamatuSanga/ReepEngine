@@ -11,6 +11,11 @@ class Object3dCommon;
 
 class Player {
 public:
+    enum class BaseMode {
+        CameraFront,
+        Rail,
+    };
+
     Player();
     ~Player();
 
@@ -21,7 +26,16 @@ public:
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
+    void SetBaseMode(BaseMode baseMode);
+    void SetExternalBasePosition(const Vector3& position);
+    void SetExternalBaseForward(const Vector3& forward);
+    void SetExternalBaseUp(const Vector3& up);
     bool UsesWASDInput() const;
+    BaseMode GetBaseMode() const { return baseMode_; }
+    const Vector3& GetBasePosition() const { return basePosition_; }
+    const Vector3& GetWorldPosition() const { return worldPosition_; }
+    float GetLocalOffsetX() const { return localOffsetX_; }
+    float GetLocalOffsetY() const { return localOffsetY_; }
 
 private:
     void LoadModel();
@@ -38,7 +52,11 @@ private:
     std::string texturePath_;
     std::string loadStatus_;
     Vector3 basePosition_{ 0.0f, 0.0f, 0.0f };
+    Vector3 baseForward_{ 0.0f, 0.0f, 1.0f };
     Vector3 worldPosition_{ 0.0f, 0.0f, 0.0f };
+    Vector3 externalBasePosition_{ 0.0f, 0.0f, 0.0f };
+    Vector3 externalBaseForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 externalBaseUp_{ 0.0f, 1.0f, 0.0f };
     Vector3 modelScale_{ 0.25f, 0.25f, 0.25f };
     Vector3 modelRotation_{ 0.0f, 0.0f, 0.0f };
     float localOffsetX_ = 0.0f;
@@ -51,6 +69,8 @@ private:
     bool showPlayer_ = true;
     bool useFallbackModel_ = false;
     bool gameViewInputActive_ = false;
+    bool hasExternalBase_ = false;
+    BaseMode baseMode_ = BaseMode::CameraFront;
     uint64_t updateCount_ = 0;
     std::string inputBlockedReason_ = "Not updated";
     bool lastWPressed_ = false;
