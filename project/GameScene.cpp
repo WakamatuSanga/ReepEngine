@@ -18,6 +18,14 @@
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include "Engine/Utility/Logger.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/Camera/EditorCameraController.h"
+#include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
+#include "Engine/Level/LevelSceneRuntime.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -462,6 +470,23 @@ void GameScene::Initialize() {
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
     skinningEditor_ = std::make_unique<SkinningEditor>();
+    editorCameraController_ = std::make_unique<EditorCameraController>();
+    editorCameraController_->Initialize(camera_.get());
+    player_ = std::make_unique<Player>();
+    player_->Initialize(object3dCommon, camera_.get());
+    levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
+    levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
+    playerRailController_ = std::make_unique<PlayerRailController>();
+    playerRailController_->Initialize(player_.get(), levelSceneRuntime_->GetRailRuntime());
+    playerEventTriggerBridge_ = std::make_unique<PlayerEventTriggerBridge>();
+    playerEventTriggerBridge_->Initialize(player_.get(), levelSceneRuntime_->GetEventRuntime());
+    railShooterCameraRig_ = std::make_unique<RailShooterCameraRig>();
+    railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
+    railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
+    railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
+    railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
+    blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
+    blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
     std::string skinningLoadStatus;
     auto appendSkinningStatus = [&](const std::string& message) {
@@ -632,6 +657,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
         if (skinningEditor_) {
             skinningEditor_->ClearGameViewRect();
         }
+        if (levelSceneRuntime_) {
+            levelSceneRuntime_->ClearGameViewRect();
+        }
         return;
     }
 
@@ -674,6 +702,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
                 skinningEditor_->DrawGizmo(camera_.get());
                 skinningEditor_->DrawDebugOverlay(camera_.get());
             }
+            if (levelSceneRuntime_) {
+                levelSceneRuntime_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
+            }
         } else {
             gameViewTopLeft_ = { 0.0f, 0.0f };
             gameViewSize_ = { 0.0f, 0.0f };
@@ -682,6 +713,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
             isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
             if (skinningEditor_) {
                 skinningEditor_->ClearGameViewRect();
+            }
+            if (levelSceneRuntime_) {
+                levelSceneRuntime_->ClearGameViewRect();
             }
             ImGui::TextDisabled("RenderTexture is not ready.");
         }
@@ -694,6 +728,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
         if (skinningEditor_) {
             skinningEditor_->ClearGameViewRect();
         }
+        if (levelSceneRuntime_) {
+            levelSceneRuntime_->ClearGameViewRect();
+        }
     }
     ImGui::End();
 }
@@ -703,6 +740,32 @@ void GameScene::Finalize() {
     if (skinningEditor_) {
         skinningEditor_->ClearTargets();
     }
+    if (editorCameraController_) {
+        editorCameraController_->Finalize();
+    }
+    editorCameraController_.reset();
+    blenderLiveSync_.reset();
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->Finalize();
+    }
+    railShooterEventActionBridge_.reset();
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->Finalize();
+    }
+    railShooterCameraRig_.reset();
+    if (playerRailController_) {
+        playerRailController_->Finalize();
+    }
+    playerRailController_.reset();
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->Finalize();
+    }
+    playerEventTriggerBridge_.reset();
+    levelSceneRuntime_.reset();
+    if (player_) {
+        player_->Finalize();
+    }
+    player_.reset();
 }
 
 void GameScene::Update() {
@@ -721,43 +784,78 @@ void GameScene::Update() {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
     }
+    if (blenderLiveSync_) {
+        blenderLiveSync_->Update();
+    }
 
+    const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
 #ifdef _DEBUG
     const ImGuiIO& imguiIO = ImGui::GetIO();
     const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
-    const bool canRotateCameraInGameView = isGameViewHovered_ && !isGizmoInteracting;
-    const bool canMoveCameraInGameView = (isGameViewHovered_ || isGameViewFocused_) && !imguiIO.WantCaptureKeyboard && !isGizmoInteracting;
-    if (canRotateCameraInGameView && input->MouseDown(Input::MouseLeft)) {
+    const bool isImGuiInputActive = imguiIO.WantTextInput || ImGui::IsAnyItemActive();
+    if (editorCameraController_) {
+        editorCameraController_->Update(
+            1.0f / 60.0f,
+            input,
+            isGameViewHovered_,
+            isGameViewFocused_,
+            isImGuiInputActive,
+            isGizmoInteracting,
+            isCameraRigActive);
+    }
+    const bool canUsePlayerInputInGameView =
+        (isGameViewHovered_ || isGameViewFocused_) &&
+        !isGizmoInteracting &&
+        !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive());
+    if (player_) {
+        player_->SetGameViewInputActive(canUsePlayerInputInGameView);
+    }
 #else
-    const bool canMoveCameraInGameView = true;
-    if (input->MouseDown(Input::MouseLeft)) {
+    if (editorCameraController_) {
+        editorCameraController_->Update(
+            1.0f / 60.0f,
+            input,
+            true,
+            true,
+            false,
+            false,
+            isCameraRigActive);
+    }
+    if (player_) {
+        player_->SetGameViewInputActive(!(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()));
+    }
 #endif
-        Vector3 rot = camera_->GetRotate();
-        rot.y += input->MouseDeltaX() * 0.0025f;
-        rot.x += input->MouseDeltaY() * 0.0025f;
-        camera_->SetRotate(rot);
-    }
-
-    Vector3 move = { 0,0,0 };
-    if (canMoveCameraInGameView) {
-        if (input->PushKey(DIK_W)) move.z += 1.0f;
-        if (input->PushKey(DIK_S)) move.z -= 1.0f;
-        if (input->PushKey(DIK_D)) move.x += 1.0f;
-        if (input->PushKey(DIK_A)) move.x -= 1.0f;
-    }
-
-    if (move.x != 0 || move.z != 0) {
-        float speed = 0.1f;
-        Vector3 rot = camera_->GetRotate();
-        Vector3 trans = camera_->GetTranslate();
-        trans.x += (move.x * std::cos(rot.y) + move.z * std::sin(rot.y)) * speed;
-        trans.z += (move.x * -std::sin(rot.y) + move.z * std::cos(rot.y)) * speed;
-        camera_->SetTranslate(trans);
-    }
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->Update(1.0f / 60.0f);
+    }
+    if (levelSceneRuntime_) {
+        const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
+        levelSceneRuntime_->SetCameraRigPreviewState(
+            cameraRigActiveForDebug,
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailDebugWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailPointsWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideEventDebugWhileActive(),
+            railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPreviewModeEnabled());
+    }
     camera_->Update();
+    if (playerRailController_) {
+        playerRailController_->Update(1.0f / 60.0f);
+    }
+    if (player_) {
+        player_->Update(1.0f / 60.0f);
+    }
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->Update();
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->Update();
+    }
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->Update();
+    }
     if (cloudVolume_) {
         // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
         cloudVolume_->Update(1.0f / 60.0f);
@@ -899,7 +997,31 @@ void GameScene::Update() {
     if (gpuParticleSystem_) {
         gpuParticleSystem_->DrawImGui();
     }
+    if (editorCameraController_) {
+        editorCameraController_->DrawImGui();
+    }
     DrawGameViewImGui(dxCommon);
+    if (player_) {
+        player_->DrawImGui();
+    }
+    if (playerRailController_) {
+        playerRailController_->DrawImGui();
+    }
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->DrawImGui();
+    }
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->DrawImGui();
+    }
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->DrawImGui();
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->DrawImGui();
+    }
+    if (blenderLiveSync_) {
+        blenderLiveSync_->DrawImGui();
+    }
     if (simpleSkinSkinnedModel_) {
         simpleSkinSkinnedModel_->UpdateSkinning();
     }
@@ -1467,6 +1589,12 @@ void GameScene::Draw() {
         for (auto& primitivePreviewObject : primitivePreviewObjects_) {
             primitivePreviewObject->Draw();
         }
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->Draw();
+    }
+    if (player_) {
+        player_->Draw();
     }
     if (primitiveEffectSystem_) {
         primitiveEffectSystem_->Draw();

@@ -10,11 +10,19 @@
 #include <vector>
 
 class GltfSkinnedModel;
+class BlenderLiveSync;
 class DirectXCommon;
+class EditorCameraController;
 class GpuParticleSystem;
+class LevelSceneRuntime;
 class Model;
 class Object3d;
+class Player;
+class PlayerRailController;
+class PlayerEventTriggerBridge;
 class PrimitiveEffectSystem;
+class RailShooterEventActionBridge;
+class RailShooterCameraRig;
 class SkinningEditor;
 class Skybox;
 class Sprite;
@@ -42,6 +50,14 @@ private:
     std::unique_ptr<PrimitiveEffectSystem> primitiveEffectSystem_;
     std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
+    std::unique_ptr<EditorCameraController> editorCameraController_;
+    std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
+    std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
+    std::unique_ptr<Player> player_;
+    std::unique_ptr<PlayerRailController> playerRailController_;
+    std::unique_ptr<PlayerEventTriggerBridge> playerEventTriggerBridge_;
+    std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
+    std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
     std::unique_ptr<Skeleton> simpleSkinSkeleton_;
