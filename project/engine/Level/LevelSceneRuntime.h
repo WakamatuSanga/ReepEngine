@@ -45,6 +45,10 @@ public:
     LevelRailRuntime* GetRailRuntime() const { return railRuntime_.get(); }
     const LevelCameraStart* GetEngineCameraStart() const { return hasEngineCameraStart_ ? &engineCameraStart_ : nullptr; }
     bool HasEngineCameraStart() const { return hasEngineCameraStart_; }
+    bool TryFindObjectWorldPosition(
+        const std::string& objectId,
+        const std::string& objectName,
+        Vector3& outPosition) const;
     const std::string& GetLastLoadStatus() const { return lastLoadStatus_; }
     bool IsLiveApplyPaused() const { return pauseLiveApply_; }
     bool IsRebuildOnlyWhenJsonChangedEnabled() const { return rebuildOnlyWhenJsonChanged_; }

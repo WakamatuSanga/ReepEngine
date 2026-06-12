@@ -53,6 +53,69 @@ namespace {
         return nullptr;
     }
 
+    struct LevelSceneQueryTransform {
+        Vector3 translation{ 0.0f, 0.0f, 0.0f };
+        Vector3 rotationDegrees{ 0.0f, 0.0f, 0.0f };
+        Vector3 scaling{ 1.0f, 1.0f, 1.0f };
+    };
+
+    Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
+        return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
+    }
+
+    Vector3 MultiplyVector3(const Vector3& lhs, const Vector3& rhs) {
+        return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z };
+    }
+
+    LevelSceneQueryTransform CombineTransform(
+        const LevelSceneQueryTransform& parent,
+        const LevelTransform& local) {
+        return {
+            AddVector3(parent.translation, MultiplyVector3(local.translation, parent.scaling)),
+            AddVector3(parent.rotationDegrees, local.rotation),
+            MultiplyVector3(parent.scaling, local.scaling),
+        };
+    }
+
+    bool MatchesTargetObject(const LevelObject& object, const std::string& objectId, const std::string& objectName) {
+        if (!objectId.empty()) {
+            return object.objectId == objectId;
+        }
+        return !objectName.empty() && object.name == objectName;
+    }
+
+    bool TryFindObjectWorldPositionRecursive(
+        const LevelObject& object,
+        const LevelSceneQueryTransform& parentTransform,
+        bool axisConversionEnabled,
+        const std::string& objectId,
+        const std::string& objectName,
+        Vector3& outPosition) {
+        const LevelTransform localTransform = axisConversionEnabled
+            ? BlenderToEngineTransform(object.transform)
+            : object.transform;
+        const LevelSceneQueryTransform objectWorld = CombineTransform(parentTransform, localTransform);
+
+        if (MatchesTargetObject(object, objectId, objectName)) {
+            outPosition = objectWorld.translation;
+            return true;
+        }
+
+        for (const LevelObject& child : object.children) {
+            if (TryFindObjectWorldPositionRecursive(
+                child,
+                objectWorld,
+                axisConversionEnabled,
+                objectId,
+                objectName,
+                outPosition)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 #ifdef _DEBUG
     void DrawObjectTreeRecursive(
         const LevelObject& object,
@@ -326,6 +389,30 @@ void LevelSceneRuntime::ApplySceneData(
 void LevelSceneRuntime::SetLiveSyncDiagnostics(bool autoApplyEnabled, uint64_t lastPacketApplied) {
     liveAutoApplyEnabled_ = autoApplyEnabled;
     lastPacketApplied_ = lastPacketApplied;
+}
+
+bool LevelSceneRuntime::TryFindObjectWorldPosition(
+    const std::string& objectId,
+    const std::string& objectName,
+    Vector3& outPosition) const {
+    if (objectId.empty() && objectName.empty()) {
+        return false;
+    }
+
+    const LevelSceneQueryTransform identity{};
+    for (const LevelObject& object : sceneData_.objects) {
+        if (TryFindObjectWorldPositionRecursive(
+            object,
+            identity,
+            axisConversionEnabled_,
+            objectId,
+            objectName,
+            outPosition)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void LevelSceneRuntime::LoadJsonFromBuffer() {

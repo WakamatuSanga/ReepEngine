@@ -13,6 +13,7 @@ class GltfSkinnedModel;
 class BlenderLiveSync;
 class DirectXCommon;
 class EditorCameraController;
+class EventActionDispatcher;
 class GpuParticleSystem;
 class LevelSceneRuntime;
 class Model;
@@ -56,6 +57,7 @@ private:
     std::unique_ptr<Player> player_;
     std::unique_ptr<PlayerRailController> playerRailController_;
     std::unique_ptr<PlayerEventTriggerBridge> playerEventTriggerBridge_;
+    std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
     std::unique_ptr<Skeleton> previewSkeleton_;

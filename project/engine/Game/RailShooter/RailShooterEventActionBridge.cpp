@@ -42,44 +42,51 @@ void RailShooterEventActionBridge::Finalize() {
 }
 
 void RailShooterEventActionBridge::Update() {
-    if (!enableBridge_ || !eventRuntime_) {
-        return;
+    // EventActionDispatcher consumes pending actions once and calls HandleAction().
+}
+
+bool RailShooterEventActionBridge::HandleAction(const FiredEventAction& action, std::string& resultMessage) {
+    if (!enableBridge_) {
+        resultMessage = "RailShooterEventActionBridge is disabled.";
+        return false;
     }
 
-    std::vector<FiredEventAction> actions = eventRuntime_->ConsumePendingActions();
-    for (const FiredEventAction& action : actions) {
-        ++consumedActionCount_;
-        lastActionType_ = action.actionType.empty() ? "(none)" : action.actionType;
-        lastTarget_ = PickTargetRailKey(action);
-        if (lastTarget_.empty()) {
-            lastTarget_ = "(none)";
-        }
-
-        if (!IsStartCameraRailAction(action.actionType)) {
-            lastResult_ = "Unsupported actionType. Logged only.";
-            AddLog("Unsupported action " + lastActionType_ + " from " + action.eventFlagId);
-            continue;
-        }
-        if (!cameraRig_) {
-            lastResult_ = "CameraRig is missing.";
-            AddLog("StartCameraRail failed: " + lastResult_);
-            continue;
-        }
-        if (lastTarget_ == "(none)") {
-            lastResult_ = "Rail target is empty.";
-            AddLog("StartCameraRail failed: " + lastResult_);
-            continue;
-        }
-
-        std::string result;
-        const bool started = cameraRig_->StartRailByKey(lastTarget_, result);
-        lastResult_ = result;
-        AddLog(
-            std::string(started ? "StartCameraRail success: " : "StartCameraRail failed: ") +
-            result +
-            " sourceFlag=" + action.eventFlagId +
-            " description=" + action.actionDescription);
+    ++consumedActionCount_;
+    lastActionType_ = action.actionType.empty() ? "(none)" : action.actionType;
+    lastTarget_ = PickTargetRailKey(action);
+    if (lastTarget_.empty()) {
+        lastTarget_ = "(none)";
     }
+
+    if (!IsStartCameraRailAction(action.actionType)) {
+        resultMessage = "Unsupported actionType for camera bridge: " + lastActionType_;
+        lastResult_ = resultMessage;
+        AddLog(resultMessage + " from " + action.eventFlagId);
+        return false;
+    }
+    if (!cameraRig_) {
+        resultMessage = "CameraRig is missing.";
+        lastResult_ = resultMessage;
+        AddLog("StartCameraRail failed: " + resultMessage);
+        return false;
+    }
+    if (lastTarget_ == "(none)") {
+        resultMessage = "Rail target is empty.";
+        lastResult_ = resultMessage;
+        AddLog("StartCameraRail failed: " + resultMessage);
+        return false;
+    }
+
+    std::string result;
+    const bool started = cameraRig_->StartRailByKey(lastTarget_, result);
+    lastResult_ = result;
+    resultMessage = result;
+    AddLog(
+        std::string(started ? "StartCameraRail success: " : "StartCameraRail failed: ") +
+        result +
+        " sourceFlag=" + action.eventFlagId +
+        " description=" + action.actionDescription);
+    return started;
 }
 
 void RailShooterEventActionBridge::DrawImGui() {
@@ -92,7 +99,7 @@ void RailShooterEventActionBridge::DrawImGui() {
 
     ImGui::Checkbox("Bridge有効 (Enable Bridge)", &enableBridge_);
     ImGui::Text("Pending Action Count: %zu", eventRuntime_ ? eventRuntime_->GetPendingActionCount() : 0);
-    ImGui::Text("Consumed Action Count: %zu", consumedActionCount_);
+    ImGui::Text("Handled Action Count: %zu", consumedActionCount_);
     ImGui::TextWrapped("Last Action Type: %s", lastActionType_.c_str());
     ImGui::TextWrapped("Last Target: %s", lastTarget_.c_str());
     ImGui::TextWrapped("Last Result: %s", lastResult_.c_str());

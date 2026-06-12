@@ -56,6 +56,11 @@ void CylinderEffect::Play() {
     isPlaying_ = true;
 }
 
+void CylinderEffect::PlayAt(const Vector3& position) {
+    settings_.position = position;
+    Play();
+}
+
 void CylinderEffect::Stop() {
     isPlaying_ = false;
 }

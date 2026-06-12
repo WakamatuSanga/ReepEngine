@@ -70,6 +70,11 @@ void RotatingPlaneHitEffect::Play() {
     isPlaying_ = true;
 }
 
+void RotatingPlaneHitEffect::PlayAt(const Vector3& position) {
+    settings_.position = position;
+    Play();
+}
+
 void RotatingPlaneHitEffect::Stop() {
     isPlaying_ = false;
 }

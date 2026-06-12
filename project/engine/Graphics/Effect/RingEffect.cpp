@@ -52,6 +52,11 @@ void RingEffect::Play() {
     isPlaying_ = true;
 }
 
+void RingEffect::PlayAt(const Vector3& position) {
+    settings_.position = position;
+    Play();
+}
+
 void RingEffect::Stop() {
     isPlaying_ = false;
 }

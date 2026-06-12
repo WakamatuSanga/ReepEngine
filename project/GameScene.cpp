@@ -24,6 +24,7 @@
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Core/SrvManager.h"
@@ -485,6 +486,12 @@ void GameScene::Initialize() {
     railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
     railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
+    eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
+    eventActionDispatcher_->Initialize(
+        levelSceneRuntime_->GetEventRuntime(),
+        railShooterEventActionBridge_.get(),
+        primitiveEffectSystem_.get(),
+        levelSceneRuntime_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
@@ -745,6 +752,10 @@ void GameScene::Finalize() {
     }
     editorCameraController_.reset();
     blenderLiveSync_.reset();
+    if (eventActionDispatcher_) {
+        eventActionDispatcher_->Finalize();
+    }
+    eventActionDispatcher_.reset();
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->Finalize();
     }
@@ -853,8 +864,8 @@ void GameScene::Update() {
     if (levelSceneRuntime_) {
         levelSceneRuntime_->Update();
     }
-    if (railShooterEventActionBridge_) {
-        railShooterEventActionBridge_->Update();
+    if (eventActionDispatcher_) {
+        eventActionDispatcher_->Update();
     }
     if (cloudVolume_) {
         // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
@@ -1015,6 +1026,9 @@ void GameScene::Update() {
     }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
+    }
+    if (eventActionDispatcher_) {
+        eventActionDispatcher_->DrawImGui();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();
