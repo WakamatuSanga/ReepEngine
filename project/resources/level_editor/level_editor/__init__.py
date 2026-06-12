@@ -35,6 +35,12 @@ from .file_name import OBJECT_PT_file_name
 from .collider import OBJECT_PT_collider
 from .my_menu import TOPBAR_MT_my_menu
 from .draw_collider import DrawCollider
+from .draw_event_links import (
+    DrawEventLinks,
+    VIEW3D_PT_level_event_link_view,
+    register_event_link_view_properties,
+    unregister_event_link_view_properties,
+)
 from .live_sync import (
     MYADDON_OT_send_live_sync,
     VIEW3D_PT_level_live_sync,
@@ -67,6 +73,7 @@ classes = (
     MYADDON_OT_initialize_rail_info,
     VIEW3D_PT_level_live_sync,
     VIEW3D_PT_level_event_flag_editor,
+    VIEW3D_PT_level_event_link_view,
     VIEW3D_PT_level_rail_editor,
     TOPBAR_MT_my_menu,
 )
@@ -106,6 +113,7 @@ def _unregister_class_if_registered(cls):
 def register():
     print("[LevelEditorAddon] register start")
     register_live_sync()
+    register_event_link_view_properties()
     for cls in classes:
         _register_class_once(cls)
     register_event_flag_editor_properties()
@@ -124,6 +132,12 @@ def register():
             print("[LevelEditorAddon] collider draw handler registered")
         except Exception as error:
             print(f"[LevelEditorAddon] collider draw handler register failed: {error}")
+
+    try:
+        DrawEventLinks.register_handlers()
+        print("[LevelEditorAddon] event link draw handlers registered")
+    except Exception as error:
+        print(f"[LevelEditorAddon] event link draw handler register failed: {error}")
 
     print("[LevelEditorAddon] register finished")
 
@@ -145,8 +159,15 @@ def unregister():
         finally:
             DrawCollider.handle = None
 
+    try:
+        DrawEventLinks.unregister_handlers()
+        print("[LevelEditorAddon] event link draw handlers removed")
+    except Exception as error:
+        print(f"[LevelEditorAddon] event link draw handler remove skipped: {error}")
+
     unregister_event_flag_editor_properties()
     for cls in reversed(classes):
         _unregister_class_if_registered(cls)
+    unregister_event_link_view_properties()
     unregister_live_sync()
     print("[LevelEditorAddon] unregister finished")

@@ -24,6 +24,8 @@
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -476,8 +478,13 @@ void GameScene::Initialize() {
     levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();
     playerRailController_->Initialize(player_.get(), levelSceneRuntime_->GetRailRuntime());
+    playerEventTriggerBridge_ = std::make_unique<PlayerEventTriggerBridge>();
+    playerEventTriggerBridge_->Initialize(player_.get(), levelSceneRuntime_->GetEventRuntime());
     railShooterCameraRig_ = std::make_unique<RailShooterCameraRig>();
     railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
+    railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
+    railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
+    railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
@@ -738,6 +745,10 @@ void GameScene::Finalize() {
     }
     editorCameraController_.reset();
     blenderLiveSync_.reset();
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->Finalize();
+    }
+    railShooterEventActionBridge_.reset();
     if (railShooterCameraRig_) {
         railShooterCameraRig_->Finalize();
     }
@@ -746,6 +757,10 @@ void GameScene::Finalize() {
         playerRailController_->Finalize();
     }
     playerRailController_.reset();
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->Finalize();
+    }
+    playerEventTriggerBridge_.reset();
     levelSceneRuntime_.reset();
     if (player_) {
         player_->Finalize();
@@ -768,9 +783,6 @@ void GameScene::Update() {
     if (input->PushKey(DIK_T)) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
-    }
-    if (levelSceneRuntime_) {
-        levelSceneRuntime_->Update();
     }
     if (blenderLiveSync_) {
         blenderLiveSync_->Update();
@@ -834,6 +846,15 @@ void GameScene::Update() {
     }
     if (player_) {
         player_->Update(1.0f / 60.0f);
+    }
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->Update();
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->Update();
+    }
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->Update();
     }
     if (cloudVolume_) {
         // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
@@ -986,8 +1007,14 @@ void GameScene::Update() {
     if (playerRailController_) {
         playerRailController_->DrawImGui();
     }
+    if (playerEventTriggerBridge_) {
+        playerEventTriggerBridge_->DrawImGui();
+    }
     if (railShooterCameraRig_) {
         railShooterCameraRig_->DrawImGui();
+    }
+    if (railShooterEventActionBridge_) {
+        railShooterEventActionBridge_->DrawImGui();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();

@@ -97,6 +97,33 @@ namespace {
         return LengthSquared(SubtractVector3(point, center)) <= radius * radius;
     }
 
+    bool IntersectsAabbSphere(
+        const Vector3& sphereCenter,
+        float sphereRadius,
+        const Vector3& boxCenter,
+        const Vector3& halfExtents) {
+        const Vector3 closest = {
+            std::clamp(sphereCenter.x, boxCenter.x - halfExtents.x, boxCenter.x + halfExtents.x),
+            std::clamp(sphereCenter.y, boxCenter.y - halfExtents.y, boxCenter.y + halfExtents.y),
+            std::clamp(sphereCenter.z, boxCenter.z - halfExtents.z, boxCenter.z + halfExtents.z),
+        };
+        return LengthSquared(SubtractVector3(sphereCenter, closest)) <= sphereRadius * sphereRadius;
+    }
+
+#ifdef _DEBUG
+    const char* ToTriggerSourceLabel(LevelEventTriggerSource source) {
+        switch (source) {
+        case LevelEventTriggerSource::Player:
+            return "Player";
+        case LevelEventTriggerSource::Both:
+            return "Both";
+        case LevelEventTriggerSource::DebugActor:
+        default:
+            return "DebugActor";
+        }
+    }
+#endif
+
     Model* GetDebugActorModel() {
         auto modelManager = ModelManager::GetInstance();
         if (Model* model = modelManager->FindModel("LevelEventDebugActorSphere")) {
@@ -129,7 +156,8 @@ struct LevelEventRuntimeFlagState {
     bool initiallyEnabled = true;
     bool active = true;
     bool fired = false;
-    bool wasInside = false;
+    bool wasInsideDebugActor = false;
+    bool wasInsidePlayer = false;
     std::vector<std::string> nextFlagIds;
     std::vector<LevelEventObjectAction> objectActions;
 };
@@ -189,6 +217,7 @@ void LevelEventRuntime::Clear() {
     flags_.clear();
     flagIndexById_.clear();
     eventLog_.clear();
+    pendingActions_.clear();
 }
 
 void LevelEventRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConversionEnabled) {
@@ -213,7 +242,8 @@ void LevelEventRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConver
             if (previousIt != previousStates.end()) {
                 flag.active = previousIt->second.active;
                 flag.fired = previousIt->second.fired;
-                flag.wasInside = previousIt->second.wasInside;
+                flag.wasInsideDebugActor = previousIt->second.wasInsideDebugActor;
+                flag.wasInsidePlayer = previousIt->second.wasInsidePlayer;
             }
             flagIndexById_[flag.id] = index;
         }
@@ -222,10 +252,19 @@ void LevelEventRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConver
 
 void LevelEventRuntime::Update(uint64_t frameCounter) {
     lastUpdateFrame_ = frameCounter;
+    isPlayerInsideEventFlag_ = false;
     if (!runtimeEnabled_) {
         UpdateDebugActorVisual(frameCounter);
         return;
     }
+
+    const bool useDebugActor =
+        triggerSource_ == LevelEventTriggerSource::DebugActor ||
+        triggerSource_ == LevelEventTriggerSource::Both;
+    const bool usePlayer =
+        playerTriggerAvailable_ &&
+        (triggerSource_ == LevelEventTriggerSource::Player ||
+            triggerSource_ == LevelEventTriggerSource::Both);
 
     for (const auto& flagPtr : flags_) {
         if (!flagPtr) {
@@ -233,17 +272,31 @@ void LevelEventRuntime::Update(uint64_t frameCounter) {
         }
         LevelEventRuntimeFlagState& flag = *flagPtr;
         if (!flag.active || (flag.oneShot && flag.fired)) {
-            flag.wasInside = false;
+            flag.wasInsideDebugActor = false;
+            flag.wasInsidePlayer = false;
             continue;
         }
 
-        const bool inside = IsSphereShape(flag.shapeType)
-            ? ContainsSphere(debugActorPosition_, flag.center, flag.radius)
-            : ContainsAabb(debugActorPosition_, flag.center, flag.halfExtents);
-        if (inside && !flag.wasInside) {
-            FireFlag(flag);
+        if (useDebugActor) {
+            const bool insideDebugActor = TestFlagIntersection(flag, debugActorPosition_, 0.0f);
+            if (insideDebugActor && !flag.wasInsideDebugActor) {
+                FireFlag(flag, "DebugActor");
+            }
+            flag.wasInsideDebugActor = insideDebugActor;
+        } else {
+            flag.wasInsideDebugActor = false;
         }
-        flag.wasInside = inside;
+
+        if (usePlayer && flag.active && !(flag.oneShot && flag.fired)) {
+            const bool insidePlayer = TestFlagIntersection(flag, playerTriggerPosition_, playerTriggerRadius_);
+            isPlayerInsideEventFlag_ = isPlayerInsideEventFlag_ || insidePlayer;
+            if (insidePlayer && !flag.wasInsidePlayer) {
+                FireFlag(flag, "Player");
+            }
+            flag.wasInsidePlayer = insidePlayer;
+        } else {
+            flag.wasInsidePlayer = false;
+        }
     }
 
     UpdateDebugActorVisual(frameCounter);
@@ -265,7 +318,17 @@ void LevelEventRuntime::DrawImGui() {
     ImGui::Checkbox("Runtime有効 (Enable Event Runtime)", &runtimeEnabled_);
     ImGui::Checkbox("Debug Actorを表示 (Show Debug Actor)", &showDebugActor_);
     ImGui::Checkbox("発火済みフラグを表示 (Show Fired Flags)", &showFiredFlags_);
+    int triggerSourceIndex = static_cast<int>(triggerSource_);
+    const char* triggerSourceNames[] = { "DebugActor", "Player", "Both" };
+    if (ImGui::Combo("Trigger Source", &triggerSourceIndex, triggerSourceNames, IM_ARRAYSIZE(triggerSourceNames))) {
+        triggerSource_ = static_cast<LevelEventTriggerSource>(triggerSourceIndex);
+    }
+    bool usePlayerAsTrigger = triggerSource_ == LevelEventTriggerSource::Player || triggerSource_ == LevelEventTriggerSource::Both;
+    if (ImGui::Checkbox("PlayerをEvent判定に使う (Use Player As Event Trigger)", &usePlayerAsTrigger)) {
+        triggerSource_ = usePlayerAsTrigger ? LevelEventTriggerSource::Player : LevelEventTriggerSource::DebugActor;
+    }
     ImGui::DragFloat3("Debug Actor Position", &debugActorPosition_.x, 0.05f);
+    ImGui::DragFloat("Player Trigger Radius", &playerTriggerRadius_, 0.01f, 0.0f, 10.0f, "%.2f");
     if (ImGui::Button("Reset Runtime State")) {
         ResetRuntimeState();
     }
@@ -277,6 +340,14 @@ void LevelEventRuntime::DrawImGui() {
     ImGui::Text("Fired Event Count: %zu", GetFiredEventCount());
     ImGui::Text("Active Flag Count: %zu", GetActiveFlagCount());
     ImGui::Text("Event Flag Runtime Count: %zu", flags_.size());
+    ImGui::Text("Trigger Source: %s", ToTriggerSourceLabel(triggerSource_));
+    ImGui::Text("Player Trigger Available: %s", playerTriggerAvailable_ ? "true" : "false");
+    ImGui::Text("Player Trigger Position: %.3f, %.3f, %.3f",
+        playerTriggerPosition_.x,
+        playerTriggerPosition_.y,
+        playerTriggerPosition_.z);
+    ImGui::Text("Is Player Inside EventFlag: %s", isPlayerInsideEventFlag_ ? "true" : "false");
+    ImGui::TextWrapped("Last Triggered By: %s", lastTriggeredBy_.c_str());
     ImGui::Text("Last Runtime Update Frame: %llu", static_cast<unsigned long long>(lastUpdateFrame_));
     ImGui::Text("Last Debug Actor Matrix Update Frame: %llu", static_cast<unsigned long long>(lastMatrixUpdateFrame_));
 
@@ -329,6 +400,21 @@ size_t LevelEventRuntime::GetActiveFlagCount() const {
     return count;
 }
 
+std::vector<FiredEventAction> LevelEventRuntime::ConsumePendingActions() {
+    std::vector<FiredEventAction> actions;
+    actions.swap(pendingActions_);
+    return actions;
+}
+
+void LevelEventRuntime::SetPlayerTriggerState(bool available, const Vector3& position, float radius) {
+    playerTriggerAvailable_ = available;
+    playerTriggerPosition_ = position;
+    playerTriggerRadius_ = (std::max)(0.0f, radius);
+    if (!available) {
+        isPlayerInsideEventFlag_ = false;
+    }
+}
+
 void LevelEventRuntime::ResetRuntimeState() {
     for (const auto& flag : flags_) {
         if (!flag) {
@@ -336,13 +422,17 @@ void LevelEventRuntime::ResetRuntimeState() {
         }
         flag->active = flag->initiallyEnabled;
         flag->fired = false;
-        flag->wasInside = false;
+        flag->wasInsideDebugActor = false;
+        flag->wasInsidePlayer = false;
     }
+    pendingActions_.clear();
+    lastTriggeredBy_ = "(none)";
     AddLog("Runtime state reset.");
 }
 
-void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag) {
+void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag, const std::string& triggerSourceName) {
     flag.fired = true;
+    lastTriggeredBy_ = triggerSourceName;
     if (flag.oneShot) {
         flag.active = false;
     }
@@ -350,9 +440,18 @@ void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag) {
     AddLog(
         "Fired EventFlag id=" + flag.id +
         " name=" + (flag.displayName.empty() ? "(none)" : flag.displayName) +
-        " trigger=" + (flag.triggerType.empty() ? "(none)" : flag.triggerType));
+        " trigger=" + (flag.triggerType.empty() ? "(none)" : flag.triggerType) +
+        " by=" + triggerSourceName);
 
     for (const LevelEventObjectAction& action : flag.objectActions) {
+        pendingActions_.push_back({
+            flag.id,
+            flag.displayName,
+            action.actionType,
+            action.targetObjectName,
+            action.targetObjectId,
+            action.actionDescription,
+            });
         AddLog(
             "  ObjectAction target=" +
             (action.targetObjectName.empty() ? action.targetObjectId : action.targetObjectName) +
@@ -363,6 +462,19 @@ void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag) {
     for (const std::string& nextFlagId : flag.nextFlagIds) {
         EnableFlag(nextFlagId, flag.id);
     }
+}
+
+bool LevelEventRuntime::TestFlagIntersection(
+    const LevelEventRuntimeFlagState& flag,
+    const Vector3& position,
+    float radius) const {
+    if (IsSphereShape(flag.shapeType)) {
+        return ContainsSphere(position, flag.center, flag.radius + radius);
+    }
+    if (radius > 0.0f) {
+        return IntersectsAabbSphere(position, radius, flag.center, flag.halfExtents);
+    }
+    return ContainsAabb(position, flag.center, flag.halfExtents);
 }
 
 void LevelEventRuntime::EnableFlag(const std::string& flagId, const std::string& sourceFlagId) {

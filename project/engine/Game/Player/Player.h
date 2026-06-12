@@ -34,6 +34,7 @@ public:
     BaseMode GetBaseMode() const { return baseMode_; }
     const Vector3& GetBasePosition() const { return basePosition_; }
     const Vector3& GetWorldPosition() const { return worldPosition_; }
+    float GetEventTriggerRadius() const { return eventTriggerRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
     float GetLocalOffsetY() const { return localOffsetY_; }
 
@@ -65,6 +66,7 @@ private:
     float moveLimitY_ = 1.4f;
     float moveSpeed_ = 3.0f;
     float distanceFromCamera_ = 6.0f;
+    float eventTriggerRadius_ = 0.25f;
     bool enablePlayer_ = true;
     bool showPlayer_ = true;
     bool useFallbackModel_ = false;

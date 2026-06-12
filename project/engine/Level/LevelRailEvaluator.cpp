@@ -1,6 +1,7 @@
 #include "LevelRailEvaluator.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace {
     constexpr float kMinLength = 0.0001f;
@@ -23,6 +24,14 @@ namespace {
 
     float Length(const Vector3& value) {
         return std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+    }
+
+    float Dot(const Vector3& lhs, const Vector3& rhs) {
+        return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+    }
+
+    float LengthSquared(const Vector3& value) {
+        return Dot(value, value);
     }
 
     Vector3 NormalizeOr(const Vector3& value, const Vector3& fallback) {
@@ -272,6 +281,67 @@ LevelRailSampleEvaluation LevelRailEvaluator::EvaluateByDistance(
         LerpVector3(table.sampledForwards[lowerIndex], table.sampledForwards[upperIndex], localT),
         table.sampledForwards[lowerIndex]);
     result.segmentIndex = table.sampledSegmentIndices.empty() ? lowerIndex : table.sampledSegmentIndices[lowerIndex];
+    return result;
+}
+
+LevelRailClosestPoint LevelRailEvaluator::FindClosestPoint(
+    const LevelRailSampleTable& table,
+    const Vector3& position,
+    bool loopEnabled) {
+    LevelRailClosestPoint result;
+    result.totalLength = table.totalLength;
+    if (table.sampledPoints.empty()) {
+        return result;
+    }
+
+    if (table.sampledPoints.size() == 1 || table.totalLength <= kMinLength) {
+        result.valid = true;
+        result.position = table.sampledPoints.front();
+        result.forward = table.sampledForwards.empty() ? Vector3{ 0.0f, 0.0f, 1.0f } : table.sampledForwards.front();
+        result.distanceToPoint = Length(SubtractVector3(position, result.position));
+        return result;
+    }
+
+    float bestDistanceSq = (std::numeric_limits<float>::max)();
+    size_t bestLowerIndex = 0;
+    float bestLocalT = 0.0f;
+
+    for (size_t index = 1; index < table.sampledPoints.size(); ++index) {
+        const Vector3& a = table.sampledPoints[index - 1];
+        const Vector3& b = table.sampledPoints[index];
+        const Vector3 ab = SubtractVector3(b, a);
+        const float abLengthSq = LengthSquared(ab);
+        if (abLengthSq <= kMinLength * kMinLength) {
+            continue;
+        }
+
+        const float localT = std::clamp(Dot(SubtractVector3(position, a), ab) / abLengthSq, 0.0f, 1.0f);
+        const Vector3 closest = LerpVector3(a, b, localT);
+        const float distanceSq = LengthSquared(SubtractVector3(position, closest));
+        if (distanceSq < bestDistanceSq) {
+            bestDistanceSq = distanceSq;
+            bestLowerIndex = index - 1;
+            bestLocalT = localT;
+        }
+    }
+
+    if (bestDistanceSq == (std::numeric_limits<float>::max)()) {
+        return result;
+    }
+
+    const size_t upperIndex = (std::min)(bestLowerIndex + 1, table.sampledPoints.size() - 1);
+    const float lowerDistance = table.cumulativeDistances[bestLowerIndex];
+    const float upperDistance = table.cumulativeDistances[upperIndex];
+    const float segmentDistance = lowerDistance + (upperDistance - lowerDistance) * bestLocalT;
+    const LevelRailSampleEvaluation evaluation = EvaluateByDistance(table, segmentDistance, loopEnabled);
+    result.valid = evaluation.valid;
+    result.position = evaluation.position;
+    result.forward = evaluation.forward;
+    result.segmentIndex = evaluation.segmentIndex;
+    result.totalLength = evaluation.totalLength;
+    result.distance = evaluation.distance;
+    result.t = evaluation.t;
+    result.distanceToPoint = std::sqrt(bestDistanceSq);
     return result;
 }
 

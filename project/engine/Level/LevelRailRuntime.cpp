@@ -127,6 +127,20 @@ namespace {
             evaluation.totalLength,
             evaluation.distance,
             evaluation.t,
+            0.0f,
+        };
+    }
+
+    LevelRailEvaluation ToRuntimeEvaluation(const LevelRailClosestPoint& closestPoint) {
+        return {
+            closestPoint.valid,
+            closestPoint.position,
+            closestPoint.forward,
+            closestPoint.segmentIndex,
+            closestPoint.totalLength,
+            closestPoint.distance,
+            closestPoint.t,
+            closestPoint.distanceToPoint,
         };
     }
 
@@ -409,6 +423,18 @@ LevelRailEvaluation LevelRailRuntime::EvaluateByDistance(const std::string& rail
         return {};
     }
     return EvaluateRailByDistance(*rail, distance, loopEnabled, forwardLookAheadDistance_);
+}
+
+LevelRailEvaluation LevelRailRuntime::FindClosestEvaluation(
+    const std::string& railId,
+    const Vector3& position,
+    bool loopEnabled) const {
+    const LevelRailRuntimeRail* rail = FindRailById(railId);
+    if (!rail) {
+        return {};
+    }
+
+    return ToRuntimeEvaluation(LevelRailEvaluator::FindClosestPoint(rail->sampleTable, position, loopEnabled));
 }
 
 size_t LevelRailRuntime::GetRailCount() const {

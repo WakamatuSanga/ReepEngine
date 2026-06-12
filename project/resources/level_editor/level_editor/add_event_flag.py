@@ -11,6 +11,7 @@ ACTION_TYPE_PRESETS = (
     "SpawnEnemy",
     "StartDialogue",
     "MoveObject",
+    "StartCameraRail",
     "Custom",
 )
 
@@ -22,6 +23,7 @@ ACTION_TYPE_DISPLAY_NAMES = {
     "SpawnEnemy": "敵を出現 (SpawnEnemy)",
     "StartDialogue": "会話開始 (StartDialogue)",
     "MoveObject": "オブジェクト移動 (MoveObject)",
+    "StartCameraRail": "カメラレール開始 (StartCameraRail)",
     "Custom": "カスタム処理 (Custom)",
 }
 
@@ -439,6 +441,7 @@ def _draw_object_actions(layout, obj):
     if len(obj.level_event_object_actions) == 0:
         box.label(text="ObjectActionは未設定です")
         box.label(text="例: EffectSpawn_01 / PlayEffect / パーティクルを再生する")
+        box.label(text="例: rail_main_01 / StartCameraRail / カメラをメインレールに乗せる")
 
     for index, action in enumerate(obj.level_event_object_actions):
         action_box = box.box()
@@ -449,6 +452,7 @@ def _draw_object_actions(layout, obj):
 
         action_box.label(text="例: EffectSpawn_01")
         action_box.label(text="対象Objectの名前を入れると赤線で接続されます")
+        action_box.label(text="StartCameraRailの場合はRail IDまたはRail名を入力します")
         action_box.prop(action, "target_object_name", text="対象オブジェクト名 (Target Object Name)")
         action_box.prop(action, "target_object_id", text="対象オブジェクトID (Target Object ID)")
         action_box.prop(action, "action_type", text="実行する処理の種類 (Action Type)")

@@ -12,6 +12,7 @@ namespace {
 
 void LevelSceneData::Clear() {
     name.clear();
+    cameraStart = {};
     objects.clear();
     rails.clear();
 }

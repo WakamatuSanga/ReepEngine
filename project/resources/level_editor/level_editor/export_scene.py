@@ -240,6 +240,16 @@ def _vector_to_json(vector):
     }
 
 
+def _transform_json_from_matrix(matrix):
+    trans, rot_quat, scale = matrix.decompose()
+    rot = rot_quat.to_euler()
+    return {
+        "translation": [trans.x, trans.y, trans.z],
+        "rotation": [math.degrees(rot.x), math.degrees(rot.y), math.degrees(rot.z)],
+        "scaling": [scale.x, scale.y, scale.z],
+    }
+
+
 def _edge_key(a, b):
     return (a, b) if a < b else (b, a)
 
@@ -391,6 +401,39 @@ def build_rails_json():
     return rails
 
 
+def _find_camera_start_object():
+    scene = bpy.context.scene
+    for obj in scene.objects:
+        if _to_bool(obj.get("is_camera_start"), False):
+            return obj
+    if scene.camera:
+        return scene.camera
+    for obj in scene.objects:
+        if obj.type == "CAMERA":
+            return obj
+    return None
+
+
+def build_camera_start_json():
+    obj = _find_camera_start_object()
+    if not obj:
+        return None
+
+    camera_start = {
+        "id": _custom_string(obj, "camera_start_id", _safe_id(obj.name, "camera_start")),
+        "name": _custom_string(obj, "camera_start_name", obj.name),
+        "transform": _transform_json_from_matrix(obj.matrix_world),
+        "fov": _custom_float(obj, "camera_start_fov", 45.0),
+        "near": _custom_float(obj, "camera_start_near", 0.1),
+        "far": _custom_float(obj, "camera_start_far", 100.0),
+    }
+    if obj.type == "CAMERA" and obj.data:
+        camera_start["fov"] = _custom_float(obj, "camera_start_fov", math.degrees(obj.data.angle))
+        camera_start["near"] = _custom_float(obj, "camera_start_near", obj.data.clip_start)
+        camera_start["far"] = _custom_float(obj, "camera_start_far", obj.data.clip_end)
+    return camera_start
+
+
 def _append_event_flag_properties(json_object, object, transform_json, collider_json):
     has_event_property = "is_event_flag" in object or "event_flag_id" in object
     is_event_flag = _to_bool(object["is_event_flag"], False) if "is_event_flag" in object else False
@@ -481,11 +524,14 @@ def parse_scene_recursive_json_object(data_parent, object):
 
 
 def build_scene_json():
+    camera_start = build_camera_start_json()
     json_object_root = {
         "name": "scene",
         "objects": [],
         "rails": build_rails_json(),
     }
+    if camera_start:
+        json_object_root["camera_start"] = camera_start
 
     for obj in bpy.context.scene.objects:
         if obj.parent:

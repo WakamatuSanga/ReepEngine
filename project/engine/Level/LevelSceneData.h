@@ -21,6 +21,16 @@ struct LevelCollider {
     Vector3 size{ 2.0f, 2.0f, 2.0f };
 };
 
+struct LevelCameraStart {
+    bool exists = false;
+    std::string id;
+    std::string name;
+    LevelTransform transform;
+    float fovY = 0.45f;
+    float nearClip = 0.1f;
+    float farClip = 100.0f;
+};
+
 struct LevelObject {
     std::string objectId;
     std::string name;
@@ -40,6 +50,7 @@ struct LevelObject {
 
 struct LevelSceneData {
     std::string name;
+    LevelCameraStart cameraStart;
     std::vector<LevelObject> objects;
     std::vector<LevelRail> rails;
 

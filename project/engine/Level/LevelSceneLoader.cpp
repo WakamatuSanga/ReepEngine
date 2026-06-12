@@ -12,6 +12,16 @@
 #include <vector>
 
 namespace {
+    constexpr double kPi = 3.14159265358979323846;
+
+    float DegreesToRadians(double degrees) {
+        return static_cast<float>(degrees * kPi / 180.0);
+    }
+
+    float ParseFovToRadians(double value) {
+        return value > kPi ? DegreesToRadians(value) : static_cast<float>(value);
+    }
+
     std::string ToGenericString(const std::filesystem::path& path) {
         return path.lexically_normal().generic_string();
     }
@@ -155,6 +165,10 @@ namespace {
                         return false;
                     }
                     hasObjects = true;
+                } else if (key == "camera_start" || key == "cameraStart" || key == "initialCamera") {
+                    if (!ParseCameraStart(sceneData.cameraStart)) {
+                        return false;
+                    }
                 } else if (key == "rails") {
                     if (!ParseRailArray(sceneData.rails)) {
                         return false;
@@ -300,6 +314,72 @@ namespace {
                 }
                 if (!Consume(',')) {
                     return Fail("Expected comma in rail.");
+                }
+            }
+        }
+
+        bool ParseCameraStart(LevelCameraStart& cameraStart) {
+            if (!Consume('{')) {
+                return Fail("Expected camera_start object.");
+            }
+
+            cameraStart = {};
+            cameraStart.exists = true;
+            while (true) {
+                if (Consume('}')) {
+                    if (cameraStart.name.empty()) {
+                        cameraStart.name = cameraStart.id;
+                    }
+                    return true;
+                }
+
+                std::string key;
+                if (!ParseString(key) || !Consume(':')) {
+                    return Fail("Invalid camera_start member.");
+                }
+
+                if (key == "id" || key == "camera_start_id" || key == "cameraStartId") {
+                    if (!ParseString(cameraStart.id)) {
+                        return Fail("Invalid camera_start id.");
+                    }
+                } else if (key == "name" || key == "camera_start_name" || key == "cameraStartName") {
+                    if (!ParseString(cameraStart.name)) {
+                        return Fail("Invalid camera_start name.");
+                    }
+                } else if (key == "transform") {
+                    if (!ParseTransform(cameraStart.transform)) {
+                        return Fail("Invalid camera_start transform.");
+                    }
+                } else if (key == "fov" || key == "fovY" || key == "fovDegrees" || key == "camera_start_fov") {
+                    double value = 0.0;
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid camera_start fov.");
+                    }
+                    cameraStart.fovY = ParseFovToRadians(value);
+                } else if (key == "near" || key == "nearClip" || key == "camera_start_near") {
+                    double value = 0.0;
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid camera_start near clip.");
+                    }
+                    cameraStart.nearClip = static_cast<float>(value);
+                } else if (key == "far" || key == "farClip" || key == "camera_start_far") {
+                    double value = 0.0;
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid camera_start far clip.");
+                    }
+                    cameraStart.farClip = static_cast<float>(value);
+                } else if (!SkipValue()) {
+                    return false;
+                }
+
+                if (Consume('}')) {
+                    if (cameraStart.name.empty()) {
+                        cameraStart.name = cameraStart.id;
+                    }
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return Fail("Expected comma in camera_start.");
                 }
             }
         }

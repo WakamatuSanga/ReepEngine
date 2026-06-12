@@ -243,6 +243,7 @@ void Player::DrawImGui() {
     ImGui::DragFloat("Move Limit X", &moveLimitX_, 0.05f, 0.0f, 20.0f, "%.2f");
     ImGui::DragFloat("Move Limit Y", &moveLimitY_, 0.05f, 0.0f, 20.0f, "%.2f");
     ImGui::DragFloat("Distance From Camera", &distanceFromCamera_, 0.05f, 0.1f, 50.0f, "%.2f");
+    ImGui::DragFloat("Event Trigger Radius", &eventTriggerRadius_, 0.01f, 0.0f, 10.0f, "%.2f");
     ImGui::DragFloat2("Local Offset", &localOffsetX_, 0.03f, -50.0f, 50.0f, "%.2f");
     localOffsetX_ = std::clamp(localOffsetX_, -moveLimitX_, moveLimitX_);
     localOffsetY_ = std::clamp(localOffsetY_, -moveLimitY_, moveLimitY_);

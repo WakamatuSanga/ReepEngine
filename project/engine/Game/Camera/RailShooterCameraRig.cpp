@@ -1,12 +1,9 @@
 #include "RailShooterCameraRig.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelRailRuntime.h"
+#include "Engine/Level/LevelSceneRuntime.h"
 #include <algorithm>
 #include <cmath>
-
-#ifdef _DEBUG
-#include "externals/imgui/imgui.h"
-#endif
 
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
@@ -14,6 +11,14 @@ namespace {
 
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
+    }
+
+    Vector3 LerpVector3(const Vector3& from, const Vector3& to, float t) {
+        return {
+            from.x + (to.x - from.x) * t,
+            from.y + (to.y - from.y) * t,
+            from.z + (to.z - from.z) * t,
+        };
     }
 
     Vector3 ScaleVector3(const Vector3& value, float scale) {
@@ -106,19 +111,6 @@ namespace {
         outUp = Normalize(Cross(safeForward, outRight), { 0.0f, 1.0f, 0.0f });
     }
 
-    const char* ToModeLabel(RailShooterCameraRig::Mode mode) {
-        switch (mode) {
-        case RailShooterCameraRig::Mode::Straight:
-            return "Straight";
-        case RailShooterCameraRig::Mode::Rail:
-            return "Rail";
-        case RailShooterCameraRig::Mode::RailFinishedStraight:
-            return "RailFinishedStraight";
-        case RailShooterCameraRig::Mode::Disabled:
-        default:
-            return "Manual / Disabled";
-        }
-    }
 }
 
 RailShooterCameraRig::RailShooterCameraRig() = default;
@@ -131,13 +123,25 @@ void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRunt
     CaptureCameraPose();
 }
 
+void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSceneRuntime) {
+    levelSceneRuntime_ = levelSceneRuntime;
+}
+
 void RailShooterCameraRig::Finalize() {
     camera_ = nullptr;
     railRuntime_ = nullptr;
+    levelSceneRuntime_ = nullptr;
 }
 
 void RailShooterCameraRig::Update(float deltaTime) {
     railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
+    if (autoApplyInitialCameraOnLoad_ && !hasAppliedInitialCameraOnce_ &&
+        levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
+        ApplyInitialCameraFromLevel();
+        hasAppliedInitialCameraOnce_ = true;
+    } else if (levelSceneRuntime_ && !levelSceneRuntime_->HasEngineCameraStart()) {
+        hasAppliedInitialCameraOnce_ = false;
+    }
     if (!IsCameraRigActive()) {
         currentEvaluationValid_ = false;
         if (wasCameraRigActive_ && restoreCameraOnDisable_) {
@@ -159,7 +163,11 @@ void RailShooterCameraRig::Update(float deltaTime) {
         UpdateStraight(safeDeltaTime);
         break;
     case Mode::Rail:
-        UpdateRail(safeDeltaTime);
+        if (railBlendActive_) {
+            UpdateRailBlend(safeDeltaTime);
+        } else {
+            UpdateRail(safeDeltaTime);
+        }
         break;
     case Mode::RailFinishedStraight:
         UpdateRailFinishedStraight(safeDeltaTime);
@@ -172,137 +180,6 @@ void RailShooterCameraRig::Update(float deltaTime) {
     if (IsCameraRigActive() && mode_ != Mode::Rail && mode_ != Mode::Disabled) {
         ApplyToCamera();
     }
-}
-
-void RailShooterCameraRig::DrawImGui() {
-#ifdef _DEBUG
-    ImGui::SetNextWindowSize(ImVec2(430.0f, 520.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
-        ImGui::End();
-        return;
-    }
-
-    ImGui::Checkbox("CameraRig有効 (Enable Camera Rig)", &enableCameraRig_);
-    ImGui::Checkbox("CameraRigを使用 (Use Camera Rig)", &useCameraRig_);
-    ImGui::Checkbox("Stop時にカメラ復元 (Restore Camera On Stop)", &restoreCameraOnStop_);
-    ImGui::Checkbox("Disable時にカメラ復元 (Restore Camera On Disable)", &restoreCameraOnDisable_);
-    ImGui::Checkbox("Gameplay Preview Mode", &gameplayPreviewMode_);
-    ImGui::Checkbox("CameraRig中はRail Debugを隠す (Hide Rail Debug While Camera Rig Active)", &hideRailDebugWhileActive_);
-    ImGui::Checkbox("CameraRig中はRail点を隠す (Hide Rail Points While Camera Rig Active)", &hideRailPointsWhileActive_);
-    ImGui::Checkbox("CameraRig中はEvent Debugを隠す (Hide Event Debug While Camera Rig Active)", &hideEventDebugWhileActive_);
-
-    int modeIndex = static_cast<int>(mode_);
-    const char* modeNames[] = { "Manual / Disabled", "Straight", "Rail", "RailFinishedStraight" };
-    if (ImGui::Combo("Mode", &modeIndex, modeNames, IM_ARRAYSIZE(modeNames))) {
-        mode_ = static_cast<Mode>(modeIndex);
-        if (mode_ == Mode::Straight) {
-            SaveDebugHomeCameraIfNeeded();
-            CaptureCameraPose();
-        } else if (mode_ == Mode::Rail) {
-            StartRail();
-        }
-    }
-
-    if (ImGui::Button("Start Rail")) {
-        StartRail();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Stop Rail")) {
-        StopRail();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset Camera Rig")) {
-        ResetCameraRig();
-    }
-    if (ImGui::Button("Capture Debug Home Camera")) {
-        CaptureDebugHomeCamera();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Restore Debug Home Camera")) {
-        RestoreDebugHomeCamera();
-    }
-    if (ImGui::Button("Reset Camera Rig And Restore Camera")) {
-        ResetCameraRigAndRestoreCamera();
-    }
-
-    ImGui::DragFloat("Straight Speed", &straightSpeed_, 0.05f, -100.0f, 100.0f, "%.2f");
-    ImGui::DragFloat("Rail Speed", &railSpeed_, 0.05f, -100.0f, 100.0f, "%.2f");
-    ImGui::Checkbox("Camera Forward Smoothingを使う (Enable Camera Forward Smoothing)", &enableCameraForwardSmoothing_);
-    ImGui::DragFloat("Forward Smooth Strength", &forwardSmoothStrength_, 0.1f, 0.0f, 60.0f, "%.2f");
-    ImGui::Checkbox("Auto Play", &autoPlay_);
-    ImGui::Checkbox("Loop", &debugLoop_);
-    ImGui::Text("Rail Count: %zu", railCount_);
-
-    if (railRuntime_ && railCount_ > 0) {
-        selectedRailIndex_ = std::clamp(selectedRailIndex_, 0, (std::max)(0, static_cast<int>(railCount_) - 1));
-        LevelRailRuntimeRailInfo selectedInfo;
-        const bool hasSelectedInfo = railRuntime_->GetRailInfo(static_cast<size_t>(selectedRailIndex_), selectedInfo);
-        const std::string currentLabel = hasSelectedInfo
-            ? ((selectedInfo.name.empty() ? selectedInfo.railId : selectedInfo.name) + "##camera_rig_current")
-            : "(none)";
-
-        if (ImGui::BeginCombo("Selected Rail", currentLabel.c_str())) {
-            for (size_t index = 0; index < railCount_; ++index) {
-                LevelRailRuntimeRailInfo info;
-                if (!railRuntime_->GetRailInfo(index, info)) {
-                    continue;
-                }
-                const std::string label =
-                    (info.name.empty() ? info.railId : info.name) +
-                    " [" + std::to_string(info.pointCount) + " pts]##camera_rig_rail_" + std::to_string(index);
-                const bool selected = selectedRailIndex_ == static_cast<int>(index);
-                if (ImGui::Selectable(label.c_str(), selected)) {
-                    selectedRailIndex_ = static_cast<int>(index);
-                    previousRailId_.clear();
-                    FetchSelectedRailInfo();
-                    SyncSelectedRailDefaults();
-                }
-                if (selected) {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
-
-        FetchSelectedRailInfo();
-        const float maxDistance = (std::max)(selectedRailTotalLength_, 0.001f);
-        if (ImGui::SliderFloat("Rail Distance", &railDistance_, 0.0f, maxDistance, "%.3f")) {
-            railDistance_ = ClampDistance(railDistance_, selectedRailTotalLength_);
-            railT_ = NormalizeT(railDistance_, selectedRailTotalLength_);
-            if (mode_ == Mode::Rail && IsCameraRigActive()) {
-                UpdateRail(0.0f);
-            }
-        }
-        if (ImGui::SliderFloat("Rail T", &railT_, 0.0f, 1.0f, "%.3f")) {
-            railT_ = std::clamp(railT_, 0.0f, 1.0f);
-            railDistance_ = railT_ * selectedRailTotalLength_;
-            if (mode_ == Mode::Rail && IsCameraRigActive()) {
-                UpdateRail(0.0f);
-            }
-        }
-    } else {
-        ImGui::TextDisabled("レールがありません。 (No rails.)");
-    }
-
-    ImGui::SeparatorText("Camera Rig State");
-    ImGui::Text("Active: %s", IsCameraRigActive() ? "true" : "false");
-    ImGui::Text("Has Saved Camera Pose: %s", hasSavedCameraPose_ ? "true" : "false");
-    ImGui::Text("Mode: %s", ToModeLabel(mode_));
-    ImGui::Text("Selected Rail ID: %s", selectedRailId_.empty() ? "(none)" : selectedRailId_.c_str());
-    ImGui::Text("Selected Rail Type: %s", selectedRailType_.empty() ? "(none)" : selectedRailType_.c_str());
-    ImGui::Text("Rail Point Count: %zu", selectedRailPointCount_);
-    ImGui::Text("Sampled Point Count: %zu", selectedRailSampledPointCount_);
-    ImGui::Text("Rail Total Length: %.3f", selectedRailTotalLength_);
-    ImGui::Text("Rail Loop: %s", selectedRailLoop_ ? "true" : "false");
-    ImGui::Text("Current Segment Index: %zu", currentSegmentIndex_);
-    ImGui::Text("Evaluation Valid: %s", currentEvaluationValid_ ? "true" : "false");
-    ImGui::Text("Current Position: %.3f, %.3f, %.3f", currentPosition_.x, currentPosition_.y, currentPosition_.z);
-    ImGui::Text("Current Forward: %.3f, %.3f, %.3f", currentForward_.x, currentForward_.y, currentForward_.z);
-    ImGui::Text("Current Up: %.3f, %.3f, %.3f", currentUp_.x, currentUp_.y, currentUp_.z);
-    ImGui::Text("Saved Position: %.3f, %.3f, %.3f", savedCameraPosition_.x, savedCameraPosition_.y, savedCameraPosition_.z);
-    ImGui::Text("Saved Rotation: %.3f, %.3f, %.3f", savedCameraRotation_.x, savedCameraRotation_.y, savedCameraRotation_.z);
-    ImGui::End();
-#endif
 }
 
 bool RailShooterCameraRig::IsCameraRigActive() const {
@@ -412,6 +289,31 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
     ApplyToCamera();
 }
 
+void RailShooterCameraRig::UpdateRailBlend(float deltaTime) {
+    if (!FetchSelectedRailInfo()) {
+        currentEvaluationValid_ = false;
+        railBlendActive_ = false;
+        return;
+    }
+
+    railBlendElapsed_ += (std::max)(0.0f, deltaTime);
+    const float safeBlendTime = (std::max)(0.05f, railBlendTime_);
+    const float t = std::clamp(railBlendElapsed_ / safeBlendTime, 0.0f, 1.0f);
+    const float smoothT = t * t * (3.0f - 2.0f * t);
+
+    currentPosition_ = LerpVector3(blendStartPosition_, blendTargetPosition_, smoothT);
+    currentForward_ = Normalize(LerpVector3(blendStartForward_, blendTargetForward_, smoothT), blendTargetForward_);
+    BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
+    currentEvaluationValid_ = true;
+    ApplyToCamera();
+
+    if (t >= 1.0f) {
+        railBlendActive_ = false;
+        hasSmoothedForward_ = false;
+        UpdateRail(0.0f);
+    }
+}
+
 void RailShooterCameraRig::UpdateRailFinishedStraight(float deltaTime) {
     currentEvaluationValid_ = false;
     currentPosition_ = AddVector3(currentPosition_, ScaleVector3(currentForward_, straightSpeed_ * deltaTime));
@@ -492,6 +394,8 @@ void RailShooterCameraRig::ResetCameraRig() {
     previousRailId_.clear();
     previousSelectedRailIndex_ = -1;
     hasSmoothedForward_ = false;
+    railBlendActive_ = false;
+    railBlendElapsed_ = 0.0f;
     CaptureCameraPose();
 }
 
@@ -506,6 +410,8 @@ void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
     previousRailId_.clear();
     previousSelectedRailIndex_ = -1;
     hasSmoothedForward_ = false;
+    railBlendActive_ = false;
+    railBlendElapsed_ = 0.0f;
     RestoreDebugHomeCamera();
     wasCameraRigActive_ = false;
 }
@@ -516,6 +422,8 @@ void RailShooterCameraRig::StartRail() {
     useCameraRig_ = true;
     mode_ = Mode::Rail;
     hasSmoothedForward_ = false;
+    railBlendActive_ = false;
+    railBlendElapsed_ = 0.0f;
     railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
     if (!FetchSelectedRailInfo()) {
         currentEvaluationValid_ = false;
@@ -529,6 +437,8 @@ void RailShooterCameraRig::StopRail() {
     mode_ = Mode::Disabled;
     autoPlay_ = false;
     currentEvaluationValid_ = false;
+    railBlendActive_ = false;
+    railBlendElapsed_ = 0.0f;
     if (restoreCameraOnStop_) {
         RestoreDebugHomeCamera();
     } else {

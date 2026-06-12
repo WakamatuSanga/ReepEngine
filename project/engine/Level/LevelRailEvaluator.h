@@ -29,6 +29,17 @@ struct LevelRailSampleEvaluation {
     float t = 0.0f;
 };
 
+struct LevelRailClosestPoint {
+    bool valid = false;
+    Vector3 position{ 0.0f, 0.0f, 0.0f };
+    Vector3 forward{ 0.0f, 0.0f, 1.0f };
+    size_t segmentIndex = 0;
+    float totalLength = 0.0f;
+    float distance = 0.0f;
+    float t = 0.0f;
+    float distanceToPoint = 0.0f;
+};
+
 class LevelRailEvaluator {
 public:
     static void BuildSampleTable(
@@ -40,6 +51,10 @@ public:
     static LevelRailSampleEvaluation EvaluateByDistance(
         const LevelRailSampleTable& table,
         float distance,
+        bool loopEnabled);
+    static LevelRailClosestPoint FindClosestPoint(
+        const LevelRailSampleTable& table,
+        const Vector3& position,
         bool loopEnabled);
     static const char* GetModeName(RailInterpolationMode mode);
 };

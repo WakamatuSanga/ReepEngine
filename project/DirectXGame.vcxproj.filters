@@ -70,6 +70,12 @@
     <Filter Include="ヘッダー ファイル\engine\Game\Camera">
       <UniqueIdentifier>{ca9e2159-7f27-43a2-a85c-d92c4517e9f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Game\RailShooter">
+      <UniqueIdentifier>{1a86cd5f-1793-4b47-b958-8a7ce10bb69b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\RailShooter">
+      <UniqueIdentifier>{e113a578-3c95-4d64-b818-334507bde2f5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\application">
       <UniqueIdentifier>{da05e6c8-cb16-4e6c-bed8-45a4c3322b9f}</UniqueIdentifier>
     </Filter>
@@ -204,11 +210,26 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
@@ -448,6 +469,12 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>

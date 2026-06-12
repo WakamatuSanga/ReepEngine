@@ -9,6 +9,7 @@
 #include "LevelRailDebugVisualizer.h"
 #include "LevelRailRuntime.h"
 #include "LevelSceneLoader.h"
+#include "LevelTransformConverter.h"
 #include <algorithm>
 #include <cstdint>
 
@@ -196,6 +197,13 @@ void LevelSceneRuntime::DrawImGui() {
     ImGui::TextWrapped("解決済みパス (Resolved Path): %s", lastResolvedPath_.empty() ? "(none)" : lastResolvedPath_.c_str());
     ImGui::Text("軸変換 (Axis Conversion): %s", axisConversionEnabled_ ? "Blender(x,y,z) -> Engine(x,z,y)" : "OFF");
     ImGui::Text("シーン名 (Scene Name): %s", sceneData_.name.empty() ? "(none)" : sceneData_.name.c_str());
+    ImGui::Text("初期カメラあり (Camera Start Exists): %s", hasEngineCameraStart_ ? "true" : "false");
+    if (hasEngineCameraStart_) {
+        ImGui::Text("初期カメラ位置 (Camera Start Position): %.3f, %.3f, %.3f",
+            engineCameraStart_.transform.translation.x,
+            engineCameraStart_.transform.translation.y,
+            engineCameraStart_.transform.translation.z);
+    }
     ImGui::Text("オブジェクト数 (Object Count): %zu", sceneData_.GetObjectCount());
     ImGui::Text("レール数 (Rail Count): %zu", sceneData_.rails.size());
     ImGui::Text("レール点数 (Rail Point Count): %zu", sceneData_.GetRailPointCount());
@@ -358,6 +366,8 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
         if (railRuntime_) {
             railRuntime_->Clear();
         }
+        engineCameraStart_ = {};
+        hasEngineCameraStart_ = false;
         rebuildDirty_ = false;
     }
 }
@@ -380,6 +390,11 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     pendingRebuildSource_.clear();
     ++rebuildCount_;
     lastRebuildFrame_ = frameCounter_;
+    engineCameraStart_ = sceneData_.cameraStart;
+    hasEngineCameraStart_ = sceneData_.cameraStart.exists;
+    if (hasEngineCameraStart_ && axisConversionEnabled_) {
+        engineCameraStart_.transform = BlenderToEngineTransform(sceneData_.cameraStart.transform);
+    }
 
     if (objectDebugVisualizer_) {
         objectDebugVisualizer_->Rebuild(sceneData_, axisConversionEnabled_);

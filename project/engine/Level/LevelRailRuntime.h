@@ -22,6 +22,7 @@ struct LevelRailEvaluation {
     float totalLength = 0.0f;
     float distance = 0.0f;
     float t = 0.0f;
+    float distanceToPoint = 0.0f;
 };
 
 struct LevelRailRuntimeRailInfo {
@@ -51,6 +52,7 @@ public:
     LevelRailEvaluation EvaluateByT(const std::string& railId, float t) const;
     LevelRailEvaluation EvaluateByDistance(const std::string& railId, float distance) const;
     LevelRailEvaluation EvaluateByDistance(const std::string& railId, float distance, bool loopEnabled) const;
+    LevelRailEvaluation FindClosestEvaluation(const std::string& railId, const Vector3& position, bool loopEnabled) const;
     size_t GetRailCount() const;
     bool GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outInfo) const;
 

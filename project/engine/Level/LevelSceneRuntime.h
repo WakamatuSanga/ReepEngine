@@ -41,7 +41,10 @@ public:
     void SetLiveSyncDiagnostics(bool autoApplyEnabled, uint64_t lastPacketApplied);
 
     const LevelSceneData& GetSceneData() const { return sceneData_; }
+    LevelEventRuntime* GetEventRuntime() const { return eventRuntime_.get(); }
     LevelRailRuntime* GetRailRuntime() const { return railRuntime_.get(); }
+    const LevelCameraStart* GetEngineCameraStart() const { return hasEngineCameraStart_ ? &engineCameraStart_ : nullptr; }
+    bool HasEngineCameraStart() const { return hasEngineCameraStart_; }
     const std::string& GetLastLoadStatus() const { return lastLoadStatus_; }
     bool IsLiveApplyPaused() const { return pauseLiveApply_; }
     bool IsRebuildOnlyWhenJsonChangedEnabled() const { return rebuildOnlyWhenJsonChanged_; }
@@ -65,6 +68,7 @@ private:
     std::unique_ptr<LevelRailDebugVisualizer> railDebugVisualizer_;
     std::unique_ptr<LevelRailRuntime> railRuntime_;
     LevelSceneData sceneData_;
+    LevelCameraStart engineCameraStart_;
     std::array<char, 260> jsonPathBuffer_{};
     std::string jsonPath_ = "resources/level_editor/level_editor.json";
     std::string lastLoadStatus_;
@@ -79,6 +83,7 @@ private:
     bool hideRailPointsWhileCameraRigActive_ = true;
     bool hideEventDebugWhileCameraRigActive_ = true;
     bool gameplayPreviewMode_ = false;
+    bool hasEngineCameraStart_ = false;
     uint64_t frameCounter_ = 0;
     uint64_t rebuildCount_ = 0;
     uint64_t lastRebuildFrame_ = 0;
