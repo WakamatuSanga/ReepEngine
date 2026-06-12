@@ -16,6 +16,13 @@ public:
         Rail,
     };
 
+    enum class ModelForwardAxis {
+        PositiveZ,
+        NegativeZ,
+        PositiveX,
+        NegativeX,
+    };
+
     Player();
     ~Player();
 
@@ -59,13 +66,16 @@ private:
     Vector3 externalBaseForward_{ 0.0f, 0.0f, 1.0f };
     Vector3 externalBaseUp_{ 0.0f, 1.0f, 0.0f };
     Vector3 modelScale_{ 0.25f, 0.25f, 0.25f };
-    Vector3 modelRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 modelRotationOffset_{ 0.0f, 0.0f, 0.0f };
+    Vector3 visualBaseRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 visualFinalRotation_{ 0.0f, 0.0f, 0.0f };
+    ModelForwardAxis modelForwardAxis_ = ModelForwardAxis::PositiveZ;
     float localOffsetX_ = 0.0f;
     float localOffsetY_ = 0.0f;
     float moveLimitX_ = 2.5f;
     float moveLimitY_ = 1.4f;
     float moveSpeed_ = 3.0f;
-    float distanceFromCamera_ = 6.0f;
+    float distanceFromCamera_ = 4.0f;
     float eventTriggerRadius_ = 0.25f;
     bool enablePlayer_ = true;
     bool showPlayer_ = true;

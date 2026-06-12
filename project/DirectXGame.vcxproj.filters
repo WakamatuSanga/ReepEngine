@@ -225,6 +225,9 @@
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
@@ -469,6 +472,9 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\EventActionDispatcher.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>

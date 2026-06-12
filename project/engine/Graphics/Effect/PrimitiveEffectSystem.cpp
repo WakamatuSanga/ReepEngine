@@ -3,10 +3,22 @@
 #include "Engine/Graphics/Effect/RingEffect.h"
 #include "Engine/Graphics/Effect/RotatingPlaneHitEffect.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
+#include <algorithm>
+#include <cctype>
+#include <string>
 
 #ifdef _DEBUG
 #include "externals/imgui/imgui.h"
 #endif
+
+namespace {
+    std::string ToLowerString(std::string text) {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char ch) {
+            return static_cast<char>(std::tolower(ch));
+            });
+        return text;
+    }
+}
 
 PrimitiveEffectSystem::PrimitiveEffectSystem() = default;
 
@@ -111,6 +123,57 @@ void PrimitiveEffectSystem::DrawVisibilityImGui() {
     }
     ImGui::Unindent();
 #endif
+}
+
+void PrimitiveEffectSystem::PlayHitEffectAt(const Vector3& position) {
+    if (rotatingPlaneHitEffect_) {
+        rotatingPlaneHitEffect_->PlayAt(position);
+    }
+}
+
+void PrimitiveEffectSystem::PlayRingEffectAt(const Vector3& position) {
+    if (ringEffect_) {
+        ringEffect_->PlayAt(position);
+    }
+}
+
+void PrimitiveEffectSystem::PlayCylinderEffectAt(const Vector3& position) {
+    if (cylinderEffect_) {
+        cylinderEffect_->PlayAt(position);
+    }
+}
+
+bool PrimitiveEffectSystem::PlayPresetAt(
+    const std::string& effectType,
+    const Vector3& position,
+    std::string& resultMessage) {
+    const std::string type = ToLowerString(effectType.empty() ? "hitring" : effectType);
+    if (type == "hit") {
+        PlayHitEffectAt(position);
+        resultMessage = "Played Hit effect.";
+        return true;
+    }
+    if (type == "ring") {
+        PlayRingEffectAt(position);
+        resultMessage = "Played Ring effect.";
+        return true;
+    }
+    if (type == "cylinder") {
+        PlayCylinderEffectAt(position);
+        resultMessage = "Played Cylinder effect.";
+        return true;
+    }
+    if (type == "hitring" || type == "hit_ring" || type == "hit+ring") {
+        PlayHitEffectAt(position);
+        PlayRingEffectAt(position);
+        resultMessage = "Played HitRing effect.";
+        return true;
+    }
+
+    PlayHitEffectAt(position);
+    PlayRingEffectAt(position);
+    resultMessage = "Unknown effectType, played HitRing fallback: " + effectType;
+    return true;
 }
 
 void PrimitiveEffectSystem::SetVisible(bool isVisible) {

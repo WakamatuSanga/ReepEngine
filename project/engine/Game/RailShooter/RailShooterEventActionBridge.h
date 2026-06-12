@@ -5,6 +5,7 @@
 
 class LevelEventRuntime;
 class RailShooterCameraRig;
+struct FiredEventAction;
 
 class RailShooterEventActionBridge {
 public:
@@ -15,6 +16,7 @@ public:
     void Finalize();
     void Update();
     void DrawImGui();
+    bool HandleAction(const FiredEventAction& action, std::string& resultMessage);
 
 private:
     void AddLog(const std::string& message);

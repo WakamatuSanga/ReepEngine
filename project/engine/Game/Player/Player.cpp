@@ -17,6 +17,7 @@
 
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
+    constexpr float kPi = 3.14159265358979323846f;
 
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
@@ -36,6 +37,42 @@ namespace {
             return fallback;
         }
         return { value.x / length, value.y / length, value.z / length };
+    }
+
+    Vector3 MakeRotationFromForward(const Vector3& forward) {
+        const Vector3 normalized = Normalize(forward, { 0.0f, 0.0f, 1.0f });
+        const float horizontal = std::sqrt(normalized.x * normalized.x + normalized.z * normalized.z);
+        const float yaw = std::atan2(normalized.x, normalized.z);
+        const float pitch = std::atan2(-normalized.y, horizontal);
+        return { pitch, yaw, 0.0f };
+    }
+
+    Vector3 GetModelForwardAxisOffset(Player::ModelForwardAxis axis) {
+        switch (axis) {
+        case Player::ModelForwardAxis::NegativeZ:
+            return { 0.0f, kPi, 0.0f };
+        case Player::ModelForwardAxis::PositiveX:
+            return { 0.0f, -kPi * 0.5f, 0.0f };
+        case Player::ModelForwardAxis::NegativeX:
+            return { 0.0f, kPi * 0.5f, 0.0f };
+        case Player::ModelForwardAxis::PositiveZ:
+        default:
+            return { 0.0f, 0.0f, 0.0f };
+        }
+    }
+
+    const char* ToModelForwardAxisLabel(Player::ModelForwardAxis axis) {
+        switch (axis) {
+        case Player::ModelForwardAxis::NegativeZ:
+            return "-Z";
+        case Player::ModelForwardAxis::PositiveX:
+            return "+X";
+        case Player::ModelForwardAxis::NegativeX:
+            return "-X";
+        case Player::ModelForwardAxis::PositiveZ:
+        default:
+            return "+Z";
+        }
     }
 
     std::string ToGenericString(const std::filesystem::path& path) {
@@ -226,11 +263,21 @@ void Player::DrawImGui() {
 
     ImGui::SeparatorText("Rail Shooter Preview");
     ImGui::TextDisabled("CameraRig確認用の見た目プリセットです。PlayerはCameraFrontのままです。");
-    ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 4.0");
-    if (ImGui::Button("Rail Shooter Preset")) {
+    ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 3.0");
+    if (ImGui::Button("近め (Near)")) {
+        distanceFromCamera_ = 1.5f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("標準 (Default)")) {
         distanceFromCamera_ = 4.0f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("遠め (Far)")) {
+        distanceFromCamera_ = 6.0f;
+    }
+    if (ImGui::Button("レールシューティング用 (Rail Shooter Preset)")) {
+        distanceFromCamera_ = 3.0f;
         modelScale_ = { 0.45f, 0.45f, 0.45f };
-        modelRotation_ = { 0.0f, 3.14159265f, 0.0f };
         ResetPosition();
         UpdateWorldPosition();
         UpdateObjectTransform();
@@ -238,6 +285,52 @@ void Player::DrawImGui() {
             object_->Update();
         }
     }
+
+    ImGui::SeparatorText("モデル向き補正 (Model Rotation Offset)");
+    int forwardAxisIndex = static_cast<int>(modelForwardAxis_);
+    const char* forwardAxisItems[] = { "+Z", "-Z", "+X", "-X" };
+    if (ImGui::Combo("モデル正面軸 (Model Forward Axis)", &forwardAxisIndex, forwardAxisItems, 4)) {
+        modelForwardAxis_ = static_cast<ModelForwardAxis>(forwardAxisIndex);
+    }
+    if (ImGui::Button("Forward +Z")) {
+        modelForwardAxis_ = ModelForwardAxis::PositiveZ;
+        modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Forward -Z")) {
+        modelForwardAxis_ = ModelForwardAxis::NegativeZ;
+        modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+    }
+    if (ImGui::Button("Forward +X")) {
+        modelForwardAxis_ = ModelForwardAxis::PositiveX;
+        modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Forward -X")) {
+        modelForwardAxis_ = ModelForwardAxis::NegativeX;
+        modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+    }
+    if (ImGui::Button("Yaw 180")) {
+        modelRotationOffset_.y += kPi;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Yaw 90")) {
+        modelRotationOffset_.y += kPi * 0.5f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Yaw -90")) {
+        modelRotationOffset_.y -= kPi * 0.5f;
+    }
+    if (ImGui::Button("向き補正リセット (Reset Rotation Offset)")) {
+        modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+    }
+    ImGui::DragFloat3("Model Rotation Offset", &modelRotationOffset_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
+    ImGui::Text("Model Forward Axis: %s", ToModelForwardAxisLabel(modelForwardAxis_));
+    ImGui::Text("Current Forward: %.3f, %.3f, %.3f", baseForward_.x, baseForward_.y, baseForward_.z);
+    ImGui::Text("Current Model Rotation: %.3f, %.3f, %.3f",
+        visualFinalRotation_.x,
+        visualFinalRotation_.y,
+        visualFinalRotation_.z);
 
     ImGui::DragFloat("Move Speed", &moveSpeed_, 0.05f, 0.0f, 30.0f, "%.2f");
     ImGui::DragFloat("Move Limit X", &moveLimitX_, 0.05f, 0.0f, 20.0f, "%.2f");
@@ -248,15 +341,26 @@ void Player::DrawImGui() {
     localOffsetX_ = std::clamp(localOffsetX_, -moveLimitX_, moveLimitX_);
     localOffsetY_ = std::clamp(localOffsetY_, -moveLimitY_, moveLimitY_);
     ImGui::DragFloat3("Model Scale", &modelScale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
-    ImGui::DragFloat3("Model Rotation", &modelRotation_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
     if (ImGui::Button("Reset Position")) {
         ResetPosition();
     }
 
     UpdateWorldPosition();
+    UpdateObjectTransform();
+    if (object_) {
+        object_->Update();
+    }
     ImGui::Text("Base Position: %.3f, %.3f, %.3f", basePosition_.x, basePosition_.y, basePosition_.z);
     ImGui::Text("Base Forward: %.3f, %.3f, %.3f", baseForward_.x, baseForward_.y, baseForward_.z);
     ImGui::Text("World Position: %.3f, %.3f, %.3f", worldPosition_.x, worldPosition_.y, worldPosition_.z);
+    ImGui::Text("Visual Base Rotation: %.3f, %.3f, %.3f",
+        visualBaseRotation_.x,
+        visualBaseRotation_.y,
+        visualBaseRotation_.z);
+    ImGui::Text("Visual Model Rotation: %.3f, %.3f, %.3f",
+        visualFinalRotation_.x,
+        visualFinalRotation_.y,
+        visualFinalRotation_.z);
     ImGui::End();
 #endif
 }
@@ -356,7 +460,12 @@ void Player::UpdateObjectTransform() {
         return;
     }
 
+    visualBaseRotation_ = MakeRotationFromForward(baseForward_);
+    visualFinalRotation_ = AddVector3(
+        AddVector3(visualBaseRotation_, GetModelForwardAxisOffset(modelForwardAxis_)),
+        modelRotationOffset_);
+
     object_->SetTranslate(worldPosition_);
-    object_->SetRotate(modelRotation_);
+    object_->SetRotate(visualFinalRotation_);
     object_->SetScale(modelScale_);
 }

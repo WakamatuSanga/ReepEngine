@@ -15,6 +15,7 @@ public:
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Play();
+    void PlayAt(const Vector3& position);
     void Stop();
     void Update(float deltaTime, const Camera* camera);
     void Draw();
