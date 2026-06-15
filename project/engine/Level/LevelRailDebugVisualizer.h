@@ -16,6 +16,7 @@ struct LevelRailSummary {
     std::string name;
     std::string railType;
     bool loop = false;
+    bool reverseDirection = false;
     float speed = 1.0f;
     size_t pointCount = 0;
     size_t segmentCount = 0;
@@ -48,6 +49,8 @@ private:
     Camera* camera_ = nullptr;
     std::array<float, 4> railLineColor_{ 0.15f, 0.95f, 1.0f, 0.85f };
     std::array<float, 4> railPointColor_{ 1.0f, 0.82f, 0.12f, 0.95f };
+    std::array<float, 4> railStartPointColor_{ 0.15f, 1.0f, 0.25f, 1.0f };
+    std::array<float, 4> railEndPointColor_{ 1.0f, 0.12f, 0.08f, 1.0f };
     bool showRails_ = true;
     bool showRailPoints_ = true;
     bool externalHideRails_ = false;

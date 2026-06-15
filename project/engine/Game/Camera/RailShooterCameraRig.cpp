@@ -172,6 +172,10 @@ void RailShooterCameraRig::Update(float deltaTime) {
     case Mode::RailFinishedStraight:
         UpdateRailFinishedStraight(safeDeltaTime);
         break;
+    case Mode::RailEndStopped:
+        currentEvaluationValid_ = true;
+        railEndReached_ = true;
+        break;
     case Mode::Disabled:
     default:
         break;
@@ -217,10 +221,11 @@ bool RailShooterCameraRig::FetchSelectedRailInfo() {
         return false;
     }
 
-    selectedRailId_ = info.railId;
+    selectedRailId_ = info.railId.empty() ? info.name : info.railId;
     selectedRailName_ = info.name;
     selectedRailType_ = info.railType;
     selectedRailLoop_ = info.loop;
+    selectedRailReverseDirection_ = info.reverseDirection;
     selectedRailPointCount_ = info.pointCount;
     selectedRailSampledPointCount_ = info.sampledPointCount;
     selectedRailTotalLength_ = info.totalLength;
@@ -239,9 +244,16 @@ void RailShooterCameraRig::UpdateStraight(float deltaTime) {
 void RailShooterCameraRig::UpdateRail(float deltaTime) {
     if (!FetchSelectedRailInfo()) {
         currentEvaluationValid_ = false;
+        lastStartResult_ = "Rail update skipped: selected rail info is unavailable.";
         return;
     }
     SyncSelectedRailDefaults();
+    if (selectedRailTotalLength_ <= kMinRailLength) {
+        currentEvaluationValid_ = false;
+        autoPlay_ = false;
+        lastStartResult_ = "Rail update skipped: invalid selected rail length.";
+        return;
+    }
 
     const bool shouldLoop = debugLoop_ || selectedRailLoop_;
     if (autoPlay_ && selectedRailTotalLength_ > kMinRailLength) {
@@ -252,15 +264,35 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
             railDistance_ = selectedRailTotalLength_;
             railT_ = 1.0f;
             const LevelRailEvaluation endEvaluation = railRuntime_->EvaluateByDistance(selectedRailId_, railDistance_, false);
-            if (endEvaluation.valid) {
-                currentPosition_ = endEvaluation.position;
-                currentForward_ = SmoothCameraForward(endEvaluation.forward, deltaTime);
-                currentSegmentIndex_ = endEvaluation.segmentIndex;
-                currentEvaluationValid_ = true;
-                BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
-                ApplyToCamera();
+            if (!endEvaluation.valid) {
+                currentEvaluationValid_ = false;
+                autoPlay_ = false;
+                lastStartResult_ = "Rail end evaluation invalid; camera was not advanced.";
+                return;
             }
-            mode_ = Mode::RailFinishedStraight;
+            currentPosition_ = endEvaluation.position;
+            currentForward_ = SmoothCameraForward(endEvaluation.forward, deltaTime);
+            currentSegmentIndex_ = endEvaluation.segmentIndex;
+            currentEvaluationValid_ = true;
+            railEndReached_ = true;
+            autoPlay_ = false;
+            BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
+            if (railEndBehavior_ == RailEndBehavior::RestoreCamera) {
+                mode_ = Mode::Disabled;
+                enableCameraRig_ = false;
+                lastStartResult_ = "Rail end reached: restored saved camera pose.";
+                RestoreDebugHomeCamera();
+                wasCameraRigActive_ = false;
+            } else {
+                ApplyToCamera();
+                if (railEndBehavior_ == RailEndBehavior::ContinueStraight) {
+                    mode_ = Mode::RailFinishedStraight;
+                    lastStartResult_ = "Rail end reached: continue straight.";
+                } else {
+                    mode_ = Mode::RailEndStopped;
+                    lastStartResult_ = "Rail end reached: stopped at end.";
+                }
+            }
             return;
         } else if (railDistance_ < 0.0f) {
             railDistance_ = 0.0f;
@@ -277,6 +309,8 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
     const LevelRailEvaluation evaluation = railRuntime_->EvaluateByDistance(selectedRailId_, railDistance_, shouldLoop);
     currentEvaluationValid_ = evaluation.valid;
     if (!evaluation.valid) {
+        autoPlay_ = false;
+        lastStartResult_ = "Rail evaluation invalid; camera was not updated.";
         return;
     }
 
@@ -293,12 +327,24 @@ void RailShooterCameraRig::UpdateRailBlend(float deltaTime) {
     if (!FetchSelectedRailInfo()) {
         currentEvaluationValid_ = false;
         railBlendActive_ = false;
+        lastBlendValid_ = false;
+        lastStartResult_ = "Rail blend stopped: selected rail info is unavailable.";
+        return;
+    }
+    if (selectedRailTotalLength_ <= kMinRailLength) {
+        currentEvaluationValid_ = false;
+        railBlendActive_ = false;
+        lastBlendValid_ = false;
+        lastStartResult_ = "Rail blend stopped: invalid selected rail length.";
         return;
     }
 
     railBlendElapsed_ += (std::max)(0.0f, deltaTime);
     const float safeBlendTime = (std::max)(0.05f, railBlendTime_);
     const float t = std::clamp(railBlendElapsed_ / safeBlendTime, 0.0f, 1.0f);
+    lastBlendProgress_ = t;
+    lastBlendTime_ = safeBlendTime;
+    lastBlendValid_ = true;
     const float smoothT = t * t * (3.0f - 2.0f * t);
 
     currentPosition_ = LerpVector3(blendStartPosition_, blendTargetPosition_, smoothT);
@@ -390,6 +436,7 @@ void RailShooterCameraRig::ResetCameraRig() {
     railT_ = 0.0f;
     currentSegmentIndex_ = 0;
     currentEvaluationValid_ = false;
+    railEndReached_ = false;
     autoPlay_ = false;
     previousRailId_.clear();
     previousSelectedRailIndex_ = -1;
@@ -404,6 +451,7 @@ void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
     railT_ = 0.0f;
     currentSegmentIndex_ = 0;
     currentEvaluationValid_ = false;
+    railEndReached_ = false;
     autoPlay_ = false;
     mode_ = Mode::Disabled;
     enableCameraRig_ = false;
@@ -417,18 +465,38 @@ void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
 }
 
 void RailShooterCameraRig::StartRail() {
+    railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
+    if (!FetchSelectedRailInfo()) {
+        currentEvaluationValid_ = false;
+        lastStartResult_ = "Manual Start Rail failed: selected rail info is unavailable.";
+        return;
+    }
+    SyncSelectedRailDefaults();
+    if (selectedRailTotalLength_ <= kMinRailLength) {
+        currentEvaluationValid_ = false;
+        lastStartResult_ = "Manual Start Rail failed: invalid selected rail length.";
+        return;
+    }
+
     SaveDebugHomeCameraIfNeeded();
+    lastStartSource_ = "Manual";
+    lastRequestedStartMode_ = "SelectedRail";
+    lastActualStartMode_ = "SelectedRail";
+    lastPreviousRailDistance_ = railDistance_;
+    lastStartDistance_ = 0.0f;
+    lastStartDistanceRatio_ = 0.0f;
+    lastStartedNearEnd_ = false;
+    lastFallbackUsed_ = false;
+    lastStartWarning_ = "(none)";
+    railEndReached_ = false;
+    railDistance_ = 0.0f;
+    railT_ = 0.0f;
     enableCameraRig_ = true;
     useCameraRig_ = true;
     mode_ = Mode::Rail;
     hasSmoothedForward_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
-    railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
-    if (!FetchSelectedRailInfo()) {
-        currentEvaluationValid_ = false;
-        return;
-    }
     SyncSelectedRailDefaults();
     UpdateRail(0.0f);
 }
@@ -437,6 +505,7 @@ void RailShooterCameraRig::StopRail() {
     mode_ = Mode::Disabled;
     autoPlay_ = false;
     currentEvaluationValid_ = false;
+    railEndReached_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
     if (restoreCameraOnStop_) {

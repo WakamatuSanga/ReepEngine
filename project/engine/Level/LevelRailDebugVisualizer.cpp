@@ -104,6 +104,7 @@ namespace {
 struct LevelRailDebugVisualObject {
     std::unique_ptr<Object3d> object;
     Model* model = nullptr;
+    std::array<float, 4> color{ 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
 LevelRailDebugVisualizer::LevelRailDebugVisualizer() = default;
@@ -153,19 +154,31 @@ void LevelRailDebugVisualizer::Rebuild(
         for (const Vector3& point : rail.points) {
             points.push_back(ConvertPoint(point, axisConversionEnabled));
         }
+        if (rail.reverseDirection) {
+            std::reverse(points.begin(), points.end());
+        }
 
         LevelRailSummary summary;
         summary.railId = rail.railId;
         summary.name = rail.name;
         summary.railType = rail.railType;
         summary.loop = rail.loop;
+        summary.reverseDirection = rail.reverseDirection;
         summary.speed = rail.speed;
         summary.pointCount = points.size();
         railPointCount_ += points.size();
 
-        for (const Vector3& point : points) {
+        for (size_t pointIndex = 0; pointIndex < points.size(); ++pointIndex) {
+            const Vector3& point = points[pointIndex];
             auto pointObject = std::make_unique<LevelRailDebugVisualObject>();
             pointObject->model = pointModel;
+            if (pointIndex == 0) {
+                pointObject->color = railStartPointColor_;
+            } else if (pointIndex + 1 == points.size()) {
+                pointObject->color = railEndPointColor_;
+            } else {
+                pointObject->color = railPointColor_;
+            }
             pointObject->object = std::make_unique<Object3d>();
             pointObject->object->Initialize(object3dCommon_);
             pointObject->object->SetModel(pointModel);
@@ -245,7 +258,7 @@ void LevelRailDebugVisualizer::Draw(uint64_t frameCounter) {
         if (!point || !point->object) {
             continue;
         }
-        ApplyModelMaterial(point->model, railPointColor_);
+        ApplyModelMaterial(point->model, point->color);
         point->object->Draw();
     }
 }
@@ -263,6 +276,8 @@ bool LevelRailDebugVisualizer::DrawImGui() {
     ImGui::ColorEdit4("レール線の色 (Rail Line Color)", railLineColor_.data());
     ImGui::SliderFloat("レール線透明度 (Rail Line Alpha)", &railLineColor_[3], 0.05f, 1.0f, "%.2f");
     ImGui::ColorEdit4("レール点の色 (Rail Point Color)", railPointColor_.data());
+    ImGui::ColorEdit4("開始点の色 (Start Point Color)", railStartPointColor_.data());
+    ImGui::ColorEdit4("終了点の色 (End Point Color)", railEndPointColor_.data());
     if (ImGui::SliderFloat("レール線の太さ (Rail Thickness)", &railLineThickness_, 0.01f, 0.20f, "%.3f")) {
         needsRebuild = true;
     }
@@ -292,6 +307,7 @@ bool LevelRailDebugVisualizer::DrawImGui() {
             ImGui::Text("name: %s", rail.name.empty() ? "(none)" : rail.name.c_str());
             ImGui::Text("rail_type: %s", rail.railType.empty() ? "(none)" : rail.railType.c_str());
             ImGui::Text("loop: %s", rail.loop ? "true" : "false");
+            ImGui::Text("reverse_direction: %s", rail.reverseDirection ? "true" : "false");
             ImGui::Text("speed: %.3f", rail.speed);
             ImGui::Text("points: %zu", rail.pointCount);
             ImGui::Text("segments: %zu", rail.segmentCount);

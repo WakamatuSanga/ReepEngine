@@ -78,12 +78,16 @@ bool RailShooterEventActionBridge::HandleAction(const FiredEventAction& action, 
     }
 
     std::string result;
-    const bool started = cameraRig_->StartRailByKey(lastTarget_, result);
+    const bool started = cameraRig_->StartRailByKey(
+        lastTarget_,
+        RailShooterCameraRig::CameraRailStartMode::FromRailStart,
+        result);
     lastResult_ = result;
     resultMessage = result;
     AddLog(
         std::string(started ? "StartCameraRail success: " : "StartCameraRail failed: ") +
         result +
+        " target=" + lastTarget_ +
         " sourceFlag=" + action.eventFlagId +
         " description=" + action.actionDescription);
     return started;

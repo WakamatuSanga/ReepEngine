@@ -8,6 +8,7 @@ struct LevelRail {
     std::string name;
     std::string railType;
     bool loop = false;
+    bool reverseDirection = false;
     bool visibleInEditor = true;
     float speed = 1.0f;
     std::vector<Vector3> points;

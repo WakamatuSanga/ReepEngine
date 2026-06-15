@@ -13,6 +13,13 @@ namespace {
     constexpr float kMinRailLength = 0.0001f;
     constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
 
+    template <size_t N>
+    void CopyTextToBuffer(std::array<char, N>& buffer, const std::string& text) {
+        buffer.fill('\0');
+        const size_t copyCount = (std::min)(text.size(), buffer.size() - 1);
+        std::copy_n(text.data(), copyCount, buffer.data());
+    }
+
     float ClampDistance(float distance, float totalLength) {
         return std::clamp(distance, 0.0f, (std::max)(0.0f, totalLength));
     }
@@ -58,6 +65,8 @@ namespace {
             return "Rail";
         case RailShooterCameraRig::Mode::RailFinishedStraight:
             return "RailFinishedStraight";
+        case RailShooterCameraRig::Mode::RailEndStopped:
+            return "RailEndStopped";
         case RailShooterCameraRig::Mode::Disabled:
         default:
             return "Manual / Disabled";
@@ -73,6 +82,28 @@ namespace {
         case RailShooterCameraRig::CameraRailStartMode::BlendFromCurrentCameraToRail:
         default:
             return "BlendFromCurrentCameraToRail";
+        }
+    }
+
+    const char* ToRailEndBehaviorLabel(RailShooterCameraRig::RailEndBehavior behavior) {
+        switch (behavior) {
+        case RailShooterCameraRig::RailEndBehavior::ContinueStraight:
+            return "ContinueStraight";
+        case RailShooterCameraRig::RailEndBehavior::RestoreCamera:
+            return "RestoreCamera";
+        case RailShooterCameraRig::RailEndBehavior::StopAtEnd:
+        default:
+            return "StopAtEnd";
+        }
+    }
+
+    const char* ToClosestFallbackLabel(RailShooterCameraRig::ClosestPointFallback fallback) {
+        switch (fallback) {
+        case RailShooterCameraRig::ClosestPointFallback::DoNotStart:
+            return "DoNotStart";
+        case RailShooterCameraRig::ClosestPointFallback::FromRailStart:
+        default:
+            return "FromRailStart";
         }
     }
 }
@@ -112,7 +143,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::TextWrapped("Initial Camera Result: %s", lastInitialCameraResult_.c_str());
 
     int modeIndex = static_cast<int>(mode_);
-    const char* modeNames[] = { "Manual / Disabled", "Straight", "Rail", "RailFinishedStraight" };
+    const char* modeNames[] = { "Manual / Disabled", "Straight", "Rail", "RailFinishedStraight", "RailEndStopped" };
     if (ImGui::Combo("Mode", &modeIndex, modeNames, IM_ARRAYSIZE(modeNames))) {
         mode_ = static_cast<Mode>(modeIndex);
         if (mode_ == Mode::Straight) {
@@ -147,6 +178,11 @@ void RailShooterCameraRig::DrawImGui() {
 
     ImGui::DragFloat("Straight Speed", &straightSpeed_, 0.05f, -100.0f, 100.0f, "%.2f");
     ImGui::DragFloat("Rail Speed", &railSpeed_, 0.05f, -100.0f, 100.0f, "%.2f");
+    int endBehaviorIndex = static_cast<int>(railEndBehavior_);
+    const char* railEndBehaviorNames[] = { "StopAtEnd", "ContinueStraight", "RestoreCamera" };
+    if (ImGui::Combo("Rail End Behavior", &endBehaviorIndex, railEndBehaviorNames, IM_ARRAYSIZE(railEndBehaviorNames))) {
+        railEndBehavior_ = static_cast<RailEndBehavior>(endBehaviorIndex);
+    }
     int startModeIndex = static_cast<int>(railStartMode_);
     const char* startModeNames[] = { "FromRailStart", "ClosestPointFromCurrentCamera", "BlendFromCurrentCameraToRail" };
     if (ImGui::Combo("Camera Rail Start Mode", &startModeIndex, startModeNames, IM_ARRAYSIZE(startModeNames))) {
@@ -159,6 +195,27 @@ void RailShooterCameraRig::DrawImGui() {
             : CameraRailStartMode::FromRailStart;
     }
     ImGui::DragFloat("Blend Time", &railBlendTime_, 0.01f, 0.05f, 5.0f, "%.2f");
+    ImGui::DragFloat("Max Attach Distance", &maxAttachDistance_, 0.1f, 0.0f, 10000.0f, "%.2f");
+    ImGui::DragFloat("Near End Warning Ratio", &nearEndWarningRatio_, 0.01f, 0.5f, 1.0f, "%.2f");
+    nearEndWarningRatio_ = std::clamp(nearEndWarningRatio_, 0.5f, 1.0f);
+    int fallbackIndex = static_cast<int>(closestPointFallback_);
+    const char* fallbackNames[] = { "DoNotStart", "FromRailStart" };
+    if (ImGui::Combo("Closest Failed Fallback", &fallbackIndex, fallbackNames, IM_ARRAYSIZE(fallbackNames))) {
+        closestPointFallback_ = static_cast<ClosestPointFallback>(fallbackIndex);
+    }
+    ImGui::SeparatorText("StartCameraRail Key Test");
+    ImGui::InputText("Manual Start Rail Key", manualStartRailKeyBuffer_.data(), manualStartRailKeyBuffer_.size());
+    if (ImGui::Button("Use Selected Rail ID")) {
+        CopyTextToBuffer(manualStartRailKeyBuffer_, selectedRailId_);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Use Selected Rail Name")) {
+        CopyTextToBuffer(manualStartRailKeyBuffer_, selectedRailName_);
+    }
+    if (ImGui::Button("StartRailByKey Test")) {
+        std::string result;
+        StartRailByKey(std::string(manualStartRailKeyBuffer_.data()), result);
+    }
     ImGui::Checkbox("Camera Forward Smoothingを使う (Enable Camera Forward Smoothing)", &enableCameraForwardSmoothing_);
     ImGui::DragFloat("Forward Smooth Strength", &forwardSmoothStrength_, 0.1f, 0.0f, 60.0f, "%.2f");
     ImGui::Checkbox("Auto Play", &autoPlay_);
@@ -220,17 +277,60 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Text("Active: %s", IsCameraRigActive() ? "true" : "false");
     ImGui::Text("Has Saved Camera Pose: %s", hasSavedCameraPose_ ? "true" : "false");
     ImGui::Text("Mode: %s", ToModeLabel(mode_));
+    ImGui::Text("Current Mode: %s", ToModeLabel(mode_));
     ImGui::Text("Camera Rail Start Mode: %s", ToStartModeLabel(railStartMode_));
+    ImGui::Text("Rail End Behavior: %s", ToRailEndBehaviorLabel(railEndBehavior_));
+    ImGui::Text("Closest Failed Fallback: %s", ToClosestFallbackLabel(closestPointFallback_));
+    ImGui::Text("Requested Start Mode: %s", lastRequestedStartMode_.c_str());
+    ImGui::Text("Actual Start Mode: %s", lastActualStartMode_.c_str());
+    ImGui::Text("Start Source: %s", lastStartSource_.c_str());
+    ImGui::TextWrapped("Last StartCameraRail Target: %s", lastStartCameraRailTarget_.c_str());
+    ImGui::TextWrapped("Last StartCameraRail Result: %s", lastStartResult_.c_str());
+    ImGui::Text("Last Resolved Rail ID: %s", lastResolvedRailId_.c_str());
+    ImGui::Text("Last Resolved Rail Name: %s", lastResolvedRailName_.c_str());
+    ImGui::Text("Last Start Mode: %s", lastStartMode_.c_str());
     ImGui::Text("Last Start Distance: %.3f", lastStartDistance_);
-    ImGui::Text("Last Closest Rail Distance: %.3f", lastClosestRailDistance_);
+    ImGui::Text("Last Start Distance Ratio: %.3f", lastStartDistanceRatio_);
+    ImGui::Text("Previous Rail Distance: %.3f", lastPreviousRailDistance_);
+    ImGui::Text("Last Closest Distance: %.3f", lastClosestRailPathDistance_);
+    ImGui::Text("Last Camera To Rail Distance: %.3f", lastCameraToRailDistance_);
+    ImGui::Text("Max Attach Distance: %.3f", maxAttachDistance_);
+    ImGui::Text("Started Near End: %s", lastStartedNearEnd_ ? "true" : "false");
+    ImGui::Text("Fallback Used: %s", lastFallbackUsed_ ? "true" : "false");
+    ImGui::Text("Rail Direction Reversed: %s", lastRailDirectionReversed_ ? "true" : "false");
+    ImGui::Text("Camera To Rail Distance Too Large: %s", lastClosestTooFar_ ? "true" : "false");
+    ImGui::TextWrapped("Last Start Warning: %s", lastStartWarning_.c_str());
+    ImGui::Text("Last Closest Valid: %s", lastClosestValid_ ? "true" : "false");
+    ImGui::Text("Last Closest Sampled Point Count: %zu", lastClosestSampledPointCount_);
+    ImGui::Text("Last Closest Position: %.3f, %.3f, %.3f",
+        lastClosestWorldPosition_.x,
+        lastClosestWorldPosition_.y,
+        lastClosestWorldPosition_.z);
+    ImGui::Text("Blend Valid: %s", lastBlendValid_ ? "true" : "false");
+    ImGui::Text("Blend Progress / Time: %.3f / %.3f", lastBlendProgress_, lastBlendTime_);
+    ImGui::Text("Blend Target Distance: %.3f", lastBlendTargetDistance_);
+    ImGui::Text("Blend Start Camera Position: %.3f, %.3f, %.3f",
+        lastBlendStartCameraPosition_.x,
+        lastBlendStartCameraPosition_.y,
+        lastBlendStartCameraPosition_.z);
+    ImGui::Text("Blend Target Rail Position: %.3f, %.3f, %.3f",
+        lastBlendTargetRailPosition_.x,
+        lastBlendTargetRailPosition_.y,
+        lastBlendTargetRailPosition_.z);
+    ImGui::Text("Start Evaluation Valid: %s", lastStartEvaluationValid_ ? "true" : "false");
     ImGui::TextWrapped("Last Start Result: %s", lastStartResult_.c_str());
     ImGui::Text("Selected Rail ID: %s", selectedRailId_.empty() ? "(none)" : selectedRailId_.c_str());
+    ImGui::Text("Selected Rail Name: %s", selectedRailName_.empty() ? "(none)" : selectedRailName_.c_str());
     ImGui::Text("Selected Rail Type: %s", selectedRailType_.empty() ? "(none)" : selectedRailType_.c_str());
     ImGui::Text("Rail Point Count: %zu", selectedRailPointCount_);
     ImGui::Text("Sampled Point Count: %zu", selectedRailSampledPointCount_);
     ImGui::Text("Rail Total Length: %.3f", selectedRailTotalLength_);
     ImGui::Text("Rail Loop: %s", selectedRailLoop_ ? "true" : "false");
+    ImGui::Text("Rail Reverse Direction: %s", selectedRailReverseDirection_ ? "true" : "false");
     ImGui::Text("Current Segment Index: %zu", currentSegmentIndex_);
+    ImGui::Text("Rail Distance: %.3f", railDistance_);
+    ImGui::Text("Rail Total Length: %.3f", selectedRailTotalLength_);
+    ImGui::Text("Rail End Reached: %s", railEndReached_ ? "true" : "false");
     ImGui::Text("Evaluation Valid: %s", currentEvaluationValid_ ? "true" : "false");
     ImGui::Text("Current Position: %.3f, %.3f, %.3f", currentPosition_.x, currentPosition_.y, currentPosition_.z);
     ImGui::Text("Current Forward: %.3f, %.3f, %.3f", currentForward_.x, currentForward_.y, currentForward_.z);
