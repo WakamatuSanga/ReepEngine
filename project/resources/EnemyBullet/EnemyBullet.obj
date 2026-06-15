@@ -1,5 +1,5 @@
 # Meshy AI
-mtllib model.mtl
+mtllib EnemyBullet.mtl
 o model
 v 0.086492 -0.246927 -0.268606
 v 0.089422 -0.246683 -0.269705

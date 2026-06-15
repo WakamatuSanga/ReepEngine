@@ -137,14 +137,23 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object_->Initialize(object3dCommon_);
     object_->SetCamera(camera_);
     object_->SetEnvironmentMapEnabled(false);
+    hitRadiusObject_ = std::make_unique<Object3d>();
+    hitRadiusObject_->Initialize(object3dCommon_);
+    hitRadiusObject_->SetCamera(camera_);
+    hitRadiusObject_->SetEnvironmentMapEnabled(false);
+    hitRadiusModel_ = ModelManager::GetInstance()->CreateSphere("PlayerHitRadiusSphere", 16);
+    hitRadiusObject_->SetModel(hitRadiusModel_);
     LoadModel();
     ResetPosition();
     UpdateWorldPosition();
     UpdateObjectTransform();
     object_->Update();
+    hitRadiusObject_->Update();
 }
 
 void Player::Finalize() {
+    hitRadiusObject_.reset();
+    hitRadiusModel_ = nullptr;
     object_.reset();
     model_ = nullptr;
 }
@@ -214,6 +223,9 @@ void Player::Update(float deltaTime) {
     UpdateWorldPosition();
     UpdateObjectTransform();
     object_->Update();
+    if (hitRadiusObject_) {
+        hitRadiusObject_->Update();
+    }
 }
 
 void Player::Draw() {
@@ -223,6 +235,9 @@ void Player::Draw() {
 
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
     object_->Draw();
+    if (showHitRadius_ && hitRadiusObject_ && hitRadiusModel_) {
+        hitRadiusObject_->Draw();
+    }
 }
 
 void Player::DrawImGui() {
@@ -337,6 +352,20 @@ void Player::DrawImGui() {
     ImGui::DragFloat("Move Limit Y", &moveLimitY_, 0.05f, 0.0f, 20.0f, "%.2f");
     ImGui::DragFloat("Distance From Camera", &distanceFromCamera_, 0.05f, 0.1f, 50.0f, "%.2f");
     ImGui::DragFloat("Event Trigger Radius", &eventTriggerRadius_, 0.01f, 0.0f, 10.0f, "%.2f");
+    ImGui::SeparatorText("当たり判定 (Collision Radius)");
+    ImGui::Checkbox("Show Player Hit Radius", &showHitRadius_);
+    ImGui::DragFloat("Player Hit Radius", &hitRadius_, 0.01f, 0.0f, 10.0f, "%.2f");
+    if (ImGui::Button("Hit Radius Small")) {
+        hitRadius_ = 0.20f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hit Radius Normal")) {
+        hitRadius_ = 0.30f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Hit Radius Large")) {
+        hitRadius_ = 0.45f;
+    }
     ImGui::DragFloat2("Local Offset", &localOffsetX_, 0.03f, -50.0f, 50.0f, "%.2f");
     localOffsetX_ = std::clamp(localOffsetX_, -moveLimitX_, moveLimitX_);
     localOffsetY_ = std::clamp(localOffsetY_, -moveLimitY_, moveLimitY_);
@@ -468,4 +497,9 @@ void Player::UpdateObjectTransform() {
     object_->SetTranslate(worldPosition_);
     object_->SetRotate(visualFinalRotation_);
     object_->SetScale(modelScale_);
+    if (hitRadiusObject_) {
+        hitRadiusObject_->SetTranslate(worldPosition_);
+        hitRadiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
+        hitRadiusObject_->SetScale({ hitRadius_, hitRadius_, hitRadius_ });
+    }
 }

@@ -2,6 +2,7 @@
 #include "SceneManager.h"
 #include "GameScene.h" 
 #include "MyGame.h"    
+#include "Engine/Input/Input.h"
 
 #ifdef _DEBUG
 #include "externals/imgui/imgui.h"
@@ -15,12 +16,19 @@ void TitleScene::Update() {
 #ifdef _DEBUG
     ImGui::Begin("Title Scene");
     ImGui::Text("This is Title Scene.");
-    ImGui::Text("Press [SPACE] to Start Game!");
+    ImGui::Text("Left click to Start Game!");
     ImGui::End();
 #endif
 
-    // unique_ptrを使ってシーン切り替え
-    if (MyGame::GetInstance()->GetInput()->PushKey(DIK_SPACE)) {
+    Input* input = MyGame::GetInstance()->GetInput();
+#ifdef _DEBUG
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool isImGuiCapturingMouse = io.WantCaptureMouse || ImGui::IsAnyItemActive();
+#else
+    const bool isImGuiCapturingMouse = false;
+#endif
+
+    if (input && input->MouseTrigger(Input::MouseLeft) && !isImGuiCapturingMouse) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
     }
 }
