@@ -284,6 +284,11 @@ namespace {
                     if (!ParseBoolValue(rail.loop)) {
                         return Fail("Invalid rail loop.");
                     }
+                } else if (key == "reverseDirection" || key == "reverse_direction" ||
+                    key == "rail_reverse_direction" || key == "railReverseDirection") {
+                    if (!ParseBoolValue(rail.reverseDirection)) {
+                        return Fail("Invalid rail reverseDirection.");
+                    }
                 } else if (key == "visible" || key == "visibleInEditor" ||
                     key == "visible_in_editor" || key == "rail_visible_in_editor") {
                     if (!ParseBoolValue(rail.visibleInEditor)) {

@@ -34,6 +34,7 @@ private:
     LevelSceneRuntime* levelSceneRuntime_ = nullptr;
     std::vector<std::string> dispatchLog_;
     std::string lastActionType_ = "(none)";
+    std::string lastTarget_ = "(none)";
     std::string lastResult_ = "(none)";
     bool enabled_ = true;
     size_t consumedActionCount_ = 0;

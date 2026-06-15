@@ -383,6 +383,8 @@ def _build_rail_json(object):
         "name": _custom_string(object, "rail_name", object.name),
         "rail_type": _custom_string(object, "rail_type", "Curve"),
         "loop": _to_bool(object["rail_loop"], _is_curve_cyclic(object)) if "rail_loop" in object else _is_curve_cyclic(object),
+        "rail_reverse_direction": _to_bool(object["rail_reverse_direction"], False)
+        if "rail_reverse_direction" in object else False,
         "speed": _custom_float(object, "rail_speed", 1.0),
         "visibleInEditor": _to_bool(object["rail_visible_in_editor"], True)
         if "rail_visible_in_editor" in object else True,

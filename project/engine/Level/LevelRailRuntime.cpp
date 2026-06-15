@@ -110,6 +110,7 @@ struct LevelRailRuntimeRail {
     std::string name;
     std::string railType;
     bool loop = false;
+    bool reverseDirection = false;
     bool visibleInEditor = true;
     float speed = 1.0f;
     float totalLength = 0.0f;
@@ -198,11 +199,15 @@ void LevelRailRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConvers
         rail->name = sourceRail.name;
         rail->railType = sourceRail.railType;
         rail->loop = sourceRail.loop;
+        rail->reverseDirection = sourceRail.reverseDirection;
         rail->visibleInEditor = sourceRail.visibleInEditor;
         rail->speed = sourceRail.speed;
         rail->points.reserve(sourceRail.points.size());
         for (const Vector3& point : sourceRail.points) {
             rail->points.push_back(ConvertRailPoint(point, axisConversionEnabled));
+        }
+        if (rail->reverseDirection) {
+            std::reverse(rail->points.begin(), rail->points.end());
         }
 
         const RailInterpolationMode activeMode = useSmoothedRailEvaluation_
@@ -350,6 +355,7 @@ bool LevelRailRuntime::DrawImGui() {
     ImGui::Text("rail_id: %s", rail->railId.empty() ? "(none)" : rail->railId.c_str());
     ImGui::Text("name: %s", rail->name.empty() ? "(none)" : rail->name.c_str());
     ImGui::Text("rail_loop: %s", rail->loop ? "true" : "false");
+    ImGui::Text("rail_reverse_direction: %s", rail->reverseDirection ? "true" : "false");
     ImGui::Text("rail_speed: %.3f", rail->speed);
 
     const char* moveModeNames[] = { "T", "Distance" };
@@ -451,6 +457,7 @@ bool LevelRailRuntime::GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outIn
     outInfo.name = rail.name;
     outInfo.railType = rail.railType;
     outInfo.loop = rail.loop;
+    outInfo.reverseDirection = rail.reverseDirection;
     outInfo.speed = rail.speed;
     outInfo.totalLength = rail.totalLength;
     outInfo.pointCount = rail.points.size();

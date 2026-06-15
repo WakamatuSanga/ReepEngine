@@ -63,6 +63,7 @@ void EventActionDispatcher::Update() {
     consumedActionCount_ += actions.size();
     for (const FiredEventAction& action : actions) {
         lastActionType_ = action.actionType.empty() ? "(none)" : action.actionType;
+        lastTarget_ = PickTargetLabel(action);
         std::string result;
         bool handled = false;
 
@@ -81,7 +82,7 @@ void EventActionDispatcher::Update() {
         AddLog(
             std::string(handled ? "Dispatched " : "Dispatch failed ") +
             lastActionType_ +
-            " target=" + PickTargetLabel(action) +
+            " target=" + lastTarget_ +
             " result=" + result);
     }
 }
@@ -100,6 +101,7 @@ void EventActionDispatcher::DrawImGui() {
     ImGui::Text("Dispatched Action Count: %zu", dispatchedActionCount_);
     ImGui::Text("Missing Target Count: %zu", missingTargetCount_);
     ImGui::TextWrapped("Last Action Type: %s", lastActionType_.c_str());
+    ImGui::TextWrapped("Last Target: %s", lastTarget_.c_str());
     ImGui::TextWrapped("Last Result: %s", lastResult_.c_str());
     if (ImGui::Button("ログをクリア (Clear Log)##EventActionDispatcher")) {
         dispatchLog_.clear();

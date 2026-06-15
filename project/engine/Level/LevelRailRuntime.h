@@ -30,6 +30,7 @@ struct LevelRailRuntimeRailInfo {
     std::string name;
     std::string railType;
     bool loop = false;
+    bool reverseDirection = false;
     float speed = 1.0f;
     float totalLength = 0.0f;
     size_t pointCount = 0;

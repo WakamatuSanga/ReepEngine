@@ -265,7 +265,7 @@ void Player::DrawImGui() {
     ImGui::TextDisabled("CameraRig確認用の見た目プリセットです。PlayerはCameraFrontのままです。");
     ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 3.0");
     if (ImGui::Button("近め (Near)")) {
-        distanceFromCamera_ = 1.5f;
+        distanceFromCamera_ = 0.5f;
     }
     ImGui::SameLine();
     if (ImGui::Button("標準 (Default)")) {
