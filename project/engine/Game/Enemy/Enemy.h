@@ -25,6 +25,7 @@ public:
     void SetRotation(const Vector3& rotation);
     void SetScale(const Vector3& scale);
     void SetVelocity(const Vector3& velocity);
+    void SetHitRadius(float hitRadius);
     void SetModelPath(const std::string& modelPath);
 
     void Damage(int amount);
@@ -36,6 +37,7 @@ public:
     const std::string& GetEnemyId() const { return enemyId_; }
     const std::string& GetEnemyType() const { return enemyType_; }
     const Vector3& GetPosition() const { return position_; }
+    float GetHitRadius() const { return hitRadius_; }
     int GetHp() const { return hp_; }
 
 private:
@@ -60,6 +62,7 @@ private:
     Vector3 visualModelRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 scale_{ 0.8f, 0.8f, 0.8f };
     Vector3 velocity_{ 0.0f, 0.0f, 0.0f };
+    float hitRadius_ = 0.6f;
     int hp_ = 10;
     bool isActive_ = true;
     bool isDead_ = false;

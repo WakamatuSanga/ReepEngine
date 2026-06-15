@@ -132,6 +132,7 @@ void Enemy::DrawImGui() {
         visualModelRotation_.z);
     ImGui::DragFloat3("Scale", &scale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
     ImGui::DragFloat3("Velocity", &velocity_.x, 0.01f, -100.0f, 100.0f, "%.2f");
+    ImGui::DragFloat("Enemy Hit Radius", &hitRadius_, 0.01f, 0.001f, 20.0f, "%.3f");
     ImGui::DragInt("HP", &hp_, 1.0f, 0, 999);
     if (ImGui::Button("Reload Model")) {
         LoadModel();
@@ -176,6 +177,10 @@ void Enemy::SetScale(const Vector3& scale) {
 
 void Enemy::SetVelocity(const Vector3& velocity) {
     velocity_ = velocity;
+}
+
+void Enemy::SetHitRadius(float hitRadius) {
+    hitRadius_ = (std::max)(0.001f, hitRadius);
 }
 
 void Enemy::SetModelPath(const std::string& modelPath) {

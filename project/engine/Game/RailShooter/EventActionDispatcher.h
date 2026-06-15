@@ -5,6 +5,7 @@
 
 class LevelEventRuntime;
 class LevelSceneRuntime;
+class EnemySpawnActionBridge;
 class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
 struct FiredEventAction;
@@ -17,6 +18,7 @@ public:
     void Initialize(
         LevelEventRuntime* eventRuntime,
         RailShooterEventActionBridge* cameraRailBridge,
+        EnemySpawnActionBridge* enemySpawnBridge,
         PrimitiveEffectSystem* primitiveEffectSystem,
         LevelSceneRuntime* levelSceneRuntime);
     void Finalize();
@@ -30,6 +32,7 @@ private:
 
     LevelEventRuntime* eventRuntime_ = nullptr;
     RailShooterEventActionBridge* cameraRailBridge_ = nullptr;
+    EnemySpawnActionBridge* enemySpawnBridge_ = nullptr;
     PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
     LevelSceneRuntime* levelSceneRuntime_ = nullptr;
     std::vector<std::string> dispatchLog_;

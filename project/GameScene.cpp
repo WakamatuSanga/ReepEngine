@@ -30,8 +30,11 @@
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
+#include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Core/SrvManager.h"
@@ -482,6 +485,8 @@ void GameScene::Initialize() {
     editorCameraController_->Initialize(camera_.get());
     player_ = std::make_unique<Player>();
     player_->Initialize(object3dCommon, camera_.get());
+    playerBulletManager_ = std::make_unique<PlayerBulletManager>();
+    playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
@@ -494,6 +499,8 @@ void GameScene::Initialize() {
     levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
     enemyAttackController_ = std::make_unique<EnemyAttackController>();
     enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get());
+    playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
+    playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), primitiveEffectSystem_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
@@ -507,10 +514,13 @@ void GameScene::Initialize() {
     railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
     railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
+    enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
+    enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
     eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
     eventActionDispatcher_->Initialize(
         levelSceneRuntime_->GetEventRuntime(),
         railShooterEventActionBridge_.get(),
+        enemySpawnActionBridge_.get(),
         primitiveEffectSystem_.get(),
         levelSceneRuntime_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
@@ -777,6 +787,10 @@ void GameScene::Finalize() {
         eventActionDispatcher_->Finalize();
     }
     eventActionDispatcher_.reset();
+    if (enemySpawnActionBridge_) {
+        enemySpawnActionBridge_->Finalize();
+    }
+    enemySpawnActionBridge_.reset();
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->Finalize();
     }
@@ -802,6 +816,10 @@ void GameScene::Finalize() {
         playerEnemyBulletCollision_->Finalize();
     }
     playerEnemyBulletCollision_.reset();
+    if (playerBulletEnemyCollision_) {
+        playerBulletEnemyCollision_->Finalize();
+    }
+    playerBulletEnemyCollision_.reset();
     if (enemyAttackController_) {
         enemyAttackController_->Finalize();
     }
@@ -823,6 +841,10 @@ void GameScene::Finalize() {
         enemyManager_->Finalize();
     }
     enemyManager_.reset();
+    if (playerBulletManager_) {
+        playerBulletManager_->Finalize();
+    }
+    playerBulletManager_.reset();
     if (player_) {
         player_->Finalize();
     }
@@ -873,8 +895,16 @@ void GameScene::Update() {
         !isGizmoInteracting &&
         !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
         !isDeathSequenceActive;
+    const bool canUsePlayerShotInputInGameView =
+        isGameViewHovered_ &&
+        !isGizmoInteracting &&
+        !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
+        !isDeathSequenceActive;
     if (player_) {
         player_->SetGameViewInputActive(canUsePlayerInputInGameView);
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->SetGameViewInputActive(canUsePlayerShotInputInGameView);
     }
 #else
     if (editorCameraController_) {
@@ -889,6 +919,11 @@ void GameScene::Update() {
     }
     if (player_) {
         player_->SetGameViewInputActive(
+            !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
+            !isDeathSequenceActive);
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->SetGameViewInputActive(
             !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
             !isDeathSequenceActive);
     }
@@ -918,8 +953,14 @@ void GameScene::Update() {
     if (player_) {
         player_->Update(1.0f / 60.0f);
     }
+    if (playerBulletManager_) {
+        playerBulletManager_->Update(1.0f / 60.0f);
+    }
     if (enemyManager_) {
         enemyManager_->Update(1.0f / 60.0f);
+    }
+    if (playerBulletEnemyCollision_) {
+        playerBulletEnemyCollision_->Update();
     }
     if (enemyAttackController_) {
         enemyAttackController_->Update(1.0f / 60.0f);
@@ -1093,6 +1134,9 @@ void GameScene::Update() {
     if (player_) {
         player_->DrawImGui();
     }
+    if (playerBulletManager_) {
+        playerBulletManager_->DrawImGui();
+    }
     if (enemyManager_) {
         enemyManager_->DrawImGui();
     }
@@ -1104,6 +1148,9 @@ void GameScene::Update() {
     }
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->DrawImGui();
+    }
+    if (playerBulletEnemyCollision_) {
+        playerBulletEnemyCollision_->DrawImGui();
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->DrawImGui();
@@ -1125,6 +1172,9 @@ void GameScene::Update() {
     }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
+    }
+    if (enemySpawnActionBridge_) {
+        enemySpawnActionBridge_->DrawImGui();
     }
     if (eventActionDispatcher_) {
         eventActionDispatcher_->DrawImGui();
@@ -1708,6 +1758,9 @@ void GameScene::Draw() {
     }
     if (player_) {
         player_->Draw();
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->Draw();
     }
     if (enemyManager_) {
         enemyManager_->Draw();

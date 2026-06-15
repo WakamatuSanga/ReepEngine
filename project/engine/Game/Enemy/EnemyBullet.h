@@ -25,6 +25,8 @@ public:
     void SetRotation(const Vector3& rotation);
     void SetScale(const Vector3& scale);
     void SetRadius(float radius);
+    void SetLifeTime(float lifeTime);
+    void SetModelPath(const std::string& modelPath);
     void Kill();
 
     bool IsActive() const { return isActive_; }

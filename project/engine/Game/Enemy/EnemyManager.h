@@ -21,10 +21,16 @@ public:
     void DrawImGui();
 
     Enemy* SpawnEnemy(const std::string& enemyType = "Default", Vector3 position = { 0.0f, 0.0f, 10.0f });
+    Enemy* SpawnEnemyAt(const Vector3& position);
+    Enemy* SpawnEnemyAt(const Vector3& position, const std::string& enemyType);
     void DeleteAllEnemies();
     size_t GetEnemyCount() const;
     size_t GetActiveCount() const;
     std::vector<Vector3> GetActiveEnemyPositions() const;
+    std::vector<Enemy*> GetActiveEnemies() const;
+    void SetDefaultHitRadius(float hitRadius);
+    void ApplyDefaultHitRadiusToAllEnemies();
+    float GetDefaultHitRadius() const { return defaultHitRadius_; }
 
 private:
     std::string MakeEnemyId();
@@ -39,4 +45,5 @@ private:
     Vector3 debugSpawnPosition_{ 0.0f, 0.0f, 10.0f };
     Vector3 debugSpawnRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 debugSpawnScale_{ 0.8f, 0.8f, 0.8f };
+    float defaultHitRadius_ = 0.6f;
 };

@@ -233,6 +233,16 @@ void EnemyBullet::SetRadius(float radius) {
     radius_ = (std::max)(0.001f, radius);
 }
 
+void EnemyBullet::SetLifeTime(float lifeTime) {
+    lifeTime_ = (std::max)(0.1f, lifeTime);
+}
+
+void EnemyBullet::SetModelPath(const std::string& modelPath) {
+    modelPath_ = modelPath;
+    LoadModel();
+    UpdateObjectTransform();
+}
+
 void EnemyBullet::Kill() {
     isDead_ = true;
     isActive_ = false;

@@ -55,6 +55,12 @@ void EnemyManager::DrawImGui() {
     ImGui::DragFloat3("Spawn Position", &debugSpawnPosition_.x, 0.05f, -100.0f, 100.0f, "%.2f");
     ImGui::DragFloat3("Spawn Rotation", &debugSpawnRotation_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
     ImGui::DragFloat3("Spawn Scale", &debugSpawnScale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
+    if (ImGui::DragFloat("Default Enemy Hit Radius", &defaultHitRadius_, 0.01f, 0.001f, 20.0f, "%.3f")) {
+        defaultHitRadius_ = (std::max)(0.001f, defaultHitRadius_);
+    }
+    if (ImGui::Button("Apply Hit Radius To All Enemies")) {
+        ApplyDefaultHitRadiusToAllEnemies();
+    }
 
     if (ImGui::Button("Spawn Test Enemy")) {
         Enemy* enemy = SpawnEnemy("Debug", debugSpawnPosition_);
@@ -111,9 +117,18 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position) 
     enemy->Initialize(object3dCommon_, camera_, MakeEnemyId());
     enemy->SetEnemyType(enemyType);
     enemy->SetPosition(position);
+    enemy->SetHitRadius(defaultHitRadius_);
     Enemy* enemyPtr = enemy.get();
     enemies_.push_back(std::move(enemy));
     return enemyPtr;
+}
+
+Enemy* EnemyManager::SpawnEnemyAt(const Vector3& position) {
+    return SpawnEnemyAt(position, "Default");
+}
+
+Enemy* EnemyManager::SpawnEnemyAt(const Vector3& position, const std::string& enemyType) {
+    return SpawnEnemy(enemyType, position);
 }
 
 void EnemyManager::DeleteAllEnemies() {
@@ -149,6 +164,29 @@ std::vector<Vector3> EnemyManager::GetActiveEnemyPositions() const {
         }
     }
     return positions;
+}
+
+std::vector<Enemy*> EnemyManager::GetActiveEnemies() const {
+    std::vector<Enemy*> activeEnemies;
+    activeEnemies.reserve(enemies_.size());
+    for (const std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (enemy && enemy->IsActive() && !enemy->IsDead()) {
+            activeEnemies.push_back(enemy.get());
+        }
+    }
+    return activeEnemies;
+}
+
+void EnemyManager::SetDefaultHitRadius(float hitRadius) {
+    defaultHitRadius_ = (std::max)(0.001f, hitRadius);
+}
+
+void EnemyManager::ApplyDefaultHitRadiusToAllEnemies() {
+    for (std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (enemy) {
+            enemy->SetHitRadius(defaultHitRadius_);
+        }
+    }
 }
 
 std::string EnemyManager::MakeEnemyId() {
