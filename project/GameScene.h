@@ -11,14 +11,21 @@
 
 class GltfSkinnedModel;
 class BlenderLiveSync;
+class CameraShakeController;
 class DirectXCommon;
 class EditorCameraController;
+class EnemyAttackController;
+class EnemyBulletManager;
+class EnemyManager;
 class EventActionDispatcher;
+class GameOverFlowController;
 class GpuParticleSystem;
 class LevelSceneRuntime;
 class Model;
 class Object3d;
 class Player;
+class PlayerDeathSequenceController;
+class PlayerEnemyBulletCollision;
 class PlayerRailController;
 class PlayerEventTriggerBridge;
 class PrimitiveEffectSystem;
@@ -55,6 +62,13 @@ private:
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Player> player_;
+    std::unique_ptr<EnemyManager> enemyManager_;
+    std::unique_ptr<EnemyBulletManager> enemyBulletManager_;
+    std::unique_ptr<EnemyAttackController> enemyAttackController_;
+    std::unique_ptr<PlayerEnemyBulletCollision> playerEnemyBulletCollision_;
+    std::unique_ptr<CameraShakeController> cameraShakeController_;
+    std::unique_ptr<PlayerDeathSequenceController> playerDeathSequenceController_;
+    std::unique_ptr<GameOverFlowController> gameOverFlowController_;
     std::unique_ptr<PlayerRailController> playerRailController_;
     std::unique_ptr<PlayerEventTriggerBridge> playerEventTriggerBridge_;
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;

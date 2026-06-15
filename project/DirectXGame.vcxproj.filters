@@ -64,11 +64,29 @@
     <Filter Include="ヘッダー ファイル\engine\Game\Player">
       <UniqueIdentifier>{5be9c3ec-8a5f-4e4c-a8e1-2b9c71483651}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Enemy">
+      <UniqueIdentifier>{1cb1f5c9-a3d4-4b7a-874d-bdf55f94f88a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Enemy">
+      <UniqueIdentifier>{0ca6023a-53d5-49ed-b8bb-7c31e7760bc4}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\Game\Camera">
       <UniqueIdentifier>{398aa9d9-f541-4edc-8c24-fef20b555ee1}</UniqueIdentifier>
     </Filter>
     <Filter Include="ヘッダー ファイル\engine\Game\Camera">
       <UniqueIdentifier>{ca9e2159-7f27-43a2-a85c-d92c4517e9f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Collision">
+      <UniqueIdentifier>{926793ac-cf26-4d30-801f-196191710253}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Collision">
+      <UniqueIdentifier>{2f322e9a-48e3-4d4b-8540-dce4b6bb7410}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\engine\Game\GameState">
+      <UniqueIdentifier>{319fb8a2-57b6-4848-badc-e7efaa8ec343}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\GameState">
+      <UniqueIdentifier>{25b59145-1145-43ee-80f5-fe78596fa58a}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\engine\Game\RailShooter">
       <UniqueIdentifier>{1a86cd5f-1793-4b47-b958-8a7ce10bb69b}</UniqueIdentifier>
@@ -207,6 +225,9 @@
     <ClCompile Include="engine\Editor\Camera\EditorCameraController.cpp">
       <Filter>ソース ファイル\engine\Editor\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
@@ -218,6 +239,30 @@
     </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp">
+      <Filter>ソース ファイル\engine\Game\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyBulletManager.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyManager.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp">
+      <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp">
+      <Filter>ソース ファイル\engine\Game\GameState</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
@@ -289,6 +334,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameOverScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Particle\GpuParticleCompute.cpp">
@@ -467,6 +515,33 @@
     <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h">
       <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Camera\CameraShakeController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h">
+      <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\Enemy.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyBullet.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyBulletManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\GameState\GameOverFlowController.h">
+      <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h">
+      <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
@@ -543,6 +618,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="GameScene.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="GameOverScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Particle\GpuParticleCompute.h">

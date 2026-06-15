@@ -42,6 +42,7 @@ public:
     const Vector3& GetBasePosition() const { return basePosition_; }
     const Vector3& GetWorldPosition() const { return worldPosition_; }
     float GetEventTriggerRadius() const { return eventTriggerRadius_; }
+    float GetHitRadius() const { return hitRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
     float GetLocalOffsetY() const { return localOffsetY_; }
 
@@ -55,6 +56,8 @@ private:
     Camera* camera_ = nullptr;
     std::unique_ptr<Object3d> object_;
     Model* model_ = nullptr;
+    std::unique_ptr<Object3d> hitRadiusObject_;
+    Model* hitRadiusModel_ = nullptr;
     std::string modelPath_ = "resources/Player/player.obj";
     std::string resolvedModelPath_;
     std::string texturePath_;
@@ -77,8 +80,10 @@ private:
     float moveSpeed_ = 3.0f;
     float distanceFromCamera_ = 4.0f;
     float eventTriggerRadius_ = 0.25f;
+    float hitRadius_ = 0.30f;
     bool enablePlayer_ = true;
     bool showPlayer_ = true;
+    bool showHitRadius_ = false;
     bool useFallbackModel_ = false;
     bool gameViewInputActive_ = false;
     bool hasExternalBase_ = false;

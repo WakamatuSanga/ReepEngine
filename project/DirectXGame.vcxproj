@@ -150,10 +150,19 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLauncher.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLiveSync.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp" />
+    <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp" />
+    <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
+    <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyBulletManager.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyManager.cpp" />
+    <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
+    <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp" />
@@ -227,6 +236,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
+    <ClCompile Include="GameOverScene.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="engine\Graphics\Particle\GpuParticleCompute.cpp" />
     <ClCompile Include="engine\Graphics\Particle\GpuParticleEffectManager.cpp" />
@@ -271,7 +281,16 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Editor\BlenderSync\BlenderLiveSync.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderSyncTypes.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h" />
+    <ClInclude Include="engine\Game\Camera\CameraShakeController.h" />
     <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h" />
+    <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
+    <ClInclude Include="engine\Game\Enemy\Enemy.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyBullet.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyBulletManager.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyManager.h" />
+    <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
+    <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\EventActionDispatcher.h" />
@@ -312,6 +331,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="engine\math\Matrix4x4.h" />
+    <ClInclude Include="GameOverScene.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="engine\Graphics\Particle\GpuParticleCompute.h" />
     <ClInclude Include="engine\Graphics\Particle\GpuParticleEffectData.h" />
