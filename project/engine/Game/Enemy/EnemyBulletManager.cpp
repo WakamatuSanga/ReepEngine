@@ -211,6 +211,23 @@ void EnemyBulletManager::ApplyModelRotationOffsetToAllBullets() {
     }
 }
 
+size_t EnemyBulletManager::ClearBulletsInRadius(const Vector3& center, float radius) {
+    const float safeRadius = (std::max)(0.0f, radius);
+    size_t clearedCount = 0;
+    for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
+        if (!bullet || !bullet->IsActive() || bullet->IsDead()) {
+            continue;
+        }
+
+        const float combinedRadius = safeRadius + bullet->GetRadius();
+        if (DistanceSquared(center, bullet->GetPosition()) <= combinedRadius * combinedRadius) {
+            bullet->Kill();
+            ++clearedCount;
+        }
+    }
+    return clearedCount;
+}
+
 bool EnemyBulletManager::CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition) {
     return CheckHitAndKillFirstSphere(center, radius, hitPosition, nullptr, nullptr, nullptr);
 }

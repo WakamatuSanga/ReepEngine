@@ -5,6 +5,7 @@
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Input/Input.h"
+#include "PlayerActionController.h"
 #include "MyGame.h"
 #include <algorithm>
 #include <array>
@@ -147,6 +148,8 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     hitRadiusObject_->SetEnvironmentMapEnabled(false);
     hitRadiusModel_ = ModelManager::GetInstance()->CreateSphere("PlayerHitRadiusSphere", 16);
     hitRadiusObject_->SetModel(hitRadiusModel_);
+    actionController_ = std::make_unique<PlayerActionController>();
+    actionController_->Initialize(object3dCommon_, camera_);
     LoadModel();
     ResetPosition();
     UpdateWorldPosition();
@@ -156,6 +159,10 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
 }
 
 void Player::Finalize() {
+    if (actionController_) {
+        actionController_->Finalize();
+    }
+    actionController_.reset();
     hitRadiusObject_.reset();
     hitRadiusModel_ = nullptr;
     object_.reset();
@@ -229,8 +236,14 @@ void Player::Update(float deltaTime) {
         }
     }
 
-    UpdateVisualTilt(safeDeltaTime);
     UpdateWorldPosition();
+    if (actionController_) {
+        actionController_->Update(
+            safeDeltaTime,
+            enablePlayer_ && gameViewInputActive_ && !lastImGuiTextInputActive_,
+            worldPosition_);
+    }
+    UpdateVisualTilt(safeDeltaTime);
     UpdateObjectTransform();
     object_->Update();
     if (hitRadiusObject_) {
@@ -247,6 +260,9 @@ void Player::Draw() {
     object_->Draw();
     if (showHitRadius_ && hitRadiusObject_ && hitRadiusModel_) {
         hitRadiusObject_->Draw();
+    }
+    if (actionController_) {
+        actionController_->DrawDebugVisuals();
     }
 }
 
@@ -384,6 +400,9 @@ void Player::DrawImGui() {
         currentVisualTilt_.x,
         currentVisualTilt_.y,
         currentVisualTilt_.z);
+    if (actionController_) {
+        actionController_->DrawImGui();
+    }
 
     ImGui::DragFloat("Move Speed", &moveSpeed_, 0.05f, 0.0f, 30.0f, "%.2f");
     ImGui::DragFloat("Move Limit X", &moveLimitX_, 0.05f, 0.0f, 20.0f, "%.2f");
@@ -436,6 +455,20 @@ void Player::SetGameViewInputActive(bool isActive) {
     gameViewInputActive_ = isActive;
 }
 
+void Player::SetActionDebugVisualsEnabled(bool isEnabled) {
+    if (actionController_) {
+        actionController_->SetDebugVisualsEnabled(isEnabled);
+    }
+}
+
+void Player::SetBarrelRollDependencies(
+    EnemyBulletManager* enemyBulletManager,
+    CombatEffectController* combatEffectController) {
+    if (actionController_) {
+        actionController_->SetDependencies(enemyBulletManager, combatEffectController);
+    }
+}
+
 void Player::SetBaseMode(BaseMode baseMode) {
     baseMode_ = baseMode;
 }
@@ -455,6 +488,26 @@ void Player::SetExternalBaseUp(const Vector3& up) {
 
 bool Player::UsesWASDInput() const {
     return enablePlayer_ && gameViewInputActive_;
+}
+
+bool Player::IsBarrelRolling() const {
+    return actionController_ && actionController_->IsBarrelRolling();
+}
+
+bool Player::IsInvincible() const {
+    return actionController_ && actionController_->IsInvincible();
+}
+
+bool Player::IsBarrelRollEffectEnabled() const {
+    return actionController_ && actionController_->IsBarrelRollEffectEnabled();
+}
+
+float Player::GetDamageReduction() const {
+    return actionController_ ? actionController_->GetDamageReduction() : 0.0f;
+}
+
+float Player::GetBarrelRollClearBulletRadius() const {
+    return actionController_ ? actionController_->GetBarrelRollClearBulletRadius() : 0.0f;
 }
 
 void Player::LoadModel() {
@@ -532,11 +585,16 @@ void Player::UpdateObjectTransform() {
     }
 
     visualBaseRotation_ = MakeRotationFromForward(baseForward_);
+    const Vector3 actionVisualRotation = actionController_
+        ? actionController_->GetVisualRotationOffset()
+        : Vector3{ 0.0f, 0.0f, 0.0f };
     visualFinalRotation_ = AddVector3(
         AddVector3(
-            AddVector3(visualBaseRotation_, GetModelForwardAxisOffset(modelForwardAxis_)),
-            modelRotationOffset_),
-        currentVisualTilt_);
+            AddVector3(
+                AddVector3(visualBaseRotation_, GetModelForwardAxisOffset(modelForwardAxis_)),
+                modelRotationOffset_),
+            currentVisualTilt_),
+        actionVisualRotation);
 
     object_->SetTranslate(worldPosition_);
     object_->SetRotate(visualFinalRotation_);

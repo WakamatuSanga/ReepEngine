@@ -504,6 +504,7 @@ void GameScene::Initialize() {
     enemyManager_->SetPlayer(player_.get());
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
+    player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
@@ -948,6 +949,8 @@ void GameScene::Update() {
         }
     }
 #ifdef _DEBUG
+    const bool shouldShowPlayerActionDebugVisuals =
+        !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
     const ImGuiIO& imguiIO = ImGui::GetIO();
     const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
     const bool isImGuiInputActive = imguiIO.WantTextInput || ImGui::IsAnyItemActive();
@@ -974,6 +977,7 @@ void GameScene::Update() {
             : ((isGameMode || gameViewHovered || gameViewFocused) && !isGizmoInteracting && !isDeathSequenceActive);
     if (player_) {
         player_->SetGameViewInputActive(canUseGameInput);
+        player_->SetActionDebugVisualsEnabled(shouldShowPlayerActionDebugVisuals);
     }
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
@@ -1006,6 +1010,7 @@ void GameScene::Update() {
             : (!(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) && !isDeathSequenceActive);
     if (player_) {
         player_->SetGameViewInputActive(canUseGameInput);
+        player_->SetActionDebugVisualsEnabled(false);
     }
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
