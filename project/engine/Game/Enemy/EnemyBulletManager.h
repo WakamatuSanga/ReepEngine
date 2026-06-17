@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/math/Matrix4x4.h"
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -21,6 +22,7 @@ public:
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity);
     void DeleteAllBullets();
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
+    size_t ClearBulletsInRadius(const Vector3& center, float radius);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius);
     size_t GetBulletCount() const;

@@ -33,6 +33,7 @@ void PlayerEnemyBulletCollision::Finalize() {
 
 void PlayerEnemyBulletCollision::Update() {
     lastHit_ = false;
+    lastBlockedByBarrelRoll_ = false;
     lastBlockedReason_ = "None";
     if (!enableCollision_) {
         lastBlockedReason_ = "Collision disabled";
@@ -49,6 +50,7 @@ void PlayerEnemyBulletCollision::Update() {
 
     lastPlayerPosition_ = player_->GetWorldPosition();
     lastPlayerHitRadius_ = player_->GetHitRadius();
+    lastPlayerDamageReduction_ = player_->GetDamageReduction();
     if (bulletManager_->CheckHitAndKillFirstSphere(
         lastPlayerPosition_,
         lastPlayerHitRadius_,
@@ -58,6 +60,15 @@ void PlayerEnemyBulletCollision::Update() {
         &lastBulletRadius_)) {
         lastHit_ = true;
         ++hitCount_;
+        if (player_->IsInvincible()) {
+            lastBlockedByBarrelRoll_ = true;
+            ++barrelRollBlockCount_;
+            lastBlockedReason_ = "Blocked by Barrel Roll";
+            if (player_->IsBarrelRollEffectEnabled() && combatEffectController_) {
+                combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);
+            }
+            return;
+        }
         if (combatEffectController_) {
             combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);
             combatEffectController_->PlayPlayerDeathExplosion(lastPlayerPosition_);
@@ -76,10 +87,13 @@ void PlayerEnemyBulletCollision::DrawImGui() {
 
     ImGui::Checkbox("Enable Collision", &enableCollision_);
     ImGui::Text("Last Hit: %s", lastHit_ ? "true" : "false");
+    ImGui::Text("Blocked By Barrel Roll: %s", lastBlockedByBarrelRoll_ ? "true" : "false");
     ImGui::Text("Hit Count: %llu", static_cast<unsigned long long>(hitCount_));
+    ImGui::Text("Barrel Roll Block Count: %llu", static_cast<unsigned long long>(barrelRollBlockCount_));
     ImGui::Text("Last Distance: %.3f", lastDistance_);
     ImGui::Text("Last Radius Sum: %.3f", lastRadiusSum_);
     ImGui::Text("Player Hit Radius: %.3f", lastPlayerHitRadius_);
+    ImGui::Text("Player Damage Reduction: %.3f", lastPlayerDamageReduction_);
     ImGui::Text("Bullet Radius: %.3f", lastBulletRadius_);
     ImGui::Text("Player Position: %.2f, %.2f, %.2f", lastPlayerPosition_.x, lastPlayerPosition_.y, lastPlayerPosition_.z);
     ImGui::Text("Last Hit Position: %.2f, %.2f, %.2f", lastHitPosition_.x, lastHitPosition_.y, lastHitPosition_.z);

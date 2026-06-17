@@ -169,6 +169,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
@@ -305,6 +306,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
+    <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />

@@ -5,9 +5,12 @@
 #include <string>
 
 class Camera;
+class CombatEffectController;
+class EnemyBulletManager;
 class Model;
 class Object3d;
 class Object3dCommon;
+class PlayerActionController;
 
 class Player {
 public:
@@ -33,6 +36,8 @@ public:
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
+    void SetActionDebugVisualsEnabled(bool isEnabled);
+    void SetBarrelRollDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetBaseMode(BaseMode baseMode);
     void SetExternalBasePosition(const Vector3& position);
     void SetExternalBaseForward(const Vector3& forward);
@@ -45,6 +50,11 @@ public:
     float GetHitRadius() const { return hitRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
     float GetLocalOffsetY() const { return localOffsetY_; }
+    bool IsBarrelRolling() const;
+    bool IsInvincible() const;
+    bool IsBarrelRollEffectEnabled() const;
+    float GetDamageReduction() const;
+    float GetBarrelRollClearBulletRadius() const;
 
 private:
     void LoadModel();
@@ -58,6 +68,7 @@ private:
     std::unique_ptr<Object3d> object_;
     Model* model_ = nullptr;
     std::unique_ptr<Object3d> hitRadiusObject_;
+    std::unique_ptr<PlayerActionController> actionController_;
     Model* hitRadiusModel_ = nullptr;
     std::string modelPath_ = "resources/Player/player.obj";
     std::string resolvedModelPath_;
