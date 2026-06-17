@@ -62,6 +62,11 @@ private:
     float spawnDuration_ = 1.0f;
     float spawnSpinSpeedDegrees_ = 720.0f;
     float spawnAttackDelay_ = 1.0f;
+    float spawnFacePlayerStartT_ = 0.35f;
+    float spawnFacePlayerEndT_ = 0.95f;
+    float spawnSpinFadeStartT_ = 0.25f;
+    float spawnSpinFadeEndT_ = 0.85f;
+    float spawnAlignDuration_ = 0.2f;
     bool useLightweightEnemyVisual_ = false;
     bool useCameraRelativeSpawnEntry_ = true;
     bool spawnFaceDownDuringSpawn_ = true;
@@ -70,4 +75,7 @@ private:
     bool spawnResetPitchOnActive_ = true;
     bool spawnCollisionDuringSpawn_ = false;
     bool spawnSpinAroundForward_ = true;
+    bool spawnFacePlayerDuringSpawn_ = true;
+    bool spawnAlignAfterSpawn_ = true;
+    int spawnAlignSmoothType_ = 1;
 };

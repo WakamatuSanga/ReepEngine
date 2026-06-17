@@ -25,6 +25,7 @@
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -37,6 +38,7 @@
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
@@ -504,6 +506,8 @@ void GameScene::Initialize() {
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
+    postEffectController_ = std::make_unique<PostEffectController>();
+    postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
     playerDeathSequenceController_ = std::make_unique<PlayerDeathSequenceController>();
     playerDeathSequenceController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon, cameraShakeController_.get());
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
@@ -527,11 +531,14 @@ void GameScene::Initialize() {
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
     enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
+    postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
+    postEffectActionBridge_->Initialize(postEffectController_.get());
     eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
     eventActionDispatcher_->Initialize(
         levelSceneRuntime_->GetEventRuntime(),
         railShooterEventActionBridge_.get(),
         enemySpawnActionBridge_.get(),
+        postEffectActionBridge_.get(),
         primitiveEffectSystem_.get(),
         levelSceneRuntime_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
@@ -816,6 +823,10 @@ void GameScene::Finalize() {
         enemySpawnActionBridge_->Finalize();
     }
     enemySpawnActionBridge_.reset();
+    if (postEffectActionBridge_) {
+        postEffectActionBridge_->Finalize();
+    }
+    postEffectActionBridge_.reset();
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->Finalize();
     }
@@ -861,6 +872,10 @@ void GameScene::Finalize() {
         playerDeathSequenceController_->Finalize();
     }
     playerDeathSequenceController_.reset();
+    if (postEffectController_) {
+        postEffectController_->Finalize();
+    }
+    postEffectController_.reset();
     if (cameraShakeController_) {
         cameraShakeController_->Reset(camera_.get());
         cameraShakeController_->Finalize();
@@ -1044,6 +1059,9 @@ void GameScene::Update() {
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Update(1.0f / 60.0f);
+    }
+    if (postEffectController_) {
+        postEffectController_->Update(1.0f / 60.0f);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
@@ -1259,8 +1277,14 @@ void GameScene::Update() {
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->DrawImGui();
     }
+    if (postEffectActionBridge_) {
+        postEffectActionBridge_->DrawImGui();
+    }
     if (eventActionDispatcher_) {
         eventActionDispatcher_->DrawImGui();
+    }
+    if (postEffectController_) {
+        postEffectController_->DrawImGui();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();
@@ -1889,5 +1913,8 @@ void GameScene::Draw() {
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Draw();
+    }
+    if (postEffectController_) {
+        postEffectController_->Draw();
     }
 }

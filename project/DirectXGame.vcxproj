@@ -160,6 +160,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
+    <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp" />
@@ -173,6 +174,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp" />
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp" />
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
@@ -294,6 +296,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
+    <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h" />
@@ -307,6 +310,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\EventActionDispatcher.h" />
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h" />
+    <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h" />
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventDebugView.h" />

@@ -21,6 +21,7 @@ struct FiredEventAction {
     std::string targetObjectName;
     std::string targetObjectId;
     std::string actionDescription;
+    std::string postEffectType;
 };
 
 enum class LevelEventTriggerSource {

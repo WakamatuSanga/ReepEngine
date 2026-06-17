@@ -50,6 +50,18 @@ namespace {
         const Matrix4x4& matrix = camera.GetWorldMatrix();
         return Normalize({ matrix.m[1][0], matrix.m[1][1], matrix.m[1][2] }, { 0.0f, 1.0f, 0.0f });
     }
+
+    Enemy::AlignSmoothType ToEnemyAlignSmoothType(int index) {
+        switch (index) {
+        case 0:
+            return Enemy::AlignSmoothType::Linear;
+        case 2:
+            return Enemy::AlignSmoothType::EaseOut;
+        case 1:
+        default:
+            return Enemy::AlignSmoothType::SmoothStep;
+        }
+    }
 }
 
 EnemyManager::EnemyManager() = default;
@@ -119,6 +131,15 @@ void EnemyManager::DrawImGui() {
     ImGui::DragFloat("Spawn Duration", &spawnDuration_, 0.05f, 0.01f, 10.0f, "%.2f");
     ImGui::DragFloat("Spawn Spin Speed deg/sec", &spawnSpinSpeedDegrees_, 5.0f, -3600.0f, 3600.0f, "%.1f");
     ImGui::DragFloat("Spawn Attack Delay", &spawnAttackDelay_, 0.05f, 0.0f, 10.0f, "%.2f");
+    ImGui::Checkbox("降下中にPlayerへ向く (Face Player During Spawn)", &spawnFacePlayerDuringSpawn_);
+    ImGui::DragFloat("Face Player Start T", &spawnFacePlayerStartT_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("Face Player End T", &spawnFacePlayerEndT_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("Spin Fade Start T", &spawnSpinFadeStartT_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("Spin Fade End T", &spawnSpinFadeEndT_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::Checkbox("到着後に微調整 (Align After Spawn)", &spawnAlignAfterSpawn_);
+    ImGui::DragFloat("向き直り時間 (Align Duration)", &spawnAlignDuration_, 0.02f, 0.01f, 3.0f, "%.2f");
+    const char* alignSmoothTypes[] = { "Linear", "SmoothStep", "EaseOut" };
+    ImGui::Combo("向き直り補間 (Align Smooth Type)", &spawnAlignSmoothType_, alignSmoothTypes, IM_ARRAYSIZE(alignSmoothTypes));
     ImGui::Checkbox("Spawn中は真下を向く (Spawn Facing Down)", &spawnFaceDownDuringSpawn_);
     ImGui::Checkbox("前方向軸でスピン (Spawn Spin Around Forward)", &spawnSpinAroundForward_);
     ImGui::Checkbox("Spawn完了時にPlayerを見る (Face Player On Complete)", &spawnFacePlayerOnComplete_);
@@ -208,6 +229,14 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
         spawnResetPitchOnActive_,
         spawnCollisionDuringSpawn_,
         spawnSpinAroundForward_ ? Enemy::SpawnSpinAxisMode::AroundForward : Enemy::SpawnSpinAxisMode::AroundWorldY,
+        spawnFacePlayerDuringSpawn_,
+        spawnFacePlayerStartT_,
+        spawnFacePlayerEndT_,
+        spawnSpinFadeStartT_,
+        spawnSpinFadeEndT_,
+        spawnAlignAfterSpawn_,
+        spawnAlignDuration_,
+        ToEnemyAlignSmoothType(spawnAlignSmoothType_),
         spawnLookTarget);
     if (spawnFacePlayerOnComplete_) {
         enemy->SetForward(SubtractVector3(spawnLookTarget, position));

@@ -12,6 +12,7 @@ ACTION_TYPE_PRESETS = (
     "StartDialogue",
     "MoveObject",
     "StartCameraRail",
+    "PlayPostEffect",
     "Custom",
 )
 
@@ -24,7 +25,28 @@ ACTION_TYPE_DISPLAY_NAMES = {
     "StartDialogue": "会話開始 (StartDialogue)",
     "MoveObject": "オブジェクト移動 (MoveObject)",
     "StartCameraRail": "カメラレール開始 (StartCameraRail)",
+    "PlayPostEffect": "ポストエフェクト再生 (PlayPostEffect)",
     "Custom": "カスタム処理 (Custom)",
+}
+
+POST_EFFECT_TYPE_PRESETS = (
+    "Flash",
+    "Grayscale",
+    "FadeBlack",
+    "DamageVignette",
+    "Noise",
+    "ChromaticAberration",
+    "Custom",
+)
+
+POST_EFFECT_TYPE_DISPLAY_NAMES = {
+    "Flash": "画面フラッシュ (Flash)",
+    "Grayscale": "グレースケール (Grayscale)",
+    "FadeBlack": "黒フェード (FadeBlack)",
+    "DamageVignette": "ダメージビネット (DamageVignette)",
+    "Noise": "ノイズ (Noise)",
+    "ChromaticAberration": "色収差 (ChromaticAberration)",
+    "Custom": "カスタム (Custom)",
 }
 
 _is_syncing_actions = False
@@ -64,6 +86,8 @@ def _normalize_action(action):
         "actionType": _to_string(action.get("actionType", action.get("action_type", "PlayEffect")), "PlayEffect"),
         "actionDescription": _to_string(
             action.get("actionDescription", action.get("action_description", ""))),
+        "postEffectType": _to_string(
+            action.get("postEffectType", action.get("post_effect_type", "Flash")), "Flash"),
     }
 
 
@@ -98,6 +122,7 @@ def _parse_event_object_actions(value):
                 "targetObjectName": parts[0],
                 "actionType": parts[1] if len(parts) > 1 and parts[1] else "PlayEffect",
                 "actionDescription": parts[2] if len(parts) > 2 else "",
+                "postEffectType": parts[3] if len(parts) > 3 and parts[3] else "Flash",
             })
         return actions
 
@@ -125,6 +150,7 @@ def _sync_custom_property_from_collection(obj):
             "targetObjectName": item.target_object_name.strip(),
             "actionType": item.action_type.strip() or "Custom",
             "actionDescription": item.action_description.strip(),
+            "postEffectType": item.post_effect_type.strip() or "Flash",
         })
     obj["event_object_actions"] = json.dumps(actions, ensure_ascii=False) if actions else ""
     _update_property_ui(
@@ -148,6 +174,7 @@ def _sync_collection_from_custom_property(obj):
             item.target_object_name = action.get("targetObjectName", "")
             item.action_type = action.get("actionType", "PlayEffect") or "PlayEffect"
             item.action_description = action.get("actionDescription", "")
+            item.post_effect_type = action.get("postEffectType", "Flash") or "Flash"
 
         if obj.level_event_object_action_index >= len(obj.level_event_object_actions):
             obj.level_event_object_action_index = max(0, len(obj.level_event_object_actions) - 1)
@@ -185,6 +212,10 @@ class MYADDON_PG_event_object_action(bpy.types.PropertyGroup):
     action_description: bpy.props.StringProperty(
         name="アクション説明 (Action Description)",
         default="",
+        update=_on_event_object_action_changed)
+    post_effect_type: bpy.props.StringProperty(
+        name="ポストエフェクト種類 (Post Effect Type)",
+        default="Flash",
         update=_on_event_object_action_changed)
 
 
@@ -303,6 +334,7 @@ class MYADDON_OT_add_event_object_action(bpy.types.Operator):
         item.target_object_id = ""
         item.action_type = "PlayEffect"
         item.action_description = ""
+        item.post_effect_type = "Flash"
         obj.level_event_object_action_index = len(obj.level_event_object_actions) - 1
         _sync_custom_property_from_collection(obj)
         return {'FINISHED'}
@@ -355,6 +387,31 @@ class MYADDON_OT_set_event_object_action_type(bpy.types.Operator):
             return {'CANCELLED'}
 
         obj.level_event_object_actions[self.index].action_type = self.action_type
+        _sync_custom_property_from_collection(obj)
+        return {'FINISHED'}
+
+
+class MYADDON_OT_set_event_object_action_post_effect_type(bpy.types.Operator):
+    bl_idname = "myaddon.myaddon_ot_set_event_object_action_post_effect_type"
+    bl_label = "ポストエフェクト種類を設定 (Set Post Effect Type)"
+    bl_description = "ObjectActionのpostEffectTypeを候補から設定します"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: bpy.props.IntProperty(default=-1)
+    post_effect_type: bpy.props.StringProperty(default="Flash")
+
+    def execute(self, context):
+        obj = context.object
+        if obj is None or not _action_collection_available(obj):
+            self.report({'WARNING'}, "No EventFlag ObjectAction collection")
+            return {'CANCELLED'}
+
+        _ensure_action_collection_initialized(obj)
+        if self.index < 0 or self.index >= len(obj.level_event_object_actions):
+            self.report({'WARNING'}, "ObjectAction index is out of range")
+            return {'CANCELLED'}
+
+        obj.level_event_object_actions[self.index].post_effect_type = self.post_effect_type
         _sync_custom_property_from_collection(obj)
         return {'FINISHED'}
 
@@ -421,6 +478,23 @@ def _draw_action_type_presets(layout, index):
         op.action_type = preset
 
 
+def _draw_post_effect_type_presets(layout, index):
+    row = layout.row(align=True)
+    for preset in POST_EFFECT_TYPE_PRESETS[:3]:
+        op = row.operator(
+            MYADDON_OT_set_event_object_action_post_effect_type.bl_idname,
+            text=POST_EFFECT_TYPE_DISPLAY_NAMES.get(preset, preset))
+        op.index = index
+        op.post_effect_type = preset
+    row = layout.row(align=True)
+    for preset in POST_EFFECT_TYPE_PRESETS[3:]:
+        op = row.operator(
+            MYADDON_OT_set_event_object_action_post_effect_type.bl_idname,
+            text=POST_EFFECT_TYPE_DISPLAY_NAMES.get(preset, preset))
+        op.index = index
+        op.post_effect_type = preset
+
+
 def _draw_object_actions(layout, obj):
     box = layout.box()
     box.label(text="=== 対象オブジェクトへの処理設定 (Object Actions) ===")
@@ -457,6 +531,9 @@ def _draw_object_actions(layout, obj):
         action_box.prop(action, "target_object_id", text="対象オブジェクトID (Target Object ID)")
         action_box.prop(action, "action_type", text="実行する処理の種類 (Action Type)")
         _draw_action_type_presets(action_box, index)
+        action_box.label(text="PlayPostEffectの場合に使う画面全体エフェクトです")
+        action_box.prop(action, "post_effect_type", text="ポストエフェクト種類 (Post Effect Type)")
+        _draw_post_effect_type_presets(action_box, index)
         action_box.prop(action, "action_description", text="画面に表示する説明文 (Action Description)")
         action_box.label(text="例: パーティクルを再生する")
         action_box.label(text="例: Door_01を開く")

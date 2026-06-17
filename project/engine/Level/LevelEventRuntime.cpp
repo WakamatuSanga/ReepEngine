@@ -451,6 +451,7 @@ void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag, const std::st
             action.targetObjectName,
             action.targetObjectId,
             action.actionDescription,
+            action.postEffectType,
             });
         AddLog(
             "  ObjectAction target=" +

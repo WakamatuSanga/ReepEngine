@@ -267,6 +267,9 @@
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\PostEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
@@ -304,6 +307,9 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp">
@@ -563,6 +569,9 @@
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Effect\PostEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Enemy\Enemy.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
@@ -600,6 +609,9 @@
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h">

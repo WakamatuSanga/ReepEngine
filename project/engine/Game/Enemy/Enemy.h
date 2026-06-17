@@ -12,6 +12,7 @@ class Enemy {
 public:
     enum class State {
         Spawning,
+        AligningToPlayer,
         Active,
         Dead,
     };
@@ -19,6 +20,12 @@ public:
     enum class SpawnSpinAxisMode {
         AroundForward,
         AroundWorldY,
+    };
+
+    enum class AlignSmoothType {
+        Linear,
+        SmoothStep,
+        EaseOut,
     };
 
     Enemy();
@@ -48,6 +55,14 @@ public:
         bool resetPitchOnActive,
         bool enableCollisionDuringSpawn,
         SpawnSpinAxisMode spinAxisMode,
+        bool facePlayerDuringSpawn,
+        float facePlayerStartT,
+        float facePlayerEndT,
+        float spinFadeStartT,
+        float spinFadeEndT,
+        bool alignAfterSpawn,
+        float alignDuration,
+        AlignSmoothType alignSmoothType,
         const Vector3& lookTarget);
     void StartSpawnAnimation(
         const Vector3& targetPosition,
@@ -84,8 +99,12 @@ private:
     void LoadModel();
     void UpdateObjectTransform();
     void UpdateSpawnAnimation(float deltaTime);
+    void BeginAlignToPlayer();
+    void UpdateAlignToPlayer(float deltaTime);
     void ApplySpawnCompleteFacing();
     Vector3 MakeSpawnFacingDownVisualRotation(float spinAngle) const;
+    Vector3 ComputePlayerFacingRotation() const;
+    float ApplyAlignCurve(float t) const;
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
@@ -102,6 +121,10 @@ private:
     Vector3 spawnStartPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 spawnTargetPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 spawnLookTarget_{ 0.0f, 0.0f, 0.0f };
+    Vector3 spawnVisualRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 alignStartRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 alignTargetRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 activeFinalRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 position_{ 0.0f, 0.0f, 10.0f };
     Vector3 rotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 finalSpawnRotation_{ 0.0f, 0.0f, 0.0f };
@@ -116,6 +139,16 @@ private:
     float spawnSpinSpeedRadians_ = 12.5663706f;
     float spawnAttackDelay_ = 1.0f;
     float currentSpawnT_ = 0.0f;
+    float spawnFacePlayerStartT_ = 0.35f;
+    float spawnFacePlayerEndT_ = 0.95f;
+    float spawnSpinFadeStartT_ = 0.25f;
+    float spawnSpinFadeEndT_ = 0.85f;
+    float currentSpawnFacingWeight_ = 0.0f;
+    float currentSpinWeight_ = 1.0f;
+    float spawnSpinAngle_ = 0.0f;
+    float alignElapsed_ = 0.0f;
+    float alignDuration_ = 0.2f;
+    float currentAlignT_ = 0.0f;
     float spawnGlideArcHeight_ = 1.0f;
     int hp_ = 10;
     bool isActive_ = true;
@@ -127,6 +160,9 @@ private:
     bool spawnResetRollOnActive_ = true;
     bool spawnResetPitchOnActive_ = true;
     bool enableCollisionDuringSpawn_ = false;
+    bool facePlayerDuringSpawn_ = true;
+    bool alignAfterSpawn_ = true;
     SpawnSpinAxisMode spawnSpinAxisMode_ = SpawnSpinAxisMode::AroundForward;
+    AlignSmoothType alignSmoothType_ = AlignSmoothType::SmoothStep;
     State state_ = State::Active;
 };
