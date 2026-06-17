@@ -20,6 +20,7 @@ public:
 
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity);
     void DeleteAllBullets();
+    void SetUseLightweightBulletVisual(bool useLightweightVisual);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius);
     size_t GetBulletCount() const;
@@ -27,6 +28,7 @@ public:
 
 private:
     void RemoveDeadBullets();
+    void ApplyModelRotationOffsetToAllBullets();
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
@@ -35,6 +37,8 @@ private:
     bool autoRemoveDeadBullets_ = true;
     Vector3 defaultScale_{ 0.35f, 0.35f, 0.35f };
     Vector3 defaultRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 defaultModelRotationOffset_{ 0.0f, 4.71238899f, 0.0f };
     float defaultRadius_ = 0.15f;
     bool showEnemyBulletRadius_ = false;
+    bool useLightweightBulletVisual_ = false;
 };

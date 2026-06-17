@@ -4,6 +4,7 @@
 
 class EnemyBulletManager;
 class Player;
+class CombatEffectController;
 class PlayerDeathSequenceController;
 
 class PlayerEnemyBulletCollision {
@@ -14,7 +15,8 @@ public:
     void Initialize(
         Player* player,
         EnemyBulletManager* bulletManager,
-        PlayerDeathSequenceController* deathSequence);
+        PlayerDeathSequenceController* deathSequence,
+        CombatEffectController* combatEffectController);
     void Finalize();
     void Update();
     void DrawImGui();
@@ -23,6 +25,7 @@ private:
     Player* player_ = nullptr;
     EnemyBulletManager* bulletManager_ = nullptr;
     PlayerDeathSequenceController* deathSequence_ = nullptr;
+    CombatEffectController* combatEffectController_ = nullptr;
     bool enableCollision_ = true;
     bool lastHit_ = false;
     uint64_t hitCount_ = 0;

@@ -51,6 +51,7 @@ private:
     void ResetPosition();
     void UpdateWorldPosition();
     void UpdateObjectTransform();
+    void UpdateVisualTilt(float deltaTime);
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
@@ -72,6 +73,7 @@ private:
     Vector3 modelRotationOffset_{ 0.0f, 0.0f, 0.0f };
     Vector3 visualBaseRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 visualFinalRotation_{ 0.0f, 0.0f, 0.0f };
+    Vector3 currentVisualTilt_{ 0.0f, 0.0f, 0.0f };
     ModelForwardAxis modelForwardAxis_ = ModelForwardAxis::PositiveZ;
     float localOffsetX_ = 0.0f;
     float localOffsetY_ = 0.0f;
@@ -81,10 +83,15 @@ private:
     float distanceFromCamera_ = 4.0f;
     float eventTriggerRadius_ = 0.25f;
     float hitRadius_ = 0.30f;
+    float visualPitchTiltAmount_ = 0.18f;
+    float visualRollTiltAmount_ = 0.28f;
+    float visualTiltSmoothSpeed_ = 10.0f;
     bool enablePlayer_ = true;
     bool showPlayer_ = true;
     bool showHitRadius_ = false;
     bool useFallbackModel_ = false;
+    bool useLightweightVisual_ = false;
+    bool enableVisualTilt_ = true;
     bool gameViewInputActive_ = false;
     bool hasExternalBase_ = false;
     BaseMode baseMode_ = BaseMode::CameraFront;
@@ -94,6 +101,9 @@ private:
     bool lastAPressed_ = false;
     bool lastSPressed_ = false;
     bool lastDPressed_ = false;
+    bool lastLeftMouseDown_ = false;
+    bool lastRightMouseDown_ = false;
+    bool lastImGuiTextInputActive_ = false;
     bool lastInputApplied_ = false;
     Vector3 lastRawMoveInput_{ 0.0f, 0.0f, 0.0f };
 };

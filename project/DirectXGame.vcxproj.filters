@@ -31,6 +31,9 @@
     <Filter Include="ソース ファイル\engine\base">
       <UniqueIdentifier>{171540f1-d8e7-47a7-9378-e0286b7d5ad1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Core">
+      <UniqueIdentifier>{c2d1d97d-3e87-4c65-9b36-f9b35a4f6d62}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\io">
       <UniqueIdentifier>{c178ec21-cab5-43c7-b10e-0630aa03bcba}</UniqueIdentifier>
     </Filter>
@@ -45,6 +48,9 @@
     </Filter>
     <Filter Include="ヘッダー ファイル\engine\Level">
       <UniqueIdentifier>{d2427c5f-a8e3-44b2-98da-98f3cd366f4d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Core">
+      <UniqueIdentifier>{3e6d5a4d-f2a2-4d5a-a8a3-61c80fb6bcf9}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\engine\Editor\BlenderSync">
       <UniqueIdentifier>{6ea87d6f-98fd-4ed6-8b5e-7bf9f2995ff1}</UniqueIdentifier>
@@ -81,6 +87,12 @@
     </Filter>
     <Filter Include="ヘッダー ファイル\engine\Game\Collision">
       <UniqueIdentifier>{2f322e9a-48e3-4d4b-8540-dce4b6bb7410}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Effect">
+      <UniqueIdentifier>{6b7bfbde-e79d-4cb7-9e1c-0f0dc2ad0e4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Effect">
+      <UniqueIdentifier>{b82c5044-cb4d-4821-8d71-f6d0b5db128b}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\engine\Game\GameState">
       <UniqueIdentifier>{319fb8a2-57b6-4848-badc-e7efaa8ec343}</UniqueIdentifier>
@@ -222,6 +234,12 @@
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp">
       <Filter>ソース ファイル\engine\Editor\BlenderSync</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Core\GameViewport.cpp">
+      <Filter>ソース ファイル\engine\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Core\RuntimeModeController.cpp">
+      <Filter>ソース ファイル\engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Editor\Camera\EditorCameraController.cpp">
       <Filter>ソース ファイル\engine\Editor\Camera</Filter>
     </ClCompile>
@@ -245,6 +263,12 @@
     </ClCompile>
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Collision</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\PostEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
@@ -283,6 +307,9 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp">
@@ -518,6 +545,12 @@
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h">
       <Filter>ヘッダー ファイル\engine\Editor\BlenderSync</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Core\GameViewport.h">
+      <Filter>ヘッダー ファイル\engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Core\RuntimeModeController.h">
+      <Filter>ヘッダー ファイル\engine\Core</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Editor\Camera\EditorCameraController.h">
       <Filter>ヘッダー ファイル\engine\Editor\Camera</Filter>
     </ClInclude>
@@ -532,6 +565,12 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h">
       <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\PostEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\Enemy.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
@@ -570,6 +609,9 @@
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h">

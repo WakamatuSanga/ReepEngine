@@ -1,8 +1,8 @@
 #include "PlayerBulletEnemyCollision.h"
+#include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
-#include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include <algorithm>
 #include <vector>
 
@@ -17,10 +17,10 @@ PlayerBulletEnemyCollision::~PlayerBulletEnemyCollision() = default;
 void PlayerBulletEnemyCollision::Initialize(
     PlayerBulletManager* bulletManager,
     EnemyManager* enemyManager,
-    PrimitiveEffectSystem* primitiveEffectSystem) {
+    CombatEffectController* combatEffectController) {
     bulletManager_ = bulletManager;
     enemyManager_ = enemyManager;
-    primitiveEffectSystem_ = primitiveEffectSystem;
+    combatEffectController_ = combatEffectController;
     if (enemyManager_) {
         enemyHitRadiusForDebug_ = enemyManager_->GetDefaultHitRadius();
     }
@@ -29,7 +29,7 @@ void PlayerBulletEnemyCollision::Initialize(
 void PlayerBulletEnemyCollision::Finalize() {
     bulletManager_ = nullptr;
     enemyManager_ = nullptr;
-    primitiveEffectSystem_ = nullptr;
+    combatEffectController_ = nullptr;
 }
 
 void PlayerBulletEnemyCollision::Update() {
@@ -45,7 +45,7 @@ void PlayerBulletEnemyCollision::Update() {
 
     const std::vector<Enemy*> activeEnemies = enemyManager_->GetActiveEnemies();
     for (Enemy* enemy : activeEnemies) {
-        if (!enemy || enemy->IsDead() || !enemy->IsActive()) {
+        if (!enemy || enemy->IsDead() || !enemy->CanReceivePlayerBullet()) {
             continue;
         }
 
@@ -72,6 +72,7 @@ void PlayerBulletEnemyCollision::Update() {
             continue;
         }
 
+        const bool wasDeadBeforeDamage = enemy->IsDead();
         enemy->Damage((std::max)(1, damage));
         lastHitResult_ = true;
         lastHitEnemy_ = enemy->GetEnemyId();
@@ -83,12 +84,10 @@ void PlayerBulletEnemyCollision::Update() {
         lastEnemyRadius_ = enemyRadius;
         ++hitCount_;
 
-        if (primitiveEffectSystem_) {
-            if (playHitEffect_) {
-                primitiveEffectSystem_->PlayHitEffectAt(hitPosition);
-            }
-            if (playRingEffect_) {
-                primitiveEffectSystem_->PlayRingEffectAt(hitPosition);
+        if (combatEffectController_ && playCombatEffect_) {
+            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition);
+            if (!wasDeadBeforeDamage && enemy->IsDead()) {
+                combatEffectController_->PlayEnemyDeathExplosion(enemy->GetPosition());
             }
         }
     }
@@ -109,8 +108,7 @@ void PlayerBulletEnemyCollision::DrawImGui() {
             enemyManager_->ApplyDefaultHitRadiusToAllEnemies();
         }
     }
-    ImGui::Checkbox("Play Hit Effect", &playHitEffect_);
-    ImGui::Checkbox("Play Ring Effect", &playRingEffect_);
+    ImGui::Checkbox("Play Combat Effect", &playCombatEffect_);
     ImGui::TextWrapped("Last Hit Enemy: %s", lastHitEnemy_.c_str());
     ImGui::Text("Last Hit Position: %.2f, %.2f, %.2f",
         lastHitPosition_.x,

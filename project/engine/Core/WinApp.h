@@ -19,6 +19,12 @@ public:
     bool ProcessMessage();
     void Finalize();          // WindowsAPI の終了処理 ← 追加
 
+    void SetFullscreen(bool fullscreen);
+    void ToggleFullscreen();
+    bool IsFullscreen() const { return isFullscreen_; }
+    int32_t GetClientWidth() const;
+    int32_t GetClientHeight() const;
+
     // getter
     HWND      GetHwnd()      const { return hwnd; }
     HINSTANCE GetHInstance() const { return wc.hInstance; }
@@ -26,4 +32,8 @@ public:
 private:
     WNDCLASS wc{};    // ウィンドウクラス
     HWND     hwnd = nullptr;
+    WINDOWPLACEMENT windowedPlacement_{ sizeof(WINDOWPLACEMENT) };
+    LONG_PTR windowedStyle_ = WS_OVERLAPPEDWINDOW;
+    LONG_PTR windowedExStyle_ = 0;
+    bool isFullscreen_ = false;
 };

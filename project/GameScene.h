@@ -14,6 +14,7 @@ class BlenderLiveSync;
 class CameraShakeController;
 class DirectXCommon;
 class EditorCameraController;
+class CombatEffectController;
 class EnemyAttackController;
 class EnemyBulletManager;
 class EnemyManager;
@@ -21,6 +22,7 @@ class EnemySpawnActionBridge;
 class EventActionDispatcher;
 class GameOverFlowController;
 class GpuParticleSystem;
+class GameViewport;
 class LevelSceneRuntime;
 class Model;
 class Object3d;
@@ -31,9 +33,12 @@ class PlayerBulletManager;
 class PlayerEnemyBulletCollision;
 class PlayerRailController;
 class PlayerEventTriggerBridge;
+class PostEffectActionBridge;
+class PostEffectController;
 class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
 class RailShooterCameraRig;
+class RuntimeModeController;
 class SkinningEditor;
 class Skybox;
 class Sprite;
@@ -51,6 +56,7 @@ public:
 private:
 #ifdef _DEBUG
     void DrawGameViewImGui(DirectXCommon* dxCommon);
+    void ClearGameViewDebugState();
 #endif
 
     std::unique_ptr<Camera> camera_;
@@ -61,22 +67,27 @@ private:
     std::unique_ptr<PrimitiveEffectSystem> primitiveEffectSystem_;
     std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
+    std::unique_ptr<RuntimeModeController> runtimeModeController_;
+    std::unique_ptr<GameViewport> gameViewport_;
     std::unique_ptr<EditorCameraController> editorCameraController_;
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Player> player_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
+    std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<EnemyBulletManager> enemyBulletManager_;
     std::unique_ptr<EnemyAttackController> enemyAttackController_;
     std::unique_ptr<PlayerBulletEnemyCollision> playerBulletEnemyCollision_;
     std::unique_ptr<PlayerEnemyBulletCollision> playerEnemyBulletCollision_;
     std::unique_ptr<CameraShakeController> cameraShakeController_;
+    std::unique_ptr<PostEffectController> postEffectController_;
     std::unique_ptr<PlayerDeathSequenceController> playerDeathSequenceController_;
     std::unique_ptr<GameOverFlowController> gameOverFlowController_;
     std::unique_ptr<PlayerRailController> playerRailController_;
     std::unique_ptr<PlayerEventTriggerBridge> playerEventTriggerBridge_;
     std::unique_ptr<EnemySpawnActionBridge> enemySpawnActionBridge_;
+    std::unique_ptr<PostEffectActionBridge> postEffectActionBridge_;
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;

@@ -23,15 +23,20 @@ public:
     void SetPosition(const Vector3& position);
     void SetVelocity(const Vector3& velocity);
     void SetRotation(const Vector3& rotation);
+    void SetModelRotationOffset(const Vector3& rotationOffset);
+    void SetVisualForwardOverride(const Vector3& forward);
+    void ClearVisualForwardOverride();
     void SetScale(const Vector3& scale);
     void SetRadius(float radius);
     void SetLifeTime(float lifeTime);
+    void SetUseLightweightVisual(bool useLightweightVisual);
     void SetModelPath(const std::string& modelPath);
     void Kill();
 
     bool IsActive() const { return isActive_; }
     bool IsDead() const { return isDead_; }
     const Vector3& GetPosition() const { return position_; }
+    const Vector3& GetVisualModelRotation() const { return visualModelRotation_; }
     float GetRadius() const { return radius_; }
 
 private:
@@ -53,10 +58,11 @@ private:
     Vector3 position_{ 0.0f, 0.0f, 0.0f };
     Vector3 velocity_{ 0.0f, 0.0f, 0.0f };
     Vector3 rotation_{ 0.0f, 0.0f, 0.0f };
-    Vector3 modelRotationOffset_{ 0.0f, 1.57079637f, 0.0f };
+    Vector3 modelRotationOffset_{ 0.0f, 4.71238899f, 0.0f };
     Vector3 visualBaseRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 visualModelRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 lastVisualForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 visualForwardOverride_{ 0.0f, 0.0f, 1.0f };
     Vector3 scale_{ 0.35f, 0.35f, 0.35f };
     float radius_ = 0.15f;
     float lifeTime_ = 6.0f;
@@ -64,4 +70,6 @@ private:
     bool isActive_ = true;
     bool isDead_ = false;
     bool useFallbackModel_ = false;
+    bool useLightweightVisual_ = false;
+    bool hasVisualForwardOverride_ = false;
 };

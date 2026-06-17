@@ -117,6 +117,9 @@ namespace {
             if (parts.size() >= 3) {
                 action.actionDescription = parts[2];
             }
+            if (parts.size() >= 4) {
+                action.postEffectType = parts[3];
+            }
             if (!action.targetObjectName.empty() || !action.actionType.empty()) {
                 actions.push_back(std::move(action));
             }
@@ -798,6 +801,10 @@ namespace {
                 } else if (key == "actionDescription" || key == "action_description") {
                     if (!ParseString(action.actionDescription)) {
                         return Fail("Invalid actionDescription.");
+                    }
+                } else if (key == "postEffectType" || key == "post_effect_type") {
+                    if (!ParseString(action.postEffectType)) {
+                        return Fail("Invalid postEffectType.");
                     }
                 } else if (!SkipValue()) {
                     return false;

@@ -29,6 +29,7 @@ public:
 
     // 各シーンから基盤システムへアクセスするためのゲッター
     Input* GetInput() const { return input_.get(); } // .get()で生ポインタを返す
+    WinApp* GetWinApp() const { return winApp_.get(); }
     DirectXCommon* GetDxCommon() const { return dxCommon_.get(); }
     Object3dCommon* GetObject3dCommon() const { return object3dCommon_.get(); }
     SkyboxCommon* GetSkyboxCommon() const { return skyboxCommon_.get(); }

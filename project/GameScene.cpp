@@ -24,6 +24,8 @@
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
+#include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -36,7 +38,10 @@
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
+#include "Engine/Core/GameViewport.h"
+#include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Core/SrvManager.h"
 #include <algorithm>
 #include <array>
@@ -481,18 +486,28 @@ void GameScene::Initialize() {
     previewSkeleton_ = MakeHumanoidPreviewSkeleton();
     previewSkeletonSecondary_ = MakeChainPreviewSkeleton();
     skinningEditor_ = std::make_unique<SkinningEditor>();
+    runtimeModeController_ = std::make_unique<RuntimeModeController>();
+    runtimeModeController_->Initialize(MyGame::GetInstance()->GetWinApp());
+    gameViewport_ = std::make_unique<GameViewport>();
+    gameViewport_->Initialize(MyGame::GetInstance()->GetWinApp());
     editorCameraController_ = std::make_unique<EditorCameraController>();
     editorCameraController_->Initialize(camera_.get());
     player_ = std::make_unique<Player>();
     player_->Initialize(object3dCommon, camera_.get());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
+    playerBulletManager_->SetGameViewport(gameViewport_.get());
+    combatEffectController_ = std::make_unique<CombatEffectController>();
+    combatEffectController_->Initialize(primitiveEffectSystem_.get(), player_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
+    enemyManager_->SetPlayer(player_.get());
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
+    postEffectController_ = std::make_unique<PostEffectController>();
+    postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
     playerDeathSequenceController_ = std::make_unique<PlayerDeathSequenceController>();
     playerDeathSequenceController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon, cameraShakeController_.get());
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
@@ -500,9 +515,9 @@ void GameScene::Initialize() {
     enemyAttackController_ = std::make_unique<EnemyAttackController>();
     enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get());
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
-    playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), primitiveEffectSystem_.get());
+    playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
-    playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get());
+    playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
     gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();
@@ -516,11 +531,14 @@ void GameScene::Initialize() {
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
     enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
+    postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
+    postEffectActionBridge_->Initialize(postEffectController_.get());
     eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
     eventActionDispatcher_->Initialize(
         levelSceneRuntime_->GetEventRuntime(),
         railShooterEventActionBridge_.get(),
         enemySpawnActionBridge_.get(),
+        postEffectActionBridge_.get(),
         primitiveEffectSystem_.get(),
         levelSceneRuntime_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
@@ -685,19 +703,26 @@ void GameScene::Initialize() {
 }
 
 #ifdef _DEBUG
+void GameScene::ClearGameViewDebugState() {
+    gameViewTopLeft_ = { 0.0f, 0.0f };
+    gameViewSize_ = { 0.0f, 0.0f };
+    gameViewMouseLocal_ = { 0.0f, 0.0f };
+    isGameViewHovered_ = false;
+    isGameViewFocused_ = false;
+    if (gameViewport_) {
+        gameViewport_->ClearImGuiGameViewRect();
+    }
+    if (skinningEditor_) {
+        skinningEditor_->ClearGameViewRect();
+    }
+    if (levelSceneRuntime_) {
+        levelSceneRuntime_->ClearGameViewRect();
+    }
+}
+
 void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
     if (!dxCommon || !dxCommon->GetFinalOutputTextureResource()) {
-        gameViewTopLeft_ = { 0.0f, 0.0f };
-        gameViewSize_ = { 0.0f, 0.0f };
-        gameViewMouseLocal_ = { 0.0f, 0.0f };
-        isGameViewHovered_ = false;
-        isGameViewFocused_ = false;
-        if (skinningEditor_) {
-            skinningEditor_->ClearGameViewRect();
-        }
-        if (levelSceneRuntime_) {
-            levelSceneRuntime_->ClearGameViewRect();
-        }
+        ClearGameViewDebugState();
         return;
     }
 
@@ -706,6 +731,9 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
         const D3D12_RESOURCE_DESC desc = dxCommon->GetFinalOutputTextureResource()->GetDesc();
         const float textureWidth = static_cast<float>(desc.Width);
         const float textureHeight = static_cast<float>(desc.Height);
+        if (gameViewport_) {
+            gameViewport_->SetRenderTargetSize(textureWidth, textureHeight);
+        }
         ImVec2 availableSize = ImGui::GetContentRegionAvail();
 
         if (textureWidth > 0.0f && textureHeight > 0.0f && availableSize.x > 1.0f && availableSize.y > 1.0f) {
@@ -731,6 +759,15 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
             const ImGuiIO& io = ImGui::GetIO();
             isGameViewHovered_ = ImGui::IsItemHovered();
             isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            if (gameViewport_) {
+                gameViewport_->SetImGuiGameViewRect(
+                    imageTopLeft.x,
+                    imageTopLeft.y,
+                    imageSize.x,
+                    imageSize.y,
+                    isGameViewHovered_,
+                    isGameViewFocused_);
+            }
             gameViewMouseLocal_ = {
                 io.MousePos.x - imageTopLeft.x,
                 io.MousePos.y - imageTopLeft.y
@@ -744,11 +781,14 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
                 levelSceneRuntime_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
             }
         } else {
+            isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
             gameViewTopLeft_ = { 0.0f, 0.0f };
             gameViewSize_ = { 0.0f, 0.0f };
             gameViewMouseLocal_ = { 0.0f, 0.0f };
             isGameViewHovered_ = false;
-            isGameViewFocused_ = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+            if (gameViewport_) {
+                gameViewport_->ClearImGuiGameViewRect();
+            }
             if (skinningEditor_) {
                 skinningEditor_->ClearGameViewRect();
             }
@@ -758,17 +798,7 @@ void GameScene::DrawGameViewImGui(DirectXCommon* dxCommon) {
             ImGui::TextDisabled("RenderTexture is not ready.");
         }
     } else {
-        gameViewTopLeft_ = { 0.0f, 0.0f };
-        gameViewSize_ = { 0.0f, 0.0f };
-        gameViewMouseLocal_ = { 0.0f, 0.0f };
-        isGameViewHovered_ = false;
-        isGameViewFocused_ = false;
-        if (skinningEditor_) {
-            skinningEditor_->ClearGameViewRect();
-        }
-        if (levelSceneRuntime_) {
-            levelSceneRuntime_->ClearGameViewRect();
-        }
+        ClearGameViewDebugState();
     }
     ImGui::End();
 }
@@ -782,6 +812,8 @@ void GameScene::Finalize() {
         editorCameraController_->Finalize();
     }
     editorCameraController_.reset();
+    runtimeModeController_.reset();
+    gameViewport_.reset();
     blenderLiveSync_.reset();
     if (eventActionDispatcher_) {
         eventActionDispatcher_->Finalize();
@@ -791,6 +823,10 @@ void GameScene::Finalize() {
         enemySpawnActionBridge_->Finalize();
     }
     enemySpawnActionBridge_.reset();
+    if (postEffectActionBridge_) {
+        postEffectActionBridge_->Finalize();
+    }
+    postEffectActionBridge_.reset();
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->Finalize();
     }
@@ -820,6 +856,10 @@ void GameScene::Finalize() {
         playerBulletEnemyCollision_->Finalize();
     }
     playerBulletEnemyCollision_.reset();
+    if (combatEffectController_) {
+        combatEffectController_->Finalize();
+    }
+    combatEffectController_.reset();
     if (enemyAttackController_) {
         enemyAttackController_->Finalize();
     }
@@ -832,6 +872,10 @@ void GameScene::Finalize() {
         playerDeathSequenceController_->Finalize();
     }
     playerDeathSequenceController_.reset();
+    if (postEffectController_) {
+        postEffectController_->Finalize();
+    }
+    postEffectController_.reset();
     if (cameraShakeController_) {
         cameraShakeController_->Reset(camera_.get());
         cameraShakeController_->Finalize();
@@ -867,6 +911,9 @@ void GameScene::Update() {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
     }
+    if (runtimeModeController_) {
+        runtimeModeController_->Update(input);
+    }
     if (blenderLiveSync_) {
         blenderLiveSync_->Update();
     }
@@ -876,37 +923,70 @@ void GameScene::Update() {
 
     const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
     const bool isDeathSequenceActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
+    const bool isGameMode = runtimeModeController_ ? runtimeModeController_->IsGameMode() : true;
+    const bool shouldDrawLevelDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+    const bool shouldDrawEventDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawEventDebug() : false;
+    const bool shouldDrawRailDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawRailDebug() : false;
+    if (gameViewport_) {
+        if (dxCommon && dxCommon->GetFinalOutputTextureResource()) {
+            const D3D12_RESOURCE_DESC desc = dxCommon->GetFinalOutputTextureResource()->GetDesc();
+            gameViewport_->SetRenderTargetSize(static_cast<float>(desc.Width), static_cast<float>(desc.Height));
+        }
+        gameViewport_->BeginFrame(isGameMode);
+        const GameViewport::Rect& viewportRect = gameViewport_->GetGameViewportRect();
+        if (viewportRect.height > 1.0f) {
+            camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
+            camera_->Update();
+        }
+    }
+    if (isGameMode) {
+        if (enemyBulletManager_) {
+            enemyBulletManager_->SetUseLightweightBulletVisual(true);
+        }
+        if (playerBulletManager_) {
+            playerBulletManager_->SetUseLightweightBulletVisual(true);
+        }
+    }
 #ifdef _DEBUG
     const ImGuiIO& imguiIO = ImGui::GetIO();
     const bool isGizmoInteracting = skinningEditor_ && skinningEditor_->IsGizmoInteracting();
     const bool isImGuiInputActive = imguiIO.WantTextInput || ImGui::IsAnyItemActive();
+    const bool isGameViewportMouse = gameViewport_ && gameViewport_->IsMouseInGameViewport();
+    const bool isGameplayInputEditing = imguiIO.WantTextInput || (ImGui::IsAnyItemActive() && !isGameViewportMouse);
+    const bool gameViewHovered = gameViewport_ ? gameViewport_->IsGameViewHovered() : isGameMode;
+    const bool gameViewFocused = gameViewport_ ? gameViewport_->IsGameViewFocused() : isGameMode;
     if (editorCameraController_) {
         editorCameraController_->Update(
             1.0f / 60.0f,
             input,
-            isGameViewHovered_,
-            isGameViewFocused_,
+            gameViewHovered,
+            gameViewFocused,
             isImGuiInputActive,
             isGizmoInteracting,
-            isCameraRigActive);
+            isCameraRigActive || isGameMode);
     }
-    const bool canUsePlayerInputInGameView =
-        (isGameViewHovered_ || isGameViewFocused_) &&
-        !isGizmoInteracting &&
-        !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
-        !isDeathSequenceActive;
-    const bool canUsePlayerShotInputInGameView =
-        isGameViewHovered_ &&
-        !isGizmoInteracting &&
-        !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
-        !isDeathSequenceActive;
+    const bool canUseGameInput =
+        gameViewport_
+            ? gameViewport_->IsGameInputActive(
+                isGameplayInputEditing,
+                editorCameraController_ && editorCameraController_->IsRightMouseFlyActive(),
+                isGizmoInteracting || isDeathSequenceActive)
+            : ((isGameMode || gameViewHovered || gameViewFocused) && !isGizmoInteracting && !isDeathSequenceActive);
     if (player_) {
-        player_->SetGameViewInputActive(canUsePlayerInputInGameView);
+        player_->SetGameViewInputActive(canUseGameInput);
     }
     if (playerBulletManager_) {
-        playerBulletManager_->SetGameViewInputActive(canUsePlayerShotInputInGameView);
+        playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
 #else
+    if (gameViewport_) {
+        gameViewport_->BeginFrame(true);
+        const GameViewport::Rect& viewportRect = gameViewport_->GetGameViewportRect();
+        if (viewportRect.height > 1.0f) {
+            camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
+            camera_->Update();
+        }
+    }
     if (editorCameraController_) {
         editorCameraController_->Update(
             1.0f / 60.0f,
@@ -915,17 +995,20 @@ void GameScene::Update() {
             true,
             false,
             false,
-            isCameraRigActive);
+            true);
     }
+    const bool canUseGameInput =
+        gameViewport_
+            ? gameViewport_->IsGameInputActive(
+                false,
+                editorCameraController_ && editorCameraController_->IsRightMouseFlyActive(),
+                isDeathSequenceActive)
+            : (!(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) && !isDeathSequenceActive);
     if (player_) {
-        player_->SetGameViewInputActive(
-            !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
-            !isDeathSequenceActive);
+        player_->SetGameViewInputActive(canUseGameInput);
     }
     if (playerBulletManager_) {
-        playerBulletManager_->SetGameViewInputActive(
-            !(editorCameraController_ && editorCameraController_->IsRightMouseFlyActive()) &&
-            !isDeathSequenceActive);
+        playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
 #endif
 
@@ -941,10 +1024,10 @@ void GameScene::Update() {
         const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
         levelSceneRuntime_->SetCameraRigPreviewState(
             cameraRigActiveForDebug,
-            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailDebugWhileActive(),
-            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailPointsWhileActive(),
-            railShooterCameraRig_ && railShooterCameraRig_->ShouldHideEventDebugWhileActive(),
-            railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPreviewModeEnabled());
+            !shouldDrawRailDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailDebugWhileActive()),
+            !shouldDrawRailDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailPointsWhileActive()),
+            !shouldDrawEventDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideEventDebugWhileActive()),
+            !shouldDrawLevelDebug || (railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPreviewModeEnabled()));
     }
     camera_->Update();
     if (playerRailController_) {
@@ -971,8 +1054,14 @@ void GameScene::Update() {
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
     }
+    if (combatEffectController_) {
+        combatEffectController_->Update(1.0f / 60.0f);
+    }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Update(1.0f / 60.0f);
+    }
+    if (postEffectController_) {
+        postEffectController_->Update(1.0f / 60.0f);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
@@ -1121,6 +1210,13 @@ void GameScene::Update() {
     }
 
 #ifdef _DEBUG
+    const bool showDebugUi = !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
+    if (showDebugUi) {
+        DrawGameViewImGui(dxCommon);
+    } else {
+        ClearGameViewDebugState();
+    }
+    if (showDebugUi) {
     if (skinningEditor_) {
         skinningEditor_->DrawImGui();
     }
@@ -1130,7 +1226,6 @@ void GameScene::Update() {
     if (editorCameraController_) {
         editorCameraController_->DrawImGui();
     }
-    DrawGameViewImGui(dxCommon);
     if (player_) {
         player_->DrawImGui();
     }
@@ -1152,6 +1247,9 @@ void GameScene::Update() {
     if (playerBulletEnemyCollision_) {
         playerBulletEnemyCollision_->DrawImGui();
     }
+    if (combatEffectController_) {
+        combatEffectController_->DrawImGui();
+    }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->DrawImGui();
     }
@@ -1170,14 +1268,23 @@ void GameScene::Update() {
     if (railShooterCameraRig_) {
         railShooterCameraRig_->DrawImGui();
     }
+    if (gameViewport_) {
+        gameViewport_->DrawImGui();
+    }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
     }
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->DrawImGui();
     }
+    if (postEffectActionBridge_) {
+        postEffectActionBridge_->DrawImGui();
+    }
     if (eventActionDispatcher_) {
         eventActionDispatcher_->DrawImGui();
+    }
+    if (postEffectController_) {
+        postEffectController_->DrawImGui();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->DrawImGui();
@@ -1694,6 +1801,7 @@ void GameScene::Update() {
         ImGui::TextDisabled("Select a skinned target in Skinning Editor.");
     }
     ImGui::End();
+    }
 #endif
 
     if (volumetricCloudPass && cloudVolume_) {
@@ -1710,6 +1818,8 @@ void GameScene::Draw() {
     auto volumetricCloudPass = MyGame::GetInstance()->GetVolumetricCloudPass();
     auto particleManager = ParticleManager::GetInstance();
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
+    const bool shouldDrawDebugVisuals =
+        runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
 
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
@@ -1717,43 +1827,43 @@ void GameScene::Draw() {
     }
 
     ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
-    if (simpleSkinSkinnedModel_) {
+    if (shouldDrawDebugVisuals && simpleSkinSkinnedModel_) {
         simpleSkinSkinnedModel_->DispatchComputeSkinning(commandList);
     }
-    if (walkSkinnedModel_) {
+    if (shouldDrawDebugVisuals && walkSkinnedModel_) {
         walkSkinnedModel_->DispatchComputeSkinning(commandList);
     }
-    if (sneakWalkSkinnedModel_) {
+    if (shouldDrawDebugVisuals && sneakWalkSkinnedModel_) {
         sneakWalkSkinnedModel_->DispatchComputeSkinning(commandList);
     }
 
     object3dCommon->CommonDrawSetting((Object3dCommon::BlendMode)currentBlendMode_);
 
-    if (isFenceVisible_) {
+    if (shouldDrawDebugVisuals && isFenceVisible_) {
         object3d_->Draw();
     }
-    if (isSphereVisible_) {
+    if (shouldDrawDebugVisuals && isSphereVisible_) {
         object3dSphere_->Draw();
     }
-    if (isAnimatedCubeVisible_ && animatedCubeObject_) {
+    if (shouldDrawDebugVisuals && isAnimatedCubeVisible_ && animatedCubeObject_) {
         animatedCubeObject_->Draw();
     }
     const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
-    if (isSkinnedModelVisible_ && simpleSkinSkinnedObject_ && activeSkinningTarget == simpleSkinSkeleton_.get()) {
+    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && simpleSkinSkinnedObject_ && activeSkinningTarget == simpleSkinSkeleton_.get()) {
         simpleSkinSkinnedObject_->Draw();
     }
-    if (isSkinnedModelVisible_ && walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
+    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
         walkSkinnedObject_->Draw();
     }
-    if (isSkinnedModelVisible_ && sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
+    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
         sneakWalkSkinnedObject_->Draw();
     }
-    if (isPrimitivePreviewVisible_) {
+    if (shouldDrawDebugVisuals && isPrimitivePreviewVisible_) {
         for (auto& primitivePreviewObject : primitivePreviewObjects_) {
             primitivePreviewObject->Draw();
         }
     }
-    if (levelSceneRuntime_) {
+    if (shouldDrawDebugVisuals && levelSceneRuntime_) {
         levelSceneRuntime_->Draw();
     }
     if (player_) {
@@ -1798,10 +1908,13 @@ void GameScene::Draw() {
     }
 
     spriteCommon->CommonDrawSetting();
-    if (isDebugSpriteVisible_) {
+    if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Draw();
+    }
+    if (postEffectController_) {
+        postEffectController_->Draw();
     }
 }

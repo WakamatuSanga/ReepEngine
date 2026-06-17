@@ -8,6 +8,8 @@
 #endif
 
 namespace {
+    constexpr float kPi = 3.14159265358979323846f;
+
     float DistanceSquared(const Vector3& lhs, const Vector3& rhs) {
         const float x = lhs.x - rhs.x;
         const float y = lhs.y - rhs.y;
@@ -72,7 +74,50 @@ void EnemyBulletManager::DrawImGui() {
     ImGui::Checkbox("Auto Remove Dead Bullets", &autoRemoveDeadBullets_);
     ImGui::DragFloat3("Default Scale", &defaultScale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
     ImGui::DragFloat3("Default Rotation", &defaultRotation_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
+    ImGui::SeparatorText("敵弾モデル向き補正 (Enemy Bullet Model Rotation Offset)");
+    bool rotationOffsetChanged = false;
+    if (ImGui::Button("Yaw +90##EnemyBulletDefault")) {
+        defaultModelRotationOffset_.y += kPi * 0.5f;
+        rotationOffsetChanged = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Yaw -90##EnemyBulletDefault")) {
+        defaultModelRotationOffset_.y -= kPi * 0.5f;
+        rotationOffsetChanged = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Yaw 180##EnemyBulletDefault")) {
+        defaultModelRotationOffset_.y += kPi;
+        rotationOffsetChanged = true;
+    }
+    if (ImGui::Button("Pitch +90##EnemyBulletDefault")) {
+        defaultModelRotationOffset_.x += kPi * 0.5f;
+        rotationOffsetChanged = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Pitch -90##EnemyBulletDefault")) {
+        defaultModelRotationOffset_.x -= kPi * 0.5f;
+        rotationOffsetChanged = true;
+    }
+    if (ImGui::Button("向き補正リセット##EnemyBulletDefault")) {
+        defaultModelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
+        rotationOffsetChanged = true;
+    }
+    rotationOffsetChanged |= ImGui::DragFloat3(
+        "Enemy Bullet Model Rotation Offset",
+        &defaultModelRotationOffset_.x,
+        0.01f,
+        -6.28318f,
+        6.28318f,
+        "%.3f");
+    if (rotationOffsetChanged) {
+        ApplyModelRotationOffsetToAllBullets();
+    }
+    ImGui::Text("Enemy Bullet Forward Axis: +Z + offset");
     ImGui::Checkbox("Show EnemyBullet Radius", &showEnemyBulletRadius_);
+    if (ImGui::Checkbox("Use Lightweight Bullet Visual", &useLightweightBulletVisual_)) {
+        SetUseLightweightBulletVisual(useLightweightBulletVisual_);
+    }
     ImGui::DragFloat("EnemyBullet Radius", &defaultRadius_, 0.01f, 0.001f, 20.0f, "%.3f");
     if (ImGui::Button("Bullet Radius Small")) {
         defaultRadius_ = 0.10f;
@@ -130,7 +175,9 @@ EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vect
     bullet->SetVelocity(velocity);
     bullet->SetScale(defaultScale_);
     bullet->SetRotation(defaultRotation_);
+    bullet->SetModelRotationOffset(defaultModelRotationOffset_);
     bullet->SetRadius(defaultRadius_);
+    bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
 
     EnemyBullet* bulletPtr = bullet.get();
     bullets_.push_back(std::move(bullet));
@@ -145,6 +192,23 @@ void EnemyBulletManager::DeleteAllBullets() {
     }
     bullets_.clear();
     selectedBulletIndex_ = -1;
+}
+
+void EnemyBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisual) {
+    useLightweightBulletVisual_ = useLightweightVisual;
+    for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
+        if (bullet) {
+            bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
+        }
+    }
+}
+
+void EnemyBulletManager::ApplyModelRotationOffsetToAllBullets() {
+    for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
+        if (bullet) {
+            bullet->SetModelRotationOffset(defaultModelRotationOffset_);
+        }
+    }
 }
 
 bool EnemyBulletManager::CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition) {

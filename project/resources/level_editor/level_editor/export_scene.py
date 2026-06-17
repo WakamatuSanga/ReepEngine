@@ -120,6 +120,8 @@ def _normalize_action(action):
             action.get("actionType", action.get("action_type", ""))),
         "actionDescription": _to_string(
             action.get("actionDescription", action.get("action_description", ""))),
+        "postEffectType": _to_string(
+            action.get("postEffectType", action.get("post_effect_type", "Flash")), "Flash"),
     }
     if not result["targetObjectId"] and not result["targetObjectName"]:
         return None
@@ -156,6 +158,7 @@ def _parse_event_object_actions(value):
                 "targetObjectName": parts[0],
                 "actionType": parts[1] if len(parts) > 1 else "",
                 "actionDescription": parts[2] if len(parts) > 2 else "",
+                "postEffectType": parts[3] if len(parts) > 3 and parts[3] else "Flash",
             }
             actions.append(action)
         return actions

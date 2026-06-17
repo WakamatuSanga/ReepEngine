@@ -60,6 +60,87 @@ void WinApp::Initialize() {
     ShowWindow(hwnd, SW_SHOW);
 }
 
+void WinApp::SetFullscreen(bool fullscreen) {
+    if (!hwnd || isFullscreen_ == fullscreen) {
+        return;
+    }
+
+    if (fullscreen) {
+        windowedStyle_ = GetWindowLongPtr(hwnd, GWL_STYLE);
+        windowedExStyle_ = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        windowedPlacement_.length = sizeof(WINDOWPLACEMENT);
+        GetWindowPlacement(hwnd, &windowedPlacement_);
+
+        HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO monitorInfo{};
+        monitorInfo.cbSize = sizeof(MONITORINFO);
+        if (!GetMonitorInfo(monitor, &monitorInfo)) {
+            return;
+        }
+
+        const LONG_PTR fullscreenStyle = windowedStyle_ & ~static_cast<LONG_PTR>(WS_OVERLAPPEDWINDOW);
+        const LONG_PTR fullscreenExStyle =
+            windowedExStyle_ &
+            ~static_cast<LONG_PTR>(WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE);
+
+        SetWindowLongPtr(hwnd, GWL_STYLE, fullscreenStyle);
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, fullscreenExStyle);
+        SetWindowPos(
+            hwnd,
+            HWND_TOP,
+            monitorInfo.rcMonitor.left,
+            monitorInfo.rcMonitor.top,
+            monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+            monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
+            SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        ShowWindow(hwnd, SW_SHOW);
+        isFullscreen_ = true;
+        return;
+    }
+
+    SetWindowLongPtr(hwnd, GWL_STYLE, windowedStyle_);
+    SetWindowLongPtr(hwnd, GWL_EXSTYLE, windowedExStyle_);
+    SetWindowPlacement(hwnd, &windowedPlacement_);
+    SetWindowPos(
+        hwnd,
+        nullptr,
+        0,
+        0,
+        0,
+        0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    ShowWindow(hwnd, SW_SHOW);
+    isFullscreen_ = false;
+}
+
+void WinApp::ToggleFullscreen() {
+    SetFullscreen(!isFullscreen_);
+}
+
+int32_t WinApp::GetClientWidth() const {
+    if (!hwnd) {
+        return kClientWidth;
+    }
+
+    RECT rect{};
+    if (!GetClientRect(hwnd, &rect)) {
+        return kClientWidth;
+    }
+    return static_cast<int32_t>(rect.right - rect.left);
+}
+
+int32_t WinApp::GetClientHeight() const {
+    if (!hwnd) {
+        return kClientHeight;
+    }
+
+    RECT rect{};
+    if (!GetClientRect(hwnd, &rect)) {
+        return kClientHeight;
+    }
+    return static_cast<int32_t>(rect.bottom - rect.top);
+}
+
 bool WinApp::ProcessMessage()
 {
     MSG msg{};

@@ -14,6 +14,9 @@ MyGame* MyGame::GetInstance() {
 void MyGame::Initialize() {
     winApp_ = std::make_unique<WinApp>();
     winApp_->Initialize();
+#ifndef _DEBUG
+    winApp_->SetFullscreen(true);
+#endif
 
     dxCommon_ = std::make_unique<DirectXCommon>();
     dxCommon_->Initialize(winApp_.get());

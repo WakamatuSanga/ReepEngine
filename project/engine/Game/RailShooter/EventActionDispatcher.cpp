@@ -1,5 +1,6 @@
 #include "EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
+#include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include "Engine/Level/LevelEventRuntime.h"
@@ -40,11 +41,13 @@ void EventActionDispatcher::Initialize(
     LevelEventRuntime* eventRuntime,
     RailShooterEventActionBridge* cameraRailBridge,
     EnemySpawnActionBridge* enemySpawnBridge,
+    PostEffectActionBridge* postEffectBridge,
     PrimitiveEffectSystem* primitiveEffectSystem,
     LevelSceneRuntime* levelSceneRuntime) {
     eventRuntime_ = eventRuntime;
     cameraRailBridge_ = cameraRailBridge;
     enemySpawnBridge_ = enemySpawnBridge;
+    postEffectBridge_ = postEffectBridge;
     primitiveEffectSystem_ = primitiveEffectSystem;
     levelSceneRuntime_ = levelSceneRuntime;
 }
@@ -53,6 +56,7 @@ void EventActionDispatcher::Finalize() {
     eventRuntime_ = nullptr;
     cameraRailBridge_ = nullptr;
     enemySpawnBridge_ = nullptr;
+    postEffectBridge_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     levelSceneRuntime_ = nullptr;
     dispatchLog_.clear();
@@ -75,6 +79,8 @@ void EventActionDispatcher::Update() {
             handled = cameraRailBridge_ && cameraRailBridge_->HandleAction(action, result);
         } else if (IsActionType(action.actionType, "playeffect")) {
             handled = DispatchPlayEffect(action, result);
+        } else if (IsActionType(action.actionType, "playposteffect")) {
+            handled = postEffectBridge_ && postEffectBridge_->HandleAction(action, result);
         } else if (IsActionType(action.actionType, "spawnenemy")) {
             handled = enemySpawnBridge_ && enemySpawnBridge_->HandleAction(action, result);
         } else {
