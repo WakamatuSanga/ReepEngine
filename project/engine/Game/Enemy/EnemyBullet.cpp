@@ -56,7 +56,7 @@ namespace {
 
     Vector3 Normalize(const Vector3& value, const Vector3& fallback) {
         const float length = Length(value);
-        if (length <= kMinVectorLength) {
+        if (length <= kMinVectorLength || !std::isfinite(length)) {
             return fallback;
         }
         return { value.x / length, value.y / length, value.z / length };
@@ -152,6 +152,13 @@ void EnemyBullet::DrawImGui() {
     ImGui::TextWrapped("Texture Path: %s", texturePath_.empty() ? "(none)" : texturePath_.c_str());
     ImGui::TextWrapped("Load Status: %s", loadStatus_.c_str());
     ImGui::Text("Fallback: %s", useFallbackModel_ ? "true" : "false");
+    ImGui::Text("Model Stats: vertices=%zu indices=%zu materials=%zu",
+        model_ ? model_->GetVertexCount() : 0,
+        model_ ? model_->GetIndexCount() : 0,
+        model_ ? model_->GetMaterialCount() : 0);
+    if (ImGui::Checkbox("Use Lightweight Bullet Visual", &useLightweightVisual_)) {
+        LoadModel();
+    }
     ImGui::DragFloat3("Position", &position_.x, 0.05f, -100.0f, 100.0f, "%.2f");
     ImGui::DragFloat3("Velocity", &velocity_.x, 0.05f, -100.0f, 100.0f, "%.2f");
     ImGui::DragFloat3("Rotation", &rotation_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
@@ -167,11 +174,20 @@ void EnemyBullet::DrawImGui() {
     if (ImGui::Button("Yaw 180")) {
         modelRotationOffset_.y += kPi;
     }
+    if (ImGui::Button("Pitch +90")) {
+        modelRotationOffset_.x += kPi * 0.5f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Pitch -90")) {
+        modelRotationOffset_.x -= kPi * 0.5f;
+    }
     if (ImGui::Button("向き補正リセット")) {
         modelRotationOffset_ = { 0.0f, 0.0f, 0.0f };
     }
     ImGui::DragFloat3("Enemy Bullet Model Rotation Offset", &modelRotationOffset_.x, 0.01f, -6.28318f, 6.28318f, "%.3f");
-    ImGui::Text("Velocity Forward: %.3f, %.3f, %.3f", lastVisualForward_.x, lastVisualForward_.y, lastVisualForward_.z);
+    ImGui::Text("Visual Forward Source: %s", hasVisualForwardOverride_ ? "Override" : "Velocity");
+    ImGui::Text("Enemy Bullet Forward Axis: +Z + offset");
+    ImGui::Text("Velocity/Visual Forward: %.3f, %.3f, %.3f", lastVisualForward_.x, lastVisualForward_.y, lastVisualForward_.z);
     ImGui::Text("Base Rotation: %.3f, %.3f, %.3f",
         visualBaseRotation_.x,
         visualBaseRotation_.y,
@@ -224,6 +240,22 @@ void EnemyBullet::SetRotation(const Vector3& rotation) {
     UpdateObjectTransform();
 }
 
+void EnemyBullet::SetModelRotationOffset(const Vector3& rotationOffset) {
+    modelRotationOffset_ = rotationOffset;
+    UpdateObjectTransform();
+}
+
+void EnemyBullet::SetVisualForwardOverride(const Vector3& forward) {
+    visualForwardOverride_ = Normalize(forward, lastVisualForward_);
+    hasVisualForwardOverride_ = true;
+    UpdateObjectTransform();
+}
+
+void EnemyBullet::ClearVisualForwardOverride() {
+    hasVisualForwardOverride_ = false;
+    UpdateObjectTransform();
+}
+
 void EnemyBullet::SetScale(const Vector3& scale) {
     scale_ = scale;
     UpdateObjectTransform();
@@ -235,6 +267,15 @@ void EnemyBullet::SetRadius(float radius) {
 
 void EnemyBullet::SetLifeTime(float lifeTime) {
     lifeTime_ = (std::max)(0.1f, lifeTime);
+}
+
+void EnemyBullet::SetUseLightweightVisual(bool useLightweightVisual) {
+    if (useLightweightVisual_ == useLightweightVisual) {
+        return;
+    }
+    useLightweightVisual_ = useLightweightVisual;
+    LoadModel();
+    UpdateObjectTransform();
 }
 
 void EnemyBullet::SetModelPath(const std::string& modelPath) {
@@ -255,7 +296,11 @@ void EnemyBullet::LoadModel() {
     model_ = nullptr;
 
     ModelManager* modelManager = ModelManager::GetInstance();
-    if (!resolvedModelPath_.empty()) {
+    if (useLightweightVisual_) {
+        model_ = modelManager->CreateSphere("EnemyBulletLightweightSphere", 8);
+        useFallbackModel_ = true;
+        loadStatus_ = "Using lightweight bullet primitive.";
+    } else if (!resolvedModelPath_.empty()) {
         modelManager->LoadModel(resolvedModelPath_);
         model_ = modelManager->FindModel(resolvedModelPath_);
         if (model_) {
@@ -292,8 +337,9 @@ void EnemyBullet::UpdateObjectTransform() {
     }
 
     object_->SetTranslate(position_);
-    if (Length(velocity_) > kMinVectorLength) {
-        lastVisualForward_ = Normalize(velocity_, lastVisualForward_);
+    const Vector3 visualForwardSource = hasVisualForwardOverride_ ? visualForwardOverride_ : velocity_;
+    if (Length(visualForwardSource) > kMinVectorLength) {
+        lastVisualForward_ = Normalize(visualForwardSource, lastVisualForward_);
     }
     visualBaseRotation_ = MakeRotationFromForward(lastVisualForward_);
     visualModelRotation_ = AddVector3(

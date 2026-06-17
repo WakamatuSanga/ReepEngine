@@ -46,6 +46,9 @@ public:
     void ClearVertexBufferViewOverride();
 
     void SetTextureIndex(uint32_t index) { modelData_.material.textureIndex = index; }
+    size_t GetVertexCount() const { return modelData_.vertices.size(); }
+    size_t GetIndexCount() const { return modelData_.indices.size(); }
+    size_t GetMaterialCount() const { return 1; }
 
     Material* GetMaterialData() { return materialData_; }
 

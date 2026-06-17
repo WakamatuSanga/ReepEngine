@@ -5,7 +5,7 @@
 
 class EnemyManager;
 class PlayerBulletManager;
-class PrimitiveEffectSystem;
+class CombatEffectController;
 
 class PlayerBulletEnemyCollision {
 public:
@@ -15,7 +15,7 @@ public:
     void Initialize(
         PlayerBulletManager* bulletManager,
         EnemyManager* enemyManager,
-        PrimitiveEffectSystem* primitiveEffectSystem);
+        CombatEffectController* combatEffectController);
     void Finalize();
     void Update();
     void DrawImGui();
@@ -23,7 +23,7 @@ public:
 private:
     PlayerBulletManager* bulletManager_ = nullptr;
     EnemyManager* enemyManager_ = nullptr;
-    PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
+    CombatEffectController* combatEffectController_ = nullptr;
     Vector3 lastHitPosition_{ 0.0f, 0.0f, 0.0f };
     float enemyHitRadiusForDebug_ = 0.6f;
     float lastDistance_ = -1.0f;
@@ -34,7 +34,6 @@ private:
     size_t hitCount_ = 0;
     std::string lastHitEnemy_ = "(none)";
     bool enableEnemyHitCollision_ = true;
-    bool playHitEffect_ = true;
-    bool playRingEffect_ = true;
+    bool playCombatEffect_ = true;
     bool lastHitResult_ = false;
 };

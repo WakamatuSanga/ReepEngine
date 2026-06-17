@@ -1,4 +1,5 @@
 #include "PlayerEnemyBulletCollision.h"
+#include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
@@ -14,10 +15,12 @@ PlayerEnemyBulletCollision::~PlayerEnemyBulletCollision() = default;
 void PlayerEnemyBulletCollision::Initialize(
     Player* player,
     EnemyBulletManager* bulletManager,
-    PlayerDeathSequenceController* deathSequence) {
+    PlayerDeathSequenceController* deathSequence,
+    CombatEffectController* combatEffectController) {
     player_ = player;
     bulletManager_ = bulletManager;
     deathSequence_ = deathSequence;
+    combatEffectController_ = combatEffectController;
     lastBlockedReason_ = "Initialized";
 }
 
@@ -25,6 +28,7 @@ void PlayerEnemyBulletCollision::Finalize() {
     player_ = nullptr;
     bulletManager_ = nullptr;
     deathSequence_ = nullptr;
+    combatEffectController_ = nullptr;
 }
 
 void PlayerEnemyBulletCollision::Update() {
@@ -54,6 +58,10 @@ void PlayerEnemyBulletCollision::Update() {
         &lastBulletRadius_)) {
         lastHit_ = true;
         ++hitCount_;
+        if (combatEffectController_) {
+            combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);
+            combatEffectController_->PlayPlayerDeathExplosion(lastPlayerPosition_);
+        }
         deathSequence_->StartDeathSequence();
     }
 }

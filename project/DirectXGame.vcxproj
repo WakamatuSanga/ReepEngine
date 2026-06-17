@@ -150,6 +150,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLauncher.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLiveSync.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp" />
+    <ClCompile Include="engine\Core\GameViewport.cpp" />
+    <ClCompile Include="engine\Core\RuntimeModeController.cpp" />
     <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp" />
@@ -157,6 +159,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
+    <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp" />
@@ -284,10 +287,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Editor\BlenderSync\BlenderLiveSync.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderSyncTypes.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h" />
+    <ClInclude Include="engine\Core\GameViewport.h" />
+    <ClInclude Include="engine\Core\RuntimeModeController.h" />
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h" />
     <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h" />
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
+    <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h" />

@@ -116,13 +116,17 @@ namespace {
         return Normalize({ matrix.m[2][0], matrix.m[2][1], matrix.m[2][2] }, { 0.0f, 0.0f, 1.0f });
     }
 
-    bool IsEditingImGuiInput() {
+    bool IsEditingImGuiText() {
 #ifdef _DEBUG
         const ImGuiIO& io = ImGui::GetIO();
-        return io.WantTextInput || ImGui::IsAnyItemActive();
+        return io.WantTextInput;
 #else
         return false;
 #endif
+    }
+
+    float LerpFloat(float start, float end, float t) {
+        return start + (end - start) * t;
     }
 }
 
@@ -164,6 +168,9 @@ void Player::Update(float deltaTime) {
     lastAPressed_ = false;
     lastSPressed_ = false;
     lastDPressed_ = false;
+    lastLeftMouseDown_ = false;
+    lastRightMouseDown_ = false;
+    lastImGuiTextInputActive_ = false;
     lastInputApplied_ = false;
     lastRawMoveInput_ = { 0.0f, 0.0f, 0.0f };
     inputBlockedReason_ = "None";
@@ -180,6 +187,8 @@ void Player::Update(float deltaTime) {
         lastDPressed_ = input->PushKey(DIK_D);
         lastWPressed_ = input->PushKey(DIK_W);
         lastSPressed_ = input->PushKey(DIK_S);
+        lastLeftMouseDown_ = input->MouseDown(Input::MouseLeft);
+        lastRightMouseDown_ = input->MouseDown(Input::MouseRight);
 
         if (lastAPressed_) {
             lastRawMoveInput_.x -= 1.0f;
@@ -197,13 +206,13 @@ void Player::Update(float deltaTime) {
         inputBlockedReason_ = "Input is missing";
     }
 
-    const bool isEditingImGuiInput = IsEditingImGuiInput();
+    lastImGuiTextInputActive_ = IsEditingImGuiText();
     if (!enablePlayer_) {
         inputBlockedReason_ = "Player disabled";
     } else if (!gameViewInputActive_) {
         inputBlockedReason_ = "Game View is not hovered/focused";
-    } else if (isEditingImGuiInput) {
-        inputBlockedReason_ = "ImGui item or text input is active";
+    } else if (lastImGuiTextInputActive_) {
+        inputBlockedReason_ = "ImGui text input is active";
     } else if (input) {
         Vector3 moveInput = lastRawMoveInput_;
         const float inputLength = std::sqrt(moveInput.x * moveInput.x + moveInput.y * moveInput.y);
@@ -220,6 +229,7 @@ void Player::Update(float deltaTime) {
         }
     }
 
+    UpdateVisualTilt(safeDeltaTime);
     UpdateWorldPosition();
     UpdateObjectTransform();
     object_->Update();
@@ -255,10 +265,25 @@ void Player::DrawImGui() {
     ImGui::TextWrapped("Texture Path: %s", texturePath_.empty() ? "(none)" : texturePath_.c_str());
     ImGui::TextWrapped("Load Status: %s", loadStatus_.c_str());
     ImGui::Text("Fallback: %s", useFallbackModel_ ? "true" : "false");
+    ImGui::Text("Model Stats: vertices=%zu indices=%zu materials=%zu",
+        model_ ? model_->GetVertexCount() : 0,
+        model_ ? model_->GetIndexCount() : 0,
+        model_ ? model_->GetMaterialCount() : 0);
+    if (ImGui::Checkbox("Use Lightweight Player Visual", &useLightweightVisual_)) {
+        LoadModel();
+        UpdateObjectTransform();
+        if (object_) {
+            object_->Update();
+        }
+    }
     ImGui::SeparatorText("入力診断 (Input Diagnostics)");
     ImGui::Text("Update Called: yes (%llu)", static_cast<unsigned long long>(updateCount_));
     ImGui::TextWrapped("Input Blocked Reason: %s", inputBlockedReason_.c_str());
     ImGui::Text("Game View Input Active: %s", gameViewInputActive_ ? "true" : "false");
+    ImGui::Text("ImGui Text Input Active: %s", lastImGuiTextInputActive_ ? "true" : "false");
+    ImGui::Text("Left / Right Mouse Down: %s / %s",
+        lastLeftMouseDown_ ? "true" : "false",
+        lastRightMouseDown_ ? "true" : "false");
     ImGui::Text("W/A/S/D Pressed: %s / %s / %s / %s",
         lastWPressed_ ? "true" : "false",
         lastAPressed_ ? "true" : "false",
@@ -347,6 +372,19 @@ void Player::DrawImGui() {
         visualFinalRotation_.y,
         visualFinalRotation_.z);
 
+    ImGui::SeparatorText("プレイヤー見た目傾き (Player Visual Tilt)");
+    ImGui::Checkbox("見た目傾き有効 (Enable Visual Tilt)", &enableVisualTilt_);
+    ImGui::DragFloat("W/S Pitch Tilt Amount", &visualPitchTiltAmount_, 0.01f, 0.0f, 1.5f, "%.3f");
+    ImGui::DragFloat("A/D Roll Tilt Amount", &visualRollTiltAmount_, 0.01f, 0.0f, 1.5f, "%.3f");
+    ImGui::DragFloat("Tilt Smooth Speed", &visualTiltSmoothSpeed_, 0.1f, 0.0f, 40.0f, "%.2f");
+    if (ImGui::Button("傾きリセット (Reset Visual Tilt)")) {
+        currentVisualTilt_ = { 0.0f, 0.0f, 0.0f };
+    }
+    ImGui::Text("Current Visual Tilt: %.3f, %.3f, %.3f",
+        currentVisualTilt_.x,
+        currentVisualTilt_.y,
+        currentVisualTilt_.z);
+
     ImGui::DragFloat("Move Speed", &moveSpeed_, 0.05f, 0.0f, 30.0f, "%.2f");
     ImGui::DragFloat("Move Limit X", &moveLimitX_, 0.05f, 0.0f, 20.0f, "%.2f");
     ImGui::DragFloat("Move Limit Y", &moveLimitY_, 0.05f, 0.0f, 20.0f, "%.2f");
@@ -425,7 +463,11 @@ void Player::LoadModel() {
     texturePath_.clear();
 
     ModelManager* modelManager = ModelManager::GetInstance();
-    if (!resolvedModelPath_.empty()) {
+    if (useLightweightVisual_) {
+        model_ = modelManager->CreateBox("PlayerLightweightBox");
+        useFallbackModel_ = true;
+        loadStatus_ = "Using lightweight player primitive.";
+    } else if (!resolvedModelPath_.empty()) {
         modelManager->LoadModel(resolvedModelPath_);
         model_ = modelManager->FindModel(resolvedModelPath_);
         if (model_) {
@@ -491,8 +533,10 @@ void Player::UpdateObjectTransform() {
 
     visualBaseRotation_ = MakeRotationFromForward(baseForward_);
     visualFinalRotation_ = AddVector3(
-        AddVector3(visualBaseRotation_, GetModelForwardAxisOffset(modelForwardAxis_)),
-        modelRotationOffset_);
+        AddVector3(
+            AddVector3(visualBaseRotation_, GetModelForwardAxisOffset(modelForwardAxis_)),
+            modelRotationOffset_),
+        currentVisualTilt_);
 
     object_->SetTranslate(worldPosition_);
     object_->SetRotate(visualFinalRotation_);
@@ -502,4 +546,19 @@ void Player::UpdateObjectTransform() {
         hitRadiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
         hitRadiusObject_->SetScale({ hitRadius_, hitRadius_, hitRadius_ });
     }
+}
+
+void Player::UpdateVisualTilt(float deltaTime) {
+    Vector3 targetTilt{ 0.0f, 0.0f, 0.0f };
+    if (enableVisualTilt_ && lastInputApplied_) {
+        targetTilt.x = -lastRawMoveInput_.y * visualPitchTiltAmount_;
+        targetTilt.z = -lastRawMoveInput_.x * visualRollTiltAmount_;
+    }
+
+    const float t = std::clamp(deltaTime * visualTiltSmoothSpeed_, 0.0f, 1.0f);
+    currentVisualTilt_ = {
+        LerpFloat(currentVisualTilt_.x, targetTilt.x, t),
+        LerpFloat(currentVisualTilt_.y, targetTilt.y, t),
+        LerpFloat(currentVisualTilt_.z, targetTilt.z, t)
+    };
 }

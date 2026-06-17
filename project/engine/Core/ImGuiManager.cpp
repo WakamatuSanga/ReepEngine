@@ -2,6 +2,7 @@
 
 #ifdef _DEBUG
 #include "DirectXCommon.h"
+#include "RuntimeModeController.h"
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "externals/imgui/imgui.h"
@@ -137,6 +138,9 @@ void ImGuiManager::ApplyStyle_() {
 }
 
 void ImGuiManager::BeginDockSpace_() {
+	const RuntimeModeController* runtimeModeController = RuntimeModeController::GetActiveController();
+	const bool drawDebugUi = !runtimeModeController || runtimeModeController->ShouldDrawDebugUi();
+
 #ifdef IMGUI_HAS_DOCK
 	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 	ImGuiWindowFlags windowFlags =
@@ -149,7 +153,10 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoNavFocus;
 
-	if (enableDockSpacePassthrough_) {
+	if (!drawDebugUi && runtimeModeController && runtimeModeController->ShouldKeepDockSpaceAlive()) {
+		dockspaceFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
+		windowFlags |= ImGuiWindowFlags_NoBackground;
+	} else if (enableDockSpacePassthrough_) {
 		dockspaceFlags |= ImGuiDockNodeFlags_PassthruCentralNode;
 		windowFlags |= ImGuiWindowFlags_NoBackground;
 	}
@@ -167,11 +174,16 @@ void ImGuiManager::BeginDockSpace_() {
 
 	if (ImGui::BeginMenuBar()) {
 		if (ImGui::BeginMenu("Window")) {
-			ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
-			ImGui::Separator();
-			ImGui::MenuItem("DockSpace Passthrough", nullptr, &enableDockSpacePassthrough_);
+			if (drawDebugUi) {
+				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+				ImGui::Separator();
+				ImGui::MenuItem("DockSpace Passthrough", nullptr, &enableDockSpacePassthrough_);
+			} else {
+				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
+			}
 			ImGui::EndMenu();
 		}
+		RuntimeModeController::DrawActiveMenuBarImGui();
 		ImGui::EndMenuBar();
 	}
 
@@ -181,17 +193,21 @@ void ImGuiManager::BeginDockSpace_() {
 #else
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("Window")) {
-			ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+			if (drawDebugUi) {
+				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+			} else {
+				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
+			}
 			ImGui::TextDisabled("Docking requires Dear ImGui docking branch.");
 			ImGui::EndMenu();
 		}
+		RuntimeModeController::DrawActiveMenuBarImGui();
 		ImGui::EndMainMenuBar();
 	}
 #endif
 
-	if (showDemoWindow_) {
+	if (drawDebugUi && showDemoWindow_) {
 		ImGui::ShowDemoWindow(&showDemoWindow_);
 	}
 }
 #endif
-
