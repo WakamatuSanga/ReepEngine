@@ -1,4 +1,4 @@
-#include "LevelEventRuntime.h"
+﻿#include "LevelEventRuntime.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -110,7 +110,7 @@ namespace {
         return LengthSquared(SubtractVector3(sphereCenter, closest)) <= sphereRadius * sphereRadius;
     }
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const char* ToTriggerSourceLabel(LevelEventTriggerSource source) {
         switch (source) {
         case LevelEventTriggerSource::Player:
@@ -314,7 +314,7 @@ void LevelEventRuntime::Draw(uint64_t frameCounter) {
 }
 
 void LevelEventRuntime::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Checkbox("Runtime有効 (Enable Event Runtime)", &runtimeEnabled_);
     ImGui::Checkbox("Debug Actorを表示 (Show Debug Actor)", &showDebugActor_);
     ImGui::Checkbox("発火済みフラグを表示 (Show Fired Flags)", &showFiredFlags_);
@@ -528,3 +528,4 @@ void LevelEventRuntime::EnsureDebugActorVisual() {
         debugActorObject_->SetEnvironmentMapEnabled(false);
     }
 }
+

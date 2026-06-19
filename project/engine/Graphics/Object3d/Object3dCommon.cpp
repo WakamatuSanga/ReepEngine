@@ -31,7 +31,7 @@ void Object3dCommon::CreateRootSignature()
     staticSamplers[0].ShaderRegister = 0;
     staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-    D3D12_ROOT_PARAMETER rootParameters[10]{};
+    D3D12_ROOT_PARAMETER rootParameters[13]{};
 
     // [0] Pixel CBV : Material(b0)
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -44,7 +44,7 @@ void Object3dCommon::CreateRootSignature()
     rootParameters[1].Descriptor.ShaderRegister = 0;
 
     // [2] Pixel SRV : Texture(t0)
-    D3D12_DESCRIPTOR_RANGE descriptorRange[3]{};
+    D3D12_DESCRIPTOR_RANGE descriptorRange[6]{};
     descriptorRange[0].BaseShaderRegister = 0;
     descriptorRange[0].NumDescriptors = 1;
     descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -99,6 +99,36 @@ void Object3dCommon::CreateRootSignature()
     rootParameters[9].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     rootParameters[9].Descriptor.ShaderRegister = 5;
 
+    // [10] Pixel SRV : NormalTexture(t3)
+    descriptorRange[3].BaseShaderRegister = 3;
+    descriptorRange[3].NumDescriptors = 1;
+    descriptorRange[3].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRange[3].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[10].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[10].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[10].DescriptorTable.pDescriptorRanges = &descriptorRange[3];
+    rootParameters[10].DescriptorTable.NumDescriptorRanges = 1;
+
+    // [11] Pixel SRV : MetallicRoughnessTexture(t4)
+    descriptorRange[4].BaseShaderRegister = 4;
+    descriptorRange[4].NumDescriptors = 1;
+    descriptorRange[4].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRange[4].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[11].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[11].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[11].DescriptorTable.pDescriptorRanges = &descriptorRange[4];
+    rootParameters[11].DescriptorTable.NumDescriptorRanges = 1;
+
+    // [12] Pixel SRV : SpecularF0Texture(t5)
+    descriptorRange[5].BaseShaderRegister = 5;
+    descriptorRange[5].NumDescriptors = 1;
+    descriptorRange[5].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    descriptorRange[5].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+    rootParameters[12].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rootParameters[12].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rootParameters[12].DescriptorTable.pDescriptorRanges = &descriptorRange[5];
+    rootParameters[12].DescriptorTable.NumDescriptorRanges = 1;
+
     descriptionRootSignature.pParameters = rootParameters;
     descriptionRootSignature.NumParameters = _countof(rootParameters);
     descriptionRootSignature.pStaticSamplers = staticSamplers;
@@ -136,7 +166,7 @@ void Object3dCommon::CreateGraphicsPipelineStates()
     auto pixelShaderBlob = dxCommon_->CompileShader(L"resources/shaders/Object3d.PS.hlsl", L"ps_6_0");
 
     // InputLayout
-    D3D12_INPUT_ELEMENT_DESC inputElementDescs[3]{};
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[4]{};
     inputElementDescs[0].SemanticName = "POSITION";
     inputElementDescs[0].SemanticIndex = 0;
     inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -151,6 +181,11 @@ void Object3dCommon::CreateGraphicsPipelineStates()
     inputElementDescs[2].SemanticIndex = 0;
     inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
     inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+    inputElementDescs[3].SemanticName = "TANGENT";
+    inputElementDescs[3].SemanticIndex = 0;
+    inputElementDescs[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElementDescs[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
     D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
     inputLayoutDesc.pInputElementDescs = inputElementDescs;

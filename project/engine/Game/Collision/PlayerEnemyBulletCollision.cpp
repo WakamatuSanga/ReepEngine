@@ -1,10 +1,10 @@
-#include "PlayerEnemyBulletCollision.h"
+﻿#include "PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -78,7 +78,7 @@ void PlayerEnemyBulletCollision::Update() {
 }
 
 void PlayerEnemyBulletCollision::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(340.0f, 240.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Player被弾確認 (Player Enemy Bullet Collision)")) {
         ImGui::End();
@@ -102,3 +102,4 @@ void PlayerEnemyBulletCollision::DrawImGui() {
     ImGui::End();
 #endif
 }
+

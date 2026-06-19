@@ -18,6 +18,8 @@ public:
     void DrawImGui();
 
     bool PlayPostEffect(const std::string& postEffectType, std::string& resultMessage);
+    void SetDiagnosticSuppressed(bool isSuppressed);
+    bool IsDiagnosticSuppressed() const { return diagnosticSuppressed_; }
 
 private:
     void PlayFlash();
@@ -33,6 +35,7 @@ private:
     std::unique_ptr<Sprite> fadeSprite_;
 
     bool enabled_ = true;
+    bool diagnosticSuppressed_ = false;
     bool grayscaleSaved_ = false;
     unsigned int previousGrayscaleEnabled_ = 0;
     float previousGrayscaleIntensity_ = 1.0f;

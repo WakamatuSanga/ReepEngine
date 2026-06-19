@@ -7,7 +7,7 @@
 #include <cctype>
 #include <string>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -51,7 +51,7 @@ void PrimitiveEffectSystem::Update(float deltaTime) {
 }
 
 void PrimitiveEffectSystem::Draw() {
-    if (!isVisible_ || !object3dCommon_) {
+    if (!isVisible_ || diagnosticSuppressed_ || !object3dCommon_) {
         return;
     }
 
@@ -70,10 +70,13 @@ void PrimitiveEffectSystem::Draw() {
 }
 
 void PrimitiveEffectSystem::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420, 520), ImGuiCond_Once);
     ImGui::Begin("Primitive Effect Debug / プリミティブエフェクト調整");
     ImGui::Checkbox("全体表示 (Show All)", &isVisible_);
+    if (diagnosticSuppressed_) {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "影診断でPrimitive Effectが一時非表示です。");
+    }
 
     if (ImGui::CollapsingHeader("Plane回転ヒット (Rotating Plane Hit)", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (rotatingPlaneHitEffect_) {
@@ -96,7 +99,7 @@ void PrimitiveEffectSystem::DrawImGui() {
 }
 
 void PrimitiveEffectSystem::DrawVisibilityImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Checkbox("Primitive Effects", &isVisible_);
     if (!isVisible_) {
         return;
@@ -125,6 +128,14 @@ void PrimitiveEffectSystem::DrawVisibilityImGui() {
 #endif
 }
 
+size_t PrimitiveEffectSystem::GetEffectCount() const {
+    size_t count = 0;
+    count += rotatingPlaneHitEffect_ ? 1u : 0u;
+    count += ringEffect_ ? 1u : 0u;
+    count += cylinderEffect_ ? 1u : 0u;
+    return count;
+}
+
 void PrimitiveEffectSystem::PlayHitEffectAt(const Vector3& position) {
     if (rotatingPlaneHitEffect_) {
         rotatingPlaneHitEffect_->PlayAt(position);
@@ -134,6 +145,12 @@ void PrimitiveEffectSystem::PlayHitEffectAt(const Vector3& position) {
 void PrimitiveEffectSystem::PlayRingEffectAt(const Vector3& position) {
     if (ringEffect_) {
         ringEffect_->PlayAt(position);
+    }
+}
+
+void PrimitiveEffectSystem::PlayRingEffectAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier) {
+    if (ringEffect_) {
+        ringEffect_->PlayAt(position, scaleMultiplier, alphaMultiplier);
     }
 }
 

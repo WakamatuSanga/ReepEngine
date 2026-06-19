@@ -22,9 +22,13 @@ public:
 
 	bool Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
 	void ApplyEffectData(const GpuParticle::ParticleEffectData& effectData);
+	bool PlayEffectDataAt(const GpuParticle::ParticleEffectData& effectData, const Vector3& position);
+	void SetDeltaTime(float deltaTime);
 	void Update(const Camera* camera);
 	void Draw();
 	void DrawImGui();
+	uint32_t GetActiveCountEstimate() const { return state_.activeCountEstimate; }
+	bool IsInitialized() const { return isInitialized_; }
 
 private:
 	uint32_t EstimateActiveParticleCount() const;

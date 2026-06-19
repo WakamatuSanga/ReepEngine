@@ -10,6 +10,13 @@ namespace {
         return TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/obj/axis/uvChecker.png");
     }
 
+    void UsePrimitiveDebugTexture(Model::MaterialData& material) {
+        material.textureFilePath = "resources/obj/axis/uvChecker.png";
+        material.baseColorTexturePath = material.textureFilePath;
+        material.textureIndex = GetPrimitiveTextureIndex();
+        material.baseColorTextureIndex = material.textureIndex;
+    }
+
     Model::VertexData MakeVertex(float x, float y, float z, float u, float v, float nx, float ny, float nz) {
         return { {x, y, z, 1.0f}, {u, v}, {nx, ny, nz} };
     }
@@ -59,7 +66,7 @@ Model::ModelData PrimitiveGenerator::CreateRingData(
     startRadius = (std::max)(0.0f, startRadius);
     endRadius = (std::max)(0.0f, endRadius);
 
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     for (uint32_t i = 0; i < subdivision; ++i) {
         float t0 = static_cast<float>(i) / static_cast<float>(subdivision);

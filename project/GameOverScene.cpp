@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <memory>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -42,7 +42,7 @@ namespace {
     }
 
     bool IsImGuiCapturingMouse() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
         const ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse || ImGui::IsAnyItemActive();
 #else
@@ -96,7 +96,7 @@ void GameOverScene::Initialize() {
 }
 
 void GameOverScene::Update() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Begin("GameOver Scene");
     ImGui::Text("Left click to return Title.");
     ImGui::Text("gameover.png: %s", hasGameOverTexture_ ? "loaded" : "missing fallback");

@@ -94,6 +94,12 @@
     <Filter Include="ヘッダー ファイル\engine\Game\Effect">
       <UniqueIdentifier>{b82c5044-cb4d-4821-8d71-f6d0b5db128b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Graphics\Shadow">
+      <UniqueIdentifier>{2ce16c8d-ef3f-49d4-b384-13b433ab138a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Graphics\Shadow">
+      <UniqueIdentifier>{d831bf6b-b73d-41dc-9022-144ad7dd7bb9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\Game\GameState">
       <UniqueIdentifier>{319fb8a2-57b6-4848-badc-e7efaa8ec343}</UniqueIdentifier>
     </Filter>
@@ -183,6 +189,9 @@
     <ClCompile Include="engine\Graphics\Model\ModelManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\ModelMaterial.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -237,6 +246,9 @@
     <ClCompile Include="engine\Core\GameViewport.cpp">
       <Filter>ソース ファイル\engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Core\FrameTimer.cpp">
+      <Filter>ソース ファイル\engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Core\RuntimeModeController.cpp">
       <Filter>ソース ファイル\engine\Core</Filter>
     </ClCompile>
@@ -267,6 +279,9 @@
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
@@ -290,6 +305,9 @@
     </ClCompile>
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\BoostController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
@@ -316,6 +334,9 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\StartupEnemySpawnController.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp">
@@ -416,6 +437,15 @@
     </ClCompile>
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp">
+      <Filter>ソース ファイル\engine\Graphics\Shadow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -551,6 +581,9 @@
     <ClInclude Include="engine\Core\GameViewport.h">
       <Filter>ヘッダー ファイル\engine\Core</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Core\FrameTimer.h">
+      <Filter>ヘッダー ファイル\engine\Core</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Core\RuntimeModeController.h">
       <Filter>ヘッダー ファイル\engine\Core</Filter>
     </ClInclude>
@@ -570,6 +603,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Effect\PostEffectController.h">
@@ -596,6 +632,9 @@
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Player\BoostController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
@@ -621,6 +660,9 @@
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h">
@@ -734,6 +776,9 @@
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h">
+      <Filter>ヘッダー ファイル\engine\Graphics\Shadow</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt">
@@ -802,6 +847,9 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\VolumetricCloud.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\VolumetricCloudComposite.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>

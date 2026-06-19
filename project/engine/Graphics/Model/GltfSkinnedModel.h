@@ -23,6 +23,15 @@ public:
         Vector3 center{ 0.0f, 0.0f, 0.0f };
     };
 
+    struct TextureDebugInfo {
+        std::string materialTexturePath;
+        std::string resolvedTexturePath;
+        uint32_t textureIndex = 0;
+        bool usingWhiteFallback = false;
+        bool usingUvCheckerFallback = false;
+        int missingTextureCount = 0;
+    };
+
     GltfSkinnedModel() = default;
     ~GltfSkinnedModel();
 
@@ -53,6 +62,7 @@ public:
     }
     const Bounds& GetSourceBounds() const { return sourceBounds_; }
     const Bounds& GetSkinnedBounds() const { return skinnedBounds_; }
+    const TextureDebugInfo& GetTextureDebugInfo() const { return textureDebugInfo_; }
 
 private:
     struct SkinningInformation {
@@ -87,6 +97,7 @@ private:
     std::vector<Matrix4x4> jointPalette_;
     Bounds sourceBounds_{};
     Bounds skinnedBounds_{};
+    TextureDebugInfo textureDebugInfo_{};
     Microsoft::WRL::ComPtr<ID3D12RootSignature> skinningComputeRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> skinningComputePipelineState_;
     Microsoft::WRL::ComPtr<ID3D12Resource> skinningInformationResource_;

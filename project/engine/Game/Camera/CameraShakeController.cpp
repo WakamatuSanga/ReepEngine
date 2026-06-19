@@ -1,9 +1,9 @@
-#include "CameraShakeController.h"
+﻿#include "CameraShakeController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -88,7 +88,7 @@ void CameraShakeController::Reset(Camera* camera) {
 }
 
 void CameraShakeController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("カメラシェイク確認 (Camera Shake Debug)")) {
         ImGui::End();
@@ -117,3 +117,4 @@ void CameraShakeController::RemoveAppliedOffset(Camera* camera) {
     currentOffset_ = { 0.0f, 0.0f, 0.0f };
     hasAppliedOffset_ = false;
 }
+

@@ -1,4 +1,4 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "MyGame.h"
@@ -7,6 +7,7 @@
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Particle/ParticleManager.h"
+#include "Engine/Graphics/Shadow/ScreenSpaceFakeShadowPass.h"
 #include "Engine/Graphics/Skybox/Skybox.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Audio/Audio.h"
@@ -25,12 +26,14 @@
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
+#include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
@@ -40,6 +43,8 @@
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
+#include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Core/SrvManager.h"
@@ -49,7 +54,7 @@
 #include <filesystem>
 #include <numbers>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -162,6 +167,13 @@ namespace {
         if (skinnedModel) {
             previewInfo.sourceBounds = ToBoundsInfo(skinnedModel->GetSourceBounds());
             previewInfo.skinnedBounds = ToBoundsInfo(skinnedModel->GetSkinnedBounds());
+            const GltfSkinnedModel::TextureDebugInfo& textureInfo = skinnedModel->GetTextureDebugInfo();
+            previewInfo.materialTexturePath = textureInfo.materialTexturePath;
+            previewInfo.resolvedTexturePath = textureInfo.resolvedTexturePath;
+            previewInfo.textureIndex = textureInfo.textureIndex;
+            previewInfo.usingWhiteFallback = textureInfo.usingWhiteFallback;
+            previewInfo.usingUvCheckerFallback = textureInfo.usingUvCheckerFallback;
+            previewInfo.missingTextureCount = textureInfo.missingTextureCount;
         }
         if (skeleton &&
             skeleton->root >= 0 &&
@@ -469,6 +481,8 @@ void GameScene::Initialize() {
 
     primitiveEffectSystem_ = std::make_unique<PrimitiveEffectSystem>();
     primitiveEffectSystem_->Initialize(object3dCommon, camera_.get());
+    screenSpaceFakeShadowPass_ = std::make_unique<ScreenSpaceFakeShadowPass>();
+    screenSpaceFakeShadowPass_->Initialize(spriteCommon);
 
     debugSprite_ = std::make_unique<Sprite>();
     debugSprite_->Initialize(spriteCommon);
@@ -494,14 +508,21 @@ void GameScene::Initialize() {
     editorCameraController_->Initialize(camera_.get());
     player_ = std::make_unique<Player>();
     player_->Initialize(object3dCommon, camera_.get());
+    boostController_ = std::make_unique<BoostController>();
+    boostController_->Initialize(MyGame::GetInstance()->GetVolumetricCloudPass());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
+    gpuParticleEffectPlayer_ = std::make_unique<GpuParticleEffectPlayer>();
+    gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
-    combatEffectController_->Initialize(primitiveEffectSystem_.get(), player_.get());
+    combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyManager_->SetPlayer(player_.get());
+    if (screenSpaceFakeShadowPass_) {
+        screenSpaceFakeShadowPass_->SetTargets(player_.get(), enemyManager_.get());
+    }
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
@@ -532,6 +553,8 @@ void GameScene::Initialize() {
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
     enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
+    startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
+    startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
     postEffectActionBridge_->Initialize(postEffectController_.get());
     eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
@@ -703,7 +726,7 @@ void GameScene::Initialize() {
     skinningEditor_->SetStatusMessage(skinningLoadStatus);
 }
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 void GameScene::ClearGameViewDebugState() {
     gameViewTopLeft_ = { 0.0f, 0.0f };
     gameViewSize_ = { 0.0f, 0.0f };
@@ -820,6 +843,10 @@ void GameScene::Finalize() {
         eventActionDispatcher_->Finalize();
     }
     eventActionDispatcher_.reset();
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->Finalize();
+    }
+    startupEnemySpawnController_.reset();
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->Finalize();
     }
@@ -861,6 +888,10 @@ void GameScene::Finalize() {
         combatEffectController_->Finalize();
     }
     combatEffectController_.reset();
+    if (gpuParticleEffectPlayer_) {
+        gpuParticleEffectPlayer_->Finalize();
+    }
+    gpuParticleEffectPlayer_.reset();
     if (enemyAttackController_) {
         enemyAttackController_->Finalize();
     }
@@ -877,6 +908,7 @@ void GameScene::Finalize() {
         postEffectController_->Finalize();
     }
     postEffectController_.reset();
+    screenSpaceFakeShadowPass_.reset();
     if (cameraShakeController_) {
         cameraShakeController_->Reset(camera_.get());
         cameraShakeController_->Finalize();
@@ -894,6 +926,10 @@ void GameScene::Finalize() {
         player_->Finalize();
     }
     player_.reset();
+    if (boostController_) {
+        boostController_->Finalize();
+    }
+    boostController_.reset();
 }
 
 void GameScene::Update() {
@@ -907,13 +943,23 @@ void GameScene::Update() {
     auto& windEffectParams = particleManager->GetWindEffectParams();
     auto audio = Audio::GetInstance();
     auto texManager = TextureManager::GetInstance();
+    const FrameTimer& frameTimer = FrameTimer::GetInstance();
+    const float gameplayDeltaTime = frameTimer.GetGameplayDeltaTime();
+    RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings{};
+    bool cameraProjectionUpdated = false;
 
     if (input->PushKey(DIK_T)) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
     }
     if (runtimeModeController_) {
+        runtimeModeController_->BeginCameraModeSwitchDiagnostics(camera_.get());
         runtimeModeController_->Update(input);
+        shadowDebugSettings = runtimeModeController_->GetShadowLikeDebugSettings();
+        if (dxCommon) {
+            dxCommon->SetOffscreenRenderScale(runtimeModeController_->GetDesiredRenderScale());
+            dxCommon->SetRenderScaleClearColorTestEnabled(shadowDebugSettings.clearColorTest);
+        }
     }
     if (blenderLiveSync_) {
         blenderLiveSync_->Update();
@@ -925,6 +971,21 @@ void GameScene::Update() {
     const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
     const bool isDeathSequenceActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
     const bool isGameMode = runtimeModeController_ ? runtimeModeController_->IsGameMode() : true;
+    if (isGameMode && runtimeModeController_ && runtimeModeController_->ShouldAutoApplyGameModePerformancePreset() && volumetricCloudPass) {
+        volumetricCloudPass->ApplyGameModePerformancePreset();
+    }
+    if (volumetricCloudPass) {
+        volumetricCloudPass->SetDiagnosticDisableComposite(shadowDebugSettings.disableCloudComposite);
+        volumetricCloudPass->SetDiagnosticDisableDepthAwareUpsample(shadowDebugSettings.disableDepthAwareUpsample);
+    }
+    if (primitiveEffectSystem_) {
+        primitiveEffectSystem_->SetDiagnosticSuppressed(
+            shadowDebugSettings.disableEffects || shadowDebugSettings.disablePrimitiveEffect);
+    }
+    if (postEffectController_) {
+        postEffectController_->SetDiagnosticSuppressed(shadowDebugSettings.disablePostEffects);
+    }
+    Model::SetGlobalPbrLightingDisabled(shadowDebugSettings.disablePbrLighting);
     const bool shouldDrawLevelDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const bool shouldDrawEventDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawEventDebug() : false;
     const bool shouldDrawRailDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawRailDebug() : false;
@@ -938,17 +999,18 @@ void GameScene::Update() {
         if (viewportRect.height > 1.0f) {
             camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
             camera_->Update();
+            cameraProjectionUpdated = true;
         }
     }
-    if (isGameMode) {
-        if (enemyBulletManager_) {
-            enemyBulletManager_->SetUseLightweightBulletVisual(true);
+    if (screenSpaceFakeShadowPass_) {
+        if (dxCommon) {
+            screenSpaceFakeShadowPass_->SetRenderTargetSize(
+                static_cast<float>(dxCommon->GetRenderTextureWidth()),
+                static_cast<float>(dxCommon->GetRenderTextureHeight()));
         }
-        if (playerBulletManager_) {
-            playerBulletManager_->SetUseLightweightBulletVisual(true);
-        }
+        screenSpaceFakeShadowPass_->SetDebugMode(runtimeModeController_ ? runtimeModeController_->IsDebugMode() : false);
     }
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const bool shouldShowPlayerActionDebugVisuals =
         !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
     const ImGuiIO& imguiIO = ImGui::GetIO();
@@ -960,7 +1022,7 @@ void GameScene::Update() {
     const bool gameViewFocused = gameViewport_ ? gameViewport_->IsGameViewFocused() : isGameMode;
     if (editorCameraController_) {
         editorCameraController_->Update(
-            1.0f / 60.0f,
+            gameplayDeltaTime,
             input,
             gameViewHovered,
             gameViewFocused,
@@ -982,6 +1044,9 @@ void GameScene::Update() {
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
+    if (boostController_) {
+        boostController_->SetGameViewInputActive(canUseGameInput);
+    }
 #else
     if (gameViewport_) {
         gameViewport_->BeginFrame(true);
@@ -989,11 +1054,12 @@ void GameScene::Update() {
         if (viewportRect.height > 1.0f) {
             camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
             camera_->Update();
+            cameraProjectionUpdated = true;
         }
     }
     if (editorCameraController_) {
         editorCameraController_->Update(
-            1.0f / 60.0f,
+            gameplayDeltaTime,
             input,
             true,
             true,
@@ -1015,15 +1081,21 @@ void GameScene::Update() {
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
+    if (boostController_) {
+        boostController_->SetGameViewInputActive(canUseGameInput);
+    }
 #endif
+    if (runtimeModeController_) {
+        runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
+    }
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     if (railShooterCameraRig_) {
-        railShooterCameraRig_->Update(1.0f / 60.0f);
+        railShooterCameraRig_->Update(gameplayDeltaTime);
     }
     if (cameraShakeController_) {
-        cameraShakeController_->UpdateAndApply(1.0f / 60.0f, camera_.get());
+        cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
     }
     if (levelSceneRuntime_) {
         const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
@@ -1036,37 +1108,43 @@ void GameScene::Update() {
     }
     camera_->Update();
     if (playerRailController_) {
-        playerRailController_->Update(1.0f / 60.0f);
+        playerRailController_->Update(gameplayDeltaTime);
     }
     if (player_) {
-        player_->Update(1.0f / 60.0f);
+        player_->Update(gameplayDeltaTime);
+    }
+    if (boostController_) {
+        boostController_->Update(gameplayDeltaTime);
     }
     if (playerBulletManager_) {
-        playerBulletManager_->Update(1.0f / 60.0f);
+        playerBulletManager_->Update(gameplayDeltaTime);
+    }
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->Update(gameplayDeltaTime);
     }
     if (enemyManager_) {
-        enemyManager_->Update(1.0f / 60.0f);
+        enemyManager_->Update(gameplayDeltaTime);
     }
     if (playerBulletEnemyCollision_) {
         playerBulletEnemyCollision_->Update();
     }
     if (enemyAttackController_) {
-        enemyAttackController_->Update(1.0f / 60.0f);
+        enemyAttackController_->Update(gameplayDeltaTime);
     }
     if (enemyBulletManager_) {
-        enemyBulletManager_->Update(1.0f / 60.0f);
+        enemyBulletManager_->Update(gameplayDeltaTime);
     }
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
     }
     if (combatEffectController_) {
-        combatEffectController_->Update(1.0f / 60.0f);
+        combatEffectController_->Update(gameplayDeltaTime, camera_.get());
     }
     if (playerDeathSequenceController_) {
-        playerDeathSequenceController_->Update(1.0f / 60.0f);
+        playerDeathSequenceController_->Update(gameplayDeltaTime);
     }
     if (postEffectController_) {
-        postEffectController_->Update(1.0f / 60.0f);
+        postEffectController_->Update(gameplayDeltaTime);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
@@ -1081,18 +1159,16 @@ void GameScene::Update() {
         eventActionDispatcher_->Update();
     }
     if (cloudVolume_) {
-        // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
-        cloudVolume_->Update(1.0f / 60.0f);
+        cloudVolume_->Update(gameplayDeltaTime);
     }
     if (volumetricCloudPass && cloudVolume_) {
         cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
     } else {
         cloudProjectedBounds_ = {};
     }
-    objectRandomTime_ += 0.016f;
+    objectRandomTime_ += gameplayDeltaTime;
     if (animatedCubeObject_ && hasAnimatedCubeAnimation_) {
-        constexpr float kAnimationDeltaTime = 1.0f / 60.0f;
-        animatedCubeAnimationTime_ += kAnimationDeltaTime;
+        animatedCubeAnimationTime_ += gameplayDeltaTime;
         const float duration = (std::max)(animatedCubeClip_.duration, 0.0001f);
         if (animatedCubeAnimationTime_ >= duration) {
             animatedCubeAnimationTime_ = std::fmod(animatedCubeAnimationTime_, duration);
@@ -1166,7 +1242,7 @@ void GameScene::Update() {
         primitivePreviewObject->Update();
     }
     if (primitiveEffectSystem_) {
-        primitiveEffectSystem_->Update(1.0f / 60.0f);
+        primitiveEffectSystem_->Update(gameplayDeltaTime);
     }
     debugSprite_->Update();
 
@@ -1183,10 +1259,10 @@ void GameScene::Update() {
     }
 
     particleManager->Update(camera_.get());
-    if (gpuParticleSystem_) {
+    if (shouldDrawLevelDebug && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
         gpuParticleSystem_->Update(camera_.get());
     }
-    if (skinningEditor_) {
+    if (shouldDrawLevelDebug && skinningEditor_) {
         if (previewSkeleton_) {
             UpdateSkeletonWorldTransforms(*previewSkeleton_);
         }
@@ -1214,7 +1290,56 @@ void GameScene::Update() {
         }
     }
 
-#ifdef _DEBUG
+    if (runtimeModeController_) {
+        RuntimeModeController::PerformanceStats stats{};
+        if (dxCommon) {
+            stats.renderTextureWidth = dxCommon->GetRenderTextureWidth();
+            stats.renderTextureHeight = dxCommon->GetRenderTextureHeight();
+            stats.depthTextureWidth = dxCommon->GetDepthBufferWidth();
+            stats.depthTextureHeight = dxCommon->GetDepthBufferHeight();
+            stats.internalRenderScale = dxCommon->GetOffscreenRenderScale();
+            stats.presentInterval = dxCommon->GetPresentInterval();
+            stats.fixedFpsWaitEnabled = dxCommon->IsFixedFpsWaitEnabled();
+            const D3D12_VIEWPORT offscreenViewport = dxCommon->GetOffscreenViewport();
+            const D3D12_RECT offscreenScissor = dxCommon->GetOffscreenScissorRect();
+            const D3D12_VIEWPORT backBufferViewport = dxCommon->GetBackBufferViewport();
+            const D3D12_RECT backBufferScissor = dxCommon->GetBackBufferScissorRect();
+            stats.currentViewportWidth = offscreenViewport.Width;
+            stats.currentViewportHeight = offscreenViewport.Height;
+            stats.currentScissorWidth = static_cast<int>(offscreenScissor.right - offscreenScissor.left);
+            stats.currentScissorHeight = static_cast<int>(offscreenScissor.bottom - offscreenScissor.top);
+            stats.backBufferViewportWidth = backBufferViewport.Width;
+            stats.backBufferViewportHeight = backBufferViewport.Height;
+            stats.backBufferScissorWidth = static_cast<int>(backBufferScissor.right - backBufferScissor.left);
+            stats.backBufferScissorHeight = static_cast<int>(backBufferScissor.bottom - backBufferScissor.top);
+        }
+        if (gameViewport_) {
+            const GameViewport::Rect& rect = gameViewport_->GetGameViewportRect();
+            stats.gameViewportWidth = rect.width;
+            stats.gameViewportHeight = rect.height;
+        }
+        if (volumetricCloudPass) {
+            stats.cloudEnabled = volumetricCloudPass->IsEnabled() && isVolumetricCloudVisible_;
+            stats.cloudResolutionScale = volumetricCloudPass->GetCloudResolutionScale();
+            stats.lowResolutionCloudEnabled = volumetricCloudPass->IsLowResolutionCloudEnabled();
+            stats.cloudCompositeEnabled = volumetricCloudPass->IsCloudCompositeEnabled();
+            stats.depthAwareCloudUpsampleEnabled = volumetricCloudPass->IsDepthAwareUpsampleEnabled();
+        }
+        if (WinApp* winApp = MyGame::GetInstance()->GetWinApp()) {
+            stats.windowWidth = winApp->GetClientWidth();
+            stats.windowHeight = winApp->GetClientHeight();
+        }
+        stats.activeEnemyCount = enemyManager_ ? enemyManager_->GetActiveCount() : 0;
+        stats.enemyBulletCount = enemyBulletManager_ ? enemyBulletManager_->GetActiveCount() : 0;
+        stats.playerBulletCount = playerBulletManager_ ? playerBulletManager_->GetActiveCount() : 0;
+        stats.primitiveEffectCount = primitiveEffectSystem_ ? primitiveEffectSystem_->GetEffectCount() : 0;
+        stats.gpuParticleActiveEstimate =
+            (gpuParticleSystem_ ? gpuParticleSystem_->GetActiveCountEstimate() : 0u) +
+            (gpuParticleEffectPlayer_ ? gpuParticleEffectPlayer_->GetActiveParticleEstimate() : 0u);
+        runtimeModeController_->SetPerformanceStats(stats);
+    }
+
+#ifdef USE_IMGUI
     const bool showDebugUi = !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
     if (showDebugUi) {
         DrawGameViewImGui(dxCommon);
@@ -1233,6 +1358,9 @@ void GameScene::Update() {
     }
     if (player_) {
         player_->DrawImGui();
+    }
+    if (boostController_) {
+        boostController_->DrawImGui();
     }
     if (playerBulletManager_) {
         playerBulletManager_->DrawImGui();
@@ -1276,11 +1404,20 @@ void GameScene::Update() {
     if (gameViewport_) {
         gameViewport_->DrawImGui();
     }
+    if (runtimeModeController_) {
+        runtimeModeController_->DrawImGui();
+    }
+    if (screenSpaceFakeShadowPass_) {
+        screenSpaceFakeShadowPass_->DrawImGui();
+    }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
     }
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->DrawImGui();
+    }
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->DrawImGui();
     }
     if (postEffectActionBridge_) {
         postEffectActionBridge_->DrawImGui();
@@ -1361,10 +1498,10 @@ void GameScene::Update() {
     if (cloudVolume_) {
         auto& cloudParams = cloudVolume_->GetParameters();
 
-        ImGui::SeparatorText("Volumetric Cloud");
+        ImGui::SeparatorText("ボリューメトリック雲 (Volumetric Cloud)");
         if (volumetricCloudPass) {
             bool isCloudPassEnabled = volumetricCloudPass->IsEnabled();
-            if (ImGui::Checkbox("Cloud Pass Enabled", &isCloudPassEnabled)) {
+            if (ImGui::Checkbox("雲描画を有効化 (Cloud Pass Enabled)", &isCloudPassEnabled)) {
                 volumetricCloudPass->SetEnabled(isCloudPassEnabled);
                 cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
             }
@@ -1378,40 +1515,40 @@ void GameScene::Update() {
                 "Force Aggressive LOD"
             };
             int cloudForceMode = static_cast<int>(volumetricCloudPass->GetForceMode());
-            if (ImGui::Combo("Cloud Force Mode", &cloudForceMode, cloudForceModeNames, IM_ARRAYSIZE(cloudForceModeNames))) {
+            if (ImGui::Combo("雲の強制モード (Cloud Force Mode)", &cloudForceMode, cloudForceModeNames, IM_ARRAYSIZE(cloudForceModeNames))) {
                 volumetricCloudPass->SetForceMode(static_cast<VolumetricCloudPass::ForceMode>(cloudForceMode));
                 cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
             }
         }
 
-        if (ImGui::Button("Reset Cloud Preset")) {
+        if (ImGui::Button("雲プリセットを初期化 (Reset Cloud Preset)")) {
             cloudParams = MakeRecommendedCloudParameters();
         }
         ImGui::SameLine();
-        ImGui::TextUnformatted("Recommended visible starting point");
-        ImGui::DragFloat3("Cloud Center", &cloudParams.center.x, 0.1f);
-        ImGui::DragFloat3("Cloud HalfExtents", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Density", &cloudParams.density, 0.0f, 2.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Absorption", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
-        ImGui::DragFloat3("Cloud Wind Dir", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Wind Speed", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
-        ImGui::DragFloat3("Cloud Sun Dir", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Light Absorption", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
-        ImGui::ColorEdit4("Cloud Color (A = density scale)", &cloudParams.color.x);
-        ImGui::SliderFloat("Cloud Noise Scale", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Detail Noise", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Detail Weight", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
-        ImGui::SliderFloat("Cloud Edge Fade", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Ambient", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Sun Intensity", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
+        ImGui::TextUnformatted("見えやすい初期値へ戻します");
+        ImGui::DragFloat3("雲の中心 (Cloud Center)", &cloudParams.center.x, 0.1f);
+        ImGui::DragFloat3("雲の半径範囲 (Cloud HalfExtents)", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
+        ImGui::SliderFloat("雲の濃さ (Cloud Density)", &cloudParams.density, 0.0f, 2.0f, "%.3f");
+        ImGui::SliderFloat("雲の吸収量 (Cloud Absorption)", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
+        ImGui::DragFloat3("雲の流れる方向 (Cloud Wind Dir)", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("雲の流れる速さ (Cloud Wind Speed)", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
+        ImGui::DragFloat3("太陽方向 (Cloud Sun Dir)", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("光の吸収量 (Cloud Light Absorption)", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
+        ImGui::ColorEdit4("雲の色 (A = density scale)", &cloudParams.color.x);
+        ImGui::SliderFloat("雲ノイズ倍率 (Cloud Noise Scale)", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
+        ImGui::SliderFloat("細部ノイズ倍率 (Cloud Detail Noise)", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
+        ImGui::SliderFloat("細部ノイズの強さ (Cloud Detail Weight)", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
+        ImGui::SliderFloat("雲の端のぼかし (Cloud Edge Fade)", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
+        ImGui::SliderFloat("環境光の強さ (Cloud Ambient)", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
+        ImGui::SliderFloat("太陽光の強さ (Cloud Sun Intensity)", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
 
         int cloudViewStepCount = static_cast<int>(cloudParams.viewStepCount);
-        if (ImGui::SliderInt("Cloud View Steps", &cloudViewStepCount, 1, 256)) {
+        if (ImGui::SliderInt("視線方向ステップ数 (Cloud View Steps)", &cloudViewStepCount, 1, 256)) {
             cloudParams.viewStepCount = static_cast<uint32_t>(cloudViewStepCount);
         }
 
         int cloudLightStepCount = static_cast<int>(cloudParams.lightStepCount);
-        if (ImGui::SliderInt("Cloud Light Steps", &cloudLightStepCount, 1, 32)) {
+        if (ImGui::SliderInt("光方向ステップ数 (Cloud Light Steps)", &cloudLightStepCount, 1, 32)) {
             cloudParams.lightStepCount = static_cast<uint32_t>(cloudLightStepCount);
         }
 
@@ -1423,39 +1560,41 @@ void GameScene::Update() {
                 "Light only"
             };
             int cloudDebugView = static_cast<int>(volumetricCloudPass->GetDebugViewMode());
-            if (ImGui::Combo("Cloud Debug View", &cloudDebugView, cloudDebugViewNames, IM_ARRAYSIZE(cloudDebugViewNames))) {
+            if (ImGui::Combo("雲のデバッグ表示 (Cloud Debug View)", &cloudDebugView, cloudDebugViewNames, IM_ARRAYSIZE(cloudDebugViewNames))) {
                 volumetricCloudPass->SetDebugViewMode(
                     static_cast<VolumetricCloudPass::DebugViewMode>(cloudDebugView));
             }
+
+            volumetricCloudPass->DrawImGui();
         }
 
-        ImGui::SeparatorText("Cloud Optimization Debug");
+        ImGui::SeparatorText("雲の最適化診断 (Cloud Optimization Debug)");
         auto DrawCloudFlag = [](const char* label, bool value, const ImVec4& trueColor, const ImVec4& falseColor) {
             ImGui::TextUnformatted(label);
             ImGui::SameLine(220.0f);
             ImGui::TextColored(value ? trueColor : falseColor, value ? "true" : "false");
         };
 
-        DrawCloudFlag("Cloud Visible", cloudProjectedBounds_.isVisible, ImVec4(0.30f, 1.00f, 0.35f, 1.0f), ImVec4(1.00f, 0.35f, 0.35f, 1.0f));
-        DrawCloudFlag("Cloud Pass Skipped", cloudProjectedBounds_.isPassSkipped, ImVec4(1.00f, 0.35f, 0.35f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
-        DrawCloudFlag("Fullscreen Fallback", cloudProjectedBounds_.isFullScreenFallback, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
-        DrawCloudFlag("Use Fullscreen Scissor", cloudProjectedBounds_.useFullScreenScissor, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
-        DrawCloudFlag("Camera Inside Cloud", cloudProjectedBounds_.isCameraInsideCloud, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
-        DrawCloudFlag("Near Plane Crossing", cloudProjectedBounds_.isNearPlaneCrossing, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("雲が表示範囲内 (Cloud Visible)", cloudProjectedBounds_.isVisible, ImVec4(0.30f, 1.00f, 0.35f, 1.0f), ImVec4(1.00f, 0.35f, 0.35f, 1.0f));
+        DrawCloudFlag("雲描画をスキップ (Cloud Pass Skipped)", cloudProjectedBounds_.isPassSkipped, ImVec4(1.00f, 0.35f, 0.35f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
+        DrawCloudFlag("全画面へフォールバック (Fullscreen Fallback)", cloudProjectedBounds_.isFullScreenFallback, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("全画面シザー使用 (Use Fullscreen Scissor)", cloudProjectedBounds_.useFullScreenScissor, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
+        DrawCloudFlag("カメラが雲の中 (Camera Inside Cloud)", cloudProjectedBounds_.isCameraInsideCloud, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("Near Planeと交差 (Near Plane Crossing)", cloudProjectedBounds_.isNearPlaneCrossing, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
 
         const LONG scissorWidth = cloudProjectedBounds_.scissorRect.right - cloudProjectedBounds_.scissorRect.left;
         const LONG scissorHeight = cloudProjectedBounds_.scissorRect.bottom - cloudProjectedBounds_.scissorRect.top;
-        ImGui::Text("Scissor Rect: L=%ld T=%ld R=%ld B=%ld", cloudProjectedBounds_.scissorRect.left, cloudProjectedBounds_.scissorRect.top, cloudProjectedBounds_.scissorRect.right, cloudProjectedBounds_.scissorRect.bottom);
-        ImGui::Text("Scissor Size: %ld x %ld", scissorWidth, scissorHeight);
+        ImGui::Text("シザー矩形 (Scissor Rect): L=%ld T=%ld R=%ld B=%ld", cloudProjectedBounds_.scissorRect.left, cloudProjectedBounds_.scissorRect.top, cloudProjectedBounds_.scissorRect.right, cloudProjectedBounds_.scissorRect.bottom);
+        ImGui::Text("シザーサイズ (Scissor Size): %ld x %ld", scissorWidth, scissorHeight);
         ImGui::TextColored(
             (cloudProjectedBounds_.scissorAreaRatio >= 0.90f) ? ImVec4(1.00f, 0.45f, 0.35f, 1.0f) : ImVec4(0.35f, 1.00f, 0.45f, 1.0f),
-            "Scissor Area Ratio: %.3f (%.1f%%)",
+            "シザー面積比 (Scissor Area Ratio): %.3f (%.1f%%)",
             cloudProjectedBounds_.scissorAreaRatio,
             cloudProjectedBounds_.scissorAreaRatio * 100.0f);
-        ImGui::Text("Current ViewStep Scale: %.3f", cloudProjectedBounds_.currentViewStepScale);
-        ImGui::Text("Current LightStep Scale: %.3f", cloudProjectedBounds_.currentLightStepScale);
-        ImGui::Text("Estimated View Steps: %u", cloudProjectedBounds_.estimatedViewSteps);
-        ImGui::Text("Estimated Light Steps: %u", cloudProjectedBounds_.estimatedLightSteps);
+        ImGui::Text("現在の視線ステップ倍率 (Current ViewStep Scale): %.3f", cloudProjectedBounds_.currentViewStepScale);
+        ImGui::Text("現在の光ステップ倍率 (Current LightStep Scale): %.3f", cloudProjectedBounds_.currentLightStepScale);
+        ImGui::Text("推定視線ステップ数 (Estimated View Steps): %u", cloudProjectedBounds_.estimatedViewSteps);
+        ImGui::Text("推定光ステップ数 (Estimated Light Steps): %u", cloudProjectedBounds_.estimatedLightSteps);
     }
 
     ImGui::SeparatorText("Environment Map");
@@ -1773,7 +1912,7 @@ void GameScene::Update() {
     if (primitiveEffectSystem_) {
         primitiveEffectSystem_->DrawVisibilityImGui();
     }
-    ImGui::Checkbox("Volumetric Cloud", &isVolumetricCloudVisible_);
+    ImGui::Checkbox("ボリューメトリック雲 (Volumetric Cloud)", &isVolumetricCloudVisible_);
 
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Debug Sprite", &isDebugSpriteVisible_);
@@ -1825,6 +1964,8 @@ void GameScene::Draw() {
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
     const bool shouldDrawDebugVisuals =
         runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+    const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
+        runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
@@ -1883,11 +2024,17 @@ void GameScene::Draw() {
     if (enemyBulletManager_) {
         enemyBulletManager_->Draw();
     }
-    if (primitiveEffectSystem_) {
+    if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+        screenSpaceFakeShadowPass_->Draw(camera_.get());
+    }
+    if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
         primitiveEffectSystem_->Draw();
     }
+    if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        combatEffectController_->Draw();
+    }
 
-    if (isVolumetricCloudVisible_ && volumetricCloudPass && cloudVolume_) {
+    if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
             dxCommon->TransitionDepthBuffer(
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -1904,11 +2051,11 @@ void GameScene::Draw() {
         }
     }
 
-    if (gpuParticleSystem_) {
+    if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
         gpuParticleSystem_->Draw();
     }
 
-    if (isParticleVisible_) {
+    if (isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
     }
 
@@ -1923,3 +2070,5 @@ void GameScene::Draw() {
         postEffectController_->Draw();
     }
 }
+
+

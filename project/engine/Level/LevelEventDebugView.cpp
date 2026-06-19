@@ -1,4 +1,4 @@
-#include "LevelEventDebugView.h"
+﻿#include "LevelEventDebugView.h"
 #include "LevelEventConnectionVisualizer.h"
 #include "LevelEventData.h"
 #include "LevelEventLabelVisualizer.h"
@@ -8,7 +8,7 @@
 #include <cstdio>
 #include <string>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -27,7 +27,7 @@ namespace {
 }
 
 void DrawLevelObjectEventDetailsImGui(const LevelObject& object) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Text("オブジェクトID (objectId): %s", object.objectId.empty() ? "(none)" : object.objectId.c_str());
     ImGui::Text("エディタラベル (editorLabel): %s", object.editorLabel.empty() ? "(none)" : object.editorLabel.c_str());
     ImGui::Text(
@@ -83,7 +83,7 @@ bool DrawLevelEventDebugImGui(
     LevelEventConnectionVisualizer* connectionVisualizer,
     LevelEventObjectActionVisualizer* objectActionVisualizer,
     LevelEventLabelVisualizer* labelVisualizer) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     const LevelEventValidationResult validation = ValidateLevelEventLinks(sceneData);
     ImGui::Text("イベントフラグ数 (Event Flag Count): %zu", CountEventFlags(sceneData));
@@ -164,3 +164,4 @@ bool DrawLevelEventDebugImGui(
     return false;
 #endif
 }
+

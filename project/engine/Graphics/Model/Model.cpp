@@ -2,18 +2,34 @@
 #include "Engine/Graphics/Model/PrimitiveGenerator.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <cassert>
+#include <algorithm>
+#include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <cmath>
 
 using namespace std;
 using namespace MatrixMath;
 
+bool Model::globalPbrLightingDisabled_ = false;
+
 namespace {
     constexpr float kPi = 3.14159265359f;
 
     uint32_t GetPrimitiveTextureIndex() {
         return TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/obj/axis/uvChecker.png");
+    }
+
+    void UsePrimitiveDebugTexture(Model::MaterialData& material) {
+        material.textureFilePath = "resources/obj/axis/uvChecker.png";
+        material.baseColorTexturePath = material.textureFilePath;
+        material.textureIndex = GetPrimitiveTextureIndex();
+        material.baseColorTextureIndex = material.textureIndex;
+    }
+
+    std::string GetWhiteFallbackTexturePath() {
+        return "resources/human/white.png";
     }
 
     Vector3 SubtractVector(const Vector3& v1, const Vector3& v2) {
@@ -32,18 +48,79 @@ namespace {
         return { v.x / length, v.y / length, v.z / length };
     }
 
+    Vector3 Cross(const Vector3& lhs, const Vector3& rhs) {
+        return {
+            lhs.y * rhs.z - lhs.z * rhs.y,
+            lhs.z * rhs.x - lhs.x * rhs.z,
+            lhs.x * rhs.y - lhs.y * rhs.x
+        };
+    }
+
+    float Dot(const Vector3& lhs, const Vector3& rhs) {
+        return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+    }
+
+    Vector3 ScaleVector(const Vector3& value, float scale) {
+        return { value.x * scale, value.y * scale, value.z * scale };
+    }
+
     Model::VertexData MakeVertex(float x, float y, float z, float u, float v, float nx, float ny, float nz) {
-        return { {x, y, z, 1.0f}, {u, v}, {nx, ny, nz} };
+        return { {x, y, z, 1.0f}, {u, v}, {nx, ny, nz}, {1.0f, 0.0f, 0.0f} };
+    }
+
+    Vector3 ComputeFallbackTangent(const Vector3& normal) {
+        const Vector3 n = Normalize(normal, { 0.0f, 1.0f, 0.0f });
+        const Vector3 reference = (std::abs(n.y) < 0.95f) ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
+        return Normalize(Cross(reference, n), { 1.0f, 0.0f, 0.0f });
+    }
+
+    Vector3 ComputeTriangleTangent(
+        const Model::VertexData& v0,
+        const Model::VertexData& v1,
+        const Model::VertexData& v2) {
+        const Vector3 edge1 = SubtractVector({ v1.position.x, v1.position.y, v1.position.z }, { v0.position.x, v0.position.y, v0.position.z });
+        const Vector3 edge2 = SubtractVector({ v2.position.x, v2.position.y, v2.position.z }, { v0.position.x, v0.position.y, v0.position.z });
+        const float du1 = v1.texcoord.x - v0.texcoord.x;
+        const float dv1 = v1.texcoord.y - v0.texcoord.y;
+        const float du2 = v2.texcoord.x - v0.texcoord.x;
+        const float dv2 = v2.texcoord.y - v0.texcoord.y;
+        const float determinant = du1 * dv2 - du2 * dv1;
+        if (std::abs(determinant) <= 0.000001f) {
+            return ComputeFallbackTangent(v0.normal);
+        }
+
+        const float inverseDeterminant = 1.0f / determinant;
+        Vector3 tangent = {
+            (edge1.x * dv2 - edge2.x * dv1) * inverseDeterminant,
+            (edge1.y * dv2 - edge2.y * dv1) * inverseDeterminant,
+            (edge1.z * dv2 - edge2.z * dv1) * inverseDeterminant
+        };
+        tangent = SubtractVector(tangent, ScaleVector(v0.normal, Dot(v0.normal, tangent)));
+        return Normalize(tangent, ComputeFallbackTangent(v0.normal));
+    }
+
+    void AssignTriangleTangent(
+        Model::VertexData& v0,
+        Model::VertexData& v1,
+        Model::VertexData& v2) {
+        const Vector3 tangent = ComputeTriangleTangent(v0, v1, v2);
+        v0.tangent = tangent;
+        v1.tangent = tangent;
+        v2.tangent = tangent;
     }
 
     void PushTriangle(Model::ModelData& data,
         const Model::VertexData& v0,
         const Model::VertexData& v1,
         const Model::VertexData& v2) {
+        Model::VertexData triangleV0 = v0;
+        Model::VertexData triangleV1 = v1;
+        Model::VertexData triangleV2 = v2;
+        AssignTriangleTangent(triangleV0, triangleV1, triangleV2);
         const uint32_t firstIndex = static_cast<uint32_t>(data.vertices.size());
-        data.vertices.push_back(v0);
-        data.vertices.push_back(v1);
-        data.vertices.push_back(v2);
+        data.vertices.push_back(triangleV0);
+        data.vertices.push_back(triangleV1);
+        data.vertices.push_back(triangleV2);
         data.indices.push_back(firstIndex);
         data.indices.push_back(firstIndex + 1);
         data.indices.push_back(firstIndex + 2);
@@ -56,6 +133,27 @@ namespace {
         const Model::VertexData& v11) {
         PushTriangle(data, v00, v01, v10);
         PushTriangle(data, v01, v11, v10);
+    }
+
+    bool FileExists(const std::string& path) {
+        return !path.empty() && std::filesystem::exists(std::filesystem::path(path));
+    }
+
+    void LoadTextureIfExists(const std::string& path, uint32_t& textureIndex, bool* loadedFlag = nullptr) {
+        if (loadedFlag) {
+            *loadedFlag = false;
+        }
+        if (!FileExists(path)) {
+            return;
+        }
+
+        // TODO: TextureManager currently loads WIC textures as sRGB. PBR data maps should become linear
+        // when TextureManager supports per-texture color space selection.
+        TextureManager::GetInstance()->LoadTexture(path);
+        textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(path);
+        if (loadedFlag) {
+            *loadedFlag = true;
+        }
     }
 }
 
@@ -74,6 +172,51 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
             modelData_.indices.push_back(index);
         }
     }
+
+    MaterialData& material = modelData_.material;
+    if (material.baseColorTexturePath.empty()) {
+        material.baseColorTexturePath = material.textureFilePath;
+    }
+    if (material.baseColorTexturePath.empty()) {
+        material.baseColorTexturePath = GetWhiteFallbackTexturePath();
+        material.textureFilePath = material.baseColorTexturePath;
+    }
+
+    uint32_t fallbackTextureIndex = material.textureIndex;
+    if (material.textureIndex == 0 && material.textureFilePath.empty() && material.baseColorTexturePath.empty()) {
+        fallbackTextureIndex = GetPrimitiveTextureIndex();
+    }
+
+    bool baseColorLoaded = false;
+    LoadTextureIfExists(material.baseColorTexturePath, material.baseColorTextureIndex, &baseColorLoaded);
+    if (baseColorLoaded) {
+        material.textureFilePath = material.baseColorTexturePath;
+        material.textureIndex = material.baseColorTextureIndex;
+    } else if (material.textureIndex == 0 && !material.textureFilePath.empty()) {
+        LoadTextureIfExists(material.textureFilePath, material.textureIndex, &baseColorLoaded);
+        material.baseColorTextureIndex = material.textureIndex;
+    } else {
+        material.textureIndex = fallbackTextureIndex;
+        material.baseColorTextureIndex = fallbackTextureIndex;
+    }
+
+    LoadTextureIfExists(material.normalTexturePath, material.normalTextureIndex, &material.hasNormalMap);
+    LoadTextureIfExists(material.metallicRoughnessTexturePath, material.metallicRoughnessTextureIndex, &material.hasMetallicRoughnessMap);
+    LoadTextureIfExists(material.specularF0TexturePath, material.specularF0TextureIndex, &material.hasSpecularF0Map);
+    if (!material.hasNormalMap) {
+        material.normalTextureIndex = material.textureIndex;
+    }
+    if (!material.hasMetallicRoughnessMap) {
+        material.metallicRoughnessTextureIndex = material.textureIndex;
+    }
+    if (!material.hasSpecularF0Map) {
+        material.specularF0TextureIndex = material.textureIndex;
+    }
+    material.usePBR =
+        material.usePBR ||
+        material.hasNormalMap ||
+        material.hasMetallicRoughnessMap ||
+        material.hasSpecularF0Map;
 
     // --- 頂点バッファ作成 ---
     vertexResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(
@@ -104,10 +247,28 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     materialData_->enableLighting = 1;
     materialData_->uvTransform = MakeIdentity4x4();
     materialData_->alphaReference = 0.5f;
+    materialData_->usePBR = material.usePBR ? 1 : 0;
+    materialData_->metallicFactor = material.metallicFactor;
+    materialData_->roughnessFactor = material.roughnessFactor;
+    materialData_->normalScale = material.normalScale;
+    materialData_->hasNormalMap = material.hasNormalMap ? 1 : 0;
+    materialData_->hasMetallicRoughnessMap = material.hasMetallicRoughnessMap ? 1 : 0;
+    materialData_->hasSpecularF0Map = material.hasSpecularF0Map ? 1 : 0;
 }
 
 void Model::Draw() {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
+
+    if (materialData_) {
+        const MaterialData& material = modelData_.material;
+        materialData_->usePBR = (material.usePBR && !globalPbrLightingDisabled_) ? 1 : 0;
+        materialData_->metallicFactor = material.metallicFactor;
+        materialData_->roughnessFactor = material.roughnessFactor;
+        materialData_->normalScale = material.normalScale;
+        materialData_->hasNormalMap = material.hasNormalMap ? 1 : 0;
+        materialData_->hasMetallicRoughnessMap = material.hasMetallicRoughnessMap ? 1 : 0;
+        materialData_->hasSpecularF0Map = material.hasSpecularF0Map ? 1 : 0;
+    }
 
     const D3D12_VERTEX_BUFFER_VIEW& activeVertexBufferView =
         vertexBufferViewOverride_ ? *vertexBufferViewOverride_ : vertexBufferView_;
@@ -117,8 +278,24 @@ void Model::Draw() {
 
     // ★修正: 最新の textureIndex を使って描画する
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureIndex));
+    commandList->SetGraphicsRootDescriptorTable(10, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.normalTextureIndex));
+    commandList->SetGraphicsRootDescriptorTable(11, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.metallicRoughnessTextureIndex));
+    commandList->SetGraphicsRootDescriptorTable(12, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.specularF0TextureIndex));
 
     commandList->DrawIndexedInstanced(static_cast<UINT>(modelData_.indices.size()), 1, 0, 0, 0);
+}
+
+void Model::SetTextureIndex(uint32_t index) {
+    modelData_.material.textureIndex = index;
+    modelData_.material.baseColorTextureIndex = index;
+}
+
+void Model::SetGlobalPbrLightingDisabled(bool isDisabled) {
+    globalPbrLightingDisabled_ = isDisabled;
+}
+
+bool Model::IsGlobalPbrLightingDisabled() {
+    return globalPbrLightingDisabled_;
 }
 
 void Model::SetVertices(const std::vector<VertexData>& vertices) {
@@ -140,7 +317,7 @@ Model::ModelData Model::CreateSphereData(uint32_t subdivision) {
 
     // ★修正: 初期値として、確実に存在する「uvChecker.png」のインデックスを取得してセットしておく
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     for (uint32_t lat = 0; lat < subdivision; ++lat) {
         float latAngle0 = kPi * static_cast<float>(lat) / static_cast<float>(subdivision);
@@ -173,7 +350,7 @@ Model::ModelData Model::CreateSphereData(uint32_t subdivision) {
 
 Model::ModelData Model::CreatePlaneData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const Vector3 normal = { 0.0f, 1.0f, 0.0f };
     PushQuad(data,
@@ -188,7 +365,7 @@ Model::ModelData Model::CreatePlaneData() {
 Model::ModelData Model::CreateCircleData(uint32_t subdivision) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     for (uint32_t i = 0; i < subdivision; ++i) {
         float angle0 = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(subdivision);
@@ -223,7 +400,7 @@ Model::ModelData Model::CreateTorusData(uint32_t majorSubdivision, uint32_t mino
     ModelData data;
     majorSubdivision = (majorSubdivision < 3) ? 3 : majorSubdivision;
     minorSubdivision = (minorSubdivision < 3) ? 3 : minorSubdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     auto MakeTorusVertex = [majorRadius, minorRadius](float theta, float phi, float u, float v) {
         float cosTheta = std::cos(theta);
@@ -265,7 +442,7 @@ Model::ModelData Model::CreateTorusData(uint32_t majorSubdivision, uint32_t mino
 Model::ModelData Model::CreateCylinderData(uint32_t subdivision, float radius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float halfHeight = height * 0.5f;
 
@@ -306,7 +483,7 @@ Model::ModelData Model::CreateCylinderData(uint32_t subdivision, float radius, f
 Model::ModelData Model::CreateEffectCylinderData(uint32_t subdivision, float topRadius, float bottomRadius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float radianPerDivide = 2.0f * kPi / static_cast<float>(subdivision);
 
@@ -338,7 +515,7 @@ Model::ModelData Model::CreateEffectCylinderData(uint32_t subdivision, float top
 Model::ModelData Model::CreateConeData(uint32_t subdivision, float radius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float halfHeight = height * 0.5f;
     float slope = radius / height;
@@ -375,7 +552,7 @@ Model::ModelData Model::CreateConeData(uint32_t subdivision, float radius, float
 
 Model::ModelData Model::CreateTriangleData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const Vector3 normal = { 0.0f, 1.0f, 0.0f };
     PushTriangle(data,
@@ -388,7 +565,7 @@ Model::ModelData Model::CreateTriangleData() {
 
 Model::ModelData Model::CreateBoxData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const float min = -1.0f;
     const float max = 1.0f;
@@ -430,25 +607,6 @@ Model::ModelData Model::CreateBoxData() {
         MakeVertex(max, min, min, 1.0f, 1.0f, 0.0f, -1.0f, 0.0f));
 
     return data;
-}
-
-Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
-    MaterialData materialData;
-    std::string line;
-    std::ifstream file(directoryPath + "/" + filename);
-    if (!file.is_open()) return materialData;
-
-    while (std::getline(file, line)) {
-        std::string identifier;
-        std::istringstream s(line);
-        s >> identifier;
-        if (identifier == "map_Kd") {
-            std::string textureFilename;
-            s >> textureFilename;
-            materialData.textureFilePath = directoryPath + "/" + textureFilename;
-        }
-    }
-    return materialData;
 }
 
 Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
@@ -498,10 +656,12 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std:
                 p.x *= -1.0f;
                 triangle[i] = { p, t, n };
             }
+            Model::VertexData finalTriangle[3] = { triangle[2], triangle[1], triangle[0] };
+            AssignTriangleTangent(finalTriangle[0], finalTriangle[1], finalTriangle[2]);
             const uint32_t firstIndex = static_cast<uint32_t>(modelData.vertices.size());
-            modelData.vertices.push_back(triangle[2]);
-            modelData.vertices.push_back(triangle[1]);
-            modelData.vertices.push_back(triangle[0]);
+            modelData.vertices.push_back(finalTriangle[0]);
+            modelData.vertices.push_back(finalTriangle[1]);
+            modelData.vertices.push_back(finalTriangle[2]);
             modelData.indices.push_back(firstIndex);
             modelData.indices.push_back(firstIndex + 1);
             modelData.indices.push_back(firstIndex + 2);

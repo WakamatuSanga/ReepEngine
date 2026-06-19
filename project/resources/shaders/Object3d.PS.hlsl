@@ -13,6 +13,13 @@ struct Material
     int enableLighting;
     float4x4 uvTransform;
     float alphaReference;
+    int usePBR;
+    float metallicFactor;
+    float roughnessFactor;
+    float normalScale;
+    int hasNormalMap;
+    int hasMetallicRoughnessMap;
+    int hasSpecularF0Map;
 };
 
 struct EnvironmentMapData
@@ -65,6 +72,9 @@ ConstantBuffer<RingAppearanceData> gRingAppearanceData : register(b5);
 Texture2D<float4> gTexture : register(t0);
 TextureCube<float4> gEnvironmentTexture : register(t1);
 Texture2D<float4> gDissolveMaskTexture : register(t2);
+Texture2D<float4> gNormalTexture : register(t3);
+Texture2D<float4> gMetallicRoughnessTexture : register(t4);
+Texture2D<float4> gSpecularF0Texture : register(t5);
 SamplerState gSampler : register(s0);
 
 struct VertexShaderOutput
@@ -73,6 +83,7 @@ struct VertexShaderOutput
     float2 uv : TEXCOORD0;
     float3 normal : NORMAL;
     float3 worldPos : TEXCOORD1;
+    float3 tangent : TANGENT;
 };
 
 struct PixelShaderOutput
@@ -118,6 +129,67 @@ float ComputeRingEndAlpha(float progress)
     return lerp(1.0f, gRingAppearanceData.endAlpha, blend);
 }
 
+float3 ResolveSurfaceNormal(VertexShaderOutput input, float2 uv)
+{
+    float3 N = normalize(input.normal);
+    if (gMaterial.usePBR == 0 || gMaterial.hasNormalMap == 0)
+    {
+        return N;
+    }
+
+    float3 T = normalize(input.tangent - N * dot(N, input.tangent));
+    float3 B = normalize(cross(N, T));
+    float3 tangentNormal = gNormalTexture.Sample(gSampler, uv).xyz * 2.0f - 1.0f;
+    tangentNormal.xy *= gMaterial.normalScale;
+    tangentNormal = normalize(tangentNormal);
+    return normalize(mul(tangentNormal, float3x3(T, B, N)));
+}
+
+float3 FresnelSchlick(float cosTheta, float3 f0)
+{
+    return f0 + (1.0f - f0) * pow(1.0f - saturate(cosTheta), 5.0f);
+}
+
+float3 ComputeSimplePbrLighting(float3 baseColor, float3 N, float3 worldPos, float2 uv)
+{
+    float metallic = saturate(gMaterial.metallicFactor);
+    float roughness = saturate(gMaterial.roughnessFactor);
+    if (gMaterial.hasMetallicRoughnessMap != 0)
+    {
+        float4 metallicRoughness = gMetallicRoughnessTexture.Sample(gSampler, uv);
+        roughness = saturate(metallicRoughness.g * gMaterial.roughnessFactor);
+        metallic = saturate(metallicRoughness.b * gMaterial.metallicFactor);
+    }
+    roughness = clamp(roughness, 0.03f, 1.0f);
+
+    float3 L = normalize(-gDirectionalLight.direction);
+    float3 V = normalize(gDirectionalLight.cameraPosition - worldPos);
+    float3 H = normalize(L + V);
+    float NdotL = saturate(dot(N, L));
+    float NdotV = max(saturate(dot(N, V)), 0.001f);
+    float NdotH = saturate(dot(N, H));
+    float VdotH = saturate(dot(V, H));
+
+    float3 dielectricF0 = float3(0.04f, 0.04f, 0.04f);
+    if (gMaterial.hasSpecularF0Map != 0)
+    {
+        dielectricF0 = saturate(gSpecularF0Texture.Sample(gSampler, uv).rgb);
+    }
+    float3 f0 = lerp(dielectricF0, baseColor, metallic);
+    float3 F = FresnelSchlick(VdotH, f0);
+
+    float shininess = lerp(192.0f, 8.0f, roughness);
+    float specularPower = pow(NdotH, shininess);
+    float specularEnergy = lerp(1.0f, 0.25f, roughness);
+    float3 specular = F * specularPower * specularEnergy * gDirectionalLight.intensity;
+    float3 diffuse = baseColor * (1.0f - metallic) * NdotL * gDirectionalLight.color.rgb * gDirectionalLight.intensity;
+    float3 ambient = baseColor * 0.08f;
+
+    // Keep a tiny view term so very grazing surfaces do not explode when roughness is low.
+    specular *= saturate(NdotL) * saturate(NdotV * 2.0f);
+    return ambient + diffuse + specular;
+}
+
 PixelShaderOutput main(VertexShaderOutput input)
 {
     float4 transformedUV = mul(float4(input.uv, 0.0f, 1.0f), gMaterial.uvTransform);
@@ -154,30 +226,37 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     if (gMaterial.enableLighting != 0)
     {
-        float3 N = normalize(input.normal);
-        float3 L = normalize(-gDirectionalLight.direction);
+        float3 N = ResolveSurfaceNormal(input, transformedUV.xy);
+        if (gMaterial.usePBR != 0)
+        {
+            outputColor.rgb = ComputeSimplePbrLighting(outputColor.rgb, N, input.worldPos, transformedUV.xy);
+        }
+        else
+        {
+            float3 L = normalize(-gDirectionalLight.direction);
         
-        // 拡散反射 (Lambert)
-        float NdotL = saturate(dot(N, L));
-        float3 diffuse = gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
+            // 拡散反射 (Lambert)
+            float NdotL = saturate(dot(N, L));
+            float3 diffuse = gDirectionalLight.color.rgb * NdotL * gDirectionalLight.intensity;
         
-        // 鏡面反射 (Blinn-Phong)
-        float3 V = normalize(gDirectionalLight.cameraPosition - input.worldPos);
-        float3 H = normalize(L + V);
-        float NdotH = saturate(dot(N, H));
-        float specularWeight = pow(NdotH, gDirectionalLight.shininess);
-        float3 specular = gDirectionalLight.color.rgb * specularWeight * gDirectionalLight.intensity;
+            // 鏡面反射 (Blinn-Phong)
+            float3 V = normalize(gDirectionalLight.cameraPosition - input.worldPos);
+            float3 H = normalize(L + V);
+            float NdotH = saturate(dot(N, H));
+            float specularWeight = pow(NdotH, gDirectionalLight.shininess);
+            float3 specular = gDirectionalLight.color.rgb * specularWeight * gDirectionalLight.intensity;
         
-        // 環境光 (Ambient)
-        float3 ambient = float3(0.1f, 0.1f, 0.1f);
+            // 環境光 (Ambient)
+            float3 ambient = float3(0.1f, 0.1f, 0.1f);
         
-        // 合成
-        outputColor.rgb = outputColor.rgb * (diffuse + ambient) + specular;
+            // 合成
+            outputColor.rgb = outputColor.rgb * (diffuse + ambient) + specular;
+        }
     }
 
     if (gEnvironmentMapData.enableEnvironmentMap != 0)
     {
-        float3 N = normalize(input.normal);
+        float3 N = ResolveSurfaceNormal(input, transformedUV.xy);
         float3 V = normalize(gDirectionalLight.cameraPosition - input.worldPos);
         float3 reflection = reflect(-V, N);
         float3 reflectionColor = gEnvironmentTexture.Sample(gSampler, reflection).rgb;
@@ -212,6 +291,6 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     PixelShaderOutput output;
     output.color = outputColor;
-    output.normal = float4(normalize(input.normal) * 0.5f + 0.5f, 1.0f);
+    output.normal = float4(ResolveSurfaceNormal(input, transformedUV.xy) * 0.5f + 0.5f, 1.0f);
     return output;
 }

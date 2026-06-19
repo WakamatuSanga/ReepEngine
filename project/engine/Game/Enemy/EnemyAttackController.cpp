@@ -1,4 +1,4 @@
-#include "EnemyAttackController.h"
+﻿#include "EnemyAttackController.h"
 #include "EnemyBulletManager.h"
 #include "EnemyManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
@@ -7,7 +7,7 @@
 #include <cmath>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -86,7 +86,7 @@ void EnemyAttackController::Update(float deltaTime) {
 }
 
 void EnemyAttackController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(340.0f, 260.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("敵攻撃確認 (Enemy Attack Debug)")) {
         ImGui::End();
@@ -132,3 +132,4 @@ void EnemyAttackController::FireFromActiveEnemies() {
         }
     }
 }
+

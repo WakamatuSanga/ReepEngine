@@ -1,4 +1,4 @@
-#include "LevelRailRuntime.h"
+﻿#include "LevelRailRuntime.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -285,7 +285,7 @@ void LevelRailRuntime::SetExternalDebugActorHidden(bool hidden) {
 }
 
 bool LevelRailRuntime::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("レールランタイム有効 (Enable Rail Runtime)", &runtimeEnabled_);
     ImGui::Checkbox("Debug Rail Actorを表示 (Show Debug Rail Actor)", &showDebugRailActor_);
@@ -573,3 +573,4 @@ void LevelRailRuntime::ResetRailActor() {
     autoPlay_ = false;
     UpdateCurrentEvaluation();
 }
+

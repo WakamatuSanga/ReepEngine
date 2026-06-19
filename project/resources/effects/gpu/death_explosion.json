@@ -1,0 +1,81 @@
+{
+  "emitters": [
+    {
+      "enabled": true,
+      "position": [0.000000, 0.000000, 0.000000],
+      "radius": 0.600000,
+      "shape": "Sphere",
+      "boxSize": [0.800000, 0.800000, 0.800000],
+      "coneHeight": 1.000000,
+      "emitCount": 320,
+      "emitInterval": 0.000000,
+      "emissionRate": 0.000000,
+      "randomSeed": 41,
+      "particleTypeIndex": 0
+    },
+    {
+      "enabled": true,
+      "position": [0.000000, 0.000000, 0.000000],
+      "radius": 0.850000,
+      "shape": "Sphere",
+      "boxSize": [1.000000, 1.000000, 1.000000],
+      "coneHeight": 1.000000,
+      "emitCount": 180,
+      "emitInterval": 0.000000,
+      "emissionRate": 0.000000,
+      "randomSeed": 47,
+      "particleTypeIndex": 1
+    }
+  ],
+  "particleTypes": [
+    {
+      "name": "Death Explosion Core",
+      "texturePath": "resources/particle/circle2.png",
+      "baseColor": [1.000000, 0.360000, 0.060000, 0.950000],
+      "startColor": [1.000000, 0.900000, 0.250000, 1.000000],
+      "endColor": [0.850000, 0.020000, 0.000000, 0.000000],
+      "startScale": 0.160000,
+      "endScale": 0.030000,
+      "lifeTimeMin": 0.450000,
+      "lifeTimeMax": 1.200000,
+      "speedMin": 1.100000,
+      "speedMax": 4.600000,
+      "gravity": -0.500000,
+      "drag": 0.320000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    },
+    {
+      "name": "Death Explosion Smoke",
+      "texturePath": "resources/particle/circle2.png",
+      "baseColor": [0.180000, 0.180000, 0.200000, 0.520000],
+      "startColor": [0.520000, 0.500000, 0.420000, 0.540000],
+      "endColor": [0.080000, 0.090000, 0.110000, 0.000000],
+      "startScale": 0.240000,
+      "endScale": 0.720000,
+      "lifeTimeMin": 0.900000,
+      "lifeTimeMax": 2.200000,
+      "speedMin": 0.250000,
+      "speedMax": 1.200000,
+      "gravity": 0.080000,
+      "drag": 0.700000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    }
+  ],
+  "runtime": {
+    "randomEnabled": true,
+    "useFreeListEmit": false,
+    "useDeadList": false,
+    "autoRecycleDeadList": false,
+    "updateEnabled": true
+  }
+}

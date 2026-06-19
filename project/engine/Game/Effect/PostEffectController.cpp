@@ -1,4 +1,4 @@
-#include "PostEffectController.h"
+﻿#include "PostEffectController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
@@ -7,7 +7,7 @@
 #include <cctype>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -57,6 +57,14 @@ void PostEffectController::Finalize() {
 }
 
 void PostEffectController::Update(float deltaTime) {
+    if (diagnosticSuppressed_ || !enabled_) {
+        flashActive_ = false;
+        fadeActive_ = false;
+        grayscaleActive_ = false;
+        RestoreGrayscale();
+        return;
+    }
+
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     if (flashActive_) {
         flashElapsed_ += safeDeltaTime;
@@ -81,7 +89,7 @@ void PostEffectController::Update(float deltaTime) {
 }
 
 void PostEffectController::Draw() {
-    if (!spriteCommon_) {
+    if (diagnosticSuppressed_ || !enabled_ || !spriteCommon_) {
         return;
     }
 
@@ -107,7 +115,7 @@ void PostEffectController::Draw() {
 }
 
 void PostEffectController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 340.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("ポストエフェクト確認 (PostEffect Controller Debug)")) {
         ImGui::End();
@@ -115,6 +123,9 @@ void PostEffectController::DrawImGui() {
     }
 
     ImGui::Checkbox("ポストエフェクト有効 (Enable PostEffects)", &enabled_);
+    if (diagnosticSuppressed_) {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "影診断でPostEffectが一時無効です。");
+    }
     ImGui::Text("Active Effects: Flash=%s Grayscale=%s FadeBlack=%s",
         flashActive_ ? "ON" : "OFF",
         grayscaleActive_ ? "ON" : "OFF",
@@ -146,8 +157,10 @@ void PostEffectController::DrawImGui() {
 }
 
 bool PostEffectController::PlayPostEffect(const std::string& postEffectType, std::string& resultMessage) {
-    if (!enabled_) {
-        resultMessage = "PostEffectController is disabled.";
+    if (!enabled_ || diagnosticSuppressed_) {
+        resultMessage = diagnosticSuppressed_
+            ? "PostEffectController is suppressed by shadow-like debug."
+            : "PostEffectController is disabled.";
         lastResult_ = resultMessage;
         return false;
     }
@@ -204,6 +217,20 @@ void PostEffectController::RestoreGrayscale() {
     grayscaleSaved_ = false;
 }
 
+void PostEffectController::SetDiagnosticSuppressed(bool isSuppressed) {
+    if (diagnosticSuppressed_ == isSuppressed) {
+        return;
+    }
+
+    diagnosticSuppressed_ = isSuppressed;
+    if (diagnosticSuppressed_) {
+        flashActive_ = false;
+        fadeActive_ = false;
+        grayscaleActive_ = false;
+        RestoreGrayscale();
+    }
+}
+
 float PostEffectController::CalculateFlashAlpha() const {
     if (!flashActive_ || flashDuration_ <= 0.0001f) {
         return 0.0f;
@@ -218,3 +245,4 @@ float PostEffectController::CalculateFadeAlpha() const {
     const float t = std::clamp(fadeElapsed_ / fadeDuration_, 0.0f, 1.0f);
     return fadeIntensity_ * std::sin(t * 3.14159265358979323846f);
 }
+

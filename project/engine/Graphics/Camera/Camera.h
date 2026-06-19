@@ -23,6 +23,10 @@ public:
 	const Matrix4x4& GetViewProjectionMatrix() const { return viewProjectionMatrix_; }
 	const Vector3& GetRotate() const { return transform_.rotate; }
 	const Vector3& GetTranslate() const { return transform_.translate; }
+	float GetFovY() const { return fovY_; }
+	float GetAspectRatio() const { return aspectRatio_; }
+	float GetNearClip() const { return nearClip_; }
+	float GetFarClip() const { return farClip_; }
 
 private:
 	Transform transform_;

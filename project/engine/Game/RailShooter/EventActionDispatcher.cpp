@@ -1,4 +1,4 @@
-#include "EventActionDispatcher.h"
+﻿#include "EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cctype>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -100,7 +100,7 @@ void EventActionDispatcher::Update() {
 }
 
 void EventActionDispatcher::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("イベントアクション振り分け (Event Action Dispatcher)")) {
         ImGui::End();
@@ -171,3 +171,4 @@ bool EventActionDispatcher::DispatchPlayEffect(const FiredEventAction& action, s
 bool EventActionDispatcher::IsActionType(const std::string& actionType, const char* expectedLower) {
     return ToLowerString(actionType) == expectedLower;
 }
+

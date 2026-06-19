@@ -1,10 +1,10 @@
-#include "PlayerRailController.h"
+﻿#include "PlayerRailController.h"
 #include "Player.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -74,7 +74,7 @@ void PlayerRailController::Update(float deltaTime) {
 }
 
 void PlayerRailController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 430.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("プレイヤーレール確認 / Debug")) {
         ImGui::End();
@@ -276,3 +276,4 @@ void PlayerRailController::ResetRailPosition() {
     autoPlay_ = false;
     UpdateEvaluation(0.0f);
 }
+

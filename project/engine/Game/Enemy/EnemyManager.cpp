@@ -1,11 +1,11 @@
-#include "EnemyManager.h"
+﻿#include "EnemyManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Player/Player.h"
 #include "Enemy.h"
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -101,7 +101,7 @@ void EnemyManager::Draw() {
 }
 
 void EnemyManager::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 420.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("敵確認 (Enemy Debug)")) {
         ImGui::End();
@@ -387,3 +387,4 @@ void EnemyManager::RemoveDeadEnemies() {
         selectedEnemyIndex_ = enemies_.empty() ? -1 : static_cast<int>(enemies_.size()) - 1;
     }
 }
+

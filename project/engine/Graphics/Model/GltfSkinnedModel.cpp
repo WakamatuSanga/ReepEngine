@@ -907,6 +907,63 @@ namespace {
         return (std::filesystem::path(baseFilePath).parent_path() / std::filesystem::path(relativePath)).generic_string();
     }
 
+    struct ResolvedGltfTexture {
+        std::string materialTexturePath;
+        std::string resolvedTexturePath;
+        bool usingWhiteFallback = false;
+        bool usingUvCheckerFallback = false;
+        int missingTextureCount = 0;
+    };
+
+    ResolvedGltfTexture ResolveGltfBaseColorTexture(
+        const std::string& gltfPath,
+        const std::vector<GltfImageData>& images) {
+        constexpr const char* kWhiteFallbackTexturePath = "resources/human/white.png";
+        constexpr const char* kUvCheckerFallbackTexturePath = "resources/obj/axis/uvChecker.png";
+
+        ResolvedGltfTexture result{};
+        if (!images.empty() && !images.front().uri.empty()) {
+            result.materialTexturePath = images.front().uri;
+            result.resolvedTexturePath = ResolveRelativePath(gltfPath, images.front().uri);
+            if (std::filesystem::exists(std::filesystem::path(result.resolvedTexturePath))) {
+                return result;
+            }
+            ++result.missingTextureCount;
+        } else {
+            result.materialTexturePath = "(missing)";
+            ++result.missingTextureCount;
+        }
+
+        result.resolvedTexturePath = kWhiteFallbackTexturePath;
+        result.usingWhiteFallback = true;
+        if (!std::filesystem::exists(std::filesystem::path(result.resolvedTexturePath))) {
+            result.resolvedTexturePath = kUvCheckerFallbackTexturePath;
+            result.usingUvCheckerFallback = true;
+        }
+        return result;
+    }
+
+    void ApplyTextureToModelData(
+        Model::ModelData& modelData,
+        const ResolvedGltfTexture& texture,
+        GltfSkinnedModel::TextureDebugInfo& textureDebugInfo) {
+        TextureManager::GetInstance()->LoadTexture(texture.resolvedTexturePath);
+        const uint32_t textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(texture.resolvedTexturePath);
+        modelData.material.materialName = "gltf_base_color";
+        modelData.material.textureFilePath = texture.resolvedTexturePath;
+        modelData.material.baseColorTexturePath = texture.resolvedTexturePath;
+        modelData.material.textureIndex = textureIndex;
+        modelData.material.baseColorTextureIndex = textureIndex;
+        modelData.material.usePBR = false;
+
+        textureDebugInfo.materialTexturePath = texture.materialTexturePath;
+        textureDebugInfo.resolvedTexturePath = texture.resolvedTexturePath;
+        textureDebugInfo.textureIndex = textureIndex;
+        textureDebugInfo.usingWhiteFallback = texture.usingWhiteFallback;
+        textureDebugInfo.usingUvCheckerFallback = texture.usingUvCheckerFallback;
+        textureDebugInfo.missingTextureCount = texture.missingTextureCount;
+    }
+
     bool LoadFileToString(const std::string& filePath, std::string& outText) {
         std::ifstream stream{ std::filesystem::path(filePath) };
         if (!stream.is_open()) {
@@ -1270,6 +1327,7 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
     if (!modelCommon) {
         return false;
     }
+    textureDebugInfo_ = {};
 
     std::string gltfText;
     if (!LoadFileToString(gltfPath, gltfText)) {
@@ -1331,11 +1389,10 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
             });
     }
 
-    const std::string texturePath = !images.empty() && !images.front().uri.empty()
-        ? ResolveRelativePath(gltfPath, images.front().uri)
-        : std::string("resources/obj/axis/uvChecker.png");
-    TextureManager::GetInstance()->LoadTexture(texturePath);
-    modelData.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath);
+    ApplyTextureToModelData(
+        modelData,
+        ResolveGltfBaseColorTexture(gltfPath, images),
+        textureDebugInfo_);
 
     model_ = std::make_unique<Model>();
     model_->Initialize(modelCommon, modelData);
@@ -1351,6 +1408,7 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     if (!modelCommon || !skeleton) {
         return false;
     }
+    textureDebugInfo_ = {};
     if (!InitializeComputeSkinningPipeline(modelCommon)) {
         return false;
     }
@@ -1436,9 +1494,10 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
             });
     }
 
-    const std::string texturePath = ResolveRelativePath(gltfPath, "white.png");
-    TextureManager::GetInstance()->LoadTexture(texturePath);
-    modelData.material.textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath);
+    ApplyTextureToModelData(
+        modelData,
+        ResolveGltfBaseColorTexture(gltfPath, images),
+        textureDebugInfo_);
 
     model_ = std::make_unique<Model>();
     model_->Initialize(modelCommon, modelData);

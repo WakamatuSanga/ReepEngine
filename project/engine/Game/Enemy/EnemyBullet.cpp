@@ -1,4 +1,4 @@
-#include "EnemyBullet.h"
+﻿#include "EnemyBullet.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -9,7 +9,7 @@
 #include <cmath>
 #include <filesystem>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -145,7 +145,7 @@ void EnemyBullet::DrawRadius() {
 }
 
 void EnemyBullet::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Text("Active: %s / Dead: %s", isActive_ ? "true" : "false", isDead_ ? "true" : "false");
     ImGui::TextWrapped("Model Path: %s", modelPath_.c_str());
     ImGui::TextWrapped("Resolved Model Path: %s", resolvedModelPath_.empty() ? "(none)" : resolvedModelPath_.c_str());
@@ -353,3 +353,4 @@ void EnemyBullet::UpdateObjectTransform() {
         radiusObject_->SetScale({ radius_, radius_, radius_ });
     }
 }
+

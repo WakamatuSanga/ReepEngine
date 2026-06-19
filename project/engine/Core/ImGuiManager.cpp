@@ -1,6 +1,6 @@
 #include "ImGuiManager.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "DirectXCommon.h"
 #include "RuntimeModeController.h"
 #include "SrvManager.h"
@@ -30,7 +30,7 @@ namespace {
 #endif
 
 void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] DirectXCommon* dxCommon) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	dxCommon_ = dxCommon;
 
 	IMGUI_CHECKVERSION();
@@ -85,7 +85,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 }
 
 void ImGuiManager::Begin() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
@@ -94,13 +94,13 @@ void ImGuiManager::Begin() {
 }
 
 void ImGuiManager::End() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ImGui::Render();
 #endif
 }
 
 void ImGuiManager::Draw() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
 
 	ID3D12DescriptorHeap* descriptorHeaps[] = { SrvManager::GetInstance()->GetSrvDescriptorHeap() };
@@ -111,14 +111,14 @@ void ImGuiManager::Draw() {
 }
 
 void ImGuiManager::Finalize() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 #endif
 }
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 void ImGuiManager::ApplyStyle_() {
 	ImGui::StyleColorsDark();
 

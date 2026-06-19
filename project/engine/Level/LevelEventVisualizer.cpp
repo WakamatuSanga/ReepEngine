@@ -1,4 +1,4 @@
-#include "LevelEventVisualizer.h"
+﻿#include "LevelEventVisualizer.h"
 #include "LevelEventRuntime.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -451,7 +451,7 @@ void LevelEventVisualizer::Draw(uint64_t frameCounter) {
 }
 
 bool LevelEventVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("イベントフラグ表示 (Show Event Flags)", &showEventFlags_);
     ImGui::Checkbox("非アクティブフラグを表示 (Show Runtime Inactive Flags)", &showRuntimeInactiveFlags_);
@@ -497,3 +497,4 @@ size_t LevelEventVisualizer::GetVisualCount() const {
 void LevelEventVisualizer::SetExternalDebugHidden(bool hidden) {
     externalDebugHidden_ = hidden;
 }
+

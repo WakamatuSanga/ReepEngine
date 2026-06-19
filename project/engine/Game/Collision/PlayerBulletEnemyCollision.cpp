@@ -1,4 +1,4 @@
-#include "PlayerBulletEnemyCollision.h"
+﻿#include "PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -85,7 +85,8 @@ void PlayerBulletEnemyCollision::Update() {
         ++hitCount_;
 
         if (combatEffectController_ && playCombatEffect_) {
-            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition);
+            const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
+            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition, isLethalHit);
             if (!wasDeadBeforeDamage && enemy->IsDead()) {
                 combatEffectController_->PlayEnemyDeathExplosion(enemy->GetPosition());
             }
@@ -94,7 +95,7 @@ void PlayerBulletEnemyCollision::Update() {
 }
 
 void PlayerBulletEnemyCollision::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 310.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("敵ヒット判定確認 (Enemy Hit Debug)")) {
         ImGui::End();
@@ -124,3 +125,4 @@ void PlayerBulletEnemyCollision::DrawImGui() {
     ImGui::End();
 #endif
 }
+

@@ -1,4 +1,4 @@
-#include "Enemy.h"
+﻿#include "Enemy.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <cmath>
 #include <filesystem>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -188,7 +188,7 @@ void Enemy::Draw() {
 }
 
 void Enemy::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Text("Enemy ID: %s", enemyId_.c_str());
     ImGui::Text("Enemy Type: %s", enemyType_.c_str());
     ImGui::Text("State: %s", ToStateLabel(state_));
@@ -204,6 +204,9 @@ void Enemy::DrawImGui() {
         model_ ? model_->GetVertexCount() : 0,
         model_ ? model_->GetIndexCount() : 0,
         model_ ? model_->GetMaterialCount() : 0);
+    if (model_) {
+        model_->DrawPbrMaterialImGui();
+    }
     ImGui::Checkbox("Active", &isActive_);
     if (ImGui::Checkbox("Use Lightweight Enemy Visual", &useLightweightVisual_)) {
         LoadModel();
@@ -442,7 +445,7 @@ void Enemy::LoadModel() {
         model_ = modelManager->FindModel(resolvedModelPath_);
         if (model_) {
             const std::filesystem::path resolvedPath(resolvedModelPath_);
-            texturePath_ = ToGenericString(resolvedPath.parent_path() / "Enemy.png");
+            texturePath_ = ToGenericString(resolvedPath.parent_path() / "textures" / "Material.003_baseColor.png");
             if (!std::filesystem::exists(std::filesystem::path(texturePath_))) {
                 texturePath_ = ResolveResourcePath("resources/obj/axis/uvChecker.png");
             }
@@ -451,7 +454,7 @@ void Enemy::LoadModel() {
                 model_->SetTextureIndex(TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath_));
             }
             loadStatus_ =
-                !texturePath_.empty() && std::filesystem::path(texturePath_).filename().string() == "Enemy.png"
+                !texturePath_.empty() && std::filesystem::path(texturePath_).filename().string() == "Material.003_baseColor.png"
                 ? "Enemy model loaded."
                 : "Enemy model loaded. Texture missing, using fallback texture.";
         }
@@ -586,3 +589,4 @@ float Enemy::ApplyAlignCurve(float t) const {
         return SmoothStep(t);
     }
 }
+

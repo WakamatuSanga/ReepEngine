@@ -1,4 +1,4 @@
-#include "LevelSceneRuntime.h"
+﻿#include "LevelSceneRuntime.h"
 #include "LevelEventConnectionVisualizer.h"
 #include "LevelEventDebugView.h"
 #include "LevelEventLabelVisualizer.h"
@@ -10,10 +10,11 @@
 #include "LevelRailRuntime.h"
 #include "LevelSceneLoader.h"
 #include "LevelTransformConverter.h"
+#include "Engine/Core/FrameTimer.h"
 #include <algorithm>
 #include <cstdint>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -116,7 +117,7 @@ namespace {
         return false;
     }
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     void DrawObjectTreeRecursive(
         const LevelObject& object,
         int& objectIndex,
@@ -194,7 +195,9 @@ void LevelSceneRuntime::Update() {
     if (objectActionVisualizer_) { objectActionVisualizer_->Update(frameCounter_); }
     if (eventRuntime_) { eventRuntime_->Update(frameCounter_); }
     if (railDebugVisualizer_) { railDebugVisualizer_->Update(frameCounter_); }
-    if (railRuntime_) { railRuntime_->Update(1.0f / 60.0f, frameCounter_); }
+    if (railRuntime_) {
+        railRuntime_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime(), frameCounter_);
+    }
 }
 
 void LevelSceneRuntime::Draw() {
@@ -229,7 +232,7 @@ void LevelSceneRuntime::Draw() {
 }
 
 void LevelSceneRuntime::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (labelVisualizer_ && !ShouldHideEventDebug()) {
         labelVisualizer_->DrawOverlay();
     }
@@ -526,7 +529,7 @@ void LevelSceneRuntime::RebuildDebugObjects() {
         railDebugVisualizer_->Update(frameCounter_);
     }
     if (railRuntime_) {
-        railRuntime_->Update(1.0f / 60.0f, frameCounter_);
+        railRuntime_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime(), frameCounter_);
     }
 }
 
@@ -541,3 +544,4 @@ bool LevelSceneRuntime::ShouldHideRailPoints() const {
 bool LevelSceneRuntime::ShouldHideEventDebug() const {
     return cameraRigActiveForDebug_ && (gameplayPreviewMode_ || hideEventDebugWhileCameraRigActive_);
 }
+

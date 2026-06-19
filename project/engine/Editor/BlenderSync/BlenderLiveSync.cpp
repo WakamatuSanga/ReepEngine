@@ -1,4 +1,4 @@
-#include "BlenderLiveSync.h"
+﻿#include "BlenderLiveSync.h"
 #include "BlenderLauncher.h"
 #include "BlenderUdpReceiver.h"
 #include "Engine/Level/LevelSceneLoader.h"
@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <utility>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -52,7 +52,7 @@ void BlenderLiveSync::Update() {
 }
 
 void BlenderLiveSync::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!receiver_) {
         return;
     }
@@ -322,3 +322,4 @@ void BlenderLiveSync::CopyPathToBuffer(
     const size_t copyLength = std::min(text.size(), buffer.size() - 1);
     std::copy_n(text.c_str(), copyLength, buffer.data());
 }
+

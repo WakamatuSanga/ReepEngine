@@ -1,5 +1,6 @@
-#include "SkinningEditor.h"
+﻿#include "SkinningEditor.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/Skeleton.h"
 #include <algorithm>
@@ -10,7 +11,7 @@
 #include <cstring>
 #include <numbers>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/ImGuizmo.h"
 #endif
@@ -25,7 +26,6 @@ namespace {
         };
     }
 
-#ifdef _DEBUG
     constexpr size_t kMaxUndoHistory = 64;
 
     const char* kGizmoOperationLabels[] = {
@@ -109,6 +109,7 @@ namespace {
         };
     }
 
+#ifdef USE_IMGUI
     bool ProjectToScreen(
         const Vector3& worldPosition,
         const Camera* camera,
@@ -202,7 +203,7 @@ void SkinningEditor::Update() {
     RefreshSelectionState();
 
     if (isPlaying_ && !isPaused_ && hasClip_) {
-        currentTime_ += (1.0f / 60.0f) * playbackSpeed_;
+        currentTime_ += FrameTimer::GetInstance().GetGameplayDeltaTime() * playbackSpeed_;
         float duration = (std::max)(currentClip_.duration, 0.0001f);
         if (currentTime_ > duration) {
             if (isLoop_) {
@@ -217,7 +218,7 @@ void SkinningEditor::Update() {
 }
 
 void SkinningEditor::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!isOpen_) {
         return;
     }
@@ -290,6 +291,18 @@ void SkinningEditor::DrawImGui() {
         ImGui::Text("クリップ数 (Clip Count): %d", activeTarget->hasClip ? 1 : 0);
         ImGui::Text("クリップ (Clip): %s", activeTarget->hasClip ? activeTarget->clip.name.c_str() : "なし");
         if (activeTarget->skinnedMeshLoaded) {
+            ImGui::SeparatorText("スキン素材確認 (Skinned Material Debug)");
+            ImGui::TextWrapped(
+                "Material Texture Path: %s",
+                activeTarget->previewInfo.materialTexturePath.empty() ? "(なし)" : activeTarget->previewInfo.materialTexturePath.c_str());
+            ImGui::TextWrapped(
+                "Resolved Texture Path: %s",
+                activeTarget->previewInfo.resolvedTexturePath.empty() ? "(なし)" : activeTarget->previewInfo.resolvedTexturePath.c_str());
+            ImGui::Text("Texture Index: %u", activeTarget->previewInfo.textureIndex);
+            ImGui::Text("Using White Fallback: %s", activeTarget->previewInfo.usingWhiteFallback ? "true" : "false");
+            ImGui::Text("Using UV Checker Fallback: %s", activeTarget->previewInfo.usingUvCheckerFallback ? "true" : "false");
+            ImGui::Text("Missing Texture Count: %d", activeTarget->previewInfo.missingTextureCount);
+
             ImGui::DragFloat(
                 "スキン表示スケール (Skinned Preview Scale)",
                 &activeTarget->previewInfo.previewScale,
@@ -555,7 +568,7 @@ void SkinningEditor::DrawImGui() {
 }
 
 void SkinningEditor::DrawTimelineWindow() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!isOpen_) {
         return;
     }
@@ -580,7 +593,7 @@ void SkinningEditor::DrawTimelineWindow() {
 }
 
 void SkinningEditor::DrawTransport() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const bool hasValidTarget = (targetSkeleton_ != nullptr);
     if (!hasValidTarget) {
         ImGui::TextDisabled("対象スケルトンが未設定です (No target skeleton).");
@@ -612,7 +625,7 @@ void SkinningEditor::DrawTransport() {
 }
 
 void SkinningEditor::ProcessTimelineShortcuts() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows)) {
         return;
     }
@@ -659,7 +672,7 @@ void SkinningEditor::ProcessTimelineShortcuts() {
 }
 
 void SkinningEditor::DrawTimelineCanvas() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::TextUnformatted("タイムライン領域 (Timeline Area)");
 
     const ImVec2 canvasPosition = ImGui::GetCursorScreenPos();
@@ -883,7 +896,7 @@ void SkinningEditor::DrawTimelineCanvas() {
 }
 
 void SkinningEditor::DrawSelectedJointKeys() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::TextUnformatted("選択ボーンのキー (Selected Joint Keys)");
     if (!targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
         ImGui::TextDisabled("ボーン階層から選択してください (Select a bone).");
@@ -915,7 +928,7 @@ void SkinningEditor::DrawSelectedJointKeys() {
 }
 
 void SkinningEditor::DrawSelectedKeyInspector() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::TextUnformatted("選択キー詳細 (Selected Key Inspector)");
     JointTrack* track = GetSelectedJointTrack();
     if (!track || selectedKeyIndex_ < 0 || selectedKeyIndex_ >= static_cast<int>(track->keys.size())) {
@@ -1535,7 +1548,7 @@ void SkinningEditor::MoveSelectedKeysByDelta(float deltaTime) {
 }
 
 void SkinningEditor::DrawGizmo(const Camera* camera) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!isOpen_ || !isTranslateGizmoEnabled_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
         isGizmoActive_ = false;
         isGizmoHovered_ = false;
@@ -1622,7 +1635,7 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
 }
 
 void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (!isOpen_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
         return;
     }
@@ -2150,3 +2163,4 @@ void SkinningEditor::SetPathBufferText(const std::string& text) {
     jsonPathBuffer_.fill('\0');
     strncpy_s(jsonPathBuffer_.data(), jsonPathBuffer_.size(), text.c_str(), _TRUNCATE);
 }
+

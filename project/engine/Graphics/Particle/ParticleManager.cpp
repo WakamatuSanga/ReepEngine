@@ -1,4 +1,5 @@
 #include "ParticleManager.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <random>
 #include <cassert>
@@ -53,6 +54,8 @@ void ParticleManager::SetTexture(const std::string& texturePath) {
 }
 
 void ParticleManager::Update(Camera* camera) {
+    const float deltaTime = FrameTimer::GetInstance().GetGameplayDeltaTime();
+    const float legacyFrameScale = deltaTime * 60.0f;
     Matrix4x4 viewProj = camera->GetViewProjectionMatrix();
     Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
     billboardMatrix.m[3][0] = 0.0f;
@@ -61,15 +64,15 @@ void ParticleManager::Update(Camera* camera) {
 
     uint32_t numInstance = 0;
     for (auto it = particles_.begin(); it != particles_.end();) {
-        it->currentTime += 1.0f / 60.0f;
+        it->currentTime += deltaTime;
         if (it->currentTime >= it->lifeTime) {
             it = particles_.erase(it);
             continue;
         }
 
-        it->transform.translate.x += it->velocity.x;
-        it->transform.translate.y += it->velocity.y;
-        it->transform.translate.z += it->velocity.z;
+        it->transform.translate.x += it->velocity.x * legacyFrameScale;
+        it->transform.translate.y += it->velocity.y * legacyFrameScale;
+        it->transform.translate.z += it->velocity.z * legacyFrameScale;
 
         float alpha = 1.0f - (it->currentTime / it->lifeTime);
         it->color.w = alpha;

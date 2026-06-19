@@ -16,6 +16,7 @@ public:
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Play();
     void PlayAt(const Vector3& position);
+    void PlayAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier = 1.0f);
     void Stop();
     void Update(float deltaTime, const Camera* camera);
     void Draw();
@@ -38,5 +39,7 @@ private:
     bool isVisible_ = true;
     bool isPlaying_ = true;
     bool isModelDirty_ = true;
+    float playScaleMultiplier_ = 1.0f;
+    float playAlphaMultiplier_ = 1.0f;
     float elapsedTime_ = 0.0f;
 };

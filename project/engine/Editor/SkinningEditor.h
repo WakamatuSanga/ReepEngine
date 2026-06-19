@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,12 @@ public:
         float previewScale = 1.0f;
         Vector3 previewRotation{ 0.0f, 0.0f, 0.0f };
         Vector3 defaultPreviewRotation{ 0.0f, 0.0f, 0.0f };
+        std::string materialTexturePath;
+        std::string resolvedTexturePath;
+        uint32_t textureIndex = 0;
+        bool usingWhiteFallback = false;
+        bool usingUvCheckerFallback = false;
+        int missingTextureCount = 0;
     };
 
     SkinningEditor();

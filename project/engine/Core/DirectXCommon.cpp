@@ -1,6 +1,8 @@
 #include "DirectXCommon.h"
 
 #include <cassert>
+#include <algorithm>
+#include <cmath>
 #include <vector>
 #include <string>
 
@@ -141,12 +143,16 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
         commandList->ResourceBarrier(1, &barrier);
         };
 
-    auto DrawFullscreenPass = [&](ID3D12PipelineState* pipelineState, D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV, D3D12_CPU_DESCRIPTOR_HANDLE targetRTV) {
+    auto DrawFullscreenPass = [&](ID3D12PipelineState* pipelineState,
+        D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV,
+        D3D12_CPU_DESCRIPTOR_HANDLE targetRTV,
+        const D3D12_VIEWPORT& targetViewport,
+        const D3D12_RECT& targetScissor) {
         ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
         commandList->SetDescriptorHeaps(1, descriptorHeaps);
         commandList->OMSetRenderTargets(1, &targetRTV, FALSE, nullptr);
-        commandList->RSSetViewports(1, &viewport);
-        commandList->RSSetScissorRects(1, &scissorRect);
+        commandList->RSSetViewports(1, &targetViewport);
+        commandList->RSSetScissorRects(1, &targetScissor);
         commandList->SetGraphicsRootSignature(copyRootSignature_.Get());
         commandList->SetPipelineState(pipelineState);
         commandList->SetGraphicsRootDescriptorTable(0, sourceSRV);
@@ -160,7 +166,10 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 
     UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
     D3D12_CPU_DESCRIPTOR_HANDLE backBufferRTV = rtvHandles[backBufferIndex];
-    commandList->ClearRenderTargetView(finalOutputTextureRTVHandle_, renderTextureClearColor_.data(), 0, nullptr);
+    const std::array<float, 4>& sceneClearColor = renderScaleClearColorTestEnabled_
+        ? renderScaleClearColorTest_
+        : renderTextureClearColor_;
+    commandList->ClearRenderTargetView(finalOutputTextureRTVHandle_, sceneClearColor.data(), 0, nullptr);
 
     if (postEffectParameters_.gaussianEnabled != 0) {
         assert(gaussianIntermediateResource_);
@@ -170,24 +179,24 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        DrawFullscreenPass(gaussianBlurXPipelineState_.Get(), renderTextureSRVHandleGPU_, gaussianIntermediateRTVHandle_);
+        DrawFullscreenPass(gaussianBlurXPipelineState_.Get(), renderTextureSRVHandleGPU_, gaussianIntermediateRTVHandle_, offscreenViewport_, offscreenScissorRect_);
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
         TransitionResource(gaussianIntermediateResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        DrawFullscreenPass(gaussianBlurYPipelineState_.Get(), gaussianIntermediateSRVHandleGPU_, finalOutputTextureRTVHandle_);
+        DrawFullscreenPass(gaussianBlurYPipelineState_.Get(), gaussianIntermediateSRVHandleGPU_, finalOutputTextureRTVHandle_, offscreenViewport_, offscreenScissorRect_);
         TransitionResource(gaussianIntermediateResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     } else {
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        DrawFullscreenPass(copyPipelineState_.Get(), renderTextureSRVHandleGPU_, finalOutputTextureRTVHandle_);
+        DrawFullscreenPass(copyPipelineState_.Get(), renderTextureSRVHandleGPU_, finalOutputTextureRTVHandle_, offscreenViewport_, offscreenScissorRect_);
         TransitionResource(renderTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     }
 
     // Keep the post-effected image available to both the swapchain present path and the ImGui Game View.
     TransitionResource(finalOutputTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     *postEffectData_ = passthroughPostEffectParameters;
-    DrawFullscreenPass(copyPipelineState_.Get(), finalOutputTextureSRVHandleGPU_, backBufferRTV);
+    DrawFullscreenPass(copyPipelineState_.Get(), finalOutputTextureSRVHandleGPU_, backBufferRTV, viewport, scissorRect);
     *postEffectData_ = scenePostEffectParameters;
     TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -292,7 +301,10 @@ void DirectXCommon::PreDraw()
     commandList->OMSetRenderTargets(_countof(rtvHandles), rtvHandles, FALSE, &dsvHandle);
 
     // 画面クリア
-    commandList->ClearRenderTargetView(sceneRTVHandle, renderTextureClearColor_.data(), 0, nullptr);
+    const std::array<float, 4>& sceneClearColor = renderScaleClearColorTestEnabled_
+        ? renderScaleClearColorTest_
+        : renderTextureClearColor_;
+    commandList->ClearRenderTargetView(sceneRTVHandle, sceneClearColor.data(), 0, nullptr);
     commandList->ClearRenderTargetView(normalRTVHandle, normalTextureClearColor_.data(), 0, nullptr);
 
     // 深度クリア
@@ -304,8 +316,8 @@ void DirectXCommon::PreDraw()
     commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
     // ビューポート / シザー設定
-    commandList->RSSetViewports(1, &viewport);
-    commandList->RSSetScissorRects(1, &scissorRect);
+    commandList->RSSetViewports(1, &offscreenViewport_);
+    commandList->RSSetScissorRects(1, &offscreenScissorRect_);
 }
 
 // --------------------
@@ -332,7 +344,7 @@ void DirectXCommon::PostDraw()
     commandQueue->ExecuteCommandLists(1, commandLists);
 
     // 画面の入れ替え
-    hr = swapChain->Present(1, 0);
+    hr = swapChain->Present(presentInterval_, 0);
     assert(SUCCEEDED(hr));
 
     // Fence 更新 & 待ち
@@ -347,7 +359,9 @@ void DirectXCommon::PostDraw()
     }
 
     // VSync待ちの直後に 60fps 固定処理
-    UpdateFixFPS();
+    if (fixedFpsWaitEnabled_) {
+        UpdateFixFPS();
+    }
 
     // 次フレーム用リセット
     hr = commandAllocator->Reset();
@@ -517,9 +531,13 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
     assert(device);
     assert(rtvDescriptorHeap);
     assert(srvManager);
-    assert(depthBuffer);
+    srvManager_ = srvManager;
 
     CreateCopyPipelineState();
+    renderTextureWidth_ = (std::max)(1u, static_cast<uint32_t>(std::lround(static_cast<float>(WinApp::kClientWidth) * offscreenRenderScale_)));
+    renderTextureHeight_ = (std::max)(1u, static_cast<uint32_t>(std::lround(static_cast<float>(WinApp::kClientHeight) * offscreenRenderScale_)));
+    CreateDepthBuffer();
+    InitializeDepthStencilView();
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
     rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -537,8 +555,8 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
             resource.Reset();
             resource.Attach(CreateRenderTextureResource(
                 device.Get(),
-                WinApp::kClientWidth,
-                WinApp::kClientHeight,
+                static_cast<int32_t>(renderTextureWidth_),
+                static_cast<int32_t>(renderTextureHeight_),
                 format,
                 clearColor.data()));
 
@@ -612,6 +630,7 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
     HRESULT hr = postEffectResource_->Map(0, nullptr, reinterpret_cast<void**>(&postEffectData_));
     assert(SUCCEEDED(hr));
     *postEffectData_ = postEffectParameters_;
+    UpdateOffscreenViewportAndScissor();
 }
 
 // FPS固定 初期化
@@ -620,6 +639,24 @@ void DirectXCommon::SetDissolveNoiseTextureIndex(uint32_t textureIndex)
     dissolveNoiseTextureSRVIndex_ = textureIndex;
     dissolveNoiseTextureSRVHandleCPU_ = GetSRVCPUDescriptorHandle(textureIndex);
     dissolveNoiseTextureSRVHandleGPU_ = GetSRVGPUDescriptorHandle(textureIndex);
+}
+
+void DirectXCommon::SetOffscreenRenderScale(float scale)
+{
+    if (!std::isfinite(scale)) {
+        return;
+    }
+    scale = std::clamp(scale, 0.25f, 1.0f);
+    if (std::fabs(offscreenRenderScale_ - scale) <= 0.001f) {
+        return;
+    }
+
+    offscreenRenderScale_ = scale;
+    if (srvManager_ && device && depthBuffer) {
+        CreateRenderTexture(srvManager_);
+    } else {
+        UpdateOffscreenViewportAndScissor();
+    }
 }
 
 void DirectXCommon::InitializeFixFPS() {
@@ -788,10 +825,12 @@ void DirectXCommon::CreateSwapChain()
 // --------------------
 void DirectXCommon::CreateDepthBuffer()
 {
+    depthBufferWidth_ = (std::max)(1u, renderTextureWidth_);
+    depthBufferHeight_ = (std::max)(1u, renderTextureHeight_);
     depthBuffer = CreateDepthStencilTextureResource(
         device.Get(),
-        WinApp::kClientWidth,
-        WinApp::kClientHeight);
+        static_cast<int32_t>(depthBufferWidth_),
+        static_cast<int32_t>(depthBufferHeight_));
 }
 
 const uint32_t DirectXCommon::kMaxSRVCount = 512;
@@ -908,6 +947,7 @@ void DirectXCommon::InitializeViewport()
     viewport.TopLeftY = 0.0f;
     viewport.MinDepth = 0.0f;
     viewport.MaxDepth = 1.0f;
+    UpdateOffscreenViewportAndScissor();
 }
 
 // --------------------
@@ -919,6 +959,22 @@ void DirectXCommon::InitializeScissorRect()
     scissorRect.top = 0;
     scissorRect.right = WinApp::kClientWidth;
     scissorRect.bottom = WinApp::kClientHeight;
+    UpdateOffscreenViewportAndScissor();
+}
+
+void DirectXCommon::UpdateOffscreenViewportAndScissor()
+{
+    offscreenViewport_.Width = static_cast<float>((std::max)(renderTextureWidth_, 1u));
+    offscreenViewport_.Height = static_cast<float>((std::max)(renderTextureHeight_, 1u));
+    offscreenViewport_.TopLeftX = 0.0f;
+    offscreenViewport_.TopLeftY = 0.0f;
+    offscreenViewport_.MinDepth = 0.0f;
+    offscreenViewport_.MaxDepth = 1.0f;
+
+    offscreenScissorRect_.left = 0;
+    offscreenScissorRect_.top = 0;
+    offscreenScissorRect_.right = static_cast<LONG>((std::max)(renderTextureWidth_, 1u));
+    offscreenScissorRect_.bottom = static_cast<LONG>((std::max)(renderTextureHeight_, 1u));
 }
 
 // --------------------

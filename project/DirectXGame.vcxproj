@@ -73,7 +73,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;USE_IMGUI;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -122,7 +122,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;USE_IMGUI;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -151,6 +151,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Editor\BlenderSync\BlenderLiveSync.cpp" />
     <ClCompile Include="engine\Editor\BlenderSync\BlenderUdpReceiver.cpp" />
     <ClCompile Include="engine\Core\GameViewport.cpp" />
+    <ClCompile Include="engine\Core\FrameTimer.cpp" />
     <ClCompile Include="engine\Core\RuntimeModeController.cpp" />
     <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
@@ -160,6 +161,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
+    <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp" />
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
@@ -168,6 +170,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Enemy\EnemyManager.cpp" />
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
+    <ClCompile Include="engine\Game\Player\BoostController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
@@ -177,6 +180,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\StartupEnemySpawnController.cpp" />
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
     <ClCompile Include="engine\Level\LevelEventData.cpp" />
@@ -263,6 +267,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Graphics\Model\Model.cpp" />
     <ClCompile Include="engine\Graphics\Model\ModelCommon.cpp" />
     <ClCompile Include="engine\Graphics\Model\ModelManager.cpp" />
+    <ClCompile Include="engine\Graphics\Model\ModelMaterial.cpp" />
     <ClCompile Include="MyGame.cpp" />
     <ClCompile Include="engine\Graphics\Object3d\Object3d.cpp" />
     <ClCompile Include="engine\Graphics\Object3d\Object3dCommon.cpp" />
@@ -280,6 +285,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Graphics\Texture\TextureManager.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp" />
+    <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp" />
     <ClCompile Include="engine\Core\WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -291,12 +299,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Editor\BlenderSync\BlenderSyncTypes.h" />
     <ClInclude Include="engine\Editor\BlenderSync\BlenderUdpReceiver.h" />
     <ClInclude Include="engine\Core\GameViewport.h" />
+    <ClInclude Include="engine\Core\FrameTimer.h" />
     <ClInclude Include="engine\Core\RuntimeModeController.h" />
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h" />
     <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h" />
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
+    <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h" />
     <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
@@ -305,6 +315,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Enemy\EnemyManager.h" />
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
+    <ClInclude Include="engine\Game\Player\BoostController.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
@@ -314,6 +325,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h" />
+    <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h" />
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventDebugView.h" />
     <ClInclude Include="engine\Level\LevelEventData.h" />
@@ -387,6 +399,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h" />
+    <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h" />
     <ClInclude Include="engine\Core\WinApp.h" />
   </ItemGroup>
   <ItemGroup>
@@ -499,6 +512,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="resources\shaders\VolumetricCloud.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\VolumetricCloudComposite.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
