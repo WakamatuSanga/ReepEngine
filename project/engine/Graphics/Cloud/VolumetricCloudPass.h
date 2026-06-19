@@ -2,6 +2,7 @@
 
 #include "Engine/math/Matrix4x4.h"
 
+#include <array>
 #include <d3d12.h>
 #include <cstdint>
 #include <wrl.h>
@@ -42,6 +43,14 @@ public:
         ForceScissor = 3,
         ForceMaxQuality = 4,
         ForceAggressiveLod = 5,
+    };
+
+    enum class CloudFlowDirectionMode : uint32_t {
+        Fixed = 0,
+        TowardCamera = 1,
+        AwayFromCamera = 2,
+        CameraForward = 3,
+        NegativeCameraForward = 4,
     };
 
 public:
@@ -106,6 +115,10 @@ private:
         uint32_t enableCloudFlow = 0;
         float padding3 = 0.0f;
         float padding4 = 0.0f;
+        Vector4 nearCameraFade;
+        Vector4 cloudLayerFade;
+        Vector4 cloudBottomShaping;
+        Vector4 cloudBottomShapingExtra;
     };
 
     struct CloudCompositeConstants {
@@ -114,6 +127,11 @@ private:
         uint32_t enableDepthAwareUpsample = 0;
         float depthThreshold = 0.005f;
         Vector2 padding{};
+    };
+
+    struct ResolvedCloudVolume {
+        Vector3 center{};
+        Vector3 halfExtents{};
     };
 
 private:
@@ -130,15 +148,21 @@ private:
     void CompositeCloudBuffer();
     void EnsureCloudBuffer();
     void CreateCloudBuffer(uint32_t width, uint32_t height);
+    ResolvedCloudVolume ResolveCloudVolume(const Camera* camera, const CloudVolume* cloudVolume) const;
+    Vector3 ResolveCloudFlowDirection(const Camera* camera) const;
 
     static Vector3 Normalize(const Vector3& value);
     static Vector4 TransformPoint(const Vector3& value, const Matrix4x4& matrix);
+    static Vector3 GetCameraForward(const Camera* camera);
+    static Vector3 GetCameraUp(const Camera* camera);
+    static bool ContainsPoint(const ResolvedCloudVolume& volume, const Vector3& point);
+    static std::array<Vector3, 8> GetCorners(const ResolvedCloudVolume& volume);
     static D3D12_RECT MakeFullScreenScissor();
     static D3D12_RECT MakeScissor(uint32_t width, uint32_t height);
     static D3D12_RECT ScaleScissor(const D3D12_RECT& source, uint32_t width, uint32_t height);
     static D3D12_VIEWPORT MakeViewport(uint32_t width, uint32_t height);
-    static float ComputeDistanceToAabb(const Vector3& point, const CloudVolume* cloudVolume);
-    static void ComputeDistanceLodScales(float entryDistance, const CloudVolume* cloudVolume, float lodFactorScale, bool disableDistanceLod, float& viewStepScale, float& densityScale);
+    static float ComputeDistanceToAabb(const Vector3& point, const ResolvedCloudVolume& volume);
+    static void ComputeDistanceLodScales(float entryDistance, const ResolvedCloudVolume& volume, float lodFactorScale, bool disableDistanceLod, float& viewStepScale, float& densityScale);
 
 private:
     DirectXCommon* dxCommon_ = nullptr;
@@ -170,19 +194,43 @@ private:
     bool diagnosticDisableDepthAwareUpsample_ = false;
     bool showCloudBufferPreview_ = false;
     bool enableCloudFlow_ = true;
-    bool useCameraForwardFlow_ = true;
+    CloudFlowDirectionMode cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
+    bool invertCloudFlowDirection_ = false;
     bool useBoostFlowMultiplier_ = true;
+    bool useCameraRelativeCloudVolume_ = true;
+    bool enableNearCameraCloudFade_ = true;
+    bool keepCameraBelowClouds_ = true;
+    bool enableCloudBottomShaping_ = true;
     bool recreateCloudBufferRequested_ = false;
     bool hasValidCloudBuffer_ = false;
     bool cloudColorSrvAllocated_ = false;
     Vector3 fixedCloudFlowDirection_{ 1.0f, 0.0f, 0.2f };
+    Vector3 currentCloudFlowDirection_{ 0.0f, 0.0f, -1.0f };
     float cloudResolutionScale_ = 0.5f;
     float depthThreshold_ = 0.005f;
     float viewStepScale_ = 1.0f;
     float lightStepScale_ = 1.0f;
-    float cloudBaseFlowSpeed_ = 0.35f;
+    float cloudBaseFlowSpeed_ = 10.0f;
     float externalFlowMultiplier_ = 1.0f;
     float currentCloudFlowSpeed_ = 0.35f;
+    float cloudNearDistance_ = -5.0f;
+    float cloudFarDistance_ = 200.0f;
+    float cloudBehindCameraDistance_ = 5.0f;
+    float cloudHeightOffset_ = 0.0f;
+    float cloudVolumeWidth_ = 200.0f;
+    float cloudVolumeHeight_ = 80.0f;
+    float cloudVolumeDepth_ = 205.0f;
+    float cameraToCloudBottom_ = 22.0f;
+    float cloudLayerThickness_ = 80.0f;
+    float cloudBottomFade_ = 20.0f;
+    float cloudTopFade_ = 20.0f;
+    float nearFadeStart_ = 0.0f;
+    float nearFadeEnd_ = 10.0f;
+    float nearDensityScale_ = 0.3f;
+    float cloudBottomFlattenStrength_ = 0.5f;
+    float cloudBottomSmoothness_ = 0.5f;
+    float cloudBottomNoiseSuppression_ = 0.4f;
+    float cloudBottomDensity_ = 0.8f;
     int cloudRenderInterval_ = 1;
     uint32_t frameCounter_ = 0;
     uint32_t renderedFrameCount_ = 0;

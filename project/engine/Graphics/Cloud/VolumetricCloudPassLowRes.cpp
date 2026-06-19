@@ -416,19 +416,127 @@ void VolumetricCloudPass::DrawImGui()
         ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.35f, 1.0f), "注意: Direct描画は画質比較用です。重くなる可能性があります。");
     }
 
-    ImGui::SeparatorText("雲の流れ設定 (Cloud Flow)");
-    ImGui::TextWrapped("Boost中は雲の流れを速くして、Player座標を大きく動かさずに進行感を出します。海や背景の流速制御にも後でつなげる想定です。");
+    ImGui::SeparatorText("雲の流れ方向 (Cloud Flow Direction)");
+    ImGui::TextWrapped("奥から手前へ流したい場合は Toward Camera を使ってください。見た目が逆に流れる場合は Invert Flow Direction をONにしてください。");
     ImGui::Checkbox("雲を流す (Enable Cloud Flow)", &enableCloudFlow_);
-    ImGui::Checkbox("カメラ前方の逆へ流す (Use -CameraForward)", &useCameraForwardFlow_);
-    ImGui::TextWrapped("ONにすると、レールシューティングの進行方向と逆向きに雲が流れます。OFFでは固定方向を使います。");
-    if (!useCameraForwardFlow_) {
+    const char* flowModeNames[] = {
+        "固定方向 (Fixed)",
+        "カメラへ向かう (Toward Camera)",
+        "カメラから遠ざかる (Away From Camera)",
+        "Camera Forward",
+        "Negative Camera Forward",
+    };
+    int flowMode = static_cast<int>(cloudFlowDirectionMode_);
+    if (ImGui::Combo("流れ方向モード (Flow Direction Mode)", &flowMode, flowModeNames, IM_ARRAYSIZE(flowModeNames))) {
+        cloudFlowDirectionMode_ = static_cast<CloudFlowDirectionMode>(flowMode);
+    }
+    ImGui::Checkbox("流れ方向を反転 (Invert Flow Direction)", &invertCloudFlowDirection_);
+    if (cloudFlowDirectionMode_ == CloudFlowDirectionMode::Fixed) {
         ImGui::DragFloat3("固定流れ方向 (Flow Direction)", &fixedCloudFlowDirection_.x, 0.01f, -10.0f, 10.0f, "%.2f");
     }
     ImGui::DragFloat("基本流速 (Base Flow Speed)", &cloudBaseFlowSpeed_, 0.01f, 0.0f, 20.0f, "%.2f");
+    ImGui::TextWrapped("Base Flow Speed は雲が奥から手前へ流れる基本速度です。Boost中はここに倍率が掛かります。");
     ImGui::Checkbox("Boost連動を使う (Use Boost Flow Multiplier)", &useBoostFlowMultiplier_);
     ImGui::Text("外部Boost倍率 (External Boost Multiplier): %.2f", externalFlowMultiplier_);
     ImGui::Text("現在の流速 (Current Flow Speed): %.2f", currentCloudFlowSpeed_);
+    ImGui::Text("現在の流れ方向 (Current Flow Direction): %.2f, %.2f, %.2f",
+        currentCloudFlowDirection_.x,
+        currentCloudFlowDirection_.y,
+        currentCloudFlowDirection_.z);
     ImGui::TextWrapped("Boost連動ONでは、基本流速にBoostControllerの倍率を掛けます。通常時は1.0倍、Boost中は設定倍率へ近づきます。");
+
+    ImGui::SeparatorText("カメラ相対の雲範囲 (Camera Relative Cloud Volume)");
+    ImGui::TextWrapped("Cloud Near Distanceを負にすると、カメラの少し後ろまで雲を描けます。Y方向は雲レイヤー設定でカメラより上へ逃がし、初期状態では雲の下で戦えるようにします。");
+    if (ImGui::Button("レールシューティング用")) {
+        cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
+        invertCloudFlowDirection_ = false;
+        useCameraRelativeCloudVolume_ = true;
+        keepCameraBelowClouds_ = true;
+        cloudBaseFlowSpeed_ = 10.0f;
+        cloudNearDistance_ = -5.0f;
+        cloudBehindCameraDistance_ = 5.0f;
+        cloudFarDistance_ = 200.0f;
+        cloudVolumeWidth_ = 200.0f;
+        cloudVolumeHeight_ = 80.0f;
+        cloudVolumeDepth_ = 205.0f;
+        cloudHeightOffset_ = 0.0f;
+        cameraToCloudBottom_ = 22.0f;
+        cloudLayerThickness_ = 80.0f;
+        cloudBottomFade_ = 20.0f;
+        cloudTopFade_ = 20.0f;
+        enableNearCameraCloudFade_ = true;
+        nearFadeStart_ = 0.0f;
+        nearFadeEnd_ = 10.0f;
+        nearDensityScale_ = 0.3f;
+        enableCloudBottomShaping_ = true;
+        cloudBottomFlattenStrength_ = 0.5f;
+        cloudBottomSmoothness_ = 0.5f;
+        cloudBottomNoiseSuppression_ = 0.4f;
+        cloudBottomDensity_ = 0.8f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("雲の中を突っ切る用")) {
+        cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
+        invertCloudFlowDirection_ = false;
+        useCameraRelativeCloudVolume_ = true;
+        keepCameraBelowClouds_ = false;
+        cloudNearDistance_ = -10.0f;
+        cloudBehindCameraDistance_ = 10.0f;
+        cloudFarDistance_ = 150.0f;
+        cloudVolumeWidth_ = 180.0f;
+        cloudVolumeHeight_ = 90.0f;
+        cloudVolumeDepth_ = 170.0f;
+        cloudHeightOffset_ = 8.0f;
+        cameraToCloudBottom_ = 0.0f;
+        cloudLayerThickness_ = 90.0f;
+        cloudBottomFade_ = 20.0f;
+        cloudTopFade_ = 20.0f;
+        cloudBaseFlowSpeed_ = (std::max)(cloudBaseFlowSpeed_, 0.55f);
+        enableNearCameraCloudFade_ = true;
+        nearFadeStart_ = 0.0f;
+        nearFadeEnd_ = 12.0f;
+        nearDensityScale_ = 0.6f;
+        enableCloudBottomShaping_ = true;
+        cloudBottomFlattenStrength_ = 0.2f;
+        cloudBottomSmoothness_ = 0.25f;
+        cloudBottomNoiseSuppression_ = 0.15f;
+        cloudBottomDensity_ = 0.95f;
+    }
+    ImGui::Checkbox("カメラ相対雲ボリュームを使う (Use Camera Relative Volume)", &useCameraRelativeCloudVolume_);
+    ImGui::DragFloat("雲の開始距離 (Cloud Near Distance)", &cloudNearDistance_, 0.5f, -100.0f, 100.0f, "%.1f");
+    ImGui::DragFloat("雲の奥行き距離 (Cloud Far Distance)", &cloudFarDistance_, 1.0f, 1.0f, 1000.0f, "%.1f");
+    ImGui::DragFloat("カメラ後方まで描画する距離 (Behind Camera Distance)", &cloudBehindCameraDistance_, 0.5f, 0.0f, 100.0f, "%.1f");
+    ImGui::DragFloat("雲の高さオフセット (Cloud Height Offset)", &cloudHeightOffset_, 0.25f, -100.0f, 100.0f, "%.1f");
+    ImGui::DragFloat("雲の幅 (Cloud Volume Width)", &cloudVolumeWidth_, 1.0f, 1.0f, 1000.0f, "%.1f");
+    ImGui::DragFloat("雲の高さ (Cloud Volume Height)", &cloudVolumeHeight_, 1.0f, 1.0f, 500.0f, "%.1f");
+    ImGui::DragFloat("雲の奥行き (Cloud Volume Depth)", &cloudVolumeDepth_, 1.0f, 1.0f, 1000.0f, "%.1f");
+
+    ImGui::SeparatorText("雲レイヤー設定 (Cloud Layer)");
+    ImGui::TextWrapped("初期状態では「カメラを雲の下に置く」をONにしてください。雲の底面が画面上側や奥側に見え、プレイヤーや弾が雲に埋もれにくくなります。");
+    ImGui::Checkbox("カメラを雲の下に置く (Keep Camera Below Clouds)", &keepCameraBelowClouds_);
+    ImGui::DragFloat("カメラから雲底までの距離 (Camera To Cloud Bottom)", &cameraToCloudBottom_, 0.5f, 0.0f, 200.0f, "%.1f");
+    ImGui::TextWrapped("Camera To Cloud Bottom を下げると、雲が画面内に入りやすくなります。下げすぎると開幕から雲の中になります。");
+    ImGui::DragFloat("雲レイヤー厚み (Cloud Layer Thickness)", &cloudLayerThickness_, 1.0f, 1.0f, 300.0f, "%.1f");
+    ImGui::DragFloat("雲の底面フェード (Cloud Bottom Fade)", &cloudBottomFade_, 0.5f, 0.1f, 100.0f, "%.1f");
+    ImGui::DragFloat("雲の上面フェード (Cloud Top Fade)", &cloudTopFade_, 0.5f, 0.1f, 100.0f, "%.1f");
+    const float cloudBottomOffset = keepCameraBelowClouds_ ? (cameraToCloudBottom_ + cloudHeightOffset_) : (cloudHeightOffset_ - cloudVolumeHeight_ * 0.5f);
+    const float cloudTopOffset = keepCameraBelowClouds_ ? (cameraToCloudBottom_ + cloudHeightOffset_ + cloudLayerThickness_) : (cloudHeightOffset_ + cloudVolumeHeight_ * 0.5f);
+    ImGui::Text("雲の底面高さ (Cloud Bottom Offset): %.1f", cloudBottomOffset);
+    ImGui::Text("雲の上面高さ (Cloud Top Offset): %.1f", cloudTopOffset);
+
+    ImGui::Checkbox("雲底の形を整える (Enable Cloud Bottom Shaping)", &enableCloudBottomShaping_);
+    ImGui::SliderFloat("雲底の平らさ (Cloud Bottom Flatten Strength)", &cloudBottomFlattenStrength_, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("雲底のなめらかさ (Cloud Bottom Smoothness)", &cloudBottomSmoothness_, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("雲底のノイズ抑制 (Cloud Bottom Noise Suppression)", &cloudBottomNoiseSuppression_, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("雲底の濃さ (Cloud Bottom Density)", &cloudBottomDensity_, 0.0f, 1.5f, "%.2f");
+    ImGui::TextWrapped("雲底のノイズ抑制を上げると、下から見た時のもわもわ感が減ります。上げすぎると平らに見えすぎるため、0.3〜0.5付近が目安です。");
+
+    ImGui::SeparatorText("近距離フェード (Near Camera Fade)");
+    ImGui::TextWrapped("近くが白くなりすぎる場合はNear Fadeを強めてください。カメラすぐ近くを薄くし、少し先で通常濃度へ戻します。");
+    ImGui::Checkbox("近距離フェードを使う (Enable Near Camera Fade)", &enableNearCameraCloudFade_);
+    ImGui::DragFloat("近距離フェード開始 (Near Fade Start)", &nearFadeStart_, 0.1f, 0.0f, 100.0f, "%.1f");
+    ImGui::DragFloat("近距離フェード終了 (Near Fade End)", &nearFadeEnd_, 0.1f, 0.1f, 200.0f, "%.1f");
+    ImGui::SliderFloat("近距離濃度倍率 (Near Density Scale)", &nearDensityScale_, 0.0f, 1.0f, "%.2f");
 
     ImGui::Checkbox("雲バッファのプレビュー表示 (Show Cloud Buffer Preview)", &showCloudBufferPreview_);
     if (showCloudBufferPreview_ && cloudColorResource_) {

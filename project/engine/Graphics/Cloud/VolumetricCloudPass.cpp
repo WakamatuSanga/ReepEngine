@@ -81,16 +81,17 @@ VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(c
     }
 
     const CloudVolume::Parameters& parameters = cloudVolume->GetParameters();
+    const ResolvedCloudVolume resolvedVolume = ResolveCloudVolume(camera, cloudVolume);
     const bool disableDistanceLod = (forceMode_ == ForceMode::ForceMaxQuality);
     const float lodFactorScale = (forceMode_ == ForceMode::ForceAggressiveLod) ? 1.75f : 1.0f;
-    const float entryDistance = ComputeDistanceToAabb(camera->GetTranslate(), cloudVolume);
+    const float entryDistance = ComputeDistanceToAabb(camera->GetTranslate(), resolvedVolume);
     float densityScale = 1.0f;
-    ComputeDistanceLodScales(entryDistance, cloudVolume, lodFactorScale, disableDistanceLod, result.currentViewStepScale, densityScale);
+    ComputeDistanceLodScales(entryDistance, resolvedVolume, lodFactorScale, disableDistanceLod, result.currentViewStepScale, densityScale);
     result.currentLightStepScale = result.currentViewStepScale;
     result.estimatedViewSteps = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.viewStepCount, 1u)) * result.currentViewStepScale + 0.5f));
     result.estimatedLightSteps = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.lightStepCount, 1u)) * result.currentLightStepScale + 0.5f));
 
-    result.isCameraInsideCloud = cloudVolume->ContainsPoint(camera->GetTranslate());
+    result.isCameraInsideCloud = ContainsPoint(resolvedVolume, camera->GetTranslate());
     if (result.isCameraInsideCloud) {
         result.isVisible = true;
         result.useFullScreenScissor = true;
@@ -100,7 +101,7 @@ VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(c
         return result;
     }
 
-    const std::array<Vector3, 8> corners = cloudVolume->GetCorners();
+    const std::array<Vector3, 8> corners = GetCorners(resolvedVolume);
     const Matrix4x4& viewProjection = camera->GetViewProjectionMatrix();
 
     const FrustumPlane planes[6] = {
@@ -412,11 +413,13 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
 
     constantData_->inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
     constantData_->cameraPosition = camera->GetTranslate();
-    constantData_->volumeCenter = parameters.center;
+    const ResolvedCloudVolume resolvedVolume = ResolveCloudVolume(camera, cloudVolume);
+
+    constantData_->volumeCenter = resolvedVolume.center;
     constantData_->density = parameters.density;
-    constantData_->volumeHalfExtents = parameters.halfExtents;
+    constantData_->volumeHalfExtents = resolvedVolume.halfExtents;
     constantData_->absorption = parameters.absorption;
-    constantData_->windOffset = cloudVolume->GetWindOffset();
+    constantData_->windOffset = enableCloudFlow_ ? Vector3{ 0.0f, 0.0f, 0.0f } : cloudVolume->GetWindOffset();
     constantData_->noiseScale = parameters.noiseScale;
     constantData_->sunDirection = Normalize(parameters.sunDirection);
     constantData_->detailNoiseScale = parameters.detailNoiseScale;
@@ -441,16 +444,8 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         static_cast<float>(renderHeight)
     };
 
-    Vector3 flowDirection = Normalize(fixedCloudFlowDirection_);
-    if (useCameraForwardFlow_) {
-        const Matrix4x4& cameraWorld = camera->GetWorldMatrix();
-        const Vector3 cameraForward = Normalize({
-            cameraWorld.m[2][0],
-            cameraWorld.m[2][1],
-            cameraWorld.m[2][2]
-            });
-        flowDirection = Normalize({ -cameraForward.x, -cameraForward.y, -cameraForward.z });
-    }
+    Vector3 flowDirection = ResolveCloudFlowDirection(camera);
+    currentCloudFlowDirection_ = flowDirection;
 
     const float boostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
     currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * (std::max)(0.0f, boostMultiplier) : 0.0f;
@@ -464,6 +459,30 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
     constantData_->padding3 = 0.0f;
     constantData_->padding4 = 0.0f;
+    constantData_->nearCameraFade = {
+        nearFadeStart_,
+        (std::max)(nearFadeStart_ + 0.001f, nearFadeEnd_),
+        std::clamp(nearDensityScale_, 0.0f, 1.0f),
+        enableNearCameraCloudFade_ ? 1.0f : 0.0f
+    };
+    constantData_->cloudLayerFade = {
+        (std::max)(cloudBottomFade_, 0.001f),
+        (std::max)(cloudTopFade_, 0.001f),
+        (std::max)(cloudLayerThickness_, 1.0f),
+        keepCameraBelowClouds_ ? 1.0f : 0.0f
+    };
+    constantData_->cloudBottomShaping = {
+        enableCloudBottomShaping_ ? 1.0f : 0.0f,
+        std::clamp(cloudBottomFlattenStrength_, 0.0f, 1.0f),
+        std::clamp(cloudBottomSmoothness_, 0.0f, 1.0f),
+        std::clamp(cloudBottomNoiseSuppression_, 0.0f, 1.0f)
+    };
+    constantData_->cloudBottomShapingExtra = {
+        std::clamp(cloudBottomDensity_, 0.0f, 2.0f),
+        0.0f,
+        0.0f,
+        0.0f
+    };
 }
 
 Vector3 VolumetricCloudPass::Normalize(const Vector3& value)
@@ -531,12 +550,18 @@ D3D12_VIEWPORT VolumetricCloudPass::MakeViewport(uint32_t width, uint32_t height
     return viewport;
 }
 
-float VolumetricCloudPass::ComputeDistanceToAabb(const Vector3& point, const CloudVolume* cloudVolume)
+float VolumetricCloudPass::ComputeDistanceToAabb(const Vector3& point, const ResolvedCloudVolume& volume)
 {
-    assert(cloudVolume);
-
-    const Vector3 min = cloudVolume->GetMin();
-    const Vector3 max = cloudVolume->GetMax();
+    const Vector3 min = {
+        volume.center.x - volume.halfExtents.x,
+        volume.center.y - volume.halfExtents.y,
+        volume.center.z - volume.halfExtents.z
+    };
+    const Vector3 max = {
+        volume.center.x + volume.halfExtents.x,
+        volume.center.y + volume.halfExtents.y,
+        volume.center.z + volume.halfExtents.z
+    };
 
     const float dx = (std::max)((std::max)(min.x - point.x, 0.0f), point.x - max.x);
     const float dy = (std::max)((std::max)(min.y - point.y, 0.0f), point.y - max.y);
@@ -545,17 +570,14 @@ float VolumetricCloudPass::ComputeDistanceToAabb(const Vector3& point, const Clo
     return std::sqrt(dx * dx + dy * dy + dz * dz);
 }
 
-void VolumetricCloudPass::ComputeDistanceLodScales(float entryDistance, const CloudVolume* cloudVolume, float lodFactorScale, bool disableDistanceLod, float& viewStepScale, float& densityScale)
+void VolumetricCloudPass::ComputeDistanceLodScales(float entryDistance, const ResolvedCloudVolume& volume, float lodFactorScale, bool disableDistanceLod, float& viewStepScale, float& densityScale)
 {
-    assert(cloudVolume);
-
-    const CloudVolume::Parameters& parameters = cloudVolume->GetParameters();
     const float volumeRadius =
         (std::max)(
             std::sqrt(
-                parameters.halfExtents.x * parameters.halfExtents.x +
-                parameters.halfExtents.y * parameters.halfExtents.y +
-                parameters.halfExtents.z * parameters.halfExtents.z),
+                volume.halfExtents.x * volume.halfExtents.x +
+                volume.halfExtents.y * volume.halfExtents.y +
+                volume.halfExtents.z * volume.halfExtents.z),
             0.0001f);
 
     const float lodStart = (std::max)(volumeRadius * 0.75f, 8.0f);

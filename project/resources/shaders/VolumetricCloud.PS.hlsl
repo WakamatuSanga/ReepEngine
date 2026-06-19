@@ -33,6 +33,10 @@ struct CloudPassConstants
     uint enableCloudFlow;
     float padding3;
     float padding4;
+    float4 nearCameraFade;
+    float4 cloudLayerFade;
+    float4 cloudBottomShaping;
+    float4 cloudBottomShapingExtra;
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -160,10 +164,18 @@ float ComputeCloudDensity(float3 worldPosition)
     float edgeDistance = 1.0f - max(absLocal.x, max(absLocal.y, absLocal.z));
     float edgeMask = saturate(edgeDistance / max(gCloudPass.edgeFade, 0.0001f));
 
-    float height01 = saturate(local.y * 0.5f + 0.5f);
-    float bottomMask = smoothstep(0.0f, 0.20f, height01);
-    float topMask = 1.0f - smoothstep(0.65f, 1.0f, height01);
-    float heightMask = saturate(bottomMask * topMask);
+    float layerBottomY = gCloudPass.volumeCenter.y - gCloudPass.volumeHalfExtents.y;
+    float layerTopY = gCloudPass.volumeCenter.y + gCloudPass.volumeHalfExtents.y;
+    float bottomMask = smoothstep(0.0f, max(gCloudPass.cloudLayerFade.x, 0.0001f), worldPosition.y - layerBottomY);
+    float topMask = smoothstep(0.0f, max(gCloudPass.cloudLayerFade.y, 0.0001f), layerTopY - worldPosition.y);
+    float shapedBottomMask = bottomMask;
+    if (gCloudPass.cloudBottomShaping.x > 0.5f)
+    {
+        float bottomSmoothPower = lerp(1.0f, 2.5f, saturate(gCloudPass.cloudBottomShaping.z));
+        float flattenedBottomMask = pow(saturate(bottomMask), bottomSmoothPower);
+        shapedBottomMask = lerp(bottomMask, flattenedBottomMask, saturate(gCloudPass.cloudBottomShaping.y));
+    }
+    float heightMask = saturate(shapedBottomMask * topMask);
 
     float3 flowOffset = 0.0f;
     if (gCloudPass.enableCloudFlow != 0u)
@@ -171,15 +183,37 @@ float ComputeCloudDensity(float3 worldPosition)
         flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime * gCloudPass.cloudFlowDirectionSpeed.w;
     }
 
-    float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset + flowOffset) * gCloudPass.noiseScale;
-    float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f + flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
+    float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
+    float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f - flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
 
     float baseNoise = FBM(baseNoisePosition);
     float detailNoise = FBM(detailNoisePosition);
-    float shape = baseNoise - detailNoise * gCloudPass.detailWeight - 0.40f;
+    float bottomDetailMultiplier = 1.0f;
+    if (gCloudPass.cloudBottomShaping.x > 0.5f)
+    {
+        bottomDetailMultiplier = lerp(
+            saturate(1.0f - gCloudPass.cloudBottomShaping.w),
+            1.0f,
+            saturate(shapedBottomMask));
+    }
+    float shape = baseNoise - detailNoise * bottomDetailMultiplier * gCloudPass.detailWeight - 0.40f;
     float noiseMask = saturate(shape * 2.5f);
 
     float density = noiseMask * edgeMask * heightMask * gCloudPass.density * gCloudPass.cloudColor.a;
+    if (gCloudPass.cloudBottomShaping.x > 0.5f)
+    {
+        float bottomDensityScale = lerp(
+            saturate(gCloudPass.cloudBottomShapingExtra.x),
+            1.0f,
+            saturate(shapedBottomMask));
+        density *= bottomDensityScale;
+    }
+    if (gCloudPass.nearCameraFade.w > 0.5f)
+    {
+        float distanceFromCamera = length(worldPosition - gCloudPass.cameraPosition);
+        float fade = smoothstep(gCloudPass.nearCameraFade.x, gCloudPass.nearCameraFade.y, distanceFromCamera);
+        density *= lerp(gCloudPass.nearCameraFade.z, 1.0f, fade);
+    }
     return max(density, 0.0f);
 }
 
