@@ -27,6 +27,12 @@ struct CloudPassConstants
     uint disableDistanceLod;
     float padding1;
     float padding2;
+    float4 renderInfo;
+    float4 cloudFlowDirectionSpeed;
+    float cloudTime;
+    uint enableCloudFlow;
+    float padding3;
+    float padding4;
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -159,8 +165,14 @@ float ComputeCloudDensity(float3 worldPosition)
     float topMask = 1.0f - smoothstep(0.65f, 1.0f, height01);
     float heightMask = saturate(bottomMask * topMask);
 
-    float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset) * gCloudPass.noiseScale;
-    float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
+    float3 flowOffset = 0.0f;
+    if (gCloudPass.enableCloudFlow != 0u)
+    {
+        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime * gCloudPass.cloudFlowDirectionSpeed.w;
+    }
+
+    float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset + flowOffset) * gCloudPass.noiseScale;
+    float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f + flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
 
     float baseNoise = FBM(baseNoisePosition);
     float detailNoise = FBM(detailNoisePosition);
@@ -215,7 +227,8 @@ float ComputeLightTransmittance(
 
 float4 main(VertexShaderOutput input) : SV_TARGET0
 {
-    uint2 pixelCoord = uint2(input.position.xy);
+    float2 depthTextureSize = max(gCloudPass.renderInfo.xy, float2(1.0f, 1.0f));
+    uint2 pixelCoord = min(uint2(input.texcoord * depthTextureSize), uint2(depthTextureSize - 1.0f));
     float depth = gDepthTexture.Load(int3(pixelCoord, 0));
 
     float4 farWorld = ReconstructWorldPosition(input.texcoord, 1.0f);

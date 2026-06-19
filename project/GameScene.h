@@ -11,6 +11,7 @@
 
 class GltfSkinnedModel;
 class BlenderLiveSync;
+class BoostController;
 class CameraShakeController;
 class DirectXCommon;
 class EditorCameraController;
@@ -73,6 +74,7 @@ private:
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Player> player_;
+    std::unique_ptr<BoostController> boostController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;

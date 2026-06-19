@@ -285,6 +285,9 @@ void Player::DrawImGui() {
         model_ ? model_->GetVertexCount() : 0,
         model_ ? model_->GetIndexCount() : 0,
         model_ ? model_->GetMaterialCount() : 0);
+    if (model_) {
+        model_->DrawPbrMaterialImGui();
+    }
     if (ImGui::Checkbox("Use Lightweight Player Visual", &useLightweightVisual_)) {
         LoadModel();
         UpdateObjectTransform();
@@ -525,7 +528,7 @@ void Player::LoadModel() {
         model_ = modelManager->FindModel(resolvedModelPath_);
         if (model_) {
             const std::filesystem::path modelPath(resolvedModelPath_);
-            texturePath_ = ToGenericString(modelPath.parent_path() / "player.png");
+            texturePath_ = ToGenericString(modelPath.parent_path() / "textures" / "material_0_baseColor.png");
             if (!std::filesystem::exists(std::filesystem::path(texturePath_))) {
                 texturePath_ = ResolveResourcePath("resources/obj/axis/uvChecker.png");
             }
@@ -534,7 +537,7 @@ void Player::LoadModel() {
                 model_->SetTextureIndex(TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath_));
             }
             loadStatus_ =
-                !texturePath_.empty() && std::filesystem::path(texturePath_).filename().string() == "player.png"
+                !texturePath_.empty() && std::filesystem::path(texturePath_).filename().string() == "material_0_baseColor.png"
                 ? "Player model loaded."
                 : "Player model loaded. Texture missing, using fallback texture.";
         }

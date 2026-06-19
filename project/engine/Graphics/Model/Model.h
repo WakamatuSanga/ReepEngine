@@ -12,11 +12,28 @@ public:
         Vector4 position;
         Vector2 texcoord;
         Vector3 normal;
+        Vector3 tangent{ 1.0f, 0.0f, 0.0f };
     };
 
     struct MaterialData {
+        std::string materialName;
         std::string textureFilePath;
+        std::string baseColorTexturePath;
+        std::string normalTexturePath;
+        std::string metallicRoughnessTexturePath;
+        std::string specularF0TexturePath;
         uint32_t textureIndex = 0;
+        uint32_t baseColorTextureIndex = 0;
+        uint32_t normalTextureIndex = 0;
+        uint32_t metallicRoughnessTextureIndex = 0;
+        uint32_t specularF0TextureIndex = 0;
+        bool usePBR = false;
+        bool hasNormalMap = false;
+        bool hasMetallicRoughnessMap = false;
+        bool hasSpecularF0Map = false;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
+        float normalScale = 1.0f;
     };
 
     struct ModelData {
@@ -31,7 +48,13 @@ public:
         float padding[3];
         Matrix4x4 uvTransform;
         float alphaReference;
-        float padding2[3];
+        int32_t usePBR;
+        float metallicFactor;
+        float roughnessFactor;
+        float normalScale;
+        int32_t hasNormalMap;
+        int32_t hasMetallicRoughnessMap;
+        int32_t hasSpecularF0Map;
     };
 
 public:
@@ -45,7 +68,8 @@ public:
     void SetVertexBufferViewOverride(const D3D12_VERTEX_BUFFER_VIEW* vertexBufferView);
     void ClearVertexBufferViewOverride();
 
-    void SetTextureIndex(uint32_t index) { modelData_.material.textureIndex = index; }
+    void SetTextureIndex(uint32_t index);
+    void DrawPbrMaterialImGui();
     size_t GetVertexCount() const { return modelData_.vertices.size(); }
     size_t GetIndexCount() const { return modelData_.indices.size(); }
     size_t GetMaterialCount() const { return 1; }

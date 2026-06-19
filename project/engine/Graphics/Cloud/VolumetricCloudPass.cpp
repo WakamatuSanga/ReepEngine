@@ -1,5 +1,8 @@
 #include "VolumetricCloudPass.h"
 
+#include "CloudVolume.h"
+#include "Engine/Core/DirectXCommon.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Utility/Logger.h"
 
 #include <algorithm>
@@ -52,14 +55,19 @@ namespace {
     }
 }
 
-void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon)
+void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager)
 {
     assert(dxCommon);
+    assert(srvManager);
     dxCommon_ = dxCommon;
+    srvManager_ = srvManager;
 
     CreateRootSignature();
     CreatePipelineState();
+    CreateCompositeRootSignature();
+    CreateCompositePipelineState();
     CreateConstantBuffer();
+    CreateCompositeConstantBuffer();
 }
 
 VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(const Camera* camera, const CloudVolume* cloudVolume) const
@@ -220,11 +228,32 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
         return;
     }
 
-    UpdateConstantBuffer(camera, cloudVolume);
+    if (useLowResolutionCloud_) {
+        RenderLowResolution(camera, cloudVolume, projectedBounds);
+    } else {
+        RenderDirect(camera, cloudVolume, projectedBounds);
+    }
+}
+
+void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
+{
+    if (!std::isfinite(multiplier)) {
+        externalFlowMultiplier_ = 1.0f;
+        return;
+    }
+    externalFlowMultiplier_ = (std::max)(0.0f, multiplier);
+}
+
+void VolumetricCloudPass::RenderDirect(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds)
+{
+    UpdateConstantBuffer(camera, cloudVolume, WinApp::kClientWidth, WinApp::kClientHeight);
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
     D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV = dxCommon_->GetRenderTextureRTV();
     commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, nullptr);
+
+    const D3D12_VIEWPORT viewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    commandList->RSSetViewports(1, &viewport);
 
     const D3D12_RECT scissorRect =
         projectedBounds.useFullScreenScissor ?
@@ -243,6 +272,8 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
     commandList->DrawInstanced(3, 1, 0, 0);
 
     const D3D12_RECT fullScreenScissor = MakeFullScreenScissor();
+    const D3D12_VIEWPORT fullScreenViewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    commandList->RSSetViewports(1, &fullScreenViewport);
     commandList->RSSetScissorRects(1, &fullScreenScissor);
 }
 
@@ -360,7 +391,7 @@ void VolumetricCloudPass::CreateConstantBuffer()
     assert(SUCCEEDED(hr));
 }
 
-void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume)
+void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume, uint32_t renderWidth, uint32_t renderHeight)
 {
     const CloudVolume::Parameters& parameters = cloudVolume->GetParameters();
 
@@ -380,14 +411,44 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->edgeFade = parameters.edgeFade;
     constantData_->ambientLighting = parameters.ambientLighting;
     constantData_->sunIntensity = parameters.sunIntensity;
-    constantData_->viewStepCount = parameters.viewStepCount > 0 ? parameters.viewStepCount : 1u;
-    constantData_->lightStepCount = parameters.lightStepCount > 0 ? parameters.lightStepCount : 1u;
+    constantData_->viewStepCount = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.viewStepCount, 1u)) * viewStepScale_ + 0.5f));
+    constantData_->lightStepCount = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.lightStepCount, 1u)) * lightStepScale_ + 0.5f));
     constantData_->debugViewMode = static_cast<uint32_t>(debugViewMode_);
     constantData_->lodFactorScale = (forceMode_ == ForceMode::ForceAggressiveLod) ? 1.75f : 1.0f;
     constantData_->disableDistanceLod = (forceMode_ == ForceMode::ForceMaxQuality) ? 1u : 0u;
     constantData_->padding0 = 0.0f;
     constantData_->padding1 = 0.0f;
     constantData_->padding2 = 0.0f;
+    constantData_->renderInfo = {
+        static_cast<float>(WinApp::kClientWidth),
+        static_cast<float>(WinApp::kClientHeight),
+        static_cast<float>(renderWidth),
+        static_cast<float>(renderHeight)
+    };
+
+    Vector3 flowDirection = Normalize(fixedCloudFlowDirection_);
+    if (useCameraForwardFlow_) {
+        const Matrix4x4& cameraWorld = camera->GetWorldMatrix();
+        const Vector3 cameraForward = Normalize({
+            cameraWorld.m[2][0],
+            cameraWorld.m[2][1],
+            cameraWorld.m[2][2]
+            });
+        flowDirection = Normalize({ -cameraForward.x, -cameraForward.y, -cameraForward.z });
+    }
+
+    const float boostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * (std::max)(0.0f, boostMultiplier) : 0.0f;
+    constantData_->cloudFlowDirectionSpeed = {
+        flowDirection.x,
+        flowDirection.y,
+        flowDirection.z,
+        currentCloudFlowSpeed_
+    };
+    constantData_->cloudTime = cloudVolume->GetElapsedTime();
+    constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
+    constantData_->padding3 = 0.0f;
+    constantData_->padding4 = 0.0f;
 }
 
 Vector3 VolumetricCloudPass::Normalize(const Vector3& value)
@@ -421,12 +482,38 @@ Vector4 VolumetricCloudPass::TransformPoint(const Vector3& value, const Matrix4x
 
 D3D12_RECT VolumetricCloudPass::MakeFullScreenScissor()
 {
-    return {
-        0,
-        0,
-        WinApp::kClientWidth,
-        WinApp::kClientHeight
-    };
+    return MakeScissor(WinApp::kClientWidth, WinApp::kClientHeight);
+}
+
+D3D12_RECT VolumetricCloudPass::MakeScissor(uint32_t width, uint32_t height)
+{
+    return { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+}
+
+D3D12_RECT VolumetricCloudPass::ScaleScissor(const D3D12_RECT& source, uint32_t width, uint32_t height)
+{
+    const float scaleX = static_cast<float>(width) / static_cast<float>((std::max)(WinApp::kClientWidth, 1));
+    const float scaleY = static_cast<float>(height) / static_cast<float>((std::max)(WinApp::kClientHeight, 1));
+
+    D3D12_RECT result{};
+    result.left = std::clamp<LONG>(static_cast<LONG>(std::floor(static_cast<float>(source.left) * scaleX)), 0, static_cast<LONG>(width));
+    result.top = std::clamp<LONG>(static_cast<LONG>(std::floor(static_cast<float>(source.top) * scaleY)), 0, static_cast<LONG>(height));
+    result.right = std::clamp<LONG>(static_cast<LONG>(std::ceil(static_cast<float>(source.right) * scaleX)), 0, static_cast<LONG>(width));
+    result.bottom = std::clamp<LONG>(static_cast<LONG>(std::ceil(static_cast<float>(source.bottom) * scaleY)), 0, static_cast<LONG>(height));
+    if (result.right <= result.left || result.bottom <= result.top) {
+        return MakeScissor(width, height);
+    }
+    return result;
+}
+
+D3D12_VIEWPORT VolumetricCloudPass::MakeViewport(uint32_t width, uint32_t height)
+{
+    D3D12_VIEWPORT viewport{};
+    viewport.Width = static_cast<float>(width);
+    viewport.Height = static_cast<float>(height);
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    return viewport;
 }
 
 float VolumetricCloudPass::ComputeDistanceToAabb(const Vector3& point, const CloudVolume* cloudVolume)

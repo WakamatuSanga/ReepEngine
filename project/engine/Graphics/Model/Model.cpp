@@ -2,7 +2,10 @@
 #include "Engine/Graphics/Model/PrimitiveGenerator.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <cassert>
+#include <algorithm>
+#include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <sstream>
 #include <cmath>
 
@@ -32,18 +35,79 @@ namespace {
         return { v.x / length, v.y / length, v.z / length };
     }
 
+    Vector3 Cross(const Vector3& lhs, const Vector3& rhs) {
+        return {
+            lhs.y * rhs.z - lhs.z * rhs.y,
+            lhs.z * rhs.x - lhs.x * rhs.z,
+            lhs.x * rhs.y - lhs.y * rhs.x
+        };
+    }
+
+    float Dot(const Vector3& lhs, const Vector3& rhs) {
+        return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
+    }
+
+    Vector3 ScaleVector(const Vector3& value, float scale) {
+        return { value.x * scale, value.y * scale, value.z * scale };
+    }
+
     Model::VertexData MakeVertex(float x, float y, float z, float u, float v, float nx, float ny, float nz) {
-        return { {x, y, z, 1.0f}, {u, v}, {nx, ny, nz} };
+        return { {x, y, z, 1.0f}, {u, v}, {nx, ny, nz}, {1.0f, 0.0f, 0.0f} };
+    }
+
+    Vector3 ComputeFallbackTangent(const Vector3& normal) {
+        const Vector3 n = Normalize(normal, { 0.0f, 1.0f, 0.0f });
+        const Vector3 reference = (std::abs(n.y) < 0.95f) ? Vector3{ 0.0f, 1.0f, 0.0f } : Vector3{ 1.0f, 0.0f, 0.0f };
+        return Normalize(Cross(reference, n), { 1.0f, 0.0f, 0.0f });
+    }
+
+    Vector3 ComputeTriangleTangent(
+        const Model::VertexData& v0,
+        const Model::VertexData& v1,
+        const Model::VertexData& v2) {
+        const Vector3 edge1 = SubtractVector({ v1.position.x, v1.position.y, v1.position.z }, { v0.position.x, v0.position.y, v0.position.z });
+        const Vector3 edge2 = SubtractVector({ v2.position.x, v2.position.y, v2.position.z }, { v0.position.x, v0.position.y, v0.position.z });
+        const float du1 = v1.texcoord.x - v0.texcoord.x;
+        const float dv1 = v1.texcoord.y - v0.texcoord.y;
+        const float du2 = v2.texcoord.x - v0.texcoord.x;
+        const float dv2 = v2.texcoord.y - v0.texcoord.y;
+        const float determinant = du1 * dv2 - du2 * dv1;
+        if (std::abs(determinant) <= 0.000001f) {
+            return ComputeFallbackTangent(v0.normal);
+        }
+
+        const float inverseDeterminant = 1.0f / determinant;
+        Vector3 tangent = {
+            (edge1.x * dv2 - edge2.x * dv1) * inverseDeterminant,
+            (edge1.y * dv2 - edge2.y * dv1) * inverseDeterminant,
+            (edge1.z * dv2 - edge2.z * dv1) * inverseDeterminant
+        };
+        tangent = SubtractVector(tangent, ScaleVector(v0.normal, Dot(v0.normal, tangent)));
+        return Normalize(tangent, ComputeFallbackTangent(v0.normal));
+    }
+
+    void AssignTriangleTangent(
+        Model::VertexData& v0,
+        Model::VertexData& v1,
+        Model::VertexData& v2) {
+        const Vector3 tangent = ComputeTriangleTangent(v0, v1, v2);
+        v0.tangent = tangent;
+        v1.tangent = tangent;
+        v2.tangent = tangent;
     }
 
     void PushTriangle(Model::ModelData& data,
         const Model::VertexData& v0,
         const Model::VertexData& v1,
         const Model::VertexData& v2) {
+        Model::VertexData triangleV0 = v0;
+        Model::VertexData triangleV1 = v1;
+        Model::VertexData triangleV2 = v2;
+        AssignTriangleTangent(triangleV0, triangleV1, triangleV2);
         const uint32_t firstIndex = static_cast<uint32_t>(data.vertices.size());
-        data.vertices.push_back(v0);
-        data.vertices.push_back(v1);
-        data.vertices.push_back(v2);
+        data.vertices.push_back(triangleV0);
+        data.vertices.push_back(triangleV1);
+        data.vertices.push_back(triangleV2);
         data.indices.push_back(firstIndex);
         data.indices.push_back(firstIndex + 1);
         data.indices.push_back(firstIndex + 2);
@@ -56,6 +120,27 @@ namespace {
         const Model::VertexData& v11) {
         PushTriangle(data, v00, v01, v10);
         PushTriangle(data, v01, v11, v10);
+    }
+
+    bool FileExists(const std::string& path) {
+        return !path.empty() && std::filesystem::exists(std::filesystem::path(path));
+    }
+
+    void LoadTextureIfExists(const std::string& path, uint32_t& textureIndex, bool* loadedFlag = nullptr) {
+        if (loadedFlag) {
+            *loadedFlag = false;
+        }
+        if (!FileExists(path)) {
+            return;
+        }
+
+        // TODO: TextureManager currently loads WIC textures as sRGB. PBR data maps should become linear
+        // when TextureManager supports per-texture color space selection.
+        TextureManager::GetInstance()->LoadTexture(path);
+        textureIndex = TextureManager::GetInstance()->GetTextureIndexByFilePath(path);
+        if (loadedFlag) {
+            *loadedFlag = true;
+        }
     }
 }
 
@@ -74,6 +159,47 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
             modelData_.indices.push_back(index);
         }
     }
+
+    MaterialData& material = modelData_.material;
+    if (material.baseColorTexturePath.empty()) {
+        material.baseColorTexturePath = material.textureFilePath;
+    }
+
+    uint32_t fallbackTextureIndex = material.textureIndex;
+    if (material.textureFilePath.empty() && material.baseColorTexturePath.empty()) {
+        fallbackTextureIndex = GetPrimitiveTextureIndex();
+    }
+
+    bool baseColorLoaded = false;
+    LoadTextureIfExists(material.baseColorTexturePath, material.baseColorTextureIndex, &baseColorLoaded);
+    if (baseColorLoaded) {
+        material.textureFilePath = material.baseColorTexturePath;
+        material.textureIndex = material.baseColorTextureIndex;
+    } else if (material.textureIndex == 0 && !material.textureFilePath.empty()) {
+        LoadTextureIfExists(material.textureFilePath, material.textureIndex, &baseColorLoaded);
+        material.baseColorTextureIndex = material.textureIndex;
+    } else {
+        material.textureIndex = fallbackTextureIndex;
+        material.baseColorTextureIndex = fallbackTextureIndex;
+    }
+
+    LoadTextureIfExists(material.normalTexturePath, material.normalTextureIndex, &material.hasNormalMap);
+    LoadTextureIfExists(material.metallicRoughnessTexturePath, material.metallicRoughnessTextureIndex, &material.hasMetallicRoughnessMap);
+    LoadTextureIfExists(material.specularF0TexturePath, material.specularF0TextureIndex, &material.hasSpecularF0Map);
+    if (!material.hasNormalMap) {
+        material.normalTextureIndex = material.textureIndex;
+    }
+    if (!material.hasMetallicRoughnessMap) {
+        material.metallicRoughnessTextureIndex = material.textureIndex;
+    }
+    if (!material.hasSpecularF0Map) {
+        material.specularF0TextureIndex = material.textureIndex;
+    }
+    material.usePBR =
+        material.usePBR ||
+        material.hasNormalMap ||
+        material.hasMetallicRoughnessMap ||
+        material.hasSpecularF0Map;
 
     // --- 頂点バッファ作成 ---
     vertexResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(
@@ -104,6 +230,13 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     materialData_->enableLighting = 1;
     materialData_->uvTransform = MakeIdentity4x4();
     materialData_->alphaReference = 0.5f;
+    materialData_->usePBR = material.usePBR ? 1 : 0;
+    materialData_->metallicFactor = material.metallicFactor;
+    materialData_->roughnessFactor = material.roughnessFactor;
+    materialData_->normalScale = material.normalScale;
+    materialData_->hasNormalMap = material.hasNormalMap ? 1 : 0;
+    materialData_->hasMetallicRoughnessMap = material.hasMetallicRoughnessMap ? 1 : 0;
+    materialData_->hasSpecularF0Map = material.hasSpecularF0Map ? 1 : 0;
 }
 
 void Model::Draw() {
@@ -117,8 +250,16 @@ void Model::Draw() {
 
     // ★修正: 最新の textureIndex を使って描画する
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureIndex));
+    commandList->SetGraphicsRootDescriptorTable(10, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.normalTextureIndex));
+    commandList->SetGraphicsRootDescriptorTable(11, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.metallicRoughnessTextureIndex));
+    commandList->SetGraphicsRootDescriptorTable(12, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.specularF0TextureIndex));
 
     commandList->DrawIndexedInstanced(static_cast<UINT>(modelData_.indices.size()), 1, 0, 0, 0);
+}
+
+void Model::SetTextureIndex(uint32_t index) {
+    modelData_.material.textureIndex = index;
+    modelData_.material.baseColorTextureIndex = index;
 }
 
 void Model::SetVertices(const std::vector<VertexData>& vertices) {
@@ -432,25 +573,6 @@ Model::ModelData Model::CreateBoxData() {
     return data;
 }
 
-Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename) {
-    MaterialData materialData;
-    std::string line;
-    std::ifstream file(directoryPath + "/" + filename);
-    if (!file.is_open()) return materialData;
-
-    while (std::getline(file, line)) {
-        std::string identifier;
-        std::istringstream s(line);
-        s >> identifier;
-        if (identifier == "map_Kd") {
-            std::string textureFilename;
-            s >> textureFilename;
-            materialData.textureFilePath = directoryPath + "/" + textureFilename;
-        }
-    }
-    return materialData;
-}
-
 Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std::string& filename) {
     ModelData modelData;
     std::vector<Vector4> positions;
@@ -498,10 +620,12 @@ Model::ModelData Model::LoadObjFile(const std::string& directoryPath, const std:
                 p.x *= -1.0f;
                 triangle[i] = { p, t, n };
             }
+            Model::VertexData finalTriangle[3] = { triangle[2], triangle[1], triangle[0] };
+            AssignTriangleTangent(finalTriangle[0], finalTriangle[1], finalTriangle[2]);
             const uint32_t firstIndex = static_cast<uint32_t>(modelData.vertices.size());
-            modelData.vertices.push_back(triangle[2]);
-            modelData.vertices.push_back(triangle[1]);
-            modelData.vertices.push_back(triangle[0]);
+            modelData.vertices.push_back(finalTriangle[0]);
+            modelData.vertices.push_back(finalTriangle[1]);
+            modelData.vertices.push_back(finalTriangle[2]);
             modelData.indices.push_back(firstIndex);
             modelData.indices.push_back(firstIndex + 1);
             modelData.indices.push_back(firstIndex + 2);

@@ -9,4 +9,5 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
-map_Kd C:/Users/K024G/OneDrive/デスクトップ/CG1/DirectXGame/project/resources/Player/model_baseColor.png
+map_Kd textures/material_0_baseColor.png
+map_Bump -bm 1.000000 textures/material_0_normal.png

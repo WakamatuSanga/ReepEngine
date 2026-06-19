@@ -31,6 +31,7 @@
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
+#include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
@@ -494,6 +495,8 @@ void GameScene::Initialize() {
     editorCameraController_->Initialize(camera_.get());
     player_ = std::make_unique<Player>();
     player_->Initialize(object3dCommon, camera_.get());
+    boostController_ = std::make_unique<BoostController>();
+    boostController_->Initialize(MyGame::GetInstance()->GetVolumetricCloudPass());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
@@ -894,6 +897,10 @@ void GameScene::Finalize() {
         player_->Finalize();
     }
     player_.reset();
+    if (boostController_) {
+        boostController_->Finalize();
+    }
+    boostController_.reset();
 }
 
 void GameScene::Update() {
@@ -982,6 +989,9 @@ void GameScene::Update() {
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
+    if (boostController_) {
+        boostController_->SetGameViewInputActive(canUseGameInput);
+    }
 #else
     if (gameViewport_) {
         gameViewport_->BeginFrame(true);
@@ -1015,6 +1025,9 @@ void GameScene::Update() {
     if (playerBulletManager_) {
         playerBulletManager_->SetGameViewInputActive(canUseGameInput);
     }
+    if (boostController_) {
+        boostController_->SetGameViewInputActive(canUseGameInput);
+    }
 #endif
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
@@ -1040,6 +1053,9 @@ void GameScene::Update() {
     }
     if (player_) {
         player_->Update(1.0f / 60.0f);
+    }
+    if (boostController_) {
+        boostController_->Update(1.0f / 60.0f);
     }
     if (playerBulletManager_) {
         playerBulletManager_->Update(1.0f / 60.0f);
@@ -1234,6 +1250,9 @@ void GameScene::Update() {
     if (player_) {
         player_->DrawImGui();
     }
+    if (boostController_) {
+        boostController_->DrawImGui();
+    }
     if (playerBulletManager_) {
         playerBulletManager_->DrawImGui();
     }
@@ -1361,10 +1380,10 @@ void GameScene::Update() {
     if (cloudVolume_) {
         auto& cloudParams = cloudVolume_->GetParameters();
 
-        ImGui::SeparatorText("Volumetric Cloud");
+        ImGui::SeparatorText("ボリューメトリック雲 (Volumetric Cloud)");
         if (volumetricCloudPass) {
             bool isCloudPassEnabled = volumetricCloudPass->IsEnabled();
-            if (ImGui::Checkbox("Cloud Pass Enabled", &isCloudPassEnabled)) {
+            if (ImGui::Checkbox("雲描画を有効化 (Cloud Pass Enabled)", &isCloudPassEnabled)) {
                 volumetricCloudPass->SetEnabled(isCloudPassEnabled);
                 cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
             }
@@ -1378,40 +1397,40 @@ void GameScene::Update() {
                 "Force Aggressive LOD"
             };
             int cloudForceMode = static_cast<int>(volumetricCloudPass->GetForceMode());
-            if (ImGui::Combo("Cloud Force Mode", &cloudForceMode, cloudForceModeNames, IM_ARRAYSIZE(cloudForceModeNames))) {
+            if (ImGui::Combo("雲の強制モード (Cloud Force Mode)", &cloudForceMode, cloudForceModeNames, IM_ARRAYSIZE(cloudForceModeNames))) {
                 volumetricCloudPass->SetForceMode(static_cast<VolumetricCloudPass::ForceMode>(cloudForceMode));
                 cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
             }
         }
 
-        if (ImGui::Button("Reset Cloud Preset")) {
+        if (ImGui::Button("雲プリセットを初期化 (Reset Cloud Preset)")) {
             cloudParams = MakeRecommendedCloudParameters();
         }
         ImGui::SameLine();
-        ImGui::TextUnformatted("Recommended visible starting point");
-        ImGui::DragFloat3("Cloud Center", &cloudParams.center.x, 0.1f);
-        ImGui::DragFloat3("Cloud HalfExtents", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Density", &cloudParams.density, 0.0f, 2.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Absorption", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
-        ImGui::DragFloat3("Cloud Wind Dir", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Wind Speed", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
-        ImGui::DragFloat3("Cloud Sun Dir", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Light Absorption", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
-        ImGui::ColorEdit4("Cloud Color (A = density scale)", &cloudParams.color.x);
-        ImGui::SliderFloat("Cloud Noise Scale", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Detail Noise", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Detail Weight", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
-        ImGui::SliderFloat("Cloud Edge Fade", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Cloud Ambient", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
-        ImGui::SliderFloat("Cloud Sun Intensity", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
+        ImGui::TextUnformatted("見えやすい初期値へ戻します");
+        ImGui::DragFloat3("雲の中心 (Cloud Center)", &cloudParams.center.x, 0.1f);
+        ImGui::DragFloat3("雲の半径範囲 (Cloud HalfExtents)", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
+        ImGui::SliderFloat("雲の濃さ (Cloud Density)", &cloudParams.density, 0.0f, 2.0f, "%.3f");
+        ImGui::SliderFloat("雲の吸収量 (Cloud Absorption)", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
+        ImGui::DragFloat3("雲の流れる方向 (Cloud Wind Dir)", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("雲の流れる速さ (Cloud Wind Speed)", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
+        ImGui::DragFloat3("太陽方向 (Cloud Sun Dir)", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("光の吸収量 (Cloud Light Absorption)", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
+        ImGui::ColorEdit4("雲の色 (A = density scale)", &cloudParams.color.x);
+        ImGui::SliderFloat("雲ノイズ倍率 (Cloud Noise Scale)", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
+        ImGui::SliderFloat("細部ノイズ倍率 (Cloud Detail Noise)", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
+        ImGui::SliderFloat("細部ノイズの強さ (Cloud Detail Weight)", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
+        ImGui::SliderFloat("雲の端のぼかし (Cloud Edge Fade)", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
+        ImGui::SliderFloat("環境光の強さ (Cloud Ambient)", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
+        ImGui::SliderFloat("太陽光の強さ (Cloud Sun Intensity)", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
 
         int cloudViewStepCount = static_cast<int>(cloudParams.viewStepCount);
-        if (ImGui::SliderInt("Cloud View Steps", &cloudViewStepCount, 1, 256)) {
+        if (ImGui::SliderInt("視線方向ステップ数 (Cloud View Steps)", &cloudViewStepCount, 1, 256)) {
             cloudParams.viewStepCount = static_cast<uint32_t>(cloudViewStepCount);
         }
 
         int cloudLightStepCount = static_cast<int>(cloudParams.lightStepCount);
-        if (ImGui::SliderInt("Cloud Light Steps", &cloudLightStepCount, 1, 32)) {
+        if (ImGui::SliderInt("光方向ステップ数 (Cloud Light Steps)", &cloudLightStepCount, 1, 32)) {
             cloudParams.lightStepCount = static_cast<uint32_t>(cloudLightStepCount);
         }
 
@@ -1423,39 +1442,41 @@ void GameScene::Update() {
                 "Light only"
             };
             int cloudDebugView = static_cast<int>(volumetricCloudPass->GetDebugViewMode());
-            if (ImGui::Combo("Cloud Debug View", &cloudDebugView, cloudDebugViewNames, IM_ARRAYSIZE(cloudDebugViewNames))) {
+            if (ImGui::Combo("雲のデバッグ表示 (Cloud Debug View)", &cloudDebugView, cloudDebugViewNames, IM_ARRAYSIZE(cloudDebugViewNames))) {
                 volumetricCloudPass->SetDebugViewMode(
                     static_cast<VolumetricCloudPass::DebugViewMode>(cloudDebugView));
             }
+
+            volumetricCloudPass->DrawImGui();
         }
 
-        ImGui::SeparatorText("Cloud Optimization Debug");
+        ImGui::SeparatorText("雲の最適化診断 (Cloud Optimization Debug)");
         auto DrawCloudFlag = [](const char* label, bool value, const ImVec4& trueColor, const ImVec4& falseColor) {
             ImGui::TextUnformatted(label);
             ImGui::SameLine(220.0f);
             ImGui::TextColored(value ? trueColor : falseColor, value ? "true" : "false");
         };
 
-        DrawCloudFlag("Cloud Visible", cloudProjectedBounds_.isVisible, ImVec4(0.30f, 1.00f, 0.35f, 1.0f), ImVec4(1.00f, 0.35f, 0.35f, 1.0f));
-        DrawCloudFlag("Cloud Pass Skipped", cloudProjectedBounds_.isPassSkipped, ImVec4(1.00f, 0.35f, 0.35f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
-        DrawCloudFlag("Fullscreen Fallback", cloudProjectedBounds_.isFullScreenFallback, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
-        DrawCloudFlag("Use Fullscreen Scissor", cloudProjectedBounds_.useFullScreenScissor, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
-        DrawCloudFlag("Camera Inside Cloud", cloudProjectedBounds_.isCameraInsideCloud, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
-        DrawCloudFlag("Near Plane Crossing", cloudProjectedBounds_.isNearPlaneCrossing, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("雲が表示範囲内 (Cloud Visible)", cloudProjectedBounds_.isVisible, ImVec4(0.30f, 1.00f, 0.35f, 1.0f), ImVec4(1.00f, 0.35f, 0.35f, 1.0f));
+        DrawCloudFlag("雲描画をスキップ (Cloud Pass Skipped)", cloudProjectedBounds_.isPassSkipped, ImVec4(1.00f, 0.35f, 0.35f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
+        DrawCloudFlag("全画面へフォールバック (Fullscreen Fallback)", cloudProjectedBounds_.isFullScreenFallback, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("全画面シザー使用 (Use Fullscreen Scissor)", cloudProjectedBounds_.useFullScreenScissor, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.30f, 1.00f, 0.35f, 1.0f));
+        DrawCloudFlag("カメラが雲の中 (Camera Inside Cloud)", cloudProjectedBounds_.isCameraInsideCloud, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
+        DrawCloudFlag("Near Planeと交差 (Near Plane Crossing)", cloudProjectedBounds_.isNearPlaneCrossing, ImVec4(1.00f, 0.80f, 0.25f, 1.0f), ImVec4(0.45f, 0.85f, 1.00f, 1.0f));
 
         const LONG scissorWidth = cloudProjectedBounds_.scissorRect.right - cloudProjectedBounds_.scissorRect.left;
         const LONG scissorHeight = cloudProjectedBounds_.scissorRect.bottom - cloudProjectedBounds_.scissorRect.top;
-        ImGui::Text("Scissor Rect: L=%ld T=%ld R=%ld B=%ld", cloudProjectedBounds_.scissorRect.left, cloudProjectedBounds_.scissorRect.top, cloudProjectedBounds_.scissorRect.right, cloudProjectedBounds_.scissorRect.bottom);
-        ImGui::Text("Scissor Size: %ld x %ld", scissorWidth, scissorHeight);
+        ImGui::Text("シザー矩形 (Scissor Rect): L=%ld T=%ld R=%ld B=%ld", cloudProjectedBounds_.scissorRect.left, cloudProjectedBounds_.scissorRect.top, cloudProjectedBounds_.scissorRect.right, cloudProjectedBounds_.scissorRect.bottom);
+        ImGui::Text("シザーサイズ (Scissor Size): %ld x %ld", scissorWidth, scissorHeight);
         ImGui::TextColored(
             (cloudProjectedBounds_.scissorAreaRatio >= 0.90f) ? ImVec4(1.00f, 0.45f, 0.35f, 1.0f) : ImVec4(0.35f, 1.00f, 0.45f, 1.0f),
-            "Scissor Area Ratio: %.3f (%.1f%%)",
+            "シザー面積比 (Scissor Area Ratio): %.3f (%.1f%%)",
             cloudProjectedBounds_.scissorAreaRatio,
             cloudProjectedBounds_.scissorAreaRatio * 100.0f);
-        ImGui::Text("Current ViewStep Scale: %.3f", cloudProjectedBounds_.currentViewStepScale);
-        ImGui::Text("Current LightStep Scale: %.3f", cloudProjectedBounds_.currentLightStepScale);
-        ImGui::Text("Estimated View Steps: %u", cloudProjectedBounds_.estimatedViewSteps);
-        ImGui::Text("Estimated Light Steps: %u", cloudProjectedBounds_.estimatedLightSteps);
+        ImGui::Text("現在の視線ステップ倍率 (Current ViewStep Scale): %.3f", cloudProjectedBounds_.currentViewStepScale);
+        ImGui::Text("現在の光ステップ倍率 (Current LightStep Scale): %.3f", cloudProjectedBounds_.currentLightStepScale);
+        ImGui::Text("推定視線ステップ数 (Estimated View Steps): %u", cloudProjectedBounds_.estimatedViewSteps);
+        ImGui::Text("推定光ステップ数 (Estimated Light Steps): %u", cloudProjectedBounds_.estimatedLightSteps);
     }
 
     ImGui::SeparatorText("Environment Map");
@@ -1773,7 +1794,7 @@ void GameScene::Update() {
     if (primitiveEffectSystem_) {
         primitiveEffectSystem_->DrawVisibilityImGui();
     }
-    ImGui::Checkbox("Volumetric Cloud", &isVolumetricCloudVisible_);
+    ImGui::Checkbox("ボリューメトリック雲 (Volumetric Cloud)", &isVolumetricCloudVisible_);
 
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Debug Sprite", &isDebugSpriteVisible_);

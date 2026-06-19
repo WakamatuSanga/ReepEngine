@@ -183,6 +183,9 @@
     <ClCompile Include="engine\Graphics\Model\ModelManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\ModelMaterial.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -290,6 +293,9 @@
     </ClCompile>
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\BoostController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
@@ -415,6 +421,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -595,6 +604,9 @@
     </ClInclude>
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\BoostController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
@@ -802,6 +814,9 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\VolumetricCloud.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\VolumetricCloudComposite.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
   </ItemGroup>
