@@ -161,6 +161,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
+    <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp" />
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
@@ -179,6 +180,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\StartupEnemySpawnController.cpp" />
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
     <ClCompile Include="engine\Level\LevelEventData.cpp" />
@@ -284,6 +286,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
+    <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp" />
     <ClCompile Include="engine\Core\WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -302,6 +305,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
+    <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h" />
     <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
@@ -320,6 +324,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h" />
+    <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h" />
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
     <ClInclude Include="engine\Level\LevelEventDebugView.h" />
     <ClInclude Include="engine\Level\LevelEventData.h" />
@@ -393,6 +398,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Graphics\Texture\TextureManager.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h" />
+    <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h" />
     <ClInclude Include="engine\Core\WinApp.h" />
   </ItemGroup>
   <ItemGroup>

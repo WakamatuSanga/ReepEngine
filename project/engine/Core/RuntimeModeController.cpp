@@ -101,10 +101,10 @@ void RuntimeModeController::DrawImGui() {
 
     ImGui::SeparatorText("Game Mode Render Scale");
     ImGui::Checkbox("Game Mode描画倍率を使う (Use Game Mode Render Scale)", &useGameModeRenderScale_);
-    const char* scaleNames[] = { "1.0", "0.75", "0.5" };
-    const float scales[] = { 1.0f, 0.75f, 0.5f };
-    int scaleIndex = 1;
-    for (int i = 0; i < 3; ++i) {
+    const char* scaleNames[] = { "1.0", "0.75", "0.5", "0.25" };
+    const float scales[] = { 1.0f, 0.75f, 0.5f, 0.25f };
+    int scaleIndex = 0;
+    for (int i = 0; i < IM_ARRAYSIZE(scales); ++i) {
         if (std::abs(gameModeRenderScale_ - scales[i]) < 0.001f) {
             scaleIndex = i;
         }
@@ -114,13 +114,21 @@ void RuntimeModeController::DrawImGui() {
     }
     if (ImGui::Button("描画倍率をリセット (Reset Render Scale)")) {
         useGameModeRenderScale_ = true;
-        gameModeRenderScale_ = 0.75f;
+        gameModeRenderScale_ = 1.0f;
     }
     ImGui::Checkbox("Game Mode軽量プリセット自動適用 (Auto Apply Game Mode Performance Preset)", &autoApplyGameModePerformancePreset_);
     ImGui::Text("Game Mode Internal Resolution: %u x %u",
         performanceStats_.renderTextureWidth,
         performanceStats_.renderTextureHeight);
     ImGui::Text("Internal Render Scale: %.2f", performanceStats_.internalRenderScale);
+    ImGui::Text("BackBuffer Size: %d x %d", performanceStats_.windowWidth, performanceStats_.windowHeight);
+    ImGui::Text("Internal Render Size: %u x %u", performanceStats_.renderTextureWidth, performanceStats_.renderTextureHeight);
+    ImGui::Text("Scene RT Size: %u x %u", performanceStats_.renderTextureWidth, performanceStats_.renderTextureHeight);
+    ImGui::Text("Depth RT Size: %u x %u", performanceStats_.depthTextureWidth, performanceStats_.depthTextureHeight);
+    ImGui::Text("Current Viewport Size: %.1f x %.1f", performanceStats_.currentViewportWidth, performanceStats_.currentViewportHeight);
+    ImGui::Text("Current Scissor Size: %d x %d", performanceStats_.currentScissorWidth, performanceStats_.currentScissorHeight);
+    ImGui::Text("BackBuffer Viewport Size: %.1f x %.1f", performanceStats_.backBufferViewportWidth, performanceStats_.backBufferViewportHeight);
+    ImGui::Text("BackBuffer Scissor Size: %d x %d", performanceStats_.backBufferScissorWidth, performanceStats_.backBufferScissorHeight);
 
     ImGui::SeparatorText("カメラ切り替え診断 (Camera Mode Switch Diagnostics)");
     ImGui::Checkbox("カメラ姿勢を保持する (Preserve Camera Pose On Mode Switch)", &preserveCameraPoseOnModeSwitch_);
@@ -186,11 +194,17 @@ void RuntimeModeController::DrawImGui() {
 
     ImGui::SeparatorText("影っぽい表示の確認用 (Shadow-like Debug)");
     ImGui::TextWrapped("画面が影っぽく見える原因を切り分けるための一時スイッチです。見た目を恒久的に消すものではありません。");
+    ImGui::SeparatorText("RenderScale Artifact Debug");
+    ImGui::Checkbox("Clear Color Test", &shadowLikeDebugSettings_.clearColorTest);
+    ImGui::TextWrapped("ONにすると内部RTのClear色を派手な色にして、未Clear領域や前フレーム残りを見つけやすくします。");
     ImGui::Checkbox("雲を無効化 (Disable Clouds)", &shadowLikeDebugSettings_.disableClouds);
     ImGui::Checkbox("雲合成を無効化 (Disable Cloud Composite)", &shadowLikeDebugSettings_.disableCloudComposite);
     ImGui::Checkbox("深度にじみ抑制を無効化 (Disable Depth-aware Upsample)", &shadowLikeDebugSettings_.disableDepthAwareUpsample);
     ImGui::Checkbox("ポストエフェクトを無効化 (Disable PostEffects)", &shadowLikeDebugSettings_.disablePostEffects);
+    ImGui::Checkbox("Fake Shadowを無効化 (Disable Fake Shadow)", &shadowLikeDebugSettings_.disableFakeShadow);
     ImGui::Checkbox("エフェクト/パーティクルを無効化 (Disable Effects)", &shadowLikeDebugSettings_.disableEffects);
+    ImGui::Checkbox("PrimitiveEffectを無効化 (Disable PrimitiveEffect)", &shadowLikeDebugSettings_.disablePrimitiveEffect);
+    ImGui::Checkbox("GPU Particleを無効化 (Disable GPU Particle)", &shadowLikeDebugSettings_.disableGpuParticle);
     ImGui::Checkbox("PBRライティングを無効化 (Disable PBR Lighting)", &shadowLikeDebugSettings_.disablePbrLighting);
     ImGui::TextWrapped("Current Suspected Source: %s", GetCurrentSuspectedShadowSource());
     ImGui::End();
@@ -271,7 +285,7 @@ void RuntimeModeController::SetPerformanceStats(const PerformanceStats& stats) {
 
 float RuntimeModeController::GetDesiredRenderScale() const {
     if (IsGameMode() && useGameModeRenderScale_) {
-        return std::clamp(gameModeRenderScale_, 0.5f, 1.0f);
+        return std::clamp(gameModeRenderScale_, 0.25f, 1.0f);
     }
     return 1.0f;
 }
@@ -348,8 +362,17 @@ const char* RuntimeModeController::GetCurrentSuspectedShadowSource() const {
     if (shadowLikeDebugSettings_.disablePostEffects) {
         return "PostEffects hidden for test";
     }
+    if (shadowLikeDebugSettings_.disableFakeShadow) {
+        return "Fake Shadow hidden for test";
+    }
     if (shadowLikeDebugSettings_.disableEffects) {
         return "Primitive/GPU effects hidden for test";
+    }
+    if (shadowLikeDebugSettings_.disablePrimitiveEffect) {
+        return "PrimitiveEffect hidden for test";
+    }
+    if (shadowLikeDebugSettings_.disableGpuParticle) {
+        return "GPU Particle hidden for test";
     }
     if (shadowLikeDebugSettings_.disablePbrLighting) {
         return "PBR lighting disabled for test";

@@ -54,6 +54,15 @@ void RingEffect::Play() {
 
 void RingEffect::PlayAt(const Vector3& position) {
     settings_.position = position;
+    playScaleMultiplier_ = 1.0f;
+    playAlphaMultiplier_ = 1.0f;
+    Play();
+}
+
+void RingEffect::PlayAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier) {
+    settings_.position = position;
+    playScaleMultiplier_ = (std::max)(0.001f, scaleMultiplier);
+    playAlphaMultiplier_ = std::clamp(alphaMultiplier, 0.0f, 1.0f);
     Play();
 }
 
@@ -71,8 +80,8 @@ void RingEffect::Update(float deltaTime, const Camera* camera) {
     elapsedTime_ += (std::max)(0.0f, deltaTime);
     const float lifetime = (std::max)(0.0001f, settings_.lifetime);
     const float t = Clamp01(elapsedTime_ / lifetime);
-    const float scale = std::lerp(settings_.startScale, settings_.endScale, t);
-    const float alpha = std::lerp(settings_.startAlpha, settings_.endAlpha, t);
+    const float scale = std::lerp(settings_.startScale, settings_.endScale, t) * playScaleMultiplier_;
+    const float alpha = std::lerp(settings_.startAlpha, settings_.endAlpha, t) * playAlphaMultiplier_;
 
     Vector3 rotation = settings_.rotation;
     if (settings_.useBillboard && camera) {

@@ -22,6 +22,7 @@ class EnemyManager;
 class EnemySpawnActionBridge;
 class EventActionDispatcher;
 class GameOverFlowController;
+class GpuParticleEffectPlayer;
 class GpuParticleSystem;
 class GameViewport;
 class LevelSceneRuntime;
@@ -40,8 +41,10 @@ class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
 class RailShooterCameraRig;
 class RuntimeModeController;
+class ScreenSpaceFakeShadowPass;
 class SkinningEditor;
 class Skybox;
+class StartupEnemySpawnController;
 class Sprite;
 struct Skeleton;
 
@@ -76,6 +79,7 @@ private:
     std::unique_ptr<Player> player_;
     std::unique_ptr<BoostController> boostController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
+    std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<EnemyBulletManager> enemyBulletManager_;
@@ -93,6 +97,8 @@ private:
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
+    std::unique_ptr<ScreenSpaceFakeShadowPass> screenSpaceFakeShadowPass_;
+    std::unique_ptr<StartupEnemySpawnController> startupEnemySpawnController_;
     std::unique_ptr<Skeleton> previewSkeleton_;
     std::unique_ptr<Skeleton> previewSkeletonSecondary_;
     std::unique_ptr<Skeleton> simpleSkinSkeleton_;

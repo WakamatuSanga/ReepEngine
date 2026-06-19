@@ -24,6 +24,7 @@ public:
 
     void PlayHitEffectAt(const Vector3& position);
     void PlayRingEffectAt(const Vector3& position);
+    void PlayRingEffectAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier = 1.0f);
     void PlayCylinderEffectAt(const Vector3& position);
     bool PlayPresetAt(const std::string& effectType, const Vector3& position, std::string& resultMessage);
 

@@ -1,0 +1,47 @@
+{
+  "emitters": [
+    {
+      "enabled": true,
+      "position": [0.000000, 0.000000, 0.000000],
+      "radius": 0.120000,
+      "shape": "Sphere",
+      "boxSize": [0.200000, 0.200000, 0.200000],
+      "coneHeight": 0.500000,
+      "emitCount": 96,
+      "emitInterval": 0.000000,
+      "emissionRate": 0.000000,
+      "randomSeed": 11,
+      "particleTypeIndex": 0
+    }
+  ],
+  "particleTypes": [
+    {
+      "name": "Hit Spark",
+      "texturePath": "resources/particle/circle2.png",
+      "baseColor": [1.000000, 0.700000, 0.180000, 0.900000],
+      "startColor": [1.000000, 0.900000, 0.250000, 1.000000],
+      "endColor": [1.000000, 0.100000, 0.020000, 0.000000],
+      "startScale": 0.055000,
+      "endScale": 0.010000,
+      "lifeTimeMin": 0.220000,
+      "lifeTimeMax": 0.520000,
+      "speedMin": 0.800000,
+      "speedMax": 2.800000,
+      "gravity": -1.100000,
+      "drag": 0.200000,
+      "useAtlas": false,
+      "atlasRows": 1,
+      "atlasColumns": 1,
+      "frameCount": 1,
+      "frameSpeed": 8.000000,
+      "loopAtlas": true
+    }
+  ],
+  "runtime": {
+    "randomEnabled": true,
+    "useFreeListEmit": false,
+    "useDeadList": false,
+    "autoRecycleDeadList": false,
+    "updateEnabled": true
+  }
+}

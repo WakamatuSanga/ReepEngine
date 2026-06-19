@@ -85,7 +85,8 @@ void PlayerBulletEnemyCollision::Update() {
         ++hitCount_;
 
         if (combatEffectController_ && playCombatEffect_) {
-            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition);
+            const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
+            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition, isLethalHit);
             if (!wasDeadBeforeDamage && enemy->IsDead()) {
                 combatEffectController_->PlayEnemyDeathExplosion(enemy->GetPosition());
             }

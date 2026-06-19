@@ -148,6 +148,12 @@ void PrimitiveEffectSystem::PlayRingEffectAt(const Vector3& position) {
     }
 }
 
+void PrimitiveEffectSystem::PlayRingEffectAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier) {
+    if (ringEffect_) {
+        ringEffect_->PlayAt(position, scaleMultiplier, alphaMultiplier);
+    }
+}
+
 void PrimitiveEffectSystem::PlayCylinderEffectAt(const Vector3& position) {
     if (cylinderEffect_) {
         cylinderEffect_->PlayAt(position);

@@ -94,6 +94,12 @@
     <Filter Include="ヘッダー ファイル\engine\Game\Effect">
       <UniqueIdentifier>{b82c5044-cb4d-4821-8d71-f6d0b5db128b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Graphics\Shadow">
+      <UniqueIdentifier>{2ce16c8d-ef3f-49d4-b384-13b433ab138a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Graphics\Shadow">
+      <UniqueIdentifier>{d831bf6b-b73d-41dc-9022-144ad7dd7bb9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\Game\GameState">
       <UniqueIdentifier>{319fb8a2-57b6-4848-badc-e7efaa8ec343}</UniqueIdentifier>
     </Filter>
@@ -273,6 +279,9 @@
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
@@ -325,6 +334,9 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\StartupEnemySpawnController.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp">
@@ -428,6 +440,9 @@
     </ClCompile>
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp">
+      <Filter>ソース ファイル\engine\Graphics\Shadow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -587,6 +602,9 @@
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Effect\PostEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
@@ -639,6 +657,9 @@
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h">
@@ -751,6 +772,9 @@
     </ClInclude>
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h">
+      <Filter>ヘッダー ファイル\engine\Graphics\Shadow</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

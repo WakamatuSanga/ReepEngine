@@ -95,6 +95,29 @@ void GpuParticleSystem::ApplyEffectData(const GpuParticle::ParticleEffectData& e
 	}
 }
 
+bool GpuParticleSystem::PlayEffectDataAt(const GpuParticle::ParticleEffectData& effectData, const Vector3& position) {
+	if (!isInitialized_) {
+		return false;
+	}
+
+	ApplyEffectData(effectData);
+	for (GpuParticle::Emitter& emitter : state_.emitters) {
+		emitter.position = position;
+	}
+	state_.isEnabled = true;
+	state_.isEmitterEnabled = true;
+	state_.isUpdateEnabled = true;
+	GpuParticle::RequestInitialize(state_);
+	if (state_.useFreeListEmit) {
+		GpuParticle::RequestEmit(state_);
+	}
+	return true;
+}
+
+void GpuParticleSystem::SetDeltaTime(float deltaTime) {
+	state_.deltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+}
+
 void GpuParticleSystem::Update(const Camera* camera) {
 	if (!isInitialized_) {
 		return;

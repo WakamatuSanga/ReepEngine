@@ -18,6 +18,16 @@ public:
         int windowHeight = 0;
         uint32_t renderTextureWidth = 0;
         uint32_t renderTextureHeight = 0;
+        uint32_t depthTextureWidth = 0;
+        uint32_t depthTextureHeight = 0;
+        float currentViewportWidth = 0.0f;
+        float currentViewportHeight = 0.0f;
+        int currentScissorWidth = 0;
+        int currentScissorHeight = 0;
+        float backBufferViewportWidth = 0.0f;
+        float backBufferViewportHeight = 0.0f;
+        int backBufferScissorWidth = 0;
+        int backBufferScissorHeight = 0;
         float gameViewportWidth = 0.0f;
         float gameViewportHeight = 0.0f;
         float internalRenderScale = 1.0f;
@@ -41,7 +51,11 @@ public:
         bool disableDepthAwareUpsample = false;
         bool disablePostEffects = false;
         bool disableEffects = false;
+        bool disableFakeShadow = false;
+        bool disablePrimitiveEffect = false;
+        bool disableGpuParticle = false;
         bool disablePbrLighting = false;
+        bool clearColorTest = false;
     };
 
     RuntimeModeController();
@@ -94,7 +108,7 @@ private:
     WinApp* winApp_ = nullptr;
     PerformanceStats performanceStats_{};
     RuntimeMode mode_ = RuntimeMode::Game;
-    float gameModeRenderScale_ = 0.75f;
+    float gameModeRenderScale_ = 1.0f;
     bool requestedWindowFullscreen_ = false;
     bool useGameModeRenderScale_ = true;
     bool autoApplyGameModePerformancePreset_ = false;

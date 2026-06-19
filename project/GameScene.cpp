@@ -7,6 +7,7 @@
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Particle/ParticleManager.h"
+#include "Engine/Graphics/Shadow/ScreenSpaceFakeShadowPass.h"
 #include "Engine/Graphics/Skybox/Skybox.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Audio/Audio.h"
@@ -25,6 +26,7 @@
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -41,6 +43,7 @@
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
+#include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
@@ -478,6 +481,8 @@ void GameScene::Initialize() {
 
     primitiveEffectSystem_ = std::make_unique<PrimitiveEffectSystem>();
     primitiveEffectSystem_->Initialize(object3dCommon, camera_.get());
+    screenSpaceFakeShadowPass_ = std::make_unique<ScreenSpaceFakeShadowPass>();
+    screenSpaceFakeShadowPass_->Initialize(spriteCommon);
 
     debugSprite_ = std::make_unique<Sprite>();
     debugSprite_->Initialize(spriteCommon);
@@ -508,11 +513,16 @@ void GameScene::Initialize() {
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
+    gpuParticleEffectPlayer_ = std::make_unique<GpuParticleEffectPlayer>();
+    gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
-    combatEffectController_->Initialize(primitiveEffectSystem_.get(), player_.get());
+    combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyManager_->SetPlayer(player_.get());
+    if (screenSpaceFakeShadowPass_) {
+        screenSpaceFakeShadowPass_->SetTargets(player_.get(), enemyManager_.get());
+    }
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
@@ -543,6 +553,8 @@ void GameScene::Initialize() {
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
     enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
+    startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
+    startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
     postEffectActionBridge_->Initialize(postEffectController_.get());
     eventActionDispatcher_ = std::make_unique<EventActionDispatcher>();
@@ -831,6 +843,10 @@ void GameScene::Finalize() {
         eventActionDispatcher_->Finalize();
     }
     eventActionDispatcher_.reset();
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->Finalize();
+    }
+    startupEnemySpawnController_.reset();
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->Finalize();
     }
@@ -872,6 +888,10 @@ void GameScene::Finalize() {
         combatEffectController_->Finalize();
     }
     combatEffectController_.reset();
+    if (gpuParticleEffectPlayer_) {
+        gpuParticleEffectPlayer_->Finalize();
+    }
+    gpuParticleEffectPlayer_.reset();
     if (enemyAttackController_) {
         enemyAttackController_->Finalize();
     }
@@ -888,6 +908,7 @@ void GameScene::Finalize() {
         postEffectController_->Finalize();
     }
     postEffectController_.reset();
+    screenSpaceFakeShadowPass_.reset();
     if (cameraShakeController_) {
         cameraShakeController_->Reset(camera_.get());
         cameraShakeController_->Finalize();
@@ -937,6 +958,7 @@ void GameScene::Update() {
         shadowDebugSettings = runtimeModeController_->GetShadowLikeDebugSettings();
         if (dxCommon) {
             dxCommon->SetOffscreenRenderScale(runtimeModeController_->GetDesiredRenderScale());
+            dxCommon->SetRenderScaleClearColorTestEnabled(shadowDebugSettings.clearColorTest);
         }
     }
     if (blenderLiveSync_) {
@@ -957,7 +979,8 @@ void GameScene::Update() {
         volumetricCloudPass->SetDiagnosticDisableDepthAwareUpsample(shadowDebugSettings.disableDepthAwareUpsample);
     }
     if (primitiveEffectSystem_) {
-        primitiveEffectSystem_->SetDiagnosticSuppressed(shadowDebugSettings.disableEffects);
+        primitiveEffectSystem_->SetDiagnosticSuppressed(
+            shadowDebugSettings.disableEffects || shadowDebugSettings.disablePrimitiveEffect);
     }
     if (postEffectController_) {
         postEffectController_->SetDiagnosticSuppressed(shadowDebugSettings.disablePostEffects);
@@ -978,6 +1001,14 @@ void GameScene::Update() {
             camera_->Update();
             cameraProjectionUpdated = true;
         }
+    }
+    if (screenSpaceFakeShadowPass_) {
+        if (dxCommon) {
+            screenSpaceFakeShadowPass_->SetRenderTargetSize(
+                static_cast<float>(dxCommon->GetRenderTextureWidth()),
+                static_cast<float>(dxCommon->GetRenderTextureHeight()));
+        }
+        screenSpaceFakeShadowPass_->SetDebugMode(runtimeModeController_ ? runtimeModeController_->IsDebugMode() : false);
     }
 #ifdef USE_IMGUI
     const bool shouldShowPlayerActionDebugVisuals =
@@ -1088,6 +1119,9 @@ void GameScene::Update() {
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
     }
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->Update(gameplayDeltaTime);
+    }
     if (enemyManager_) {
         enemyManager_->Update(gameplayDeltaTime);
     }
@@ -1104,7 +1138,7 @@ void GameScene::Update() {
         playerEnemyBulletCollision_->Update();
     }
     if (combatEffectController_) {
-        combatEffectController_->Update(gameplayDeltaTime);
+        combatEffectController_->Update(gameplayDeltaTime, camera_.get());
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Update(gameplayDeltaTime);
@@ -1225,7 +1259,7 @@ void GameScene::Update() {
     }
 
     particleManager->Update(camera_.get());
-    if (shouldDrawLevelDebug && gpuParticleSystem_) {
+    if (shouldDrawLevelDebug && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
         gpuParticleSystem_->Update(camera_.get());
     }
     if (shouldDrawLevelDebug && skinningEditor_) {
@@ -1261,9 +1295,23 @@ void GameScene::Update() {
         if (dxCommon) {
             stats.renderTextureWidth = dxCommon->GetRenderTextureWidth();
             stats.renderTextureHeight = dxCommon->GetRenderTextureHeight();
+            stats.depthTextureWidth = dxCommon->GetDepthBufferWidth();
+            stats.depthTextureHeight = dxCommon->GetDepthBufferHeight();
             stats.internalRenderScale = dxCommon->GetOffscreenRenderScale();
             stats.presentInterval = dxCommon->GetPresentInterval();
             stats.fixedFpsWaitEnabled = dxCommon->IsFixedFpsWaitEnabled();
+            const D3D12_VIEWPORT offscreenViewport = dxCommon->GetOffscreenViewport();
+            const D3D12_RECT offscreenScissor = dxCommon->GetOffscreenScissorRect();
+            const D3D12_VIEWPORT backBufferViewport = dxCommon->GetBackBufferViewport();
+            const D3D12_RECT backBufferScissor = dxCommon->GetBackBufferScissorRect();
+            stats.currentViewportWidth = offscreenViewport.Width;
+            stats.currentViewportHeight = offscreenViewport.Height;
+            stats.currentScissorWidth = static_cast<int>(offscreenScissor.right - offscreenScissor.left);
+            stats.currentScissorHeight = static_cast<int>(offscreenScissor.bottom - offscreenScissor.top);
+            stats.backBufferViewportWidth = backBufferViewport.Width;
+            stats.backBufferViewportHeight = backBufferViewport.Height;
+            stats.backBufferScissorWidth = static_cast<int>(backBufferScissor.right - backBufferScissor.left);
+            stats.backBufferScissorHeight = static_cast<int>(backBufferScissor.bottom - backBufferScissor.top);
         }
         if (gameViewport_) {
             const GameViewport::Rect& rect = gameViewport_->GetGameViewportRect();
@@ -1285,7 +1333,9 @@ void GameScene::Update() {
         stats.enemyBulletCount = enemyBulletManager_ ? enemyBulletManager_->GetActiveCount() : 0;
         stats.playerBulletCount = playerBulletManager_ ? playerBulletManager_->GetActiveCount() : 0;
         stats.primitiveEffectCount = primitiveEffectSystem_ ? primitiveEffectSystem_->GetEffectCount() : 0;
-        stats.gpuParticleActiveEstimate = gpuParticleSystem_ ? gpuParticleSystem_->GetActiveCountEstimate() : 0u;
+        stats.gpuParticleActiveEstimate =
+            (gpuParticleSystem_ ? gpuParticleSystem_->GetActiveCountEstimate() : 0u) +
+            (gpuParticleEffectPlayer_ ? gpuParticleEffectPlayer_->GetActiveParticleEstimate() : 0u);
         runtimeModeController_->SetPerformanceStats(stats);
     }
 
@@ -1357,11 +1407,17 @@ void GameScene::Update() {
     if (runtimeModeController_) {
         runtimeModeController_->DrawImGui();
     }
+    if (screenSpaceFakeShadowPass_) {
+        screenSpaceFakeShadowPass_->DrawImGui();
+    }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
     }
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->DrawImGui();
+    }
+    if (startupEnemySpawnController_) {
+        startupEnemySpawnController_->DrawImGui();
     }
     if (postEffectActionBridge_) {
         postEffectActionBridge_->DrawImGui();
@@ -1968,8 +2024,14 @@ void GameScene::Draw() {
     if (enemyBulletManager_) {
         enemyBulletManager_->Draw();
     }
-    if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects) {
+    if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+        screenSpaceFakeShadowPass_->Draw(camera_.get());
+    }
+    if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
         primitiveEffectSystem_->Draw();
+    }
+    if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        combatEffectController_->Draw();
     }
 
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
@@ -1989,7 +2051,7 @@ void GameScene::Draw() {
         }
     }
 
-    if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && gpuParticleSystem_) {
+    if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
         gpuParticleSystem_->Draw();
     }
 

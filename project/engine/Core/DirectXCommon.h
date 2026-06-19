@@ -117,9 +117,17 @@ public:
     const std::array<float, 4>& GetRenderTextureClearColor() const { return renderTextureClearColor_; }
     uint32_t GetRenderTextureWidth() const { return renderTextureWidth_; }
     uint32_t GetRenderTextureHeight() const { return renderTextureHeight_; }
+    uint32_t GetDepthBufferWidth() const { return depthBufferWidth_; }
+    uint32_t GetDepthBufferHeight() const { return depthBufferHeight_; }
+    D3D12_VIEWPORT GetOffscreenViewport() const { return offscreenViewport_; }
+    D3D12_RECT GetOffscreenScissorRect() const { return offscreenScissorRect_; }
+    D3D12_VIEWPORT GetBackBufferViewport() const { return viewport; }
+    D3D12_RECT GetBackBufferScissorRect() const { return scissorRect; }
     float GetOffscreenRenderScale() const { return offscreenRenderScale_; }
     uint32_t GetPresentInterval() const { return presentInterval_; }
     bool IsFixedFpsWaitEnabled() const { return fixedFpsWaitEnabled_; }
+    bool IsRenderScaleClearColorTestEnabled() const { return renderScaleClearColorTestEnabled_; }
+    void SetRenderScaleClearColorTestEnabled(bool enabled) { renderScaleClearColorTestEnabled_ = enabled; }
     void SetDissolveNoiseTextureIndex(uint32_t textureIndex);
     PostEffectParameters& GetPostEffectParameters() { return postEffectParameters_; }
     const PostEffectParameters& GetPostEffectParameters() const { return postEffectParameters_; }
@@ -225,6 +233,8 @@ private:
 
     // 深度バッファ
     Microsoft::WRL::ComPtr<ID3D12Resource> depthBuffer;
+    uint32_t depthBufferWidth_ = WinApp::kClientWidth;
+    uint32_t depthBufferHeight_ = WinApp::kClientHeight;
     D3D12_CPU_DESCRIPTOR_HANDLE depthTextureSRVHandleCPU_{};
     D3D12_GPU_DESCRIPTOR_HANDLE depthTextureSRVHandleGPU_{};
     uint32_t depthTextureSRVIndex_ = 0;
@@ -283,6 +293,7 @@ private:
     D3D12_GPU_DESCRIPTOR_HANDLE finalOutputTextureSRVHandleGPU_{};
     uint32_t finalOutputTextureSRVIndex_ = 0;
     std::array<float, 4> renderTextureClearColor_ = { 0.05f, 0.05f, 0.1f, 1.0f };
+    std::array<float, 4> renderScaleClearColorTest_ = { 0.85f, 0.10f, 0.75f, 1.0f };
     std::array<float, 4> normalTextureClearColor_ = { 0.5f, 0.5f, 0.5f, 1.0f };
     Microsoft::WRL::ComPtr<ID3D12RootSignature> copyRootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> copyPipelineState_;
@@ -294,4 +305,5 @@ private:
     float offscreenRenderScale_ = 1.0f;
     uint32_t presentInterval_ = 1;
     bool fixedFpsWaitEnabled_ = true;
+    bool renderScaleClearColorTestEnabled_ = false;
 };
