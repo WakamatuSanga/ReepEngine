@@ -1,11 +1,11 @@
-#include "EnemySpawnActionBridge.h"
+﻿#include "EnemySpawnActionBridge.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 #include <algorithm>
 #include <cctype>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -46,7 +46,7 @@ void EnemySpawnActionBridge::Finalize() {
 }
 
 void EnemySpawnActionBridge::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("敵出現アクション接続 (Enemy Spawn Action Bridge Debug)")) {
         ImGui::End();
@@ -163,3 +163,4 @@ void EnemySpawnActionBridge::AddLog(const std::string& message) {
 bool EnemySpawnActionBridge::IsSpawnEnemyAction(const std::string& actionType) {
     return ToLowerString(actionType) == "spawnenemy";
 }
+

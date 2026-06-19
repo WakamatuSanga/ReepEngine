@@ -1,10 +1,10 @@
-#include "EditorCameraController.h"
+﻿#include "EditorCameraController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Input/Input.h"
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -155,7 +155,7 @@ void EditorCameraController::Update(
 }
 
 void EditorCameraController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 430.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("エディタカメラ確認 (Editor Camera Debug)")) {
         ImGui::End();
@@ -274,3 +274,4 @@ Vector3 EditorCameraController::GetUp() const {
 bool EditorCameraController::IsGameViewActive(bool isGameViewHovered, bool isGameViewFocused) const {
     return requireGameViewHover_ ? isGameViewHovered : (isGameViewHovered || isGameViewFocused);
 }
+

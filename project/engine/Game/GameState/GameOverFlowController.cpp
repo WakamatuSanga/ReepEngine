@@ -1,10 +1,10 @@
-#include "GameOverFlowController.h"
+﻿#include "GameOverFlowController.h"
 #include "GameOverScene.h"
 #include "SceneManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include <memory>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -34,7 +34,7 @@ void GameOverFlowController::Update() {
 }
 
 void GameOverFlowController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(300.0f, 120.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("GameOver遷移確認 (Game Over Flow Debug)")) {
         ImGui::End();
@@ -45,3 +45,4 @@ void GameOverFlowController::DrawImGui() {
     ImGui::End();
 #endif
 }
+

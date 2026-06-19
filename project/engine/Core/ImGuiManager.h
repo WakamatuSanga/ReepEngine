@@ -31,7 +31,7 @@ public:
 	void Finalize();
 
 private:
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	DirectXCommon* dxCommon_ = nullptr;
 	bool showDemoWindow_ = false;
 	bool enableDockSpacePassthrough_ = false;

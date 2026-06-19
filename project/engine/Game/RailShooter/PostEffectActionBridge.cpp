@@ -1,10 +1,10 @@
-#include "PostEffectActionBridge.h"
+﻿#include "PostEffectActionBridge.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include <algorithm>
 #include <cctype>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -33,7 +33,7 @@ void PostEffectActionBridge::Finalize() {
 }
 
 void PostEffectActionBridge::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 340.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("ポストエフェクトアクション接続 (PostEffect Action Bridge Debug)")) {
         ImGui::End();
@@ -112,3 +112,4 @@ void PostEffectActionBridge::AddLog(const std::string& message) {
 bool PostEffectActionBridge::IsPlayPostEffectAction(const std::string& actionType) {
     return ToLowerString(actionType) == "playposteffect";
 }
+

@@ -1,10 +1,10 @@
-#include "RailShooterEventActionBridge.h"
+﻿#include "RailShooterEventActionBridge.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include <algorithm>
 #include <cctype>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -94,7 +94,7 @@ bool RailShooterEventActionBridge::HandleAction(const FiredEventAction& action, 
 }
 
 void RailShooterEventActionBridge::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("レールシューターイベント接続 (Rail Shooter Event Action Bridge)")) {
         ImGui::End();
@@ -134,3 +134,4 @@ void RailShooterEventActionBridge::AddLog(const std::string& message) {
 bool RailShooterEventActionBridge::IsStartCameraRailAction(const std::string& actionType) {
     return ToLowerString(actionType) == "startcamerarail";
 }
+

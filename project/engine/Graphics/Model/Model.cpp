@@ -12,11 +12,24 @@
 using namespace std;
 using namespace MatrixMath;
 
+bool Model::globalPbrLightingDisabled_ = false;
+
 namespace {
     constexpr float kPi = 3.14159265359f;
 
     uint32_t GetPrimitiveTextureIndex() {
         return TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/obj/axis/uvChecker.png");
+    }
+
+    void UsePrimitiveDebugTexture(Model::MaterialData& material) {
+        material.textureFilePath = "resources/obj/axis/uvChecker.png";
+        material.baseColorTexturePath = material.textureFilePath;
+        material.textureIndex = GetPrimitiveTextureIndex();
+        material.baseColorTextureIndex = material.textureIndex;
+    }
+
+    std::string GetWhiteFallbackTexturePath() {
+        return "resources/human/white.png";
     }
 
     Vector3 SubtractVector(const Vector3& v1, const Vector3& v2) {
@@ -164,9 +177,13 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     if (material.baseColorTexturePath.empty()) {
         material.baseColorTexturePath = material.textureFilePath;
     }
+    if (material.baseColorTexturePath.empty()) {
+        material.baseColorTexturePath = GetWhiteFallbackTexturePath();
+        material.textureFilePath = material.baseColorTexturePath;
+    }
 
     uint32_t fallbackTextureIndex = material.textureIndex;
-    if (material.textureFilePath.empty() && material.baseColorTexturePath.empty()) {
+    if (material.textureIndex == 0 && material.textureFilePath.empty() && material.baseColorTexturePath.empty()) {
         fallbackTextureIndex = GetPrimitiveTextureIndex();
     }
 
@@ -242,6 +259,17 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
 void Model::Draw() {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
+    if (materialData_) {
+        const MaterialData& material = modelData_.material;
+        materialData_->usePBR = (material.usePBR && !globalPbrLightingDisabled_) ? 1 : 0;
+        materialData_->metallicFactor = material.metallicFactor;
+        materialData_->roughnessFactor = material.roughnessFactor;
+        materialData_->normalScale = material.normalScale;
+        materialData_->hasNormalMap = material.hasNormalMap ? 1 : 0;
+        materialData_->hasMetallicRoughnessMap = material.hasMetallicRoughnessMap ? 1 : 0;
+        materialData_->hasSpecularF0Map = material.hasSpecularF0Map ? 1 : 0;
+    }
+
     const D3D12_VERTEX_BUFFER_VIEW& activeVertexBufferView =
         vertexBufferViewOverride_ ? *vertexBufferViewOverride_ : vertexBufferView_;
     commandList->IASetVertexBuffers(0, 1, &activeVertexBufferView);
@@ -260,6 +288,14 @@ void Model::Draw() {
 void Model::SetTextureIndex(uint32_t index) {
     modelData_.material.textureIndex = index;
     modelData_.material.baseColorTextureIndex = index;
+}
+
+void Model::SetGlobalPbrLightingDisabled(bool isDisabled) {
+    globalPbrLightingDisabled_ = isDisabled;
+}
+
+bool Model::IsGlobalPbrLightingDisabled() {
+    return globalPbrLightingDisabled_;
 }
 
 void Model::SetVertices(const std::vector<VertexData>& vertices) {
@@ -281,7 +317,7 @@ Model::ModelData Model::CreateSphereData(uint32_t subdivision) {
 
     // ★修正: 初期値として、確実に存在する「uvChecker.png」のインデックスを取得してセットしておく
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     for (uint32_t lat = 0; lat < subdivision; ++lat) {
         float latAngle0 = kPi * static_cast<float>(lat) / static_cast<float>(subdivision);
@@ -314,7 +350,7 @@ Model::ModelData Model::CreateSphereData(uint32_t subdivision) {
 
 Model::ModelData Model::CreatePlaneData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const Vector3 normal = { 0.0f, 1.0f, 0.0f };
     PushQuad(data,
@@ -329,7 +365,7 @@ Model::ModelData Model::CreatePlaneData() {
 Model::ModelData Model::CreateCircleData(uint32_t subdivision) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     for (uint32_t i = 0; i < subdivision; ++i) {
         float angle0 = 2.0f * kPi * static_cast<float>(i) / static_cast<float>(subdivision);
@@ -364,7 +400,7 @@ Model::ModelData Model::CreateTorusData(uint32_t majorSubdivision, uint32_t mino
     ModelData data;
     majorSubdivision = (majorSubdivision < 3) ? 3 : majorSubdivision;
     minorSubdivision = (minorSubdivision < 3) ? 3 : minorSubdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     auto MakeTorusVertex = [majorRadius, minorRadius](float theta, float phi, float u, float v) {
         float cosTheta = std::cos(theta);
@@ -406,7 +442,7 @@ Model::ModelData Model::CreateTorusData(uint32_t majorSubdivision, uint32_t mino
 Model::ModelData Model::CreateCylinderData(uint32_t subdivision, float radius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float halfHeight = height * 0.5f;
 
@@ -447,7 +483,7 @@ Model::ModelData Model::CreateCylinderData(uint32_t subdivision, float radius, f
 Model::ModelData Model::CreateEffectCylinderData(uint32_t subdivision, float topRadius, float bottomRadius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float radianPerDivide = 2.0f * kPi / static_cast<float>(subdivision);
 
@@ -479,7 +515,7 @@ Model::ModelData Model::CreateEffectCylinderData(uint32_t subdivision, float top
 Model::ModelData Model::CreateConeData(uint32_t subdivision, float radius, float height) {
     ModelData data;
     subdivision = (subdivision < 3) ? 3 : subdivision;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     float halfHeight = height * 0.5f;
     float slope = radius / height;
@@ -516,7 +552,7 @@ Model::ModelData Model::CreateConeData(uint32_t subdivision, float radius, float
 
 Model::ModelData Model::CreateTriangleData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const Vector3 normal = { 0.0f, 1.0f, 0.0f };
     PushTriangle(data,
@@ -529,7 +565,7 @@ Model::ModelData Model::CreateTriangleData() {
 
 Model::ModelData Model::CreateBoxData() {
     ModelData data;
-    data.material.textureIndex = GetPrimitiveTextureIndex();
+    UsePrimitiveDebugTexture(data.material);
 
     const float min = -1.0f;
     const float max = 1.0f;

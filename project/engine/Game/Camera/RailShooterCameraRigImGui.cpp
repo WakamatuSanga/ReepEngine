@@ -1,11 +1,11 @@
-#include "RailShooterCameraRig.h"
+﻿#include "RailShooterCameraRig.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 #include <algorithm>
 #include <cmath>
 #include <string>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -109,7 +109,7 @@ namespace {
 }
 
 void RailShooterCameraRig::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 520.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
         ImGui::End();
@@ -340,3 +340,4 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::End();
 #endif
 }
+

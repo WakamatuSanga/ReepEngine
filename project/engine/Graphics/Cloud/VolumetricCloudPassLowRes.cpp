@@ -5,7 +5,9 @@
 #include "Engine/Core/SrvManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Utility/Logger.h"
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
+#endif
 
 #include <algorithm>
 #include <cassert>
@@ -116,12 +118,14 @@ void VolumetricCloudPass::RenderLowResolution(const Camera* camera, const CloudV
         ++skippedFrameCount_;
     }
 
-    if (enableCloudComposite_) {
+    if (IsCloudCompositeEnabled()) {
         CompositeCloudBuffer();
     }
 
-    const D3D12_VIEWPORT fullScreenViewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-    const D3D12_RECT fullScreenScissor = MakeFullScreenScissor();
+    const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
+    const D3D12_VIEWPORT fullScreenViewport = MakeViewport(renderWidth, renderHeight);
+    const D3D12_RECT fullScreenScissor = MakeScissor(renderWidth, renderHeight);
     commandList->RSSetViewports(1, &fullScreenViewport);
     commandList->RSSetScissorRects(1, &fullScreenScissor);
 }
@@ -138,8 +142,10 @@ void VolumetricCloudPass::CompositeCloudBuffer()
     D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV = dxCommon_->GetRenderTextureRTV();
     commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, nullptr);
 
-    const D3D12_VIEWPORT viewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
-    const D3D12_RECT scissorRect = MakeFullScreenScissor();
+    const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
+    const D3D12_VIEWPORT viewport = MakeViewport(renderWidth, renderHeight);
+    const D3D12_RECT scissorRect = MakeScissor(renderWidth, renderHeight);
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &scissorRect);
 
@@ -157,8 +163,10 @@ void VolumetricCloudPass::CompositeCloudBuffer()
 void VolumetricCloudPass::EnsureCloudBuffer()
 {
     cloudResolutionScale_ = std::clamp(cloudResolutionScale_, 0.125f, 1.0f);
-    const uint32_t requestedWidth = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(WinApp::kClientWidth) * cloudResolutionScale_)));
-    const uint32_t requestedHeight = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(WinApp::kClientHeight) * cloudResolutionScale_)));
+    const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
+    const uint32_t requestedWidth = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderWidth) * cloudResolutionScale_)));
+    const uint32_t requestedHeight = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderHeight) * cloudResolutionScale_)));
     if (!recreateCloudBufferRequested_ && cloudColorResource_ && cloudBufferWidth_ == requestedWidth && cloudBufferHeight_ == requestedHeight) {
         return;
     }
@@ -306,14 +314,17 @@ void VolumetricCloudPass::CreateCompositeConstantBuffer()
 void VolumetricCloudPass::UpdateCompositeConstantBuffer()
 {
     compositeConstantData_->cloudTextureSize = { static_cast<float>((std::max)(cloudBufferWidth_, 1u)), static_cast<float>((std::max)(cloudBufferHeight_, 1u)) };
-    compositeConstantData_->outputTextureSize = { static_cast<float>(WinApp::kClientWidth), static_cast<float>(WinApp::kClientHeight) };
-    compositeConstantData_->enableDepthAwareUpsample = enableDepthAwareUpsample_ ? 1u : 0u;
+    const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
+    compositeConstantData_->outputTextureSize = { static_cast<float>(renderWidth), static_cast<float>(renderHeight) };
+    compositeConstantData_->enableDepthAwareUpsample = IsDepthAwareUpsampleEnabled() ? 1u : 0u;
     compositeConstantData_->depthThreshold = depthThreshold_;
     compositeConstantData_->padding = {};
 }
 
 void VolumetricCloudPass::DrawImGui()
 {
+#ifdef USE_IMGUI
     ImGui::SeparatorText("雲の軽量化設定 (GPU Optimization)");
     ImGui::TextWrapped("まずは「バランス」を使ってください。重い場合は「軽量」、画質比較をしたい場合は「比較用Direct描画」を使います。");
 
@@ -379,6 +390,9 @@ void VolumetricCloudPass::DrawImGui()
 
     ImGui::Checkbox("深度を使って境界のにじみを抑える (Depth-aware Upsample)", &enableDepthAwareUpsample_);
     ImGui::TextWrapped("ONにすると、地形や機体の境界で雲がにじみにくくなります。");
+    if (diagnosticDisableCloudComposite_ || diagnosticDisableDepthAwareUpsample_) {
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "影診断で雲合成またはDepth-aware Upsampleが一時無効です。");
+    }
     ImGui::SliderFloat("深度差しきい値 (Depth Threshold)", &depthThreshold_, 0.0001f, 0.05f, "%.4f");
     ImGui::TextWrapped("小さいほど境界を厳しく判定します。にじむ場合は下げ、ガタつく場合は上げます。");
     ImGui::SliderFloat("視線方向ステップ倍率 (View Step Scale)", &viewStepScale_, 0.25f, 1.5f, "%.2f");
@@ -422,4 +436,5 @@ void VolumetricCloudPass::DrawImGui()
         const float aspect = (cloudBufferWidth_ > 0) ? (static_cast<float>(cloudBufferHeight_) / static_cast<float>(cloudBufferWidth_)) : 0.5625f;
         ImGui::Image(static_cast<ImTextureID>(cloudColorSRVGPU_.ptr), ImVec2(previewWidth, previewWidth * aspect), ImVec2(0.0f, 0.0f), ImVec2(1.0f, 1.0f));
     }
+#endif
 }

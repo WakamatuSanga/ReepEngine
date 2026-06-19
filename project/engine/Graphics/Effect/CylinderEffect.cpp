@@ -1,4 +1,4 @@
-#include "Engine/Graphics/Effect/CylinderEffect.h"
+﻿#include "Engine/Graphics/Effect/CylinderEffect.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -100,7 +100,7 @@ void CylinderEffect::Draw() {
 }
 
 void CylinderEffect::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Checkbox("表示 (Show)##CylinderEffect", &isVisible_);
     ImGui::SameLine();
     if (ImGui::Button("再生 (Play)##CylinderEffect")) {
@@ -159,3 +159,4 @@ void CylinderEffect::ApplyMaterial(float alpha) {
         }
     }
 }
+

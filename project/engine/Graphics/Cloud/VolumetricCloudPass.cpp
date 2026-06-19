@@ -244,21 +244,36 @@ void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
     externalFlowMultiplier_ = (std::max)(0.0f, multiplier);
 }
 
+void VolumetricCloudPass::ApplyGameModePerformancePreset()
+{
+    const bool needsRecreate = std::fabs(cloudResolutionScale_ - 0.25f) > 0.001f;
+    useLowResolutionCloud_ = true;
+    enableCloudComposite_ = true;
+    enableDepthAwareUpsample_ = true;
+    cloudResolutionScale_ = 0.25f;
+    cloudRenderInterval_ = 1;
+    viewStepScale_ = 0.5f;
+    lightStepScale_ = 0.5f;
+    recreateCloudBufferRequested_ = recreateCloudBufferRequested_ || needsRecreate;
+}
+
 void VolumetricCloudPass::RenderDirect(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds)
 {
-    UpdateConstantBuffer(camera, cloudVolume, WinApp::kClientWidth, WinApp::kClientHeight);
+    const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
+    UpdateConstantBuffer(camera, cloudVolume, renderWidth, renderHeight);
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
     D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV = dxCommon_->GetRenderTextureRTV();
     commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, nullptr);
 
-    const D3D12_VIEWPORT viewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    const D3D12_VIEWPORT viewport = MakeViewport(renderWidth, renderHeight);
     commandList->RSSetViewports(1, &viewport);
 
     const D3D12_RECT scissorRect =
         projectedBounds.useFullScreenScissor ?
-        MakeFullScreenScissor() :
-        projectedBounds.scissorRect;
+        MakeScissor(renderWidth, renderHeight) :
+        ScaleScissor(projectedBounds.scissorRect, renderWidth, renderHeight);
     commandList->RSSetScissorRects(1, &scissorRect);
 
     ID3D12DescriptorHeap* descriptorHeaps[] = { dxCommon_->GetSrvDescriptorHeap() };
@@ -271,8 +286,8 @@ void VolumetricCloudPass::RenderDirect(const Camera* camera, const CloudVolume* 
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->DrawInstanced(3, 1, 0, 0);
 
-    const D3D12_RECT fullScreenScissor = MakeFullScreenScissor();
-    const D3D12_VIEWPORT fullScreenViewport = MakeViewport(WinApp::kClientWidth, WinApp::kClientHeight);
+    const D3D12_RECT fullScreenScissor = MakeScissor(renderWidth, renderHeight);
+    const D3D12_VIEWPORT fullScreenViewport = MakeViewport(renderWidth, renderHeight);
     commandList->RSSetViewports(1, &fullScreenViewport);
     commandList->RSSetScissorRects(1, &fullScreenScissor);
 }

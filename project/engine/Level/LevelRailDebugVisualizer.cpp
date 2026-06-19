@@ -1,4 +1,4 @@
-#include "LevelRailDebugVisualizer.h"
+﻿#include "LevelRailDebugVisualizer.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -269,7 +269,7 @@ void LevelRailDebugVisualizer::SetExternalDebugVisibility(bool hideRails, bool h
 }
 
 bool LevelRailDebugVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("レール表示 (Show Rails)", &showRails_);
     ImGui::Checkbox("レール点表示 (Show Rail Points)", &showRailPoints_);
@@ -320,3 +320,4 @@ bool LevelRailDebugVisualizer::DrawImGui() {
     return false;
 #endif
 }
+

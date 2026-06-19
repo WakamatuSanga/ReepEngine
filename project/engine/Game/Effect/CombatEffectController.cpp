@@ -1,8 +1,8 @@
-#include "CombatEffectController.h"
+﻿#include "CombatEffectController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -25,7 +25,7 @@ void CombatEffectController::Update([[maybe_unused]] float deltaTime) {
 }
 
 void CombatEffectController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 320.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("戦闘エフェクト確認 (Combat Effect Debug)")) {
         ImGui::End();
@@ -124,3 +124,4 @@ void CombatEffectController::RecordEffect(const char* effectType, const Vector3&
     lastEffectPosition_ = position;
     lastEffectResult_ = result ? result : "Unknown";
 }
+

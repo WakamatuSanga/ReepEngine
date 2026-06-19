@@ -4,7 +4,7 @@
 #include "MyGame.h"    
 #include "Engine/Input/Input.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -13,7 +13,7 @@ void TitleScene::Initialize() {}
 void TitleScene::Finalize() {}
 
 void TitleScene::Update() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Begin("Title Scene");
     ImGui::Text("This is Title Scene.");
     ImGui::Text("Left click to Start Game!");
@@ -21,7 +21,7 @@ void TitleScene::Update() {
 #endif
 
     Input* input = MyGame::GetInstance()->GetInput();
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const ImGuiIO& io = ImGui::GetIO();
     const bool isImGuiCapturingMouse = io.WantCaptureMouse || ImGui::IsAnyItemActive();
 #else

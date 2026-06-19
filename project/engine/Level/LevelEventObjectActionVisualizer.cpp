@@ -1,4 +1,4 @@
-#include "LevelEventObjectActionVisualizer.h"
+﻿#include "LevelEventObjectActionVisualizer.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -274,7 +274,7 @@ void LevelEventObjectActionVisualizer::Draw(uint64_t frameCounter) {
 }
 
 bool LevelEventObjectActionVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("オブジェクト影響線を表示 (Show Object Action Links)", &showObjectActionLinks_);
     ImGui::ColorEdit4("オブジェクト影響線の色 (Object Action Link Color)", objectActionLinkColor_.data());
@@ -297,3 +297,4 @@ bool LevelEventObjectActionVisualizer::DrawImGui() {
 size_t LevelEventObjectActionVisualizer::GetLinkCount() const {
     return links_.size();
 }
+

@@ -78,6 +78,8 @@ public:
 
     static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
     static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
+    static void SetGlobalPbrLightingDisabled(bool isDisabled);
+    static bool IsGlobalPbrLightingDisabled();
 
     // 三角形ポリゴンで球のモデルデータを生成する関数
     static ModelData CreateSphereData(uint32_t subdivision = 16);
@@ -113,4 +115,6 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
+
+    static bool globalPbrLightingDisabled_;
 };

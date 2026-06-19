@@ -1,9 +1,9 @@
-#include "Model.h"
+﻿#include "Model.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -46,7 +46,7 @@ namespace {
 }
 
 void Model::DrawPbrMaterialImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SeparatorText("PBR Material Debug");
     if (!materialData_) {
         ImGui::TextDisabled("Material buffer is not ready.");
@@ -137,3 +137,4 @@ Model::MaterialData Model::LoadMaterialTemplateFile(const std::string& directory
         !materialData.specularF0TexturePath.empty();
     return materialData;
 }
+

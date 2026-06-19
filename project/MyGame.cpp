@@ -1,4 +1,5 @@
 #include "MyGame.h"
+#include "Engine/Core/FrameTimer.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 
@@ -14,7 +15,7 @@ MyGame* MyGame::GetInstance() {
 void MyGame::Initialize() {
     winApp_ = std::make_unique<WinApp>();
     winApp_->Initialize();
-#ifndef _DEBUG
+#ifndef USE_IMGUI
     winApp_->SetFullscreen(true);
 #endif
 
@@ -92,6 +93,7 @@ void MyGame::Run() {
 }
 
 void MyGame::Update() {
+    FrameTimer::GetInstance().BeginFrame();
     imguiManager_->Begin();
     input_->Update();
     SceneManager::GetInstance()->Update();

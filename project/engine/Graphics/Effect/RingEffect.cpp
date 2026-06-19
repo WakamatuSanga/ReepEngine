@@ -1,4 +1,4 @@
-#include "Engine/Graphics/Effect/RingEffect.h"
+﻿#include "Engine/Graphics/Effect/RingEffect.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -111,7 +111,7 @@ void RingEffect::Draw() {
 }
 
 void RingEffect::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Checkbox("表示 (Show)##RingEffect", &isVisible_);
     ImGui::SameLine();
     if (ImGui::Button("再生 (Play)##RingEffect")) {
@@ -189,3 +189,4 @@ void RingEffect::ApplyMaterial(float alpha) {
 float RingEffect::GetInnerRadius() const {
     return std::clamp(1.0f - settings_.thickness, 0.05f, 0.95f);
 }
+

@@ -1,4 +1,4 @@
-#include "Player.h"
+﻿#include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -12,7 +12,7 @@
 #include <cmath>
 #include <filesystem>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -118,7 +118,7 @@ namespace {
     }
 
     bool IsEditingImGuiText() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
         const ImGuiIO& io = ImGui::GetIO();
         return io.WantTextInput;
 #else
@@ -267,7 +267,7 @@ void Player::Draw() {
 }
 
 void Player::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("プレイヤー確認 (Player Debug)")) {
         ImGui::End();
@@ -623,3 +623,4 @@ void Player::UpdateVisualTilt(float deltaTime) {
         LerpFloat(currentVisualTilt_.z, targetTilt.z, t)
     };
 }
+

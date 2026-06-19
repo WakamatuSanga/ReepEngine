@@ -1,9 +1,9 @@
-#include "EnemyBulletManager.h"
+﻿#include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -62,7 +62,7 @@ void EnemyBulletManager::Draw() {
 }
 
 void EnemyBulletManager::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("敵弾確認 (Enemy Bullet Debug)")) {
         ImGui::End();
@@ -305,3 +305,4 @@ void EnemyBulletManager::RemoveDeadBullets() {
         selectedBulletIndex_ = bullets_.empty() ? -1 : static_cast<int>(bullets_.size()) - 1;
     }
 }
+

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -114,7 +114,7 @@ void GameViewport::ClearImGuiGameViewRect() {
 }
 
 void GameViewport::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 260.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("ゲームビューポート確認 (GameViewport Debug)")) {
         ImGui::End();
@@ -195,7 +195,7 @@ void GameViewport::SetFullscreenGameRect() {
     }
 
     float menuBarHeight = 0.0f;
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     if (ImGui::GetCurrentContext()) {
         menuBarHeight = ImGui::GetFrameHeight();
     }

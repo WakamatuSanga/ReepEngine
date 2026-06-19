@@ -1,4 +1,4 @@
-#include "LevelEventConnectionVisualizer.h"
+﻿#include "LevelEventConnectionVisualizer.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -258,7 +258,7 @@ void LevelEventConnectionVisualizer::Draw(uint64_t frameCounter) {
 }
 
 bool LevelEventConnectionVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("フラグ接続線を表示 (Show Flag Links)", &showFlagLinks_);
     ImGui::ColorEdit4("フラグ接続線の色 (Flag Link Color)", flagLinkColor_.data());
@@ -281,3 +281,4 @@ bool LevelEventConnectionVisualizer::DrawImGui() {
 size_t LevelEventConnectionVisualizer::GetLinkCount() const {
     return links_.size();
 }
+

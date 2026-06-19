@@ -1,4 +1,4 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "MyGame.h"
@@ -41,6 +41,7 @@
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Core/SrvManager.h"
@@ -50,7 +51,7 @@
 #include <filesystem>
 #include <numbers>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -163,6 +164,13 @@ namespace {
         if (skinnedModel) {
             previewInfo.sourceBounds = ToBoundsInfo(skinnedModel->GetSourceBounds());
             previewInfo.skinnedBounds = ToBoundsInfo(skinnedModel->GetSkinnedBounds());
+            const GltfSkinnedModel::TextureDebugInfo& textureInfo = skinnedModel->GetTextureDebugInfo();
+            previewInfo.materialTexturePath = textureInfo.materialTexturePath;
+            previewInfo.resolvedTexturePath = textureInfo.resolvedTexturePath;
+            previewInfo.textureIndex = textureInfo.textureIndex;
+            previewInfo.usingWhiteFallback = textureInfo.usingWhiteFallback;
+            previewInfo.usingUvCheckerFallback = textureInfo.usingUvCheckerFallback;
+            previewInfo.missingTextureCount = textureInfo.missingTextureCount;
         }
         if (skeleton &&
             skeleton->root >= 0 &&
@@ -706,7 +714,7 @@ void GameScene::Initialize() {
     skinningEditor_->SetStatusMessage(skinningLoadStatus);
 }
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 void GameScene::ClearGameViewDebugState() {
     gameViewTopLeft_ = { 0.0f, 0.0f };
     gameViewSize_ = { 0.0f, 0.0f };
@@ -914,13 +922,22 @@ void GameScene::Update() {
     auto& windEffectParams = particleManager->GetWindEffectParams();
     auto audio = Audio::GetInstance();
     auto texManager = TextureManager::GetInstance();
+    const FrameTimer& frameTimer = FrameTimer::GetInstance();
+    const float gameplayDeltaTime = frameTimer.GetGameplayDeltaTime();
+    RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings{};
+    bool cameraProjectionUpdated = false;
 
     if (input->PushKey(DIK_T)) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         return;
     }
     if (runtimeModeController_) {
+        runtimeModeController_->BeginCameraModeSwitchDiagnostics(camera_.get());
         runtimeModeController_->Update(input);
+        shadowDebugSettings = runtimeModeController_->GetShadowLikeDebugSettings();
+        if (dxCommon) {
+            dxCommon->SetOffscreenRenderScale(runtimeModeController_->GetDesiredRenderScale());
+        }
     }
     if (blenderLiveSync_) {
         blenderLiveSync_->Update();
@@ -932,6 +949,20 @@ void GameScene::Update() {
     const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
     const bool isDeathSequenceActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
     const bool isGameMode = runtimeModeController_ ? runtimeModeController_->IsGameMode() : true;
+    if (isGameMode && runtimeModeController_ && runtimeModeController_->ShouldAutoApplyGameModePerformancePreset() && volumetricCloudPass) {
+        volumetricCloudPass->ApplyGameModePerformancePreset();
+    }
+    if (volumetricCloudPass) {
+        volumetricCloudPass->SetDiagnosticDisableComposite(shadowDebugSettings.disableCloudComposite);
+        volumetricCloudPass->SetDiagnosticDisableDepthAwareUpsample(shadowDebugSettings.disableDepthAwareUpsample);
+    }
+    if (primitiveEffectSystem_) {
+        primitiveEffectSystem_->SetDiagnosticSuppressed(shadowDebugSettings.disableEffects);
+    }
+    if (postEffectController_) {
+        postEffectController_->SetDiagnosticSuppressed(shadowDebugSettings.disablePostEffects);
+    }
+    Model::SetGlobalPbrLightingDisabled(shadowDebugSettings.disablePbrLighting);
     const bool shouldDrawLevelDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const bool shouldDrawEventDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawEventDebug() : false;
     const bool shouldDrawRailDebug = runtimeModeController_ ? runtimeModeController_->ShouldDrawRailDebug() : false;
@@ -945,17 +976,10 @@ void GameScene::Update() {
         if (viewportRect.height > 1.0f) {
             camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
             camera_->Update();
+            cameraProjectionUpdated = true;
         }
     }
-    if (isGameMode) {
-        if (enemyBulletManager_) {
-            enemyBulletManager_->SetUseLightweightBulletVisual(true);
-        }
-        if (playerBulletManager_) {
-            playerBulletManager_->SetUseLightweightBulletVisual(true);
-        }
-    }
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const bool shouldShowPlayerActionDebugVisuals =
         !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
     const ImGuiIO& imguiIO = ImGui::GetIO();
@@ -967,7 +991,7 @@ void GameScene::Update() {
     const bool gameViewFocused = gameViewport_ ? gameViewport_->IsGameViewFocused() : isGameMode;
     if (editorCameraController_) {
         editorCameraController_->Update(
-            1.0f / 60.0f,
+            gameplayDeltaTime,
             input,
             gameViewHovered,
             gameViewFocused,
@@ -999,11 +1023,12 @@ void GameScene::Update() {
         if (viewportRect.height > 1.0f) {
             camera_->SetAspectRatio(viewportRect.width / viewportRect.height);
             camera_->Update();
+            cameraProjectionUpdated = true;
         }
     }
     if (editorCameraController_) {
         editorCameraController_->Update(
-            1.0f / 60.0f,
+            gameplayDeltaTime,
             input,
             true,
             true,
@@ -1029,14 +1054,17 @@ void GameScene::Update() {
         boostController_->SetGameViewInputActive(canUseGameInput);
     }
 #endif
+    if (runtimeModeController_) {
+        runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
+    }
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     if (railShooterCameraRig_) {
-        railShooterCameraRig_->Update(1.0f / 60.0f);
+        railShooterCameraRig_->Update(gameplayDeltaTime);
     }
     if (cameraShakeController_) {
-        cameraShakeController_->UpdateAndApply(1.0f / 60.0f, camera_.get());
+        cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
     }
     if (levelSceneRuntime_) {
         const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
@@ -1049,40 +1077,40 @@ void GameScene::Update() {
     }
     camera_->Update();
     if (playerRailController_) {
-        playerRailController_->Update(1.0f / 60.0f);
+        playerRailController_->Update(gameplayDeltaTime);
     }
     if (player_) {
-        player_->Update(1.0f / 60.0f);
+        player_->Update(gameplayDeltaTime);
     }
     if (boostController_) {
-        boostController_->Update(1.0f / 60.0f);
+        boostController_->Update(gameplayDeltaTime);
     }
     if (playerBulletManager_) {
-        playerBulletManager_->Update(1.0f / 60.0f);
+        playerBulletManager_->Update(gameplayDeltaTime);
     }
     if (enemyManager_) {
-        enemyManager_->Update(1.0f / 60.0f);
+        enemyManager_->Update(gameplayDeltaTime);
     }
     if (playerBulletEnemyCollision_) {
         playerBulletEnemyCollision_->Update();
     }
     if (enemyAttackController_) {
-        enemyAttackController_->Update(1.0f / 60.0f);
+        enemyAttackController_->Update(gameplayDeltaTime);
     }
     if (enemyBulletManager_) {
-        enemyBulletManager_->Update(1.0f / 60.0f);
+        enemyBulletManager_->Update(gameplayDeltaTime);
     }
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
     }
     if (combatEffectController_) {
-        combatEffectController_->Update(1.0f / 60.0f);
+        combatEffectController_->Update(gameplayDeltaTime);
     }
     if (playerDeathSequenceController_) {
-        playerDeathSequenceController_->Update(1.0f / 60.0f);
+        playerDeathSequenceController_->Update(gameplayDeltaTime);
     }
     if (postEffectController_) {
-        postEffectController_->Update(1.0f / 60.0f);
+        postEffectController_->Update(gameplayDeltaTime);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
@@ -1097,18 +1125,16 @@ void GameScene::Update() {
         eventActionDispatcher_->Update();
     }
     if (cloudVolume_) {
-        // TODO: Replace this fixed timestep with the engine's shared delta time when that API is available.
-        cloudVolume_->Update(1.0f / 60.0f);
+        cloudVolume_->Update(gameplayDeltaTime);
     }
     if (volumetricCloudPass && cloudVolume_) {
         cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
     } else {
         cloudProjectedBounds_ = {};
     }
-    objectRandomTime_ += 0.016f;
+    objectRandomTime_ += gameplayDeltaTime;
     if (animatedCubeObject_ && hasAnimatedCubeAnimation_) {
-        constexpr float kAnimationDeltaTime = 1.0f / 60.0f;
-        animatedCubeAnimationTime_ += kAnimationDeltaTime;
+        animatedCubeAnimationTime_ += gameplayDeltaTime;
         const float duration = (std::max)(animatedCubeClip_.duration, 0.0001f);
         if (animatedCubeAnimationTime_ >= duration) {
             animatedCubeAnimationTime_ = std::fmod(animatedCubeAnimationTime_, duration);
@@ -1182,7 +1208,7 @@ void GameScene::Update() {
         primitivePreviewObject->Update();
     }
     if (primitiveEffectSystem_) {
-        primitiveEffectSystem_->Update(1.0f / 60.0f);
+        primitiveEffectSystem_->Update(gameplayDeltaTime);
     }
     debugSprite_->Update();
 
@@ -1199,10 +1225,10 @@ void GameScene::Update() {
     }
 
     particleManager->Update(camera_.get());
-    if (gpuParticleSystem_) {
+    if (shouldDrawLevelDebug && gpuParticleSystem_) {
         gpuParticleSystem_->Update(camera_.get());
     }
-    if (skinningEditor_) {
+    if (shouldDrawLevelDebug && skinningEditor_) {
         if (previewSkeleton_) {
             UpdateSkeletonWorldTransforms(*previewSkeleton_);
         }
@@ -1230,7 +1256,40 @@ void GameScene::Update() {
         }
     }
 
-#ifdef _DEBUG
+    if (runtimeModeController_) {
+        RuntimeModeController::PerformanceStats stats{};
+        if (dxCommon) {
+            stats.renderTextureWidth = dxCommon->GetRenderTextureWidth();
+            stats.renderTextureHeight = dxCommon->GetRenderTextureHeight();
+            stats.internalRenderScale = dxCommon->GetOffscreenRenderScale();
+            stats.presentInterval = dxCommon->GetPresentInterval();
+            stats.fixedFpsWaitEnabled = dxCommon->IsFixedFpsWaitEnabled();
+        }
+        if (gameViewport_) {
+            const GameViewport::Rect& rect = gameViewport_->GetGameViewportRect();
+            stats.gameViewportWidth = rect.width;
+            stats.gameViewportHeight = rect.height;
+        }
+        if (volumetricCloudPass) {
+            stats.cloudEnabled = volumetricCloudPass->IsEnabled() && isVolumetricCloudVisible_;
+            stats.cloudResolutionScale = volumetricCloudPass->GetCloudResolutionScale();
+            stats.lowResolutionCloudEnabled = volumetricCloudPass->IsLowResolutionCloudEnabled();
+            stats.cloudCompositeEnabled = volumetricCloudPass->IsCloudCompositeEnabled();
+            stats.depthAwareCloudUpsampleEnabled = volumetricCloudPass->IsDepthAwareUpsampleEnabled();
+        }
+        if (WinApp* winApp = MyGame::GetInstance()->GetWinApp()) {
+            stats.windowWidth = winApp->GetClientWidth();
+            stats.windowHeight = winApp->GetClientHeight();
+        }
+        stats.activeEnemyCount = enemyManager_ ? enemyManager_->GetActiveCount() : 0;
+        stats.enemyBulletCount = enemyBulletManager_ ? enemyBulletManager_->GetActiveCount() : 0;
+        stats.playerBulletCount = playerBulletManager_ ? playerBulletManager_->GetActiveCount() : 0;
+        stats.primitiveEffectCount = primitiveEffectSystem_ ? primitiveEffectSystem_->GetEffectCount() : 0;
+        stats.gpuParticleActiveEstimate = gpuParticleSystem_ ? gpuParticleSystem_->GetActiveCountEstimate() : 0u;
+        runtimeModeController_->SetPerformanceStats(stats);
+    }
+
+#ifdef USE_IMGUI
     const bool showDebugUi = !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
     if (showDebugUi) {
         DrawGameViewImGui(dxCommon);
@@ -1294,6 +1353,9 @@ void GameScene::Update() {
     }
     if (gameViewport_) {
         gameViewport_->DrawImGui();
+    }
+    if (runtimeModeController_) {
+        runtimeModeController_->DrawImGui();
     }
     if (railShooterEventActionBridge_) {
         railShooterEventActionBridge_->DrawImGui();
@@ -1846,6 +1908,8 @@ void GameScene::Draw() {
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
     const bool shouldDrawDebugVisuals =
         runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+    const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
+        runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
@@ -1904,11 +1968,11 @@ void GameScene::Draw() {
     if (enemyBulletManager_) {
         enemyBulletManager_->Draw();
     }
-    if (primitiveEffectSystem_) {
+    if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects) {
         primitiveEffectSystem_->Draw();
     }
 
-    if (isVolumetricCloudVisible_ && volumetricCloudPass && cloudVolume_) {
+    if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
             dxCommon->TransitionDepthBuffer(
                 D3D12_RESOURCE_STATE_DEPTH_WRITE,
@@ -1925,11 +1989,11 @@ void GameScene::Draw() {
         }
     }
 
-    if (gpuParticleSystem_) {
+    if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && gpuParticleSystem_) {
         gpuParticleSystem_->Draw();
     }
 
-    if (isParticleVisible_) {
+    if (isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
     }
 
@@ -1944,3 +2008,5 @@ void GameScene::Draw() {
         postEffectController_->Draw();
     }
 }
+
+

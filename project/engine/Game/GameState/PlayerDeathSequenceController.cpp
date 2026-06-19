@@ -1,4 +1,4 @@
-#include "PlayerDeathSequenceController.h"
+﻿#include "PlayerDeathSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
@@ -6,7 +6,7 @@
 #include "Engine/Graphics/Sprite/SpriteCommon.h"
 #include <algorithm>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -88,7 +88,7 @@ void PlayerDeathSequenceController::Draw() {
 }
 
 void PlayerDeathSequenceController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 340.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("死亡演出確認 (Death Effect Debug)")) {
         ImGui::End();
@@ -165,3 +165,4 @@ float PlayerDeathSequenceController::CalculateFadeAlpha() const {
 
     return std::clamp((elapsedTime_ - fadeStartTime_) / (std::max)(0.01f, fadeDuration_), 0.0f, 1.0f);
 }
+

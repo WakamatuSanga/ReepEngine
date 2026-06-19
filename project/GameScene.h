@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Scene/IScene.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -55,7 +55,7 @@ public:
     void Finalize() override;
 
 private:
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     void DrawGameViewImGui(DirectXCommon* dxCommon);
     void ClearGameViewDebugState();
 #endif
@@ -162,7 +162,7 @@ private:
     float layoutStepZ_ = 0.05f;
     VolumetricCloudPass::ProjectedBounds cloudProjectedBounds_{};
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     const char* blendModeNames_[6] = { "Normal", "Add", "Subtract", "Multiply", "Screen", "None" };
     std::array<float, 2> gameViewTopLeft_ = { 0.0f, 0.0f };
     std::array<float, 2> gameViewSize_ = { 0.0f, 0.0f };
@@ -171,3 +171,4 @@ private:
     bool isGameViewFocused_ = false;
 #endif
 };
+

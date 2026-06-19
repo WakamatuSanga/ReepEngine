@@ -9,6 +9,7 @@ struct Vertex
     float4 position;
     float2 texcoord;
     float3 normal;
+    float3 tangent;
 };
 
 struct VertexInfluence
@@ -39,8 +40,10 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
         float4 sourcePosition = float4(inputVertex.position.xyz, 1.0f);
         float4 sourceNormal = float4(inputVertex.normal, 0.0f);
+        float4 sourceTangent = float4(inputVertex.tangent, 0.0f);
         float4 skinnedPosition = float4(0.0f, 0.0f, 0.0f, 0.0f);
         float3 skinnedNormal = float3(0.0f, 0.0f, 0.0f);
+        float3 skinnedTangent = float3(0.0f, 0.0f, 0.0f);
         float totalWeight = 0.0f;
 
         [unroll]
@@ -57,6 +60,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
             skinnedPosition += mul(sourcePosition, skinningMatrix) * weight;
             skinnedNormal += mul(sourceNormal, skinningMatrix).xyz * weight;
+            skinnedTangent += mul(sourceTangent, skinningMatrix).xyz * weight;
             totalWeight += weight;
         }
 
@@ -69,6 +73,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
             if (normalLength > 0.000001f)
             {
                 outputVertex.normal = skinnedNormal / normalLength;
+            }
+
+            float tangentLength = length(skinnedTangent);
+            if (tangentLength > 0.000001f)
+            {
+                outputVertex.tangent = skinnedTangent / tangentLength;
             }
         }
 

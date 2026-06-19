@@ -1,4 +1,4 @@
-#include "PlayerActionController.h"
+﻿#include "PlayerActionController.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -129,7 +129,7 @@ void PlayerActionController::DrawDebugVisuals() {
 }
 
 void PlayerActionController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SeparatorText("バレルロール / 回避 (Barrel Roll Action)");
     ImGui::Checkbox("Enable Barrel Roll", &enableBarrelRoll_);
     ImGui::Checkbox("Enable Barrel Roll Effect", &enableBarrelRollEffect_);
@@ -246,3 +246,4 @@ const char* PlayerActionController::GetDirectionName(BarrelRollDirection directi
         return "None";
     }
 }
+

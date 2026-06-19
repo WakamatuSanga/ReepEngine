@@ -1,4 +1,4 @@
-#include "LevelEventLabelVisualizer.h"
+﻿#include "LevelEventLabelVisualizer.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -44,6 +44,11 @@ namespace {
         float y = 0.0f;
         float width = 0.0f;
         float height = 0.0f;
+    };
+
+    struct LabelScreenPoint {
+        float x = 0.0f;
+        float y = 0.0f;
     };
 
     enum class LabelProjectionResult {
@@ -195,7 +200,7 @@ namespace {
         const Vector3& worldPosition,
         const Camera* camera,
         const LabelViewportRect& viewportRect,
-        ImVec2& outScreen) {
+        LabelScreenPoint& outScreen) {
         if (!camera || viewportRect.width <= 1.0f || viewportRect.height <= 1.0f) {
             return LabelProjectionResult::Failed;
         }
@@ -311,7 +316,7 @@ void LevelEventLabelVisualizer::ClearViewportRect() {
 }
 
 void LevelEventLabelVisualizer::DrawOverlay() const {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     lastVisibleCount_ = 0;
     lastClippedCount_ = 0;
     lastProjectionFailedCount_ = 0;
@@ -350,8 +355,9 @@ void LevelEventLabelVisualizer::DrawOverlay() const {
             continue;
         }
 
-        ImVec2 screen{};
-        const LabelProjectionResult projectionResult = ProjectToScreen(label->position, camera_, labelViewport, screen);
+        LabelScreenPoint projectedScreen{};
+        const LabelProjectionResult projectionResult = ProjectToScreen(label->position, camera_, labelViewport, projectedScreen);
+        ImVec2 screen(projectedScreen.x, projectedScreen.y);
         if (projectionResult == LabelProjectionResult::Failed) {
             ++lastProjectionFailedCount_;
             continue;
@@ -384,7 +390,7 @@ void LevelEventLabelVisualizer::DrawOverlay() const {
 }
 
 bool LevelEventLabelVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     ImGui::Checkbox("イベントラベルを表示 (Show Event Labels)", &showEventLabels_);
     if (ImGui::Checkbox("イベント名を表示 (Show Event Names)", &showEventNames_)) {
@@ -422,3 +428,4 @@ bool LevelEventLabelVisualizer::DrawImGui() {
 size_t LevelEventLabelVisualizer::GetLabelCount() const {
     return labels_.size();
 }
+

@@ -1,11 +1,11 @@
-#include "GpuParticleEditor.h"
+﻿#include "GpuParticleEditor.h"
 
 #include "GpuParticleEffectSerializer.h"
 #include "GpuParticleRenderer.h"
 #include "GpuParticleResources.h"
 #include "GpuParticleTypes.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -80,7 +80,7 @@ std::string GetEffectPathOrDefault(char* pathBuffer, size_t pathBufferSize) {
 }
 
 void DrawEmitterList(const GpuParticle::State& state, int& selectedEmitterIndex) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ImGui::BeginChild("EmitterList", ImVec2(0.0f, 116.0f), ImGuiChildFlags_Borders);
 	for (size_t emitterIndex = 0; emitterIndex < state.emitters.size(); ++emitterIndex) {
 		const GpuParticle::Emitter& emitter = state.emitters[emitterIndex];
@@ -106,7 +106,7 @@ void DrawEmitterList(const GpuParticle::State& state, int& selectedEmitterIndex)
 }
 
 bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	if (selectedEmitterIndex < 0 || selectedEmitterIndex >= static_cast<int>(state.emitters.size())) {
 		ImGui::TextUnformatted("編集するエミッターを選択してください。");
 		return false;
@@ -185,7 +185,7 @@ bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
 }
 
 void DrawParticleTypeList(const GpuParticle::State& state, int& selectedParticleTypeIndex) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	ImGui::BeginChild("ParticleTypeList", ImVec2(0.0f, 116.0f), ImGuiChildFlags_Borders);
 	for (size_t particleTypeIndex = 0; particleTypeIndex < state.particleTypes.size(); ++particleTypeIndex) {
 		const GpuParticle::ParticleType& type = state.particleTypes[particleTypeIndex];
@@ -203,7 +203,7 @@ void DrawParticleTypeList(const GpuParticle::State& state, int& selectedParticle
 }
 
 ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int selectedParticleTypeIndex, const GpuParticleRenderer& renderer) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	if (selectedParticleTypeIndex < 0 || selectedParticleTypeIndex >= static_cast<int>(state.particleTypes.size())) {
 		ImGui::TextUnformatted("編集するパーティクル種類を選択してください。");
 		return {};
@@ -301,7 +301,7 @@ void GpuParticleEditor::ApplyEditingEffectDataToState(GpuParticle::State& state,
 }
 
 void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResources& resources, GpuParticleRenderer& renderer, uint32_t particleTextureIndex) {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 	GpuParticle::EnsureDefaultParticleTypes(state);
 	GpuParticle::EnsureDefaultEmitter(state);
 	renderer.RefreshParticleTypeTextures(state);
@@ -587,3 +587,4 @@ void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResource
 	(void)particleTextureIndex;
 #endif
 }
+

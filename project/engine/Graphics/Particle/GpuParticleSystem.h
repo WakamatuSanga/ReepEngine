@@ -25,6 +25,7 @@ public:
 	void Update(const Camera* camera);
 	void Draw();
 	void DrawImGui();
+	uint32_t GetActiveCountEstimate() const { return state_.activeCountEstimate; }
 
 private:
 	uint32_t EstimateActiveParticleCount() const;

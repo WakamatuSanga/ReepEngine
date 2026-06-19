@@ -1,8 +1,8 @@
-#include "PlayerEventTriggerBridge.h"
+﻿#include "PlayerEventTriggerBridge.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Level/LevelEventRuntime.h"
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -39,7 +39,7 @@ void PlayerEventTriggerBridge::Update() {
 }
 
 void PlayerEventTriggerBridge::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 220.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("プレイヤーイベント判定確認 (Player Event Trigger Debug)")) {
         ImGui::End();
@@ -62,3 +62,4 @@ void PlayerEventTriggerBridge::DrawImGui() {
     ImGui::End();
 #endif
 }
+

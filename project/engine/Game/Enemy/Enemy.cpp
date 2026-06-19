@@ -1,4 +1,4 @@
-#include "Enemy.h"
+﻿#include "Enemy.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -10,7 +10,7 @@
 #include <cmath>
 #include <filesystem>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -188,7 +188,7 @@ void Enemy::Draw() {
 }
 
 void Enemy::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Text("Enemy ID: %s", enemyId_.c_str());
     ImGui::Text("Enemy Type: %s", enemyType_.c_str());
     ImGui::Text("State: %s", ToStateLabel(state_));
@@ -589,3 +589,4 @@ float Enemy::ApplyAlignCurve(float t) const {
         return SmoothStep(t);
     }
 }
+

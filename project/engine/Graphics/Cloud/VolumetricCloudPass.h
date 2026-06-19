@@ -57,7 +57,14 @@ public:
     void SetForceMode(ForceMode mode) { forceMode_ = mode; }
     ForceMode GetForceMode() const { return forceMode_; }
     void SetExternalFlowMultiplier(float multiplier);
+    void ApplyGameModePerformancePreset();
+    void SetDiagnosticDisableComposite(bool disabled) { diagnosticDisableCloudComposite_ = disabled; }
+    void SetDiagnosticDisableDepthAwareUpsample(bool disabled) { diagnosticDisableDepthAwareUpsample_ = disabled; }
     float GetExternalFlowMultiplier() const { return externalFlowMultiplier_; }
+    float GetCloudResolutionScale() const { return cloudResolutionScale_; }
+    bool IsLowResolutionCloudEnabled() const { return useLowResolutionCloud_; }
+    bool IsCloudCompositeEnabled() const { return enableCloudComposite_ && !diagnosticDisableCloudComposite_; }
+    bool IsDepthAwareUpsampleEnabled() const { return enableDepthAwareUpsample_ && !diagnosticDisableDepthAwareUpsample_; }
 
 private:
     struct CloudPassConstants {
@@ -159,6 +166,8 @@ private:
     bool useLowResolutionCloud_ = true;
     bool enableCloudComposite_ = true;
     bool enableDepthAwareUpsample_ = false;
+    bool diagnosticDisableCloudComposite_ = false;
+    bool diagnosticDisableDepthAwareUpsample_ = false;
     bool showCloudBufferPreview_ = false;
     bool enableCloudFlow_ = true;
     bool useCameraForwardFlow_ = true;

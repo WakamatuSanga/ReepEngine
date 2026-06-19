@@ -1,4 +1,4 @@
-#include "LevelObjectDebugVisualizer.h"
+﻿#include "LevelObjectDebugVisualizer.h"
 #include "LevelEventDebugView.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -259,7 +259,7 @@ void LevelObjectDebugVisualizer::Draw() {
 }
 
 bool LevelObjectDebugVisualizer::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     bool needsRebuild = false;
     if (ImGui::Button("デバッグ表示を再構築 (Rebuild Debug Objects)")) {
         needsRebuild = true;
@@ -280,7 +280,7 @@ bool LevelObjectDebugVisualizer::DrawImGui() {
 }
 
 void LevelObjectDebugVisualizer::DrawObjectDetails(const LevelObject& object) const {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Text("名前 (name): %s", object.name.c_str());
     ImGui::Text("種類 (type): %s", object.type.c_str());
     ImGui::Text("プリミティブ形状 (primitive_shape): %s", object.primitiveShape.empty() ? "(none)" : object.primitiveShape.c_str());
@@ -307,7 +307,7 @@ void LevelObjectDebugVisualizer::DrawObjectDetails(const LevelObject& object) co
 }
 
 void LevelObjectDebugVisualizer::DrawObjectDebugDetails(const LevelObject& object) const {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     for (const auto& debugObject : debugObjects_) {
         if (debugObject && debugObject->source == &object) {
             DrawObjectDetails(object);
@@ -351,3 +351,4 @@ size_t LevelObjectDebugVisualizer::GetVisibleObjectCount() const {
 bool LevelObjectDebugVisualizer::IsBlenderHelper(const LevelObject& object) const {
     return IsBlenderHelperType(object.type);
 }
+

@@ -1,4 +1,4 @@
-#include "Engine/Graphics/Effect/RotatingPlaneHitEffect.h"
+﻿#include "Engine/Graphics/Effect/RotatingPlaneHitEffect.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -9,7 +9,7 @@
 #include <cmath>
 #include <numbers>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -126,7 +126,7 @@ void RotatingPlaneHitEffect::Draw() {
 }
 
 void RotatingPlaneHitEffect::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::Checkbox("表示 (Show)##RotatingPlaneHit", &isVisible_);
     ImGui::SameLine();
     if (ImGui::Button("再生 (Play)##RotatingPlaneHit")) {
@@ -174,3 +174,4 @@ void RotatingPlaneHitEffect::ApplyMaterial(float alpha) {
 int RotatingPlaneHitEffect::GetActivePlaneCount() const {
     return std::clamp(settings_.planeCount, 1, kMaxPlaneCount);
 }
+

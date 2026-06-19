@@ -1,4 +1,4 @@
-#include "BoostController.h"
+﻿#include "BoostController.h"
 
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Input/Input.h"
@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <cmath>
 
-#ifdef _DEBUG
+#ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -80,7 +80,7 @@ void BoostController::Update(float deltaTime) {
 }
 
 void BoostController::DrawImGui() {
-#ifdef _DEBUG
+#ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(390.0f, 360.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("ブースト確認 (Boost Debug)")) {
         ImGui::End();
@@ -213,3 +213,4 @@ float BoostController::Saturate(float value) {
     }
     return std::clamp(value, 0.0f, 1.0f);
 }
+

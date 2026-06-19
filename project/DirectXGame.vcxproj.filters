@@ -240,6 +240,9 @@
     <ClCompile Include="engine\Core\GameViewport.cpp">
       <Filter>ソース ファイル\engine\Core</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Core\FrameTimer.cpp">
+      <Filter>ソース ファイル\engine\Core</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Core\RuntimeModeController.cpp">
       <Filter>ソース ファイル\engine\Core</Filter>
     </ClCompile>
@@ -558,6 +561,9 @@
       <Filter>ヘッダー ファイル\engine\Editor\BlenderSync</Filter>
     </ClInclude>
     <ClInclude Include="engine\Core\GameViewport.h">
+      <Filter>ヘッダー ファイル\engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Core\FrameTimer.h">
       <Filter>ヘッダー ファイル\engine\Core</Filter>
     </ClInclude>
     <ClInclude Include="engine\Core\RuntimeModeController.h">
