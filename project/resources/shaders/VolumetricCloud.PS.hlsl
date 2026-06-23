@@ -37,6 +37,15 @@ struct CloudPassConstants
     float4 cloudLayerFade;
     float4 cloudBottomShaping;
     float4 cloudBottomShapingExtra;
+    float4 cloudBottomUndulation;
+    float4 volumeEdgeFade;
+    float4 farCloudLayer;
+    float4 farCloudLayerExtra;
+    float4 farCloudColor;
+    float4 cloudSeaLayer;
+    float4 cloudSeaShape;
+    float4 cloudSeaFlow;
+    float4 cloudSeaColor;
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -163,10 +172,26 @@ float ComputeCloudDensity(float3 worldPosition)
 
     float edgeDistance = 1.0f - max(absLocal.x, max(absLocal.y, absLocal.z));
     float edgeMask = saturate(edgeDistance / max(gCloudPass.edgeFade, 0.0001f));
+    if (gCloudPass.volumeEdgeFade.x > 0.5f)
+    {
+        float3 boxMin = gCloudPass.volumeCenter - gCloudPass.volumeHalfExtents;
+        float3 boxMax = gCloudPass.volumeCenter + gCloudPass.volumeHalfExtents;
+        float3 toMin = worldPosition - boxMin;
+        float3 toMax = boxMax - worldPosition;
+        float edgeWorldDistance = min(min(min(toMin.x, toMin.y), toMin.z), min(min(toMax.x, toMax.y), toMax.z));
+        edgeMask *= smoothstep(0.0f, max(gCloudPass.volumeEdgeFade.y, 0.0001f), edgeWorldDistance);
+    }
 
     float layerBottomY = gCloudPass.volumeCenter.y - gCloudPass.volumeHalfExtents.y;
     float layerTopY = gCloudPass.volumeCenter.y + gCloudPass.volumeHalfExtents.y;
-    float bottomMask = smoothstep(0.0f, max(gCloudPass.cloudLayerFade.x, 0.0001f), worldPosition.y - layerBottomY);
+    if (gCloudPass.cloudBottomShaping.x > 0.5f)
+    {
+        float bottomNoiseScale = max(abs(gCloudPass.cloudBottomUndulation.y), 0.00001f);
+        float bottomNoise = ValueNoise3D(float3(worldPosition.xz * bottomNoiseScale, 2.17f));
+        layerBottomY += (bottomNoise - 0.5f) * gCloudPass.cloudBottomUndulation.x;
+    }
+    float bottomFade = max(gCloudPass.cloudLayerFade.x * lerp(1.0f, 1.35f, saturate(gCloudPass.cloudBottomUndulation.w)), 0.0001f);
+    float bottomMask = smoothstep(0.0f, bottomFade, worldPosition.y - layerBottomY);
     float topMask = smoothstep(0.0f, max(gCloudPass.cloudLayerFade.y, 0.0001f), layerTopY - worldPosition.y);
     float shapedBottomMask = bottomMask;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
@@ -191,10 +216,8 @@ float ComputeCloudDensity(float3 worldPosition)
     float bottomDetailMultiplier = 1.0f;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
     {
-        bottomDetailMultiplier = lerp(
-            saturate(1.0f - gCloudPass.cloudBottomShaping.w),
-            1.0f,
-            saturate(shapedBottomMask));
+        float bottomDetailTarget = lerp(saturate(gCloudPass.cloudBottomUndulation.z), saturate(1.0f - gCloudPass.cloudBottomShaping.w), 0.35f);
+        bottomDetailMultiplier = lerp(bottomDetailTarget, 1.0f, saturate(shapedBottomMask));
     }
     float shape = baseNoise - detailNoise * bottomDetailMultiplier * gCloudPass.detailWeight - 0.40f;
     float noiseMask = saturate(shape * 2.5f);
@@ -215,6 +238,99 @@ float ComputeCloudDensity(float3 worldPosition)
         density *= lerp(gCloudPass.nearCameraFade.z, 1.0f, fade);
     }
     return max(density, 0.0f);
+}
+
+float2 SafeNormalize2(float2 value, float2 fallbackValue)
+{
+    float lengthSquared = dot(value, value);
+    return (lengthSquared > 0.000001f) ? value * rsqrt(lengthSquared) : fallbackValue;
+}
+
+float4 CompositePremultiplied(float4 underLayer, float4 overLayer)
+{
+    return float4(underLayer.rgb + overLayer.rgb * (1.0f - underLayer.a), saturate(underLayer.a + overLayer.a * (1.0f - underLayer.a)));
+}
+
+float4 ComputeFarCloudLayer(float2 uv, float3 rayDirection, float depth)
+{
+    if (gCloudPass.farCloudLayer.x <= 0.5f || gCloudPass.farCloudLayerExtra.x <= 0.0001f || depth < 0.99999f || rayDirection.y <= 0.002f)
+    {
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    float planeY = gCloudPass.cameraPosition.y + gCloudPass.farCloudLayer.z;
+    float distanceToPlane = (planeY - gCloudPass.cameraPosition.y) / rayDirection.y;
+    if (distanceToPlane <= 0.0f)
+    {
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    float3 farPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
+    float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
+    float scale = max(gCloudPass.farCloudLayer.w, 0.00001f);
+    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudTime * gCloudPass.farCloudLayerExtra.y * scale;
+    float noiseA = FBM(float3(cloudUv, 6.37f));
+    float noiseB = FBM(float3(cloudUv * 2.73f + 13.17f, 3.19f));
+    float noiseValue = noiseA * 0.62f + noiseB * 0.38f;
+    if (gCloudPass.farCloudLayerExtra.z <= 0.5f)
+    {
+        noiseValue = 0.5f + 0.18f * sin(cloudUv.x * 5.1f + cloudUv.y * 1.7f) + 0.16f * sin(cloudUv.y * 3.8f + 1.3f);
+    }
+
+    float targetDistance = max(gCloudPass.farCloudLayer.y, 1.0f);
+    float distanceMask = smoothstep(targetDistance * 0.25f, targetDistance, distanceToPlane) * (1.0f - smoothstep(targetDistance * 2.15f, targetDistance * 2.85f, distanceToPlane));
+    float topScreenMask = 1.0f - smoothstep(0.35f, 0.98f, uv.y);
+    float cloudMask = smoothstep(0.42f, 0.72f, noiseValue);
+    float alpha = saturate(cloudMask * topScreenMask * distanceMask * gCloudPass.farCloudLayerExtra.x);
+    return float4(gCloudPass.farCloudColor.rgb * alpha, alpha);
+}
+
+float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
+{
+    if (gCloudPass.cloudSeaLayer.x <= 0.5f || gCloudPass.cloudSeaLayer.w <= 0.0001f || depth < 0.99999f || rayDirection.y <= 0.002f)
+    {
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    float planeY = gCloudPass.cameraPosition.y + gCloudPass.cloudSeaLayer.z;
+    float distanceToPlane = (planeY - gCloudPass.cameraPosition.y) / rayDirection.y;
+    if (distanceToPlane <= 0.0f)
+    {
+        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+    }
+
+    float3 seaPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
+    float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
+    float2 forward2 = -flowDirection;
+    float2 right2 = float2(forward2.y, -forward2.x);
+    float2 local = seaPosition.xz - gCloudPass.cameraPosition.xz;
+    float forwardDistance = dot(local, forward2);
+    float rightDistance = dot(local, right2);
+
+    float seaDistance = max(gCloudPass.cloudSeaLayer.y, 1.0f);
+    float seaWidth = max(gCloudPass.cloudSeaShape.x, 1.0f);
+    float seaDepth = max(gCloudPass.cloudSeaShape.y, 1.0f);
+    float depthMask = smoothstep(seaDistance - seaDepth * 0.55f, seaDistance, forwardDistance) * (1.0f - smoothstep(seaDistance + seaDepth * 0.45f, seaDistance + seaDepth * 0.75f, forwardDistance));
+    float widthMask = 1.0f - smoothstep(seaWidth * 0.42f, seaWidth * 0.50f, abs(rightDistance));
+    float2 cameraRelativeUv = float2(rightDistance, forwardDistance);
+    float2 noiseSource = lerp(seaPosition.xz, cameraRelativeUv, saturate(gCloudPass.cloudSeaFlow.y));
+    float noiseScale = max(gCloudPass.cloudSeaShape.z, 0.0001f);
+    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudTime * gCloudPass.cloudSeaFlow.x * noiseScale;
+    float noiseA = FBM(float3(seaUv, 11.23f));
+    float noiseB = FBM(float3(seaUv * 2.41f + 23.7f, 4.91f));
+    float noiseValue = noiseA * 0.68f + noiseB * 0.32f;
+    float softness = lerp(0.06f, 0.28f, saturate(gCloudPass.cloudSeaShape.w));
+    float cloudMask = smoothstep(0.50f - softness, 0.50f + softness, noiseValue);
+    float horizonMask = 1.0f - smoothstep(0.60f, 1.0f, uv.y);
+    float alpha = saturate(cloudMask * depthMask * widthMask * horizonMask * gCloudPass.cloudSeaLayer.w);
+    return float4(gCloudPass.cloudSeaColor.rgb * alpha, alpha);
+}
+
+float4 ComputeCloudNoiseDebug(float2 uv, float3 rayDirection, float depth)
+{
+    float4 sea = ComputeCloudSeaLayer(uv, rayDirection, depth);
+    float4 farCloud = ComputeFarCloudLayer(uv, rayDirection, depth);
+    return float4(farCloud.a, sea.a, saturate(farCloud.a + sea.a), 1.0f);
 }
 
 float ComputeLightTransmittance(
@@ -267,6 +383,12 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
 
     float4 farWorld = ReconstructWorldPosition(input.texcoord, 1.0f);
     float3 rayDirection = normalize(farWorld.xyz - gCloudPass.cameraPosition);
+    float4 farCloud = ComputeFarCloudLayer(input.texcoord, rayDirection, depth);
+    float4 cloudSea = ComputeCloudSeaLayer(input.texcoord, rayDirection, depth);
+    float4 distantCloud = CompositePremultiplied(cloudSea, farCloud);
+    if (gCloudPass.debugViewMode == 4u) { return farCloud; }
+    if (gCloudPass.debugViewMode == 7u) { return cloudSea; }
+    if (gCloudPass.debugViewMode == 6u) { return ComputeCloudNoiseDebug(input.texcoord, rayDirection, depth); }
 
     float3 boxMin = gCloudPass.volumeCenter - gCloudPass.volumeHalfExtents;
     float3 boxMax = gCloudPass.volumeCenter + gCloudPass.volumeHalfExtents;
@@ -275,7 +397,7 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
     float boxFar = 0.0f;
     if (!RayBoxIntersect(gCloudPass.cameraPosition, rayDirection, boxMin, boxMax, boxNear, boxFar))
     {
-        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+        return (gCloudPass.debugViewMode == 5u) ? float4(0.0f, 0.0f, 0.0f, 0.0f) : distantCloud;
     }
 
     float marchStart = max(boxNear, 0.0f);
@@ -290,7 +412,7 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
 
     if (marchEnd <= marchStart)
     {
-        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+        return (gCloudPass.debugViewMode == 5u) ? float4(0.0f, 0.0f, 0.0f, 0.0f) : distantCloud;
     }
 
     float stepScale = 1.0f;
@@ -302,7 +424,7 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
     float stepSize = (marchEnd - marchStart) / float(viewSteps);
     if (stepSize <= 0.0f)
     {
-        return float4(0.0f, 0.0f, 0.0f, 0.0f);
+        return (gCloudPass.debugViewMode == 5u) ? float4(0.0f, 0.0f, 0.0f, 0.0f) : distantCloud;
     }
 
     float3 lightDirection = normalize(-gCloudPass.sunDirection);
@@ -359,5 +481,10 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
         return float4(lightView.xxx, 1.0f);
     }
 
-    return float4(accumulatedColor, finalAlpha);
+    if (gCloudPass.debugViewMode == 5u)
+    {
+        return float4(accumulatedColor, finalAlpha);
+    }
+    float distantAlpha = distantCloud.a * (1.0f - finalAlpha);
+    return float4(accumulatedColor + distantCloud.rgb * (1.0f - finalAlpha), saturate(finalAlpha + distantAlpha));
 }

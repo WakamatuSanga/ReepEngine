@@ -317,16 +317,22 @@ void VolumetricCloudPass::UpdateCompositeConstantBuffer()
     const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
     const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
     compositeConstantData_->outputTextureSize = { static_cast<float>(renderWidth), static_cast<float>(renderHeight) };
+    const bool preserveAnyGameplayObject = preservePlayerFromLowResCloud_ || preserveEnemyFromLowResCloud_ || preserveBulletFromLowResCloud_;
     compositeConstantData_->enableDepthAwareUpsample = IsDepthAwareUpsampleEnabled() ? 1u : 0u;
+    compositeConstantData_->enableGameplayObjectPreserve = (enableGameplayObjectPreserve_ && preserveAnyGameplayObject) ? 1u : 0u;
+    compositeConstantData_->enableCloudDepthTest = enableCloudDepthTest_ ? 1u : 0u;
+    compositeConstantData_->enableGameplayObjectMask = enableGameplayObjectMask_ ? 1u : 0u;
     compositeConstantData_->depthThreshold = depthThreshold_;
-    compositeConstantData_->padding = {};
+    compositeConstantData_->cloudOverGameplayObjectStrength = std::clamp(cloudOverGameplayObjectStrength_, 0.0f, 1.0f);
+    compositeConstantData_->foregroundCloudAlphaReduction = std::clamp(foregroundCloudAlphaReduction_, 0.0f, 1.0f);
+    compositeConstantData_->compositeDebugMode = static_cast<uint32_t>((std::max)(cloudCompositeDebugMode_, 0));
 }
 
 void VolumetricCloudPass::DrawImGui()
 {
 #ifdef USE_IMGUI
     ImGui::SeparatorText("雲の軽量化設定 (GPU Optimization)");
-    ImGui::TextWrapped("まずは「バランス」を使ってください。重い場合は「軽量」、画質比較をしたい場合は「比較用Direct描画」を使います。");
+    ImGui::TextWrapped("まずは「バランス」を使ってください。PlayerやEnemyを低解像度にしたくない場合はGame Mode Render Scaleを1.0に保ち、Cloud Resolution Scaleだけを下げます。");
 
     auto applyPreset = [&](bool lowResolution, float resolutionScale, bool depthAware, int renderInterval, float viewScale, float lightScale) {
         useLowResolutionCloud_ = lowResolution;
@@ -381,7 +387,7 @@ void VolumetricCloudPass::DrawImGui()
         cloudResolutionScale_ = scales[scaleIndex];
         recreateCloudBufferRequested_ = true;
     }
-    ImGui::TextWrapped("0.5は半分、0.25は4分の1の解像度で描画します。小さいほど軽くなります。");
+    ImGui::TextWrapped("Cloud Resolution Scaleは雲だけを低解像度で描画します。Player / Enemy / Bulletは低解像度になりません。通常はこちらを下げて軽量化してください。");
     if (ImGui::Button("雲バッファを再作成 (Recreate Cloud Buffer)")) {
         recreateCloudBufferRequested_ = true;
     }
@@ -400,7 +406,7 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::SliderInt("雲の更新間隔 (Cloud Render Interval)", &cloudRenderInterval_, 1, 6);
     ImGui::TextWrapped("1は毎フレーム更新、2は2フレームに1回更新です。大きいほど軽くなりますが、カメラ移動時にカクつきやすくなります。");
 
-    const char* debugViewNames[] = { "Final", "Alpha only", "Density only", "Light only" };
+    const char* debugViewNames[] = { "Final", "Alpha only", "Density only", "Light only", "Far Cloud only", "Volumetric only", "Noise / UV", "Cloud Sea only" };
     int debugView = static_cast<int>(debugViewMode_);
     if (ImGui::Combo("雲のデバッグ表示 (Cloud Debug Mode)", &debugView, debugViewNames, IM_ARRAYSIZE(debugViewNames))) {
         debugViewMode_ = static_cast<DebugViewMode>(debugView);
@@ -447,7 +453,7 @@ void VolumetricCloudPass::DrawImGui()
 
     ImGui::SeparatorText("カメラ相対の雲範囲 (Camera Relative Cloud Volume)");
     ImGui::TextWrapped("Cloud Near Distanceを負にすると、カメラの少し後ろまで雲を描けます。Y方向は雲レイヤー設定でカメラより上へ逃がし、初期状態では雲の下で戦えるようにします。");
-    if (ImGui::Button("レールシューティング用")) {
+    auto applyUnderCloudPreset = [&]() {
         cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
         invertCloudFlowDirection_ = false;
         useCameraRelativeCloudVolume_ = true;
@@ -457,25 +463,55 @@ void VolumetricCloudPass::DrawImGui()
         cloudBehindCameraDistance_ = 5.0f;
         cloudFarDistance_ = 200.0f;
         cloudVolumeWidth_ = 200.0f;
-        cloudVolumeHeight_ = 80.0f;
+        cloudVolumeHeight_ = 90.0f;
         cloudVolumeDepth_ = 205.0f;
         cloudHeightOffset_ = 0.0f;
-        cameraToCloudBottom_ = 22.0f;
-        cloudLayerThickness_ = 80.0f;
-        cloudBottomFade_ = 20.0f;
+        cameraToCloudBottom_ = 16.0f;
+        cloudLayerThickness_ = 90.0f;
+        cloudBottomFade_ = 40.0f;
         cloudTopFade_ = 20.0f;
         enableNearCameraCloudFade_ = true;
         nearFadeStart_ = 0.0f;
-        nearFadeEnd_ = 10.0f;
+        nearFadeEnd_ = 20.0f;
         nearDensityScale_ = 0.3f;
         enableCloudBottomShaping_ = true;
-        cloudBottomFlattenStrength_ = 0.5f;
+        cloudBottomFlattenStrength_ = 0.15f;
         cloudBottomSmoothness_ = 0.5f;
-        cloudBottomNoiseSuppression_ = 0.4f;
+        cloudBottomNoiseSuppression_ = 0.15f;
         cloudBottomDensity_ = 0.8f;
+        cloudBottomUndulationStrength_ = 8.0f;
+        cloudBottomUndulationScale_ = 0.02f;
+        cloudBoundarySoftness_ = 0.5f;
+        cloudDetailNoiseNearBottom_ = 0.4f;
+        enableVolumeEdgeFade_ = true;
+        volumeEdgeFadeDistance_ = 20.0f;
+        enableFarCloudLayer_ = true;
+        farCloudDistance_ = 250.0f;
+        farCloudHeight_ = 40.0f;
+        farCloudScale_ = 0.012f;
+        farCloudAlpha_ = 0.45f;
+        farCloudFlowSpeed_ = 0.35f;
+        enableCloudSeaLayer_ = true; cloudSeaDistance_ = 180.0f; cloudSeaHeight_ = 25.0f; cloudSeaAlpha_ = 0.35f;
+        cloudSeaFlowSpeed_ = 10.0f; cloudSeaNoiseScale_ = 0.02f; cloudSeaSoftness_ = 0.5f;
+    };
+    if (ImGui::Button("雲の下で戦う 改良版")) {
+        applyUnderCloudPreset();
     }
     ImGui::SameLine();
+    if (ImGui::Button("雲海強め")) {
+        applyUnderCloudPreset();
+        enableFarCloudLayer_ = true;
+        farCloudAlpha_ = 0.55f;
+        farCloudDistance_ = 300.0f;
+        enableCloudSeaLayer_ = true; cloudSeaAlpha_ = 0.55f; cloudSeaDistance_ = 220.0f; cloudSeaDepth_ = 320.0f;
+        cloudFarDistance_ = 250.0f;
+        useLowResolutionCloud_ = true;
+        enableDepthAwareUpsample_ = true;
+        cloudResolutionScale_ = 0.25f;
+        recreateCloudBufferRequested_ = true;
+    }
     if (ImGui::Button("雲の中を突っ切る用")) {
+        enableCloudSeaLayer_ = true;
         cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
         invertCloudFlowDirection_ = false;
         useCameraRelativeCloudVolume_ = true;
@@ -491,7 +527,7 @@ void VolumetricCloudPass::DrawImGui()
         cloudLayerThickness_ = 90.0f;
         cloudBottomFade_ = 20.0f;
         cloudTopFade_ = 20.0f;
-        cloudBaseFlowSpeed_ = (std::max)(cloudBaseFlowSpeed_, 0.55f);
+        cloudBaseFlowSpeed_ = (std::max)(cloudBaseFlowSpeed_, 10.0f);
         enableNearCameraCloudFade_ = true;
         nearFadeStart_ = 0.0f;
         nearFadeEnd_ = 12.0f;
@@ -501,6 +537,8 @@ void VolumetricCloudPass::DrawImGui()
         cloudBottomSmoothness_ = 0.25f;
         cloudBottomNoiseSuppression_ = 0.15f;
         cloudBottomDensity_ = 0.95f;
+        enableFarCloudLayer_ = true;
+        farCloudAlpha_ = 0.35f;
     }
     ImGui::Checkbox("カメラ相対雲ボリュームを使う (Use Camera Relative Volume)", &useCameraRelativeCloudVolume_);
     ImGui::DragFloat("雲の開始距離 (Cloud Near Distance)", &cloudNearDistance_, 0.5f, -100.0f, 100.0f, "%.1f");
@@ -514,8 +552,8 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::SeparatorText("雲レイヤー設定 (Cloud Layer)");
     ImGui::TextWrapped("初期状態では「カメラを雲の下に置く」をONにしてください。雲の底面が画面上側や奥側に見え、プレイヤーや弾が雲に埋もれにくくなります。");
     ImGui::Checkbox("カメラを雲の下に置く (Keep Camera Below Clouds)", &keepCameraBelowClouds_);
-    ImGui::DragFloat("カメラから雲底までの距離 (Camera To Cloud Bottom)", &cameraToCloudBottom_, 0.5f, 0.0f, 200.0f, "%.1f");
-    ImGui::TextWrapped("Camera To Cloud Bottom を下げると、雲が画面内に入りやすくなります。下げすぎると開幕から雲の中になります。");
+    ImGui::DragFloat("カメラから雲底までの距離 (Camera To Cloud Bottom)", &cameraToCloudBottom_, 0.25f, 0.0f, 200.0f, "%.1f");
+    ImGui::TextWrapped("Camera To Cloud Bottom を下げると、雲が画面内に入りやすくなります。雲の下で戦う場合は14〜18付近が目安です。下げすぎると開幕から雲の中になります。");
     ImGui::DragFloat("雲レイヤー厚み (Cloud Layer Thickness)", &cloudLayerThickness_, 1.0f, 1.0f, 300.0f, "%.1f");
     ImGui::DragFloat("雲の底面フェード (Cloud Bottom Fade)", &cloudBottomFade_, 0.5f, 0.1f, 100.0f, "%.1f");
     ImGui::DragFloat("雲の上面フェード (Cloud Top Fade)", &cloudTopFade_, 0.5f, 0.1f, 100.0f, "%.1f");
@@ -529,7 +567,13 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::SliderFloat("雲底のなめらかさ (Cloud Bottom Smoothness)", &cloudBottomSmoothness_, 0.0f, 1.0f, "%.2f");
     ImGui::SliderFloat("雲底のノイズ抑制 (Cloud Bottom Noise Suppression)", &cloudBottomNoiseSuppression_, 0.0f, 1.0f, "%.2f");
     ImGui::SliderFloat("雲底の濃さ (Cloud Bottom Density)", &cloudBottomDensity_, 0.0f, 1.5f, "%.2f");
-    ImGui::TextWrapped("雲底のノイズ抑制を上げると、下から見た時のもわもわ感が減ります。上げすぎると平らに見えすぎるため、0.3〜0.5付近が目安です。");
+    ImGui::SliderFloat("雲底のうねり (Cloud Bottom Undulation Strength)", &cloudBottomUndulationStrength_, 0.0f, 24.0f, "%.1f");
+    ImGui::DragFloat("雲底のうねりスケール (Cloud Bottom Undulation Scale)", &cloudBottomUndulationScale_, 0.001f, 0.001f, 0.1f, "%.3f");
+    ImGui::SliderFloat("雲境界の柔らかさ (Cloud Boundary Softness)", &cloudBoundarySoftness_, 0.0f, 1.0f, "%.2f");
+    ImGui::SliderFloat("雲底付近のディテール (Cloud Detail Noise Near Bottom)", &cloudDetailNoiseNearBottom_, 0.0f, 1.0f, "%.2f");
+    ImGui::TextWrapped("Bottom Undulationは雲底を少し上下させ、断面っぽさを減らします。Bottom Flattenを上げすぎると雲底が平らに見えます。");
+    ImGui::Checkbox("Volume端フェードを使う (Enable Volume Edge Fade)", &enableVolumeEdgeFade_);
+    ImGui::DragFloat("Volume端フェード距離 (Volume Edge Fade Distance)", &volumeEdgeFadeDistance_, 0.5f, 0.1f, 100.0f, "%.1f");
 
     ImGui::SeparatorText("近距離フェード (Near Camera Fade)");
     ImGui::TextWrapped("近くが白くなりすぎる場合はNear Fadeを強めてください。カメラすぐ近くを薄くし、少し先で通常濃度へ戻します。");
@@ -538,6 +582,7 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::DragFloat("近距離フェード終了 (Near Fade End)", &nearFadeEnd_, 0.1f, 0.1f, 200.0f, "%.1f");
     ImGui::SliderFloat("近距離濃度倍率 (Near Density Scale)", &nearDensityScale_, 0.0f, 1.0f, "%.2f");
 
+    DrawQualityImGuiControls();
     ImGui::Checkbox("雲バッファのプレビュー表示 (Show Cloud Buffer Preview)", &showCloudBufferPreview_);
     if (showCloudBufferPreview_ && cloudColorResource_) {
         const float previewWidth = 240.0f;

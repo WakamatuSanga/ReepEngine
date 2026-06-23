@@ -286,6 +286,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassQuality.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp" />
     <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp" />
     <ClCompile Include="engine\Core\WinApp.cpp" />

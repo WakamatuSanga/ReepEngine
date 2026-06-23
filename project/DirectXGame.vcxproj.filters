@@ -441,6 +441,9 @@
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassQuality.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

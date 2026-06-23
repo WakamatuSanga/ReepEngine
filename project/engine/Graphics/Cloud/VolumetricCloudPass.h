@@ -34,6 +34,10 @@ public:
         AlphaOnly = 1,
         DensityOnly = 2,
         LightOnly = 3,
+        FarCloudOnly = 4,
+        VolumetricOnly = 5,
+        NoiseDebug = 6,
+        CloudSeaOnly = 7,
     };
 
     enum class ForceMode : uint32_t {
@@ -119,14 +123,28 @@ private:
         Vector4 cloudLayerFade;
         Vector4 cloudBottomShaping;
         Vector4 cloudBottomShapingExtra;
+        Vector4 cloudBottomUndulation;
+        Vector4 volumeEdgeFade;
+        Vector4 farCloudLayer;
+        Vector4 farCloudLayerExtra;
+        Vector4 farCloudColor;
+        Vector4 cloudSeaLayer;
+        Vector4 cloudSeaShape;
+        Vector4 cloudSeaFlow;
+        Vector4 cloudSeaColor;
     };
 
     struct CloudCompositeConstants {
         Vector2 cloudTextureSize;
         Vector2 outputTextureSize;
         uint32_t enableDepthAwareUpsample = 0;
+        uint32_t enableGameplayObjectPreserve = 1;
+        uint32_t enableCloudDepthTest = 1;
+        uint32_t enableGameplayObjectMask = 0;
         float depthThreshold = 0.005f;
-        Vector2 padding{};
+        float cloudOverGameplayObjectStrength = 0.2f;
+        float foregroundCloudAlphaReduction = 0.8f;
+        uint32_t compositeDebugMode = 0;
     };
 
     struct ResolvedCloudVolume {
@@ -142,6 +160,9 @@ private:
     void CreateConstantBuffer();
     void CreateCompositeConstantBuffer();
     void UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume, uint32_t renderWidth, uint32_t renderHeight);
+    void UpdateQualityConstantBuffer();
+    void ApplyUserPreferredCloudPreset();
+    void DrawQualityImGuiControls();
     void UpdateCompositeConstantBuffer();
     void RenderDirect(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds);
     void RenderLowResolution(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds);
@@ -190,6 +211,12 @@ private:
     bool useLowResolutionCloud_ = true;
     bool enableCloudComposite_ = true;
     bool enableDepthAwareUpsample_ = false;
+    bool enableGameplayObjectPreserve_ = true;
+    bool preservePlayerFromLowResCloud_ = true;
+    bool preserveEnemyFromLowResCloud_ = true;
+    bool preserveBulletFromLowResCloud_ = true;
+    bool enableCloudDepthTest_ = true;
+    bool enableGameplayObjectMask_ = false;
     bool diagnosticDisableCloudComposite_ = false;
     bool diagnosticDisableDepthAwareUpsample_ = false;
     bool showCloudBufferPreview_ = false;
@@ -201,6 +228,11 @@ private:
     bool enableNearCameraCloudFade_ = true;
     bool keepCameraBelowClouds_ = true;
     bool enableCloudBottomShaping_ = true;
+    bool enableVolumeEdgeFade_ = true;
+    bool enableFarCloudLayer_ = true;
+    bool farCloudUseProceduralNoise_ = true;
+    bool enableCloudSeaLayer_ = true;
+    bool cloudSeaUseCameraRelative_ = true;
     bool recreateCloudBufferRequested_ = false;
     bool hasValidCloudBuffer_ = false;
     bool cloudColorSrvAllocated_ = false;
@@ -208,6 +240,9 @@ private:
     Vector3 currentCloudFlowDirection_{ 0.0f, 0.0f, -1.0f };
     float cloudResolutionScale_ = 0.5f;
     float depthThreshold_ = 0.005f;
+    float cloudOverGameplayObjectStrength_ = 0.2f;
+    float foregroundCloudAlphaReduction_ = 0.8f;
+    int cloudCompositeDebugMode_ = 0;
     float viewStepScale_ = 1.0f;
     float lightStepScale_ = 1.0f;
     float cloudBaseFlowSpeed_ = 10.0f;
@@ -220,17 +255,37 @@ private:
     float cloudVolumeWidth_ = 200.0f;
     float cloudVolumeHeight_ = 80.0f;
     float cloudVolumeDepth_ = 205.0f;
-    float cameraToCloudBottom_ = 22.0f;
-    float cloudLayerThickness_ = 80.0f;
-    float cloudBottomFade_ = 20.0f;
+    float cameraToCloudBottom_ = 16.0f;
+    float cloudLayerThickness_ = 90.0f;
+    float cloudBottomFade_ = 40.0f;
     float cloudTopFade_ = 20.0f;
     float nearFadeStart_ = 0.0f;
-    float nearFadeEnd_ = 10.0f;
+    float nearFadeEnd_ = 20.0f;
     float nearDensityScale_ = 0.3f;
-    float cloudBottomFlattenStrength_ = 0.5f;
+    float cloudBottomFlattenStrength_ = 0.15f;
     float cloudBottomSmoothness_ = 0.5f;
-    float cloudBottomNoiseSuppression_ = 0.4f;
+    float cloudBottomNoiseSuppression_ = 0.15f;
     float cloudBottomDensity_ = 0.8f;
+    float cloudBottomUndulationStrength_ = 8.0f;
+    float cloudBottomUndulationScale_ = 0.02f;
+    float cloudBoundarySoftness_ = 0.5f;
+    float cloudDetailNoiseNearBottom_ = 0.4f;
+    float volumeEdgeFadeDistance_ = 20.0f;
+    float farCloudDistance_ = 250.0f;
+    float farCloudHeight_ = 40.0f;
+    float farCloudScale_ = 0.012f;
+    float farCloudAlpha_ = 0.45f;
+    float farCloudFlowSpeed_ = 0.35f;
+    float cloudSeaDistance_ = 180.0f;
+    float cloudSeaHeight_ = 25.0f;
+    float cloudSeaWidth_ = 360.0f;
+    float cloudSeaDepth_ = 260.0f;
+    float cloudSeaAlpha_ = 0.35f;
+    float cloudSeaFlowSpeed_ = 10.0f;
+    float cloudSeaNoiseScale_ = 0.02f;
+    float cloudSeaSoftness_ = 0.5f;
+    Vector4 cloudSeaColor_{ 0.90f, 0.95f, 1.0f, 1.0f };
+    char farCloudTexturePath_[128] = "procedural";
     int cloudRenderInterval_ = 1;
     uint32_t frameCounter_ = 0;
     uint32_t renderedFrameCount_ = 0;
