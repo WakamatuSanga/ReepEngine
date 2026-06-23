@@ -437,9 +437,11 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->padding0 = 0.0f;
     constantData_->padding1 = 0.0f;
     constantData_->padding2 = 0.0f;
+    const uint32_t depthWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
+    const uint32_t depthHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
     constantData_->renderInfo = {
-        static_cast<float>(WinApp::kClientWidth),
-        static_cast<float>(WinApp::kClientHeight),
+        static_cast<float>(depthWidth),
+        static_cast<float>(depthHeight),
         static_cast<float>(renderWidth),
         static_cast<float>(renderHeight)
     };
@@ -477,12 +479,7 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         std::clamp(cloudBottomSmoothness_, 0.0f, 1.0f),
         std::clamp(cloudBottomNoiseSuppression_, 0.0f, 1.0f)
     };
-    constantData_->cloudBottomShapingExtra = {
-        std::clamp(cloudBottomDensity_, 0.0f, 2.0f),
-        0.0f,
-        0.0f,
-        0.0f
-    };
+    UpdateQualityConstantBuffer();
 }
 
 Vector3 VolumetricCloudPass::Normalize(const Vector3& value)

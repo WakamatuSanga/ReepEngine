@@ -100,6 +100,7 @@ void RuntimeModeController::DrawImGui() {
     ImGui::Text("Frame Index: %llu", static_cast<unsigned long long>(timer.GetFrameIndex()));
 
     ImGui::SeparatorText("Game Mode Render Scale");
+    ImGui::TextWrapped("Game Mode Render Scale はゲーム画面全体の内部解像度です。Player / Enemy / Bullet も低解像度になります。雲だけ軽くしたい場合は Volumetric Cloud の Cloud Resolution Scale を下げてください。");
     ImGui::Checkbox("Game Mode描画倍率を使う (Use Game Mode Render Scale)", &useGameModeRenderScale_);
     const char* scaleNames[] = { "1.0", "0.75", "0.5", "0.25" };
     const float scales[] = { 1.0f, 0.75f, 0.5f, 0.25f };
@@ -116,6 +117,10 @@ void RuntimeModeController::DrawImGui() {
         useGameModeRenderScale_ = true;
         gameModeRenderScale_ = 1.0f;
     }
+    ImGui::SameLine();
+    if (ImGui::Button("画面品質優先 (Screen Quality)")) { useGameModeRenderScale_ = true; gameModeRenderScale_ = 1.0f; }
+    ImGui::SameLine();
+    if (ImGui::Button("全体軽量 (Overall Light)")) { useGameModeRenderScale_ = true; gameModeRenderScale_ = 0.75f; }
     ImGui::Checkbox("Game Mode軽量プリセット自動適用 (Auto Apply Game Mode Performance Preset)", &autoApplyGameModePerformancePreset_);
     ImGui::Text("Game Mode Internal Resolution: %u x %u",
         performanceStats_.renderTextureWidth,
