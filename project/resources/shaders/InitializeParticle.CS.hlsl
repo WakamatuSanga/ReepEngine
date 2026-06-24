@@ -31,8 +31,15 @@ struct ParticleType
     float frameSpeed;
     uint loopAtlas;
     uint textureIndex;
+    uint physicsFlags;
+    float collisionPlaneY;
+    float restitution;
+    float friction;
+    float bounceVelocityThreshold;
+    uint maxBounceCount;
+    float collisionDamping;
     uint padding1;
-    float4 materialPadding;
+    float padding2;
 };
 
 struct InitializeInfo
@@ -158,7 +165,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         deadParticle.lifeTime = 0.0f;
         deadParticle.alive = 0u;
         deadParticle.type = gInitializeInfo.particleTypeIndex;
-        deadParticle.padding = 0.0f;
+        deadParticle.padding = asfloat(0u);
         gParticles[particleIndex] = deadParticle;
         return;
     }
@@ -197,7 +204,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.lifeTime = useRandom ? RandomRange(baseSeed ^ 0x85ebca6bu, particleType.lifeTimeMin, particleType.lifeTimeMax) : lerp(particleType.lifeTimeMin, particleType.lifeTimeMax, lifeRate);
     particle.alive = 1u;
     particle.type = gInitializeInfo.particleTypeIndex;
-    particle.padding = 0.0f;
+    particle.padding = asfloat(0u);
 
     gParticles[particleIndex] = particle;
 }

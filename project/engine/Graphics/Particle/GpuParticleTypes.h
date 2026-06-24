@@ -25,6 +25,9 @@ inline constexpr uint32_t kParticleDebugViewForceDiscardAll = 6;
 inline constexpr uint32_t kParticleDebugViewParticleColor = 7;
 inline constexpr uint32_t kParticleDebugViewTextureAlphaTransparent = 8;
 inline constexpr uint32_t kParticleDebugViewProceduralCircleMask = 9;
+inline constexpr uint32_t kParticlePhysicsEnable = 1u << 0;
+inline constexpr uint32_t kParticlePhysicsPlaneCollision = 1u << 1;
+inline constexpr uint32_t kParticlePhysicsKillBelowPlane = 1u << 2;
 
 struct Particle {
 	Vector3 translate;
@@ -60,6 +63,15 @@ struct ParticleType {
 	uint32_t frameCount = 1;
 	float frameSpeed = 8.0f;
 	bool loopAtlas = true;
+	bool enablePhysics = false;
+	bool enablePlaneCollision = false;
+	float collisionPlaneY = 0.0f;
+	float restitution = 0.45f;
+	float friction = 0.65f;
+	float bounceVelocityThreshold = 0.2f;
+	uint32_t maxBounceCount = 2;
+	bool killBelowPlane = false;
+	float collisionDamping = 1.0f;
 };
 
 struct ParticleTypeForGPU {
@@ -81,10 +93,17 @@ struct ParticleTypeForGPU {
 	float frameSpeed;
 	uint32_t loopAtlas;
 	uint32_t textureIndex;
+	uint32_t physicsFlags;
+	float collisionPlaneY;
+	float restitution;
+	float friction;
+	float bounceVelocityThreshold;
+	uint32_t maxBounceCount;
+	float collisionDamping;
 	uint32_t padding1;
-	float materialPadding[4];
+	float padding2;
 };
-static_assert(sizeof(ParticleTypeForGPU) == 128, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
+static_assert(sizeof(ParticleTypeForGPU) == 144, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, endColor) == 32, "endColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, drag) == 76, "drag offset must match HLSL ParticleType.");
@@ -95,6 +114,10 @@ static_assert(offsetof(ParticleTypeForGPU, frameCount) == 92, "frameCount offset
 static_assert(offsetof(ParticleTypeForGPU, frameSpeed) == 96, "frameSpeed offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, loopAtlas) == 100, "loopAtlas offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, textureIndex) == 104, "textureIndex offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, physicsFlags) == 108, "physicsFlags offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, collisionPlaneY) == 112, "collisionPlaneY offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, maxBounceCount) == 128, "maxBounceCount offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, collisionDamping) == 132, "collisionDamping offset must match HLSL ParticleType.");
 
 enum class EmitterShape : uint32_t {
 	Sphere = 0,

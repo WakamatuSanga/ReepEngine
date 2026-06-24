@@ -31,8 +31,15 @@ struct ParticleType
     float frameSpeed;
     uint loopAtlas;
     uint textureIndex;
+    uint physicsFlags;
+    float collisionPlaneY;
+    float restitution;
+    float friction;
+    float bounceVelocityThreshold;
+    uint maxBounceCount;
+    float collisionDamping;
     uint padding1;
-    float4 materialPadding;
+    float padding2;
 };
 
 struct PerView
