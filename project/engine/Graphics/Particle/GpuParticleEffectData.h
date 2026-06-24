@@ -46,6 +46,11 @@ inline void NormalizeParticleEffectType(ParticleType& type) {
 	type.speedMin = (std::max)(type.speedMin, 0.0f);
 	type.speedMax = (std::max)(type.speedMax, type.speedMin);
 	type.drag = (std::max)(type.drag, 0.0f);
+	type.restitution = std::clamp(type.restitution, 0.0f, 1.0f);
+	type.friction = std::clamp(type.friction, 0.0f, 1.0f);
+	type.bounceVelocityThreshold = (std::max)(type.bounceVelocityThreshold, 0.0f);
+	type.maxBounceCount = std::clamp(type.maxBounceCount, 0u, 255u);
+	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
 	type.atlasRows = std::clamp(type.atlasRows, 1u, 64u);
 	type.atlasColumns = std::clamp(type.atlasColumns, 1u, 64u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);

@@ -566,6 +566,42 @@ private:
 					return false;
 				}
 				hasDrag = true;
+			} else if (key == "enablePhysics") {
+				if (!ParseBool(type.enablePhysics)) {
+					return false;
+				}
+			} else if (key == "enablePlaneCollision") {
+				if (!ParseBool(type.enablePlaneCollision)) {
+					return false;
+				}
+			} else if (key == "collisionPlaneY") {
+				if (!ParseFloat(type.collisionPlaneY)) {
+					return false;
+				}
+			} else if (key == "restitution") {
+				if (!ParseFloat(type.restitution)) {
+					return false;
+				}
+			} else if (key == "friction") {
+				if (!ParseFloat(type.friction)) {
+					return false;
+				}
+			} else if (key == "bounceVelocityThreshold") {
+				if (!ParseFloat(type.bounceVelocityThreshold)) {
+					return false;
+				}
+			} else if (key == "maxBounceCount") {
+				if (!ParseUint(type.maxBounceCount)) {
+					return false;
+				}
+			} else if (key == "killBelowPlane") {
+				if (!ParseBool(type.killBelowPlane)) {
+					return false;
+				}
+			} else if (key == "collisionDamping") {
+				if (!ParseFloat(type.collisionDamping)) {
+					return false;
+				}
 			} else if (key == "useAtlas") {
 				if (!ParseBool(type.useAtlas)) {
 					return false;
@@ -795,6 +831,15 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"speedMax\": " << type.speedMax << ",\n";
 			stream << "      \"gravity\": " << type.gravity << ",\n";
 			stream << "      \"drag\": " << type.drag << ",\n";
+			stream << "      \"enablePhysics\": " << ToJsonBool(type.enablePhysics) << ",\n";
+			stream << "      \"enablePlaneCollision\": " << ToJsonBool(type.enablePlaneCollision) << ",\n";
+			stream << "      \"collisionPlaneY\": " << type.collisionPlaneY << ",\n";
+			stream << "      \"restitution\": " << type.restitution << ",\n";
+			stream << "      \"friction\": " << type.friction << ",\n";
+			stream << "      \"bounceVelocityThreshold\": " << type.bounceVelocityThreshold << ",\n";
+			stream << "      \"maxBounceCount\": " << type.maxBounceCount << ",\n";
+			stream << "      \"killBelowPlane\": " << ToJsonBool(type.killBelowPlane) << ",\n";
+			stream << "      \"collisionDamping\": " << type.collisionDamping << ",\n";
 			stream << "      \"useAtlas\": " << ToJsonBool(type.useAtlas) << ",\n";
 			stream << "      \"atlasRows\": " << type.atlasRows << ",\n";
 			stream << "      \"atlasColumns\": " << type.atlasColumns << ",\n";

@@ -241,6 +241,23 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	result.changed |= ImGui::DragFloat("速度 最大 (Speed Max)", &type.speedMax, 0.01f, 0.0f, 20.0f, "%.2f");
 	result.changed |= ImGui::DragFloat("重力 (Gravity)", &type.gravity, 0.01f, -20.0f, 20.0f, "%.2f");
 	result.changed |= ImGui::DragFloat("空気抵抗 (Drag)", &type.drag, 0.01f, 0.0f, 10.0f, "%.2f");
+	if (ImGui::TreeNodeEx("簡易物理設定 (Particle Physics)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextUnformatted("平面に当たった粒子を跳ね返し、横方向速度に摩擦をかけます。");
+		result.changed |= ImGui::Checkbox("物理演算を使う (Enable Physics)", &type.enablePhysics);
+		result.changed |= ImGui::Checkbox("平面衝突を使う (Enable Plane Collision)", &type.enablePlaneCollision);
+		result.changed |= ImGui::DragFloat("衝突平面Y (Collision Plane Y)", &type.collisionPlaneY, 0.01f, -100.0f, 100.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("跳ね返り係数 (Restitution)", &type.restitution, 0.01f, 0.0f, 1.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("摩擦 (Friction)", &type.friction, 0.01f, 0.0f, 1.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("停止しきい値 (Bounce Velocity Threshold)", &type.bounceVelocityThreshold, 0.01f, 0.0f, 10.0f, "%.2f");
+		int maxBounceCount = static_cast<int>(type.maxBounceCount);
+		if (ImGui::DragInt("最大跳ね返り回数 (Max Bounce Count)", &maxBounceCount, 0.05f, 0, 255)) {
+			type.maxBounceCount = static_cast<uint32_t>(std::clamp(maxBounceCount, 0, 255));
+			result.changed = true;
+		}
+		result.changed |= ImGui::Checkbox("平面下で消す (Kill Below Plane)", &type.killBelowPlane);
+		result.changed |= ImGui::DragFloat("衝突減衰 (Collision Damping)", &type.collisionDamping, 0.01f, 0.0f, 2.0f, "%.2f");
+		ImGui::TreePop();
+	}
 	result.changed |= ImGui::Checkbox("アトラス使用 (Use Atlas)", &type.useAtlas);
 	int atlasRows = static_cast<int>(type.atlasRows);
 	if (ImGui::DragInt("アトラス行数 (Atlas Rows)", &atlasRows, 0.05f, 1, 64)) {
@@ -266,6 +283,11 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	type.speedMin = (std::max)(type.speedMin, 0.0f);
 	type.speedMax = (std::max)(type.speedMax, type.speedMin);
 	type.drag = (std::max)(type.drag, 0.0f);
+	type.restitution = std::clamp(type.restitution, 0.0f, 1.0f);
+	type.friction = std::clamp(type.friction, 0.0f, 1.0f);
+	type.bounceVelocityThreshold = (std::max)(type.bounceVelocityThreshold, 0.0f);
+	type.maxBounceCount = std::clamp(type.maxBounceCount, 0u, 255u);
+	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
 	type.atlasRows = (std::max)(type.atlasRows, 1u);
 	type.atlasColumns = (std::max)(type.atlasColumns, 1u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);

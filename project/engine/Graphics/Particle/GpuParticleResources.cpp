@@ -190,11 +190,17 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.frameSpeed = (std::max)(source.frameSpeed, 0.0f);
 		destination.loopAtlas = source.loopAtlas ? 1u : 0u;
 		destination.textureIndex = static_cast<uint32_t>((std::max)(source.textureIndex, 0));
+		destination.physicsFlags = (source.enablePhysics ? GpuParticle::kParticlePhysicsEnable : 0u) |
+			(source.enablePlaneCollision ? GpuParticle::kParticlePhysicsPlaneCollision : 0u) |
+			(source.killBelowPlane ? GpuParticle::kParticlePhysicsKillBelowPlane : 0u);
+		destination.collisionPlaneY = source.collisionPlaneY;
+		destination.restitution = std::clamp(source.restitution, 0.0f, 1.0f);
+		destination.friction = std::clamp(source.friction, 0.0f, 1.0f);
+		destination.bounceVelocityThreshold = (std::max)(source.bounceVelocityThreshold, 0.0f);
+		destination.maxBounceCount = std::clamp(source.maxBounceCount, 0u, 255u);
+		destination.collisionDamping = std::clamp(source.collisionDamping, 0.0f, 2.0f);
 		destination.padding1 = 0u;
-		destination.materialPadding[0] = 0.0f;
-		destination.materialPadding[1] = 0.0f;
-		destination.materialPadding[2] = 0.0f;
-		destination.materialPadding[3] = 0.0f;
+		destination.padding2 = 0.0f;
 	}
 }
 

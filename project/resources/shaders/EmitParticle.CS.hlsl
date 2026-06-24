@@ -31,8 +31,15 @@ struct ParticleType
     float frameSpeed;
     uint loopAtlas;
     uint textureIndex;
+    uint physicsFlags;
+    float collisionPlaneY;
+    float restitution;
+    float friction;
+    float bounceVelocityThreshold;
+    uint maxBounceCount;
+    float collisionDamping;
     uint padding1;
-    float4 materialPadding;
+    float padding2;
 };
 
 struct EmitterInfo
@@ -161,7 +168,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.lifeTime = useRandom ? RandomRange(baseSeed ^ 0x85ebca6bu, particleType.lifeTimeMin, particleType.lifeTimeMax) : (particleType.lifeTimeMin + particleType.lifeTimeMax) * 0.5f;
     particle.alive = 1u;
     particle.type = gEmitterInfo.particleTypeIndex;
-    particle.padding = 0.0f;
+    particle.padding = asfloat(0u);
 
     gParticles[particleIndex] = particle;
 }
