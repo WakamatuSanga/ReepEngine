@@ -391,6 +391,10 @@ private:
 				if (!ParseVector3(emitter.position)) {
 					return false;
 				}
+			} else if (key == "direction") {
+				if (!ParseVector3(emitter.direction)) {
+					return false;
+				}
 			} else if (key == "radius") {
 				if (!ParseFloat(emitter.radius)) {
 					return false;
@@ -602,6 +606,22 @@ private:
 				if (!ParseFloat(type.collisionDamping)) {
 					return false;
 				}
+			} else if (key == "affectedByInfluenceField") {
+				if (!ParseBool(type.affectedByInfluenceField)) {
+					return false;
+				}
+			} else if (key == "influenceResponseScale") {
+				if (!ParseFloat(type.influenceResponseScale)) {
+					return false;
+				}
+			} else if (key == "affectedByRailFlow") {
+				if (!ParseBool(type.affectedByRailFlow)) {
+					return false;
+				}
+			} else if (key == "railFlowScale") {
+				if (!ParseFloat(type.railFlowScale)) {
+					return false;
+				}
 			} else if (key == "useAtlas") {
 				if (!ParseBool(type.useAtlas)) {
 					return false;
@@ -788,6 +808,9 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"position\": ";
 			WriteVector3(stream, emitter.position);
 			stream << ",\n";
+			stream << "      \"direction\": ";
+			WriteVector3(stream, emitter.direction);
+			stream << ",\n";
 			stream << "      \"radius\": " << emitter.radius << ",\n";
 			stream << "      \"shape\": ";
 			WriteJsonString(stream, ToEmitterShapeJsonString(emitter.shape));
@@ -840,6 +863,10 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"maxBounceCount\": " << type.maxBounceCount << ",\n";
 			stream << "      \"killBelowPlane\": " << ToJsonBool(type.killBelowPlane) << ",\n";
 			stream << "      \"collisionDamping\": " << type.collisionDamping << ",\n";
+			stream << "      \"affectedByInfluenceField\": " << ToJsonBool(type.affectedByInfluenceField) << ",\n";
+			stream << "      \"influenceResponseScale\": " << type.influenceResponseScale << ",\n";
+			stream << "      \"affectedByRailFlow\": " << ToJsonBool(type.affectedByRailFlow) << ",\n";
+			stream << "      \"railFlowScale\": " << type.railFlowScale << ",\n";
 			stream << "      \"useAtlas\": " << ToJsonBool(type.useAtlas) << ",\n";
 			stream << "      \"atlasRows\": " << type.atlasRows << ",\n";
 			stream << "      \"atlasColumns\": " << type.atlasColumns << ",\n";

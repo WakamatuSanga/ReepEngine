@@ -114,8 +114,82 @@ bool GpuParticleSystem::PlayEffectDataAt(const GpuParticle::ParticleEffectData& 
 	return true;
 }
 
+bool GpuParticleSystem::SetEmitterRuntime(size_t index, const GpuParticle::Emitter& emitter) {
+	if (index >= state_.emitters.size()) {
+		return false;
+	}
+
+	GpuParticle::Emitter& target = state_.emitters[index];
+	target.enabled = emitter.enabled;
+	target.position = emitter.position;
+	target.direction = emitter.direction;
+	target.radius = (std::max)(emitter.radius, 0.0f);
+	target.shape = GpuParticle::ClampEmitterShape(emitter.shape);
+	target.boxSize = {
+		(std::max)(emitter.boxSize.x, 0.0f),
+		(std::max)(emitter.boxSize.y, 0.0f),
+		(std::max)(emitter.boxSize.z, 0.0f),
+	};
+	target.coneHeight = (std::max)(emitter.coneHeight, 0.001f);
+	target.emitCount = (std::min)(emitter.emitCount, GpuParticle::kParticleCount);
+	target.emitInterval = (std::max)(emitter.emitInterval, 0.0f);
+	target.emissionRate = (std::max)(emitter.emissionRate, 0.0f);
+	target.randomSeed = emitter.randomSeed;
+	const uint32_t maxTypeIndex = state_.particleTypes.empty() ? 0u : static_cast<uint32_t>(state_.particleTypes.size() - 1);
+	target.particleTypeIndex = (std::min)(emitter.particleTypeIndex, maxTypeIndex);
+	return true;
+}
+
+bool GpuParticleSystem::SetParticleTypeRuntime(size_t index, const GpuParticle::ParticleType& type) {
+	if (index >= state_.particleTypes.size()) {
+		return false;
+	}
+
+	GpuParticle::ParticleType normalizedType = type;
+	GpuParticle::NormalizeParticleEffectType(normalizedType);
+	const int textureIndex = state_.particleTypes[index].textureIndex;
+	if (normalizedType.texturePath == state_.particleTypes[index].texturePath) {
+		normalizedType.textureIndex = textureIndex;
+	}
+	state_.particleTypes[index] = normalizedType;
+	return true;
+}
+
 void GpuParticleSystem::SetDeltaTime(float deltaTime) {
 	state_.deltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+}
+
+void GpuParticleSystem::SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count) {
+	const uint32_t clampedCount = std::clamp(count, 0u, GpuParticle::kMaxInfluenceFields);
+	state_.influenceFieldCount = clampedCount;
+	state_.influenceCentersAndRadius.fill({ 0.0f, 0.0f, 0.0f, 0.0f });
+	state_.influenceParams.fill({ 0.0f, 0.0f, 1.0f, 0.0f });
+	if (!centersAndRadius || !params) {
+		state_.influenceFieldCount = 0;
+		return;
+	}
+	for (uint32_t index = 0; index < clampedCount; ++index) {
+		state_.influenceCentersAndRadius[index] = centersAndRadius[index];
+		state_.influenceParams[index] = params[index];
+	}
+}
+
+void GpuParticleSystem::SetParticleInfluenceEnabled(bool enabled) {
+	state_.enableParticleInfluence = enabled;
+}
+
+void GpuParticleSystem::SetParticleInfluenceResponseScale(float scale) {
+	state_.particleInfluenceResponseScale = std::clamp(scale, 0.0f, 10.0f);
+}
+
+void GpuParticleSystem::SetRailParticleFlow(bool enabled, const Vector3& cameraPosition, const Vector3& direction, float speed, float scale, float spawnAheadDistance, float despawnBehindDistance) {
+	state_.enableRailParticleFlow = enabled;
+	state_.railFlowCameraPosition = cameraPosition;
+	state_.railFlowDirection = direction;
+	state_.railFlowSpeed = (std::max)(speed, 0.0f);
+	state_.railFlowScale = std::clamp(scale, 0.0f, 10.0f);
+	state_.railSpawnAheadDistance = (std::max)(spawnAheadDistance, 0.0f);
+	state_.railDespawnBehindDistance = (std::max)(despawnBehindDistance, 0.0f);
 }
 
 void GpuParticleSystem::Update(const Camera* camera) {

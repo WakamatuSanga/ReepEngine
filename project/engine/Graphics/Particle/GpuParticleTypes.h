@@ -3,6 +3,7 @@
 #include "Matrix4x4.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +15,7 @@ namespace GpuParticle {
 inline constexpr uint32_t kParticleCount = 1024;
 inline constexpr uint32_t kMaxParticleTypes = 8;
 inline constexpr uint32_t kMaxParticleTextureDescriptors = 512;
+inline constexpr uint32_t kMaxInfluenceFields = 16;
 inline constexpr const char* kFallbackParticleTexturePath = "resources/particle/circle2.png";
 inline constexpr uint32_t kParticleDebugViewNormal = 0;
 inline constexpr uint32_t kParticleDebugViewSolidColor = 1;
@@ -72,6 +74,10 @@ struct ParticleType {
 	uint32_t maxBounceCount = 2;
 	bool killBelowPlane = false;
 	float collisionDamping = 1.0f;
+	bool affectedByInfluenceField = true;
+	float influenceResponseScale = 1.0f;
+	bool affectedByRailFlow = false;
+	float railFlowScale = 1.0f;
 };
 
 struct ParticleTypeForGPU {
@@ -100,10 +106,13 @@ struct ParticleTypeForGPU {
 	float bounceVelocityThreshold;
 	uint32_t maxBounceCount;
 	float collisionDamping;
-	uint32_t padding1;
-	float padding2;
+	uint32_t affectedByInfluenceField;
+	float influenceResponseScale;
+	uint32_t affectedByRailFlow;
+	float railFlowScale;
+	float padding2[2];
 };
-static_assert(sizeof(ParticleTypeForGPU) == 144, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
+static_assert(sizeof(ParticleTypeForGPU) == 160, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, endColor) == 32, "endColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, drag) == 76, "drag offset must match HLSL ParticleType.");
@@ -118,6 +127,10 @@ static_assert(offsetof(ParticleTypeForGPU, physicsFlags) == 108, "physicsFlags o
 static_assert(offsetof(ParticleTypeForGPU, collisionPlaneY) == 112, "collisionPlaneY offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, maxBounceCount) == 128, "maxBounceCount offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, collisionDamping) == 132, "collisionDamping offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, affectedByInfluenceField) == 136, "affectedByInfluenceField offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, influenceResponseScale) == 140, "influenceResponseScale offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, affectedByRailFlow) == 144, "affectedByRailFlow offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, railFlowScale) == 148, "railFlowScale offset must match HLSL ParticleType.");
 
 enum class EmitterShape : uint32_t {
 	Sphere = 0,
@@ -149,6 +162,15 @@ struct UpdateInfo {
 	float deltaTime;
 	uint32_t freeListEnabled;
 	uint32_t deadListEnabled;
+	std::array<Vector4, kMaxInfluenceFields> influenceCentersAndRadius{};
+	std::array<Vector4, kMaxInfluenceFields> influenceParams{};
+	uint32_t influenceFieldCount = 0;
+	uint32_t enableParticleInfluence = 1;
+	float particleInfluenceResponseScale = 1.0f;
+	float padding = 0.0f;
+	Vector4 railFlowDirectionSpeed = {0.0f, 0.0f, -1.0f, 0.0f};
+	Vector4 railFlowSettings = {0.0f, 1.0f, 24.0f, 8.0f};
+	Vector4 railFlowCameraPosition = {0.0f, 0.0f, 0.0f, 1.0f};
 };
 
 struct EmitterInfo {
@@ -161,15 +183,17 @@ struct EmitterInfo {
 	Vector3 emitterBoxSize;
 	float emitterConeHeight;
 	uint32_t emitterShape;
-	float padding[3];
+	Vector3 emitterDirection;
 };
 static_assert(sizeof(EmitterInfo) == 64, "EmitterInfo must match the HLSL constant buffer layout.");
 static_assert(offsetof(EmitterInfo, emitterBoxSize) == 32, "emitterBoxSize offset must match HLSL EmitterInfo.");
 static_assert(offsetof(EmitterInfo, emitterShape) == 48, "emitterShape offset must match HLSL EmitterInfo.");
+static_assert(offsetof(EmitterInfo, emitterDirection) == 52, "emitterDirection offset must match HLSL EmitterInfo.");
 
 struct Emitter {
 	bool enabled = true;
 	Vector3 position = { 0.0f, 1.5f, 3.0f };
+	Vector3 direction = { 0.0f, 1.0f, 0.0f };
 	float radius = 0.8f;
 	EmitterShape shape = EmitterShape::Sphere;
 	Vector3 boxSize = { 1.0f, 1.0f, 1.0f };
@@ -237,6 +261,18 @@ struct State {
 	uint32_t actualFreeListCount = 0;
 	uint32_t actualDeadListCount = 0;
 	uint32_t particleDebugViewMode = kParticleDebugViewNormal;
+	std::array<Vector4, kMaxInfluenceFields> influenceCentersAndRadius{};
+	std::array<Vector4, kMaxInfluenceFields> influenceParams{};
+	uint32_t influenceFieldCount = 0;
+	bool enableParticleInfluence = true;
+	float particleInfluenceResponseScale = 1.0f;
+	bool enableRailParticleFlow = true;
+	float railFlowSpeed = 6.0f;
+	float railFlowScale = 1.0f;
+	Vector3 railFlowDirection = {0.0f, 0.0f, -1.0f};
+	Vector3 railFlowCameraPosition = {0.0f, 0.0f, 0.0f};
+	float railSpawnAheadDistance = 24.0f;
+	float railDespawnBehindDistance = 8.0f;
 	std::vector<ParticleType> particleTypes;
 	std::vector<Emitter> emitters;
 	std::vector<EmitBatchEstimate> emitBatchEstimates;

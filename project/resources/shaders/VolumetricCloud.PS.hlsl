@@ -46,6 +46,11 @@ struct CloudPassConstants
     float4 cloudSeaShape;
     float4 cloudSeaFlow;
     float4 cloudSeaColor;
+    float4 influenceCentersAndRadius[16];
+    float4 influenceParams[16];
+    float4 influenceSettings; // x:count y:enableCloudClear z:enableTunnel w:tunnelClearStrength
+    float4 cameraTunnelStartLength; // xyz:start w:length
+    float4 cameraTunnelDirectionRadius; // xyz:direction w:radius
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -55,6 +60,8 @@ struct VertexShaderOutput
     float4 position : SV_POSITION;
     float2 texcoord : TEXCOORD0;
 };
+
+static const uint kInfluenceFieldFlagAffectCloud = 1u << 2;
 
 float Hash31(float3 p)
 {
@@ -89,6 +96,55 @@ float ValueNoise3D(float3 p)
     return lerp(nxy0, nxy1, local.z);
 }
 
+float ComputeInfluenceClearFactor(float3 worldPosition)
+{
+    float clearFactor = 0.0f;
+    if (gCloudPass.influenceSettings.y > 0.5f)
+    {
+        uint fieldCount = min((uint)(gCloudPass.influenceSettings.x + 0.5f), 16u);
+        [loop]
+        for (uint index = 0u; index < fieldCount; ++index)
+        {
+            float4 centerAndRadius = gCloudPass.influenceCentersAndRadius[index];
+            float4 params = gCloudPass.influenceParams[index];
+            uint flags = (uint)(params.w + 0.5f);
+            if ((flags & kInfluenceFieldFlagAffectCloud) == 0u)
+            {
+                continue;
+            }
+
+            float radius = max(centerAndRadius.w, 0.0001f);
+            float distanceValue = distance(worldPosition, centerAndRadius.xyz);
+            if (distanceValue >= radius)
+            {
+                continue;
+            }
+
+            float falloff = pow(saturate(1.0f - distanceValue / radius), max(params.z, 0.01f));
+            float edgeNoise = lerp(0.90f, 1.08f, ValueNoise3D(worldPosition * 0.09f + index * 11.37f));
+            clearFactor = max(clearFactor, falloff * saturate(params.y) * edgeNoise);
+        }
+    }
+
+    if (gCloudPass.influenceSettings.z > 0.5f)
+    {
+        float tunnelLength = max(gCloudPass.cameraTunnelStartLength.w, 0.0f);
+        float tunnelRadius = max(gCloudPass.cameraTunnelDirectionRadius.w, 0.0001f);
+        float3 tunnelStart = gCloudPass.cameraTunnelStartLength.xyz;
+        float3 tunnelDirection = normalize(gCloudPass.cameraTunnelDirectionRadius.xyz);
+        float along = clamp(dot(worldPosition - tunnelStart, tunnelDirection), 0.0f, tunnelLength);
+        float3 closestPoint = tunnelStart + tunnelDirection * along;
+        float distanceToTunnel = distance(worldPosition, closestPoint);
+        if (distanceToTunnel < tunnelRadius)
+        {
+            float radial = pow(saturate(1.0f - distanceToTunnel / tunnelRadius), 2.0f);
+            float lengthFade = smoothstep(0.0f, min(8.0f, max(tunnelLength, 0.0001f)), along) * (1.0f - smoothstep(max(tunnelLength - 8.0f, 0.0f), tunnelLength, along));
+            clearFactor = max(clearFactor, radial * lengthFade * saturate(gCloudPass.influenceSettings.w));
+        }
+    }
+
+    return saturate(clearFactor);
+}
 float FBM(float3 p)
 {
     float value = 0.0f;
@@ -237,6 +293,7 @@ float ComputeCloudDensity(float3 worldPosition)
         float fade = smoothstep(gCloudPass.nearCameraFade.x, gCloudPass.nearCameraFade.y, distanceFromCamera);
         density *= lerp(gCloudPass.nearCameraFade.z, 1.0f, fade);
     }
+    density *= 1.0f - ComputeInfluenceClearFactor(worldPosition);
     return max(density, 0.0f);
 }
 

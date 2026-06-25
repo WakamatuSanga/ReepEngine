@@ -38,8 +38,11 @@ struct ParticleType
     float bounceVelocityThreshold;
     uint maxBounceCount;
     float collisionDamping;
-    uint padding1;
-    float padding2;
+    uint affectedByInfluenceField;
+    float influenceResponseScale;
+    uint affectedByRailFlow;
+    float railFlowScale;
+    float2 padding2;
 };
 
 struct EmitterInfo
@@ -53,7 +56,7 @@ struct EmitterInfo
     float3 emitterBoxSize;
     float emitterConeHeight;
     uint emitterShape;
-    float3 padding;
+    float3 emitterDirection;
 };
 
 RWStructuredBuffer<Particle> gParticles : register(u0);
@@ -81,13 +84,40 @@ float RandomRange(uint seed, float minValue, float maxValue)
     return lerp(minValue, maxValue, Random01(seed));
 }
 
+float3 SafeNormalize(float3 value, float3 fallback)
+{
+    float lengthSq = dot(value, value);
+    if (lengthSq <= 0.00000001f)
+    {
+        return fallback;
+    }
+    return value * rsqrt(lengthSq);
+}
+
 float3 RandomUnitVector(uint seed)
 {
     float3 value = float3(
         RandomRange(seed ^ 0x6c8e9cf5u, -1.0f, 1.0f),
         RandomRange(seed ^ 0xb5297a4du, -1.0f, 1.0f),
         RandomRange(seed ^ 0x9e3779b9u, -1.0f, 1.0f));
-    return normalize(value + float3(0.001f, 0.001f, 0.001f));
+    return SafeNormalize(value + float3(0.001f, 0.001f, 0.001f), float3(0.0f, 1.0f, 0.0f));
+}
+
+void BuildEmitterBasis(float3 direction, out float3 right, out float3 up, out float3 forward)
+{
+    forward = SafeNormalize(direction, float3(0.0f, 1.0f, 0.0f));
+    float3 helper = abs(forward.y) < 0.95f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
+    right = SafeNormalize(cross(helper, forward), float3(1.0f, 0.0f, 0.0f));
+    up = SafeNormalize(cross(forward, right), float3(0.0f, 0.0f, 1.0f));
+}
+
+float3 TransformConeLocalToWorld(float3 localOffset, float3 direction)
+{
+    float3 right;
+    float3 up;
+    float3 forward;
+    BuildEmitterBasis(direction, right, up, forward);
+    return right * localOffset.x + forward * localOffset.y + up * localOffset.z;
 }
 
 float3 MakeSphereEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, uint emitCount, float radius)
@@ -130,7 +160,7 @@ float3 MakeEmitterOffset(uint baseSeed, bool useRandom, uint emitIndex, uint emi
     }
     if (gEmitterInfo.emitterShape == 2u)
     {
-        return MakeConeEmitterOffset(baseSeed, useRandom, emitIndex, emitCount, gEmitterInfo.emitterRadius, gEmitterInfo.emitterConeHeight);
+        return TransformConeLocalToWorld(MakeConeEmitterOffset(baseSeed, useRandom, emitIndex, emitCount, gEmitterInfo.emitterRadius, gEmitterInfo.emitterConeHeight), gEmitterInfo.emitterDirection);
     }
     return MakeSphereEmitterOffset(baseSeed, useRandom, emitIndex, emitCount, gEmitterInfo.emitterRadius);
 }
@@ -150,7 +180,12 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     ParticleType particleType = gParticleTypes[gEmitterInfo.particleTypeIndex];
 
     float3 emitterOffset = MakeEmitterOffset(baseSeed, useRandom, emitIndex, gEmitterInfo.emitCount);
-    float3 velocityDirection = normalize(emitterOffset + float3(0.001f, 0.25f, 0.001f));
+    float3 emitterForward = SafeNormalize(gEmitterInfo.emitterDirection, float3(0.0f, 1.0f, 0.0f));
+    float3 velocityDirection = SafeNormalize(emitterOffset + float3(0.001f, 0.25f, 0.001f), float3(0.0f, 1.0f, 0.0f));
+    if (gEmitterInfo.emitterShape == 2u)
+    {
+        velocityDirection = SafeNormalize(emitterOffset + emitterForward * 0.25f, emitterForward);
+    }
     float colorRate = Random01(baseSeed ^ 0x3f6e4a1bu);
     float3 colorJitter = useRandom
         ? float3(

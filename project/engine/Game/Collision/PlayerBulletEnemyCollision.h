@@ -26,6 +26,8 @@ private:
     CombatEffectController* combatEffectController_ = nullptr;
     Vector3 lastHitPosition_{ 0.0f, 0.0f, 0.0f };
     float enemyHitRadiusForDebug_ = 0.6f;
+    Vector3 enemyHitScaleForDebug_{ 1.6f, 1.0f, 1.0f };
+    bool useEllipsoidHitShapeForDebug_ = true;
     float lastDistance_ = -1.0f;
     float lastRadiusSum_ = 0.0f;
     float lastBulletRadius_ = 0.0f;

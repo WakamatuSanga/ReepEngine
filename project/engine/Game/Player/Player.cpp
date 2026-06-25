@@ -1,4 +1,4 @@
-﻿#include "Player.h"
+#include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -322,20 +322,20 @@ void Player::DrawImGui() {
 
     ImGui::SeparatorText("Rail Shooter Preview");
     ImGui::TextDisabled("CameraRig確認用の見た目プリセットです。PlayerはCameraFrontのままです。");
-    ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 3.0");
+    ImGui::Text("推奨Scale: 0.45 / 推奨Distance From Camera: 2.8〜3.0");
     if (ImGui::Button("近め (Near)")) {
-        distanceFromCamera_ = 0.5f;
+        distanceFromCamera_ = 2.5f;
     }
     ImGui::SameLine();
     if (ImGui::Button("標準 (Default)")) {
-        distanceFromCamera_ = 4.0f;
+        distanceFromCamera_ = 3.0f;
     }
     ImGui::SameLine();
     if (ImGui::Button("遠め (Far)")) {
         distanceFromCamera_ = 6.0f;
     }
     if (ImGui::Button("レールシューティング用 (Rail Shooter Preset)")) {
-        distanceFromCamera_ = 3.0f;
+        distanceFromCamera_ = 2.8f;
         modelScale_ = { 0.45f, 0.45f, 0.45f };
         ResetPosition();
         UpdateWorldPosition();

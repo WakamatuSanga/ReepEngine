@@ -32,8 +32,13 @@ public:
     std::vector<Vector3> GetActiveEnemyPositions() const;
     std::vector<Enemy*> GetActiveEnemies() const;
     void SetDefaultHitRadius(float hitRadius);
+    void SetDefaultHitScale(const Vector3& hitScale);
+    void SetUseEllipsoidHitShape(bool enabled);
     void ApplyDefaultHitRadiusToAllEnemies();
+    void ApplyDefaultHitShapeToAllEnemies();
     float GetDefaultHitRadius() const { return defaultHitRadius_; }
+    const Vector3& GetDefaultHitScale() const { return defaultHitScale_; }
+    bool IsUsingEllipsoidHitShape() const { return useEllipsoidHitShape_; }
     void SetUseLightweightEnemyVisual(bool useLightweightVisual);
     void SetPlayer(Player* player);
 
@@ -56,6 +61,8 @@ private:
     Vector3 debugSpawnRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 debugSpawnScale_{ 0.8f, 0.8f, 0.8f };
     float defaultHitRadius_ = 0.6f;
+    Vector3 defaultHitScale_{ 1.6f, 1.0f, 1.0f };
+    bool useEllipsoidHitShape_ = true;
     float spawnEntryHeight_ = 12.0f;
     float spawnEntryDepth_ = 8.0f;
     float spawnEntrySideOffset_ = 0.0f;

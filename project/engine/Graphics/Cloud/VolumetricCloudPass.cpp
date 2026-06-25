@@ -245,6 +245,34 @@ void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
     externalFlowMultiplier_ = (std::max)(0.0f, multiplier);
 }
 
+void VolumetricCloudPass::SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count)
+{
+    const uint32_t clampedCount = std::clamp(count, 0u, 16u);
+    influenceFieldCount_ = clampedCount;
+    influenceCentersAndRadius_.fill({ 0.0f, 0.0f, 0.0f, 0.0f });
+    influenceParams_.fill({ 0.0f, 0.0f, 1.0f, 0.0f });
+    if (!centersAndRadius || !params) {
+        influenceFieldCount_ = 0;
+        return;
+    }
+    for (uint32_t index = 0; index < clampedCount; ++index) {
+        influenceCentersAndRadius_[index] = centersAndRadius[index];
+        influenceParams_[index] = params[index];
+    }
+}
+
+void VolumetricCloudPass::SetCloudInfluenceEnabled(bool enabled)
+{
+    enableCloudInfluenceClear_ = enabled;
+}
+
+void VolumetricCloudPass::SetCameraForwardTunnelSettings(bool enabled, float length, float radius, float clearStrength)
+{
+    enableCameraForwardTunnel_ = enabled;
+    cameraForwardTunnelLength_ = (std::max)(length, 0.0f);
+    cameraForwardTunnelRadius_ = (std::max)(radius, 0.0f);
+    cameraForwardTunnelClearStrength_ = std::clamp(clearStrength, 0.0f, 1.0f);
+}
 void VolumetricCloudPass::ApplyGameModePerformancePreset()
 {
     const bool needsRecreate = std::fabs(cloudResolutionScale_ - 0.25f) > 0.001f;
@@ -478,6 +506,27 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         std::clamp(cloudBottomFlattenStrength_, 0.0f, 1.0f),
         std::clamp(cloudBottomSmoothness_, 0.0f, 1.0f),
         std::clamp(cloudBottomNoiseSuppression_, 0.0f, 1.0f)
+    };
+    constantData_->influenceCentersAndRadius = influenceCentersAndRadius_;
+    constantData_->influenceParams = influenceParams_;
+    const Vector3 tunnelForward = Normalize(GetCameraForward(camera));
+    constantData_->influenceSettings = {
+        static_cast<float>(std::clamp(influenceFieldCount_, 0u, 16u)),
+        enableCloudInfluenceClear_ ? 1.0f : 0.0f,
+        enableCameraForwardTunnel_ ? 1.0f : 0.0f,
+        cameraForwardTunnelClearStrength_
+    };
+    constantData_->cameraTunnelStartLength = {
+        constantData_->cameraPosition.x,
+        constantData_->cameraPosition.y,
+        constantData_->cameraPosition.z,
+        cameraForwardTunnelLength_
+    };
+    constantData_->cameraTunnelDirectionRadius = {
+        tunnelForward.x,
+        tunnelForward.y,
+        tunnelForward.z,
+        cameraForwardTunnelRadius_
     };
     UpdateQualityConstantBuffer();
 }

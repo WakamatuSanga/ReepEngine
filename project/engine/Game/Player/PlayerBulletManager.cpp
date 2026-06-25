@@ -1,4 +1,4 @@
-﻿#include "PlayerBulletManager.h"
+#include "PlayerBulletManager.h"
 #include "MyGame.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
@@ -370,68 +370,6 @@ void PlayerBulletManager::DeleteAllBullets() {
     }
     bullets_.clear();
     selectedBulletIndex_ = -1;
-}
-
-bool PlayerBulletManager::CheckHitAndKillFirstSphere(
-    const Vector3& center,
-    float radius,
-    Vector3* hitPosition,
-    int* damage,
-    float* lastDistance,
-    float* lastRadiusSum,
-    float* lastBulletRadius) {
-    const float safeRadius = (std::max)(0.0f, radius);
-    float closestDistance = -1.0f;
-    float closestRadiusSum = safeRadius;
-    float closestBulletRadius = 0.0f;
-    const float closestInitial = -1.0f;
-
-    for (PlayerBulletInstance& instance : bullets_) {
-        EnemyBullet* bullet = instance.bullet.get();
-        if (!bullet || !bullet->IsActive() || bullet->IsDead()) {
-            continue;
-        }
-
-        const float bulletRadius = bullet->GetRadius();
-        const float combinedRadius = safeRadius + bulletRadius;
-        const float distanceSquared = DistanceSquared(center, bullet->GetPosition());
-        const float distance = std::sqrt(distanceSquared);
-        if (closestDistance == closestInitial || distance < closestDistance) {
-            closestDistance = distance;
-            closestRadiusSum = combinedRadius;
-            closestBulletRadius = bulletRadius;
-        }
-        if (distanceSquared <= combinedRadius * combinedRadius) {
-            if (hitPosition) {
-                *hitPosition = bullet->GetPosition();
-            }
-            if (damage) {
-                *damage = instance.damage;
-            }
-            if (lastDistance) {
-                *lastDistance = distance;
-            }
-            if (lastRadiusSum) {
-                *lastRadiusSum = combinedRadius;
-            }
-            if (lastBulletRadius) {
-                *lastBulletRadius = bulletRadius;
-            }
-            bullet->Kill();
-            return true;
-        }
-    }
-
-    if (lastDistance) {
-        *lastDistance = closestDistance;
-    }
-    if (lastRadiusSum) {
-        *lastRadiusSum = closestRadiusSum;
-    }
-    if (lastBulletRadius) {
-        *lastBulletRadius = closestBulletRadius;
-    }
-    return false;
 }
 
 size_t PlayerBulletManager::GetBulletCount() const {

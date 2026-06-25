@@ -46,6 +46,8 @@ public:
     BaseMode GetBaseMode() const { return baseMode_; }
     const Vector3& GetBasePosition() const { return basePosition_; }
     const Vector3& GetWorldPosition() const { return worldPosition_; }
+    const Vector3& GetBaseForward() const { return baseForward_; }
+    const Vector3& GetVisualModelRotation() const { return visualFinalRotation_; }
     float GetEventTriggerRadius() const { return eventTriggerRadius_; }
     float GetHitRadius() const { return hitRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
@@ -91,7 +93,7 @@ private:
     float moveLimitX_ = 2.5f;
     float moveLimitY_ = 1.4f;
     float moveSpeed_ = 3.0f;
-    float distanceFromCamera_ = 4.0f;
+    float distanceFromCamera_ = 3.0f;
     float eventTriggerRadius_ = 0.25f;
     float hitRadius_ = 0.30f;
     float visualPitchTiltAmount_ = 0.18f;

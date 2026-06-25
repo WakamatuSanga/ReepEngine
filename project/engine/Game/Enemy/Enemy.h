@@ -46,6 +46,8 @@ public:
     void SetForward(const Vector3& forward);
     void LookAt(const Vector3& targetPosition);
     void SetHitRadius(float hitRadius);
+    void SetHitScale(const Vector3& hitScale);
+    void SetUseEllipsoidHitShape(bool enabled);
     void SetUseLightweightVisual(bool useLightweightVisual);
     void SetModelPath(const std::string& modelPath);
     void SetSpawnPresentationOptions(
@@ -93,6 +95,8 @@ public:
     const Vector3& GetPosition() const { return position_; }
     const Vector3& GetForward() const { return desiredForward_; }
     float GetHitRadius() const { return hitRadius_; }
+    const Vector3& GetHitScale() const { return hitScale_; }
+    bool IsUsingEllipsoidHitShape() const { return useEllipsoidHitShape_; }
     int GetHp() const { return hp_; }
 
 private:
@@ -134,6 +138,9 @@ private:
     Vector3 velocity_{ 0.0f, 0.0f, 0.0f };
     Vector3 desiredForward_{ 0.0f, 0.0f, -1.0f };
     float hitRadius_ = 0.6f;
+    Vector3 hitScale_{ 1.6f, 1.0f, 1.0f };
+    bool useEllipsoidHitShape_ = true;
+    bool showHitShapeDebug_ = false;
     float spawnElapsed_ = 0.0f;
     float spawnDuration_ = 1.0f;
     float spawnSpinSpeedRadians_ = 12.5663706f;

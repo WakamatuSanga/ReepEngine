@@ -1,4 +1,4 @@
-﻿#include "GameScene.h"
+#include "GameScene.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "MyGame.h"
@@ -31,10 +31,12 @@
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
+#include "Engine/Game/Field/InfluenceFieldManager.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
@@ -510,6 +512,8 @@ void GameScene::Initialize() {
     player_->Initialize(object3dCommon, camera_.get());
     boostController_ = std::make_unique<BoostController>();
     boostController_->Initialize(MyGame::GetInstance()->GetVolumetricCloudPass());
+    playerJetExhaustController_ = std::make_unique<PlayerJetExhaustController>();
+    playerJetExhaustController_->Initialize(object3dCommon, camera_.get(), player_.get(), boostController_.get(), MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
@@ -520,6 +524,10 @@ void GameScene::Initialize() {
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyManager_->SetPlayer(player_.get());
+    influenceFieldManager_ = std::make_unique<InfluenceFieldManager>();
+    influenceFieldManager_->Initialize(object3dCommon, camera_.get());
+    influenceFieldManager_->SetTargets(player_.get(), enemyManager_.get(), boostController_.get());
+    influenceFieldManager_->SetConsumers(gpuParticleSystem_.get(), MyGame::GetInstance()->GetVolumetricCloudPass());
     if (screenSpaceFakeShadowPass_) {
         screenSpaceFakeShadowPass_->SetTargets(player_.get(), enemyManager_.get());
     }
@@ -909,6 +917,10 @@ void GameScene::Finalize() {
     }
     postEffectController_.reset();
     screenSpaceFakeShadowPass_.reset();
+    if (influenceFieldManager_) {
+        influenceFieldManager_->Finalize();
+    }
+    influenceFieldManager_.reset();
     if (cameraShakeController_) {
         cameraShakeController_->Reset(camera_.get());
         cameraShakeController_->Finalize();
@@ -922,6 +934,10 @@ void GameScene::Finalize() {
         playerBulletManager_->Finalize();
     }
     playerBulletManager_.reset();
+    if (playerJetExhaustController_) {
+        playerJetExhaustController_->Finalize();
+    }
+    playerJetExhaustController_.reset();
     if (player_) {
         player_->Finalize();
     }
@@ -1116,6 +1132,11 @@ void GameScene::Update() {
     if (boostController_) {
         boostController_->Update(gameplayDeltaTime);
     }
+    if (playerJetExhaustController_) {
+        playerJetExhaustController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
+        playerJetExhaustController_->SetPlayerAlive(!(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()));
+        playerJetExhaustController_->Update(gameplayDeltaTime);
+    }
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
     }
@@ -1124,6 +1145,10 @@ void GameScene::Update() {
     }
     if (enemyManager_) {
         enemyManager_->Update(gameplayDeltaTime);
+    }
+    if (influenceFieldManager_) {
+        influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
+        influenceFieldManager_->Update(gameplayDeltaTime);
     }
     if (playerBulletEnemyCollision_) {
         playerBulletEnemyCollision_->Update();
@@ -1361,6 +1386,12 @@ void GameScene::Update() {
     }
     if (boostController_) {
         boostController_->DrawImGui();
+    }
+    if (playerJetExhaustController_) {
+        playerJetExhaustController_->DrawImGui();
+    }
+    if (influenceFieldManager_) {
+        influenceFieldManager_->DrawImGui();
     }
     if (playerBulletManager_) {
         playerBulletManager_->DrawImGui();
@@ -2024,6 +2055,9 @@ void GameScene::Draw() {
     if (enemyBulletManager_) {
         enemyBulletManager_->Draw();
     }
+    if (influenceFieldManager_) {
+        influenceFieldManager_->DrawDebug();
+    }
     if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }
@@ -2032,6 +2066,9 @@ void GameScene::Draw() {
     }
     if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         combatEffectController_->Draw();
+    }
+    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        playerJetExhaustController_->Draw();
     }
 
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
