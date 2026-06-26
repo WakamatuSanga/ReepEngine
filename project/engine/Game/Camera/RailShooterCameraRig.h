@@ -101,6 +101,8 @@ private:
     Vector3 lastClosestWorldPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 lastBlendStartCameraPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 lastBlendTargetRailPosition_{ 0.0f, 0.0f, -10.0f };
+    Vector3 visualCameraPosition_{ 0.0f, 0.0f, -10.0f };
+    Vector3 visualCameraForward_{ 0.0f, 0.0f, 1.0f };
     size_t currentSegmentIndex_ = 0;
     size_t selectedRailPointCount_ = 0;
     size_t selectedRailSampledPointCount_ = 0;
@@ -151,10 +153,19 @@ private:
     bool hideRailDebugWhileActive_ = true;
     bool hideRailPointsWhileActive_ = true;
     bool hideEventDebugWhileActive_ = true;
+    bool enableAngledPlayerCamera_ = true;
+    bool useVisualCameraForwardOnly_ = true;
+    bool showCameraCompositionDebug_ = false;
     bool railBlendActive_ = false;
     bool autoApplyInitialCameraOnLoad_ = false;
     bool hasAppliedInitialCameraOnce_ = false;
     float forwardSmoothStrength_ = 10.0f;
+    float cameraHeightOffset_ = 1.2f;
+    float cameraSideOffset_ = 0.0f;
+    float lookDownAngleDeg_ = 6.0f;
+    float lookAtYOffset_ = -0.4f;
+    float playerScreenYOffset_ = -0.2f;
+    float compositionLookAhead_ = 10.0f;
     Mode mode_ = Mode::Disabled;
     CameraRailStartMode railStartMode_ = CameraRailStartMode::BlendFromCurrentCameraToRail;
     RailEndBehavior railEndBehavior_ = RailEndBehavior::StopAtEnd;

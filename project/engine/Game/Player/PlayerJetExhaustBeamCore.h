@@ -20,7 +20,7 @@ public:
         float boostPower,
         float deltaTime,
         bool exhaustEnabled);
-    void Draw(const Camera* camera);
+    void Draw(const Camera* camera, float brightnessScale = 1.0f, float alphaScale = 1.0f);
     void DrawImGui();
 
     bool IsBeamEnabled() const { return enableBeamCore_; }
@@ -52,24 +52,26 @@ private:
     bool showBeamDebug_ = false;
     bool exhaustEnabled_ = true;
 
-    float baseBeamLength_ = 1.8f;
-    float boostBeamLength_ = 3.4f;
-    float beamStartWidth_ = 0.12f;
-    float beamEndWidth_ = 0.45f;
-    float baseBeamBrightness_ = 1.2f;
-    float boostBeamBrightness_ = 2.0f;
-    float beamFlickerStrength_ = 0.12f;
-    float nozzleGlowSize_ = 0.35f;
-    float boostNozzleGlowSize_ = 0.55f;
-    float nozzleGlowBrightness_ = 1.5f;
-    float boostNozzleGlowBrightness_ = 2.5f;
+    float baseBeamLength_ = 1.5f;
+    float boostBeamLength_ = 2.8f;
+    float beamStartWidth_ = 0.08f;
+    float beamEndWidth_ = 0.30f;
+    float baseBeamBrightness_ = 1.0f;
+    float boostBeamBrightness_ = 1.7f;
+    float beamFlickerStrength_ = 0.035f;
+    float beamEdgeSoftness_ = 2.8f;
+    float beamTipFadePower_ = 1.55f;
+    float nozzleGlowSize_ = 0.22f;
+    float boostNozzleGlowSize_ = 0.36f;
+    float nozzleGlowBrightness_ = 1.1f;
+    float boostNozzleGlowBrightness_ = 1.8f;
     float time_ = 0.0f;
 
-    float currentBeamLength_ = 1.8f;
-    float currentBeamEndWidth_ = 0.45f;
-    float currentBeamBrightness_ = 1.2f;
-    float currentGlowSize_ = 0.35f;
-    float currentGlowBrightness_ = 1.5f;
+    float currentBeamLength_ = 1.5f;
+    float currentBeamEndWidth_ = 0.30f;
+    float currentBeamBrightness_ = 1.0f;
+    float currentGlowSize_ = 0.22f;
+    float currentGlowBrightness_ = 1.1f;
     Vector3 currentNozzlePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 currentBeamEndPosition_{ 0.0f, 0.0f, -1.0f };
     Vector3 currentExhaustDirection_{ 0.0f, 0.0f, -1.0f };

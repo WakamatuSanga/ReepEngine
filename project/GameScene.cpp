@@ -2088,6 +2088,10 @@ void GameScene::Draw() {
         }
     }
 
+    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        playerJetExhaustController_->DrawAfterCloud();
+    }
+
     if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
         gpuParticleSystem_->Draw();
     }

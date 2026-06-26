@@ -2,6 +2,7 @@ struct BeamConstants
 {
     float4x4 viewProjection;
     float4 params;
+    float4 qualityParams;
 };
 
 ConstantBuffer<BeamConstants> gBeam : register(b0);

@@ -8,6 +8,7 @@
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
     constexpr float kMinRailLength = 0.0001f;
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
 
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
@@ -373,8 +374,37 @@ void RailShooterCameraRig::ApplyToCamera() {
 
     currentForward_ = Normalize(currentForward_, { 0.0f, 0.0f, 1.0f });
     BuildBasis(currentForward_, currentUp_, currentRight_, currentUp_);
-    camera_->SetTranslate(currentPosition_);
-    camera_->SetRotate(MakeCameraRotationFromForward(currentForward_));
+
+    visualCameraPosition_ = currentPosition_;
+    visualCameraForward_ = currentForward_;
+    if (enableAngledPlayerCamera_) {
+        visualCameraPosition_ = AddVector3(
+            AddVector3(currentPosition_, ScaleVector3(currentUp_, cameraHeightOffset_)),
+            ScaleVector3(currentRight_, cameraSideOffset_));
+
+        const Vector3 lookTarget = AddVector3(
+            AddVector3(currentPosition_, ScaleVector3(currentForward_, (std::max)(0.1f, compositionLookAhead_))),
+            ScaleVector3(currentUp_, lookAtYOffset_ + playerScreenYOffset_));
+        visualCameraForward_ = Normalize({
+            lookTarget.x - visualCameraPosition_.x,
+            lookTarget.y - visualCameraPosition_.y,
+            lookTarget.z - visualCameraPosition_.z,
+            }, currentForward_);
+
+        const float clampedLookDown = std::clamp(lookDownAngleDeg_, -30.0f, 30.0f);
+        const float lookDownTangent = std::tan(clampedLookDown * kDegToRad);
+        visualCameraForward_ = Normalize(
+            AddVector3(visualCameraForward_, ScaleVector3(currentUp_, -lookDownTangent)),
+            visualCameraForward_);
+
+        if (!useVisualCameraForwardOnly_) {
+            currentForward_ = visualCameraForward_;
+            BuildBasis(currentForward_, currentUp_, currentRight_, currentUp_);
+        }
+    }
+
+    camera_->SetTranslate(visualCameraPosition_);
+    camera_->SetRotate(MakeCameraRotationFromForward(visualCameraForward_));
 }
 
 void RailShooterCameraRig::CaptureCameraPose() {

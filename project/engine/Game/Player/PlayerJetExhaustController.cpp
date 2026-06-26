@@ -183,20 +183,20 @@ namespace {
             0.0f));
         data.particleTypes.push_back(MakeJetParticleType(
             "JetOuterFlame",
-            { 1.0f, 0.34f, 0.04f, 0.32f },
-            { 1.0f, 0.40f, 0.05f, 0.30f },
+            { 1.0f, 0.32f, 0.035f, 0.20f },
+            { 1.0f, 0.38f, 0.045f, 0.18f },
             { 0.95f, 0.05f, 0.01f, 0.0f },
-            0.12f,
-            0.28f,
-            0.10f,
-            0.22f,
-            7.0f,
-            10.0f,
+            0.07f,
+            0.18f,
+            0.08f,
+            0.16f,
+            6.5f,
+            9.0f,
             false,
             0.0f));
         data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.07f, 0.0f, 101u, 0u));
         data.emitters.back().enabled = false;
-        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 14.0f, 0.10f, 90.0f, 211u, 1u));
+        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.08f, 55.0f, 211u, 1u));
         GpuParticle::NormalizeParticleEffectData(data);
         return data;
     }
@@ -267,13 +267,13 @@ bool PlayerJetExhaustController::LoadPreset() {
     }
 
     if (data.emitters.size() < 2) {
-        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 14.0f, 0.10f, 90.0f, 211u, 1u));
+        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.08f, 55.0f, 211u, 1u));
     }
     if (data.particleTypes.size() < 2) {
         data.particleTypes.push_back(MakeJetParticleType(
             "JetOuterFlame",
-            { 1.0f, 0.34f, 0.04f, 0.32f },
-            { 1.0f, 0.40f, 0.05f, 0.30f },
+            { 1.0f, 0.32f, 0.035f, 0.20f },
+            { 1.0f, 0.38f, 0.045f, 0.18f },
             { 0.95f, 0.05f, 0.01f, 0.0f },
             outerStartSize_,
             outerEndSize_,
@@ -367,11 +367,11 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
         railFlowScale_);
     GpuParticle::ParticleType outerType = MakeJetParticleType(
         "JetOuterFlame",
-        ScaleColor({ 1.0f, 0.34f, 0.04f, 0.32f }, currentBrightness_),
-        ScaleColor({ 1.0f, 0.40f, 0.05f, 0.30f }, currentBrightness_),
+        ScaleColor({ 1.0f, 0.32f, 0.035f, 0.20f * outerParticleAlphaScale_ }, currentBrightness_),
+        ScaleColor({ 1.0f, 0.38f, 0.045f, 0.18f * outerParticleAlphaScale_ }, currentBrightness_),
         { 0.95f, 0.05f, 0.01f, 0.0f },
-        outerStartSize_,
-        outerEndSize_,
+        outerStartSize_ * outerParticleScale_,
+        outerEndSize_ * outerParticleScale_,
         outerLifeTimeMin_ * lifeScale,
         outerLifeTimeMax_ * lifeScale,
         outerSpeed * 0.85f,
@@ -393,8 +393,8 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
     GpuParticle::Emitter outerEmitter = MakeJetEmitter(
         currentNozzlePosition_,
         currentExhaustDirection_,
-        coneAngleDegrees_ * 1.35f,
-        emitterConeHeight_ * 1.25f,
+        coneAngleDegrees_ * 1.10f,
+        emitterConeHeight_ * 1.10f,
         shouldEmitOuterParticles ? outerSpawnRate_ * currentSpawnRateMultiplier_ : 0.0f,
         211u,
         1u);
@@ -404,14 +404,28 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
 }
 
 void PlayerJetExhaustController::Draw() {
+    DrawLayer(false);
+}
+
+void PlayerJetExhaustController::DrawAfterCloud() {
+    DrawLayer(true);
+}
+
+void PlayerJetExhaustController::DrawLayer(bool afterCloudLayer) {
+    if (afterCloudLayer != drawAfterCloud_) {
+        return;
+    }
+
+    const float brightnessScale = afterCloudLayer ? afterCloudBrightnessScale_ : 1.0f;
+    const float alphaScale = afterCloudLayer ? afterCloudAlphaScale_ : 1.0f;
     if (beamCore_) {
-        beamCore_->Draw(camera_);
+        beamCore_->Draw(camera_, brightnessScale, alphaScale);
     }
     if (particleSystem_ && (!beamCore_ || beamCore_->IsOuterParticlesEnabled())) {
         particleSystem_->Draw();
     }
 
-    if (!debugVisualsEnabled_ || !showDebugVisuals_ || !object3dCommon_) {
+    if (afterCloudLayer || !debugVisualsEnabled_ || !showDebugVisuals_ || !object3dCommon_) {
         return;
     }
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
@@ -477,27 +491,32 @@ void PlayerJetExhaustController::ResetToRecommendedSettings() {
     nozzleBackOffset_ = 0.55f;
     nozzleUpOffset_ = -0.02f;
     nozzleSideOffset_ = 0.0f;
-    coneAngleDegrees_ = 12.0f;
+    coneAngleDegrees_ = 10.0f;
     emitterConeHeight_ = 0.08f;
     spawnRate_ = 260.0f;
-    outerSpawnRate_ = 90.0f;
+    outerSpawnRate_ = 55.0f;
     exhaustSpeed_ = 12.0f;
     outerExhaustSpeed_ = 8.0f;
     lifeTimeMin_ = 0.16f;
     lifeTimeMax_ = 0.28f;
-    outerLifeTimeMin_ = 0.10f;
-    outerLifeTimeMax_ = 0.22f;
+    outerLifeTimeMin_ = 0.08f;
+    outerLifeTimeMax_ = 0.16f;
     coreStartSize_ = 0.055f;
     coreEndSize_ = 0.020f;
-    outerStartSize_ = 0.12f;
-    outerEndSize_ = 0.28f;
-    brightness_ = 1.0f;
+    outerStartSize_ = 0.07f;
+    outerEndSize_ = 0.18f;
+    brightness_ = 0.90f;
     boostLengthMultiplier_ = 1.8f;
     boostSpeedMultiplier_ = 1.65f;
     boostSpawnRateMultiplier_ = 1.75f;
     boostBrightnessMultiplier_ = 1.55f;
     affectedByRailFlow_ = false;
     railFlowScale_ = 0.0f;
+    drawAfterCloud_ = true;
+    afterCloudAlphaScale_ = 0.75f;
+    afterCloudBrightnessScale_ = 0.90f;
+    outerParticleScale_ = 0.65f;
+    outerParticleAlphaScale_ = 0.70f;
 }
 
 void PlayerJetExhaustController::DrawImGui() {
@@ -532,6 +551,14 @@ void PlayerJetExhaustController::DrawImGui() {
         beamCore_->DrawImGui();
     }
 
+    ImGui::SeparatorText("Jet Exhaust Visibility");
+    ImGui::Checkbox("雲の後に排気を描画 (Draw Jet Exhaust After Cloud)", &drawAfterCloud_);
+    ImGui::Checkbox("AfterCloud Debug表示 (Show After Cloud Layer Debug)", &showAfterCloudLayerDebug_);
+    ImGui::DragFloat("After Cloud Alpha Scale", &afterCloudAlphaScale_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("After Cloud Brightness Scale", &afterCloudBrightnessScale_, 0.01f, 0.0f, 2.0f, "%.2f");
+    if (showAfterCloudLayerDebug_) {
+        ImGui::Text("Current Layer: %s", drawAfterCloud_ ? "After Cloud" : "Before Cloud");
+    }
     ImGui::SeparatorText("炎パラメータ (Flame Parameters)");
     ImGui::DragFloat("円錐角度 (Cone Angle)", &coneAngleDegrees_, 0.1f, 1.0f, 70.0f, "%.1f deg");
     ImGui::DragFloat("Emitter Cone Height", &emitterConeHeight_, 0.005f, 0.001f, 1.0f, "%.3f");
@@ -549,6 +576,8 @@ void PlayerJetExhaustController::DrawImGui() {
     ImGui::DragFloat("Outer Lifetime Max", &outerLifeTimeMax_, 0.005f, 0.02f, 2.0f, "%.3f");
     ImGui::DragFloat("Outer Start Size", &outerStartSize_, 0.001f, 0.001f, 1.0f, "%.3f");
     ImGui::DragFloat("Outer End Size", &outerEndSize_, 0.001f, 0.001f, 1.0f, "%.3f");
+    ImGui::DragFloat("Outer Particle Scale", &outerParticleScale_, 0.01f, 0.0f, 2.0f, "%.2f");
+    ImGui::DragFloat("Outer Particle Alpha", &outerParticleAlphaScale_, 0.01f, 0.0f, 1.0f, "%.2f");
     ImGui::DragFloat("明るさ (Brightness)", &brightness_, 0.01f, 0.0f, 4.0f, "%.2f");
 
     ImGui::SeparatorText("Boost連動 (Boost Link)");

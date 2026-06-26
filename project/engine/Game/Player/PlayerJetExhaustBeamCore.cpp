@@ -105,15 +105,15 @@ void PlayerJetExhaustBeamCore::Update(
     BuildGlowVertices(ExtractCameraRight(camera), ExtractCameraUp(camera));
 }
 
-void PlayerJetExhaustBeamCore::Draw(const Camera* camera) {
+void PlayerJetExhaustBeamCore::Draw(const Camera* camera, float brightnessScale, float alphaScale) {
     if (!renderer_ || !camera || !exhaustEnabled_) {
         return;
     }
     if (enableBeamCore_ && !beamVertices_.empty()) {
-        renderer_->Draw(beamVertices_, camera, currentBeamBrightness_, beamFlickerStrength_, time_, 0u);
+        renderer_->Draw(beamVertices_, camera, currentBeamBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_, beamEdgeSoftness_, beamTipFadePower_, time_, 0u);
     }
     if (enableNozzleGlow_ && !glowVertices_.empty()) {
-        renderer_->Draw(glowVertices_, camera, currentGlowBrightness_, beamFlickerStrength_ * 0.5f, time_, 1u);
+        renderer_->Draw(glowVertices_, camera, currentGlowBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_ * 0.5f, beamEdgeSoftness_, beamTipFadePower_, time_, 1u);
     }
 }
 
@@ -131,9 +131,13 @@ void PlayerJetExhaustBeamCore::DrawImGui() {
         ImGui::DragFloat("Beam End Width", &beamEndWidth_, 0.005f, 0.01f, 3.0f, "%.3f");
         ImGui::DragFloat("Beam Brightness", &baseBeamBrightness_, 0.01f, 0.0f, 6.0f, "%.2f");
         ImGui::DragFloat("Boost Beam Brightness", &boostBeamBrightness_, 0.01f, 0.0f, 8.0f, "%.2f");
-        ImGui::DragFloat("Beam Flicker Strength", &beamFlickerStrength_, 0.01f, 0.0f, 1.0f, "%.2f");
+        ImGui::DragFloat("Beam Flicker Strength", &beamFlickerStrength_, 0.005f, 0.0f, 1.0f, "%.3f");
+        ImGui::DragFloat("Beam Edge Softness", &beamEdgeSoftness_, 0.01f, 0.5f, 8.0f, "%.2f");
+        ImGui::DragFloat("Beam Tip Fade Power", &beamTipFadePower_, 0.01f, 0.2f, 4.0f, "%.2f");
         ImGui::DragFloat("Nozzle Glow Size", &nozzleGlowSize_, 0.005f, 0.01f, 2.0f, "%.2f");
+        ImGui::DragFloat("Boost Nozzle Glow Size", &boostNozzleGlowSize_, 0.005f, 0.01f, 3.0f, "%.2f");
         ImGui::DragFloat("Nozzle Glow Brightness", &nozzleGlowBrightness_, 0.01f, 0.0f, 8.0f, "%.2f");
+        ImGui::DragFloat("Boost Nozzle Glow Brightness", &boostNozzleGlowBrightness_, 0.01f, 0.0f, 10.0f, "%.2f");
         if (showBeamDebug_) {
             ImGui::Text("Beam Start: %.2f, %.2f, %.2f", currentNozzlePosition_.x, currentNozzlePosition_.y, currentNozzlePosition_.z);
             ImGui::Text("Beam End: %.2f, %.2f, %.2f", currentBeamEndPosition_.x, currentBeamEndPosition_.y, currentBeamEndPosition_.z);

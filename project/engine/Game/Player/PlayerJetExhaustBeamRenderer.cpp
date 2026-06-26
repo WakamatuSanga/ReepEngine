@@ -29,7 +29,10 @@ void PlayerJetExhaustBeamRenderer::Draw(
     const std::vector<Vertex>& vertices,
     const Camera* camera,
     float brightness,
+    float alphaScale,
     float flickerStrength,
+    float edgeSoftness,
+    float tipFadePower,
     float time,
     uint32_t mode) {
     if (!dxCommon_ || !camera || vertices.empty() || !constantData_ || !EnsureVertexCapacity(vertices.size())) {
@@ -45,6 +48,12 @@ void PlayerJetExhaustBeamRenderer::Draw(
         std::clamp(flickerStrength, 0.0f, 1.0f),
         time,
         static_cast<float>(mode),
+    };
+    constantData_->qualityParams = {
+        std::clamp(alphaScale, 0.0f, 1.0f),
+        std::clamp(edgeSoftness, 0.5f, 8.0f),
+        std::clamp(tipFadePower, 0.2f, 4.0f),
+        0.0f,
     };
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();

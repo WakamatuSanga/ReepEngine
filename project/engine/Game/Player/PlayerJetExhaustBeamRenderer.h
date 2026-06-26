@@ -18,12 +18,22 @@ public:
     };
 
     bool Initialize(DirectXCommon* dxCommon);
-    void Draw(const std::vector<Vertex>& vertices, const Camera* camera, float brightness, float flickerStrength, float time, uint32_t mode);
+    void Draw(
+        const std::vector<Vertex>& vertices,
+        const Camera* camera,
+        float brightness,
+        float alphaScale,
+        float flickerStrength,
+        float edgeSoftness,
+        float tipFadePower,
+        float time,
+        uint32_t mode);
 
 private:
     struct Constants {
         Matrix4x4 viewProjection;
         Vector4 params;
+        Vector4 qualityParams;
     };
 
     bool CreateRootSignature();
