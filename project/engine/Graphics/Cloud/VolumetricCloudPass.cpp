@@ -242,7 +242,7 @@ void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
         externalFlowMultiplier_ = 1.0f;
         return;
     }
-    externalFlowMultiplier_ = (std::max)(0.0f, multiplier);
+    externalFlowMultiplier_ = std::clamp(multiplier, 0.0f, 2.0f);
 }
 
 void VolumetricCloudPass::SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count)
@@ -477,17 +477,46 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     Vector3 flowDirection = ResolveCloudFlowDirection(camera);
     currentCloudFlowDirection_ = flowDirection;
 
-    const float boostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
-    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * (std::max)(0.0f, boostMultiplier) : 0.0f;
+    const float rawBoostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
+    const float boostMultiplier = std::isfinite(rawBoostMultiplier) ? std::clamp(rawBoostMultiplier, 0.0f, 2.0f) : 1.0f;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * boostMultiplier : 0.0f;
+
+    const float elapsedTime = cloudVolume->GetElapsedTime();
+    float deltaTime = 0.0f;
+    if (std::isfinite(elapsedTime)) {
+        if (hasPreviousCloudElapsedTime_) {
+            deltaTime = elapsedTime - previousCloudElapsedTime_;
+            if (deltaTime < 0.0f) {
+                cloudFlowPhase_ = 0.0f;
+                previousCloudFlowPhase_ = 0.0f;
+                cloudFlowPhaseIncreasing_ = true;
+                cloudFlowPhaseDecreasedWarning_ = false;
+                deltaTime = 0.0f;
+            }
+        }
+        previousCloudElapsedTime_ = elapsedTime;
+        hasPreviousCloudElapsedTime_ = true;
+    }
+    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 30.0f);
+    previousCloudFlowPhase_ = cloudFlowPhase_;
+    cloudFlowPhase_ += currentCloudFlowSpeed_ * safeDeltaTime;
+    if (!std::isfinite(cloudFlowPhase_)) {
+        cloudFlowPhase_ = previousCloudFlowPhase_;
+    }
+    cloudFlowPhaseIncreasing_ = cloudFlowPhase_ + 0.0001f >= previousCloudFlowPhase_;
+    if (!cloudFlowPhaseIncreasing_) {
+        cloudFlowPhaseDecreasedWarning_ = true;
+    }
+
     constantData_->cloudFlowDirectionSpeed = {
         flowDirection.x,
         flowDirection.y,
         flowDirection.z,
         currentCloudFlowSpeed_
     };
-    constantData_->cloudTime = cloudVolume->GetElapsedTime();
+    constantData_->cloudTime = cloudFlowPhase_;
     constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
-    constantData_->padding3 = 0.0f;
+    constantData_->cloudRawTime = std::isfinite(elapsedTime) ? elapsedTime : 0.0f;
     constantData_->padding4 = 0.0f;
     constantData_->nearCameraFade = {
         nearFadeStart_,

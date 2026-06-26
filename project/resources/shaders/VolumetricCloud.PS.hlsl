@@ -31,7 +31,7 @@ struct CloudPassConstants
     float4 cloudFlowDirectionSpeed;
     float cloudTime;
     uint enableCloudFlow;
-    float padding3;
+    float cloudRawTime;
     float padding4;
     float4 nearCameraFade;
     float4 cloudLayerFade;
@@ -261,7 +261,7 @@ float ComputeCloudDensity(float3 worldPosition)
     float3 flowOffset = 0.0f;
     if (gCloudPass.enableCloudFlow != 0u)
     {
-        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime * gCloudPass.cloudFlowDirectionSpeed.w;
+        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime;
     }
 
     float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
@@ -325,7 +325,7 @@ float4 ComputeFarCloudLayer(float2 uv, float3 rayDirection, float depth)
     float3 farPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
     float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
     float scale = max(gCloudPass.farCloudLayer.w, 0.00001f);
-    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudTime * gCloudPass.farCloudLayerExtra.y * scale;
+    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.farCloudLayerExtra.y * scale;
     float noiseA = FBM(float3(cloudUv, 6.37f));
     float noiseB = FBM(float3(cloudUv * 2.73f + 13.17f, 3.19f));
     float noiseValue = noiseA * 0.62f + noiseB * 0.38f;
@@ -372,7 +372,7 @@ float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
     float2 cameraRelativeUv = float2(rightDistance, forwardDistance);
     float2 noiseSource = lerp(seaPosition.xz, cameraRelativeUv, saturate(gCloudPass.cloudSeaFlow.y));
     float noiseScale = max(gCloudPass.cloudSeaShape.z, 0.0001f);
-    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudTime * gCloudPass.cloudSeaFlow.x * noiseScale;
+    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.cloudSeaFlow.x * noiseScale;
     float noiseA = FBM(float3(seaUv, 11.23f));
     float noiseB = FBM(float3(seaUv * 2.41f + 23.7f, 4.91f));
     float noiseValue = noiseA * 0.68f + noiseB * 0.32f;

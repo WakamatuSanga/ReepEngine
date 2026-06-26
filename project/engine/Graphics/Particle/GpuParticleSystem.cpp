@@ -192,6 +192,35 @@ void GpuParticleSystem::SetRailParticleFlow(bool enabled, const Vector3& cameraP
 	state_.railDespawnBehindDistance = (std::max)(despawnBehindDistance, 0.0f);
 }
 
+void GpuParticleSystem::SetRuntimePoolOptions(bool generateUnusedList, bool useDeadList, bool autoReuseDeadParticles) {
+	const bool listModeChanged = state_.useFreeListEmit != generateUnusedList || state_.useDeadList != useDeadList;
+	state_.useFreeListEmit = generateUnusedList;
+	state_.useDeadList = useDeadList;
+	state_.autoRecycleDeadList = autoReuseDeadParticles;
+	if (listModeChanged) {
+		GpuParticle::ResetListsForFreeListMode(state_);
+		GpuParticle::RequestInitialize(state_);
+	}
+}
+
+void GpuParticleSystem::SetRuntimeParticleLimits(uint32_t maxActiveParticles, uint32_t maxEmitPerFrame) {
+	state_.maxActiveParticles = std::clamp(maxActiveParticles, 1u, GpuParticle::kParticleCount);
+	state_.maxEmitPerFrame = std::clamp(maxEmitPerFrame, 1u, GpuParticle::kParticleCount);
+}
+
+void GpuParticleSystem::SetCounterReadbackEnabled(bool enabled) {
+	state_.autoReadbackCounters = enabled;
+}
+
+void GpuParticleSystem::RequestCounterReadback() {
+	GpuParticle::RequestCounterReadback(state_);
+}
+
+void GpuParticleSystem::ResetParticlePool() {
+	GpuParticle::ResetListsForFreeListMode(state_);
+	GpuParticle::RequestInitialize(state_);
+}
+
 void GpuParticleSystem::Update(const Camera* camera) {
 	if (!isInitialized_) {
 		return;
@@ -199,9 +228,41 @@ void GpuParticleSystem::Update(const Camera* camera) {
 
 	renderer_->UpdateView(camera);
 	state_.deltaTime = std::clamp(state_.deltaTime, 0.0f, 1.0f / 15.0f);
+	state_.lastRequestedEmitCount = 0;
+	state_.lastActualEmitCount = 0;
+	state_.lastSkippedEmitCount = 0;
+	state_.lastReusedCount = 0;
 	if (!state_.isUpdateEnabled || !state_.isEmitterEnabled || state_.needsInitializeDispatch) {
 		return;
 	}
+
+	uint32_t frameEmitBudget = std::clamp(state_.maxEmitPerFrame, 1u, GpuParticle::kParticleCount);
+	auto queueLimitedEmit = [this, &frameEmitBudget](GpuParticle::Emitter& emitter, uint32_t requestedEmitCount) {
+		if (requestedEmitCount == 0) {
+			return false;
+		}
+
+		state_.lastRequestedEmitCount = (std::min)(state_.lastRequestedEmitCount + requestedEmitCount, GpuParticle::kParticleCount);
+		uint32_t actualEmitCount = (std::min)(requestedEmitCount, frameEmitBudget);
+		if (state_.useFreeListEmit) {
+			const uint32_t maxActive = std::clamp(state_.maxActiveParticles, 1u, GpuParticle::kParticleCount);
+			const uint32_t activeRoom = state_.activeCountEstimate >= maxActive ? 0u : maxActive - state_.activeCountEstimate;
+			actualEmitCount = (std::min)(actualEmitCount, activeRoom);
+			actualEmitCount = (std::min)(actualEmitCount, state_.freeListRemainingEstimate);
+		}
+		if (actualEmitCount == 0) {
+			state_.lastSkippedEmitCount = (std::min)(state_.lastSkippedEmitCount + requestedEmitCount, GpuParticle::kParticleCount);
+			return false;
+		}
+
+		QueueEmitterEmit(state_, emitter, actualEmitCount);
+		frameEmitBudget -= actualEmitCount;
+		state_.lastActualEmitCount = (std::min)(state_.lastActualEmitCount + actualEmitCount, GpuParticle::kParticleCount);
+		if (requestedEmitCount > actualEmitCount) {
+			state_.lastSkippedEmitCount = (std::min)(state_.lastSkippedEmitCount + requestedEmitCount - actualEmitCount, GpuParticle::kParticleCount);
+		}
+		return true;
+	};
 
 	for (GpuParticle::Emitter& emitter : state_.emitters) {
 		if (!emitter.enabled) {
@@ -214,7 +275,7 @@ void GpuParticleSystem::Update(const Camera* camera) {
 				continue;
 			}
 			if (state_.useFreeListEmit) {
-				QueueEmitterEmit(state_, emitter, emitCount);
+				queueLimitedEmit(emitter, emitCount);
 			} else {
 				const float remainingAccumulator = emitter.emissionAccumulator;
 				GpuParticle::RequestInitialize(state_);
@@ -234,7 +295,7 @@ void GpuParticleSystem::Update(const Camera* camera) {
 			continue;
 		}
 		if (state_.useFreeListEmit) {
-			QueueEmitterEmit(state_, emitter, emitter.emitCount);
+			queueLimitedEmit(emitter, emitter.emitCount);
 		} else {
 			GpuParticle::RequestInitialize(state_);
 			break;
@@ -299,3 +360,4 @@ uint32_t GpuParticleSystem::EstimateActiveParticleCount() const {
 	}
 	return activeCount;
 }
+

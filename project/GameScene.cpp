@@ -538,6 +538,9 @@ void GameScene::Initialize() {
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
     postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
+    if (boostController_) {
+        boostController_->SetPostEffectContext(player_.get(), camera_.get(), postEffectController_.get());
+    }
     playerDeathSequenceController_ = std::make_unique<PlayerDeathSequenceController>();
     playerDeathSequenceController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon, cameraShakeController_.get());
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
@@ -912,6 +915,9 @@ void GameScene::Finalize() {
         playerDeathSequenceController_->Finalize();
     }
     playerDeathSequenceController_.reset();
+    if (boostController_) {
+        boostController_->SetPostEffectContext(nullptr, nullptr, nullptr);
+    }
     if (postEffectController_) {
         postEffectController_->Finalize();
     }

@@ -13,9 +13,13 @@ namespace GpuParticle {
 struct ParticleEffectRuntimeSettings {
 	bool randomEnabled = true;
 	bool useFreeListEmit = false;
+	bool generateUnusedList = false;
 	bool useDeadList = false;
 	bool autoRecycleDeadList = false;
+	bool autoReuseDeadParticles = false;
 	bool updateEnabled = true;
+	uint32_t maxActiveParticles = kParticleCount;
+	uint32_t maxEmitPerFrame = kParticleCount;
 };
 
 struct ParticleEffectData {
@@ -103,9 +107,13 @@ inline ParticleEffectData CreateParticleEffectDataFromState(const State& state) 
 	effectData.particleTypes = state.particleTypes;
 	effectData.runtime.randomEnabled = state.isRandomInitializeEnabled;
 	effectData.runtime.useFreeListEmit = state.useFreeListEmit;
+	effectData.runtime.generateUnusedList = state.useFreeListEmit;
 	effectData.runtime.useDeadList = state.useDeadList;
 	effectData.runtime.autoRecycleDeadList = state.autoRecycleDeadList;
+	effectData.runtime.autoReuseDeadParticles = state.autoRecycleDeadList;
 	effectData.runtime.updateEnabled = state.isUpdateEnabled;
+	effectData.runtime.maxActiveParticles = state.maxActiveParticles;
+	effectData.runtime.maxEmitPerFrame = state.maxEmitPerFrame;
 	NormalizeParticleEffectData(effectData);
 	return effectData;
 }
@@ -120,6 +128,10 @@ inline void ResetTransientStateForEffect(State& state) {
 	state.actualDeadListCount = 0;
 	state.lastEmitDispatchCount = 0;
 	state.lastRecycleDispatchCount = 0;
+	state.lastRequestedEmitCount = 0;
+	state.lastActualEmitCount = 0;
+	state.lastSkippedEmitCount = 0;
+	state.lastReusedCount = 0;
 	ResetListsForFreeListMode(state);
 	RequestInitialize(state);
 	if (state.useFreeListEmit) {
@@ -134,13 +146,16 @@ inline void ApplyParticleEffectDataToState(const ParticleEffectData& effectData,
 	state.emitters = std::move(normalizedEffect.emitters);
 	state.particleTypes = std::move(normalizedEffect.particleTypes);
 	state.isRandomInitializeEnabled = normalizedEffect.runtime.randomEnabled;
-	state.useFreeListEmit = normalizedEffect.runtime.useFreeListEmit;
+	state.useFreeListEmit = normalizedEffect.runtime.useFreeListEmit || normalizedEffect.runtime.generateUnusedList;
 	state.useDeadList = normalizedEffect.runtime.useDeadList;
-	state.autoRecycleDeadList = normalizedEffect.runtime.autoRecycleDeadList;
+	state.autoRecycleDeadList = normalizedEffect.runtime.autoRecycleDeadList || normalizedEffect.runtime.autoReuseDeadParticles;
 	state.isUpdateEnabled = normalizedEffect.runtime.updateEnabled;
+	state.maxActiveParticles = std::clamp(normalizedEffect.runtime.maxActiveParticles, 1u, kParticleCount);
+	state.maxEmitPerFrame = std::clamp(normalizedEffect.runtime.maxEmitPerFrame, 1u, kParticleCount);
 
 	ClampEmitterParticleTypeIndices(state);
 	ResetTransientStateForEffect(state);
 }
 
 } // namespace GpuParticle
+

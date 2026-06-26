@@ -1,5 +1,4 @@
 #include "PlayerJetExhaustController.h"
-
 #include "BoostController.h"
 #include "Player.h"
 #include "PlayerJetExhaustBeamCore.h"
@@ -13,19 +12,12 @@
 #include "Engine/Graphics/Particle/GpuParticleEffectData.h"
 #include "Engine/Graphics/Particle/GpuParticleEffectSerializer.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
-
-#ifdef USE_IMGUI
-#include "externals/imgui/imgui.h"
-#endif
-
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
-
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
     constexpr float kPi = 3.14159265358979323846f;
-
     struct VisualBasis {
         Vector3 right{ 1.0f, 0.0f, 0.0f };
         Vector3 up{ 0.0f, 1.0f, 0.0f };
@@ -165,9 +157,13 @@ namespace {
         GpuParticle::ParticleEffectData data;
         data.runtime.randomEnabled = true;
         data.runtime.useFreeListEmit = true;
+        data.runtime.generateUnusedList = true;
         data.runtime.useDeadList = true;
         data.runtime.autoRecycleDeadList = true;
+        data.runtime.autoReuseDeadParticles = true;
         data.runtime.updateEnabled = true;
+        data.runtime.maxActiveParticles = 1024;
+        data.runtime.maxEmitPerFrame = 64;
         data.particleTypes.push_back(MakeJetParticleType(
             "JetCore",
             { 1.0f, 0.95f, 0.68f, 0.90f },
@@ -177,8 +173,8 @@ namespace {
             0.020f,
             0.16f,
             0.28f,
-            10.0f,
-            14.5f,
+            10.2f,
+            13.8f,
             false,
             0.0f));
         data.particleTypes.push_back(MakeJetParticleType(
@@ -186,17 +182,17 @@ namespace {
             { 1.0f, 0.32f, 0.035f, 0.20f },
             { 1.0f, 0.38f, 0.045f, 0.18f },
             { 0.95f, 0.05f, 0.01f, 0.0f },
-            0.07f,
-            0.18f,
-            0.08f,
-            0.16f,
-            6.5f,
-            9.0f,
+            0.032f,
+            0.180f,
+            0.010f,
+            0.390f,
+            3.23f,
+            4.37f,
             false,
             0.0f));
-        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.07f, 0.0f, 101u, 0u));
+        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.1f, 0.160f, 0.0f, 101u, 0u));
         data.emitters.back().enabled = false;
-        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.08f, 55.0f, 211u, 1u));
+        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.1f, 0.160f, 2003.0f, 211u, 1u));
         GpuParticle::NormalizeParticleEffectData(data);
         return data;
     }
@@ -267,7 +263,7 @@ bool PlayerJetExhaustController::LoadPreset() {
     }
 
     if (data.emitters.size() < 2) {
-        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.0f, 0.08f, 55.0f, 211u, 1u));
+        data.emitters.push_back(MakeJetEmitter({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, -1.0f }, 10.1f, 0.160f, 2003.0f, 211u, 1u));
     }
     if (data.particleTypes.size() < 2) {
         data.particleTypes.push_back(MakeJetParticleType(
@@ -284,10 +280,21 @@ bool PlayerJetExhaustController::LoadPreset() {
             false,
             0.0f));
     }
-    data.runtime.useFreeListEmit = true;
-    data.runtime.useDeadList = true;
-    data.runtime.autoRecycleDeadList = true;
+    generateUnusedList_ = data.runtime.useFreeListEmit || data.runtime.generateUnusedList;
+    useDeadList_ = data.runtime.useDeadList;
+    autoReuseDeadParticles_ = data.runtime.autoRecycleDeadList || data.runtime.autoReuseDeadParticles;
+    maxActiveExhaustParticles_ = std::clamp(data.runtime.maxActiveParticles, 1u, GpuParticle::kParticleCount);
+    maxEmitPerFrame_ = std::clamp(data.runtime.maxEmitPerFrame, 1u, GpuParticle::kParticleCount);
+    maxOuterEmitPerFrame_ = (std::min)(maxOuterEmitPerFrame_, maxEmitPerFrame_);
+    maxCoreEmitPerFrame_ = (std::min)(maxCoreEmitPerFrame_, maxEmitPerFrame_);
+    data.runtime.useFreeListEmit = generateUnusedList_;
+    data.runtime.generateUnusedList = generateUnusedList_;
+    data.runtime.useDeadList = useDeadList_;
+    data.runtime.autoRecycleDeadList = autoReuseDeadParticles_;
+    data.runtime.autoReuseDeadParticles = autoReuseDeadParticles_;
     data.runtime.updateEnabled = true;
+    data.runtime.maxActiveParticles = maxActiveExhaustParticles_;
+    data.runtime.maxEmitPerFrame = maxEmitPerFrame_;
     GpuParticle::NormalizeParticleEffectData(data);
     particleSystem_->ApplyEffectData(data);
     return true;
@@ -345,12 +352,21 @@ void PlayerJetExhaustController::Update(float deltaTime) {
 }
 
 void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
-    (void)deltaTime;
+    NormalizeFlameRanges();
+    if (particleSystem_) {
+        particleSystem_->SetRuntimePoolOptions(generateUnusedList_, useDeadList_, autoReuseDeadParticles_);
+        particleSystem_->SetRuntimeParticleLimits(maxActiveExhaustParticles_, maxEmitPerFrame_);
+        particleSystem_->SetCounterReadbackEnabled(autoReadbackPoolCounters_);
+    }
     const bool shouldEmit = enableJetExhaust_ && (!hideWhenPlayerDead_ || isPlayerAlive_);
     const bool shouldEmitOuterParticles = shouldEmit && (!beamCore_ || beamCore_->IsOuterParticlesEnabled());
     const float coreSpeed = exhaustSpeed_ * currentSpeedMultiplier_;
     const float outerSpeed = outerExhaustSpeed_ * currentSpeedMultiplier_;
     const float lifeScale = currentLengthMultiplier_;
+    currentCoreSpawnRate_ = 0.0f;
+    currentOuterSpawnRate_ = shouldEmitOuterParticles
+        ? LimitEmissionRateForFrame(outerSpawnRate_ * currentSpawnRateMultiplier_, maxOuterEmitPerFrame_, deltaTime)
+        : 0.0f;
 
     GpuParticle::ParticleType coreType = MakeJetParticleType(
         "JetCore",
@@ -395,7 +411,7 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
         currentExhaustDirection_,
         coneAngleDegrees_ * 1.10f,
         emitterConeHeight_ * 1.10f,
-        shouldEmitOuterParticles ? outerSpawnRate_ * currentSpawnRateMultiplier_ : 0.0f,
+        currentOuterSpawnRate_,
         211u,
         1u);
     outerEmitter.enabled = shouldEmitOuterParticles;
@@ -487,114 +503,97 @@ void PlayerJetExhaustController::UpdateDebugObjects() {
     }
 }
 
-void PlayerJetExhaustController::ResetToRecommendedSettings() {
-    nozzleBackOffset_ = 0.55f;
+void PlayerJetExhaustController::NormalizeFlameRanges() {
+    lifeTimeMin_ = (std::max)(lifeTimeMin_, 0.01f);
+    lifeTimeMax_ = (std::max)(lifeTimeMax_, 0.01f);
+    if (lifeTimeMin_ > lifeTimeMax_) {
+        std::swap(lifeTimeMin_, lifeTimeMax_);
+    }
+    outerLifeTimeMin_ = (std::max)(outerLifeTimeMin_, 0.01f);
+    outerLifeTimeMax_ = (std::max)(outerLifeTimeMax_, 0.01f);
+    if (outerLifeTimeMin_ > outerLifeTimeMax_) {
+        std::swap(outerLifeTimeMin_, outerLifeTimeMax_);
+    }
+}
+
+float PlayerJetExhaustController::LimitEmissionRateForFrame(float emissionRate, uint32_t maxEmitPerFrame, float deltaTime) const {
+    if (emissionRate <= 0.0f || deltaTime <= 0.0f) {
+        return 0.0f;
+    }
+    const float safeDeltaTime = (std::max)(deltaTime, 1.0f / 240.0f);
+    const float frameLimitRate = static_cast<float>(std::clamp(maxEmitPerFrame, 1u, GpuParticle::kParticleCount)) / safeDeltaTime;
+    return (std::min)(emissionRate, frameLimitRate);
+}
+
+void PlayerJetExhaustController::ApplyCurrentTunedPreset() {
+    nozzleBackOffset_ = 0.22f;
     nozzleUpOffset_ = -0.02f;
     nozzleSideOffset_ = 0.0f;
-    coneAngleDegrees_ = 10.0f;
-    emitterConeHeight_ = 0.08f;
+    invertExhaustDirection_ = false;
+    coneAngleDegrees_ = 10.1f;
+    emitterConeHeight_ = 0.160f;
     spawnRate_ = 260.0f;
-    outerSpawnRate_ = 55.0f;
     exhaustSpeed_ = 12.0f;
-    outerExhaustSpeed_ = 8.0f;
-    lifeTimeMin_ = 0.16f;
-    lifeTimeMax_ = 0.28f;
-    outerLifeTimeMin_ = 0.08f;
-    outerLifeTimeMax_ = 0.16f;
+    lifeTimeMin_ = 0.160f;
+    lifeTimeMax_ = 0.280f;
     coreStartSize_ = 0.055f;
     coreEndSize_ = 0.020f;
-    outerStartSize_ = 0.07f;
-    outerEndSize_ = 0.18f;
-    brightness_ = 0.90f;
-    boostLengthMultiplier_ = 1.8f;
+    outerSpawnRate_ = 2003.0f;
+    outerExhaustSpeed_ = 3.8f;
+    outerLifeTimeMin_ = 0.010f;
+    outerLifeTimeMax_ = 0.390f;
+    outerStartSize_ = 0.032f;
+    outerEndSize_ = 0.180f;
+    outerParticleScale_ = 2.00f;
+    outerParticleAlphaScale_ = 0.38f;
+    brightness_ = 1.21f;
+    boostLengthMultiplier_ = 1.80f;
     boostSpeedMultiplier_ = 1.65f;
     boostSpawnRateMultiplier_ = 1.75f;
     boostBrightnessMultiplier_ = 1.55f;
     affectedByRailFlow_ = false;
     railFlowScale_ = 0.0f;
     drawAfterCloud_ = true;
-    afterCloudAlphaScale_ = 0.75f;
-    afterCloudBrightnessScale_ = 0.90f;
-    outerParticleScale_ = 0.65f;
-    outerParticleAlphaScale_ = 0.70f;
-}
-
-void PlayerJetExhaustController::DrawImGui() {
-#ifdef USE_IMGUI
-    ImGui::SetNextWindowSize(ImVec2(460.0f, 620.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤージェット排気確認 (Player Jet Exhaust Debug)")) {
-        ImGui::End();
-        return;
-    }
-
-    ImGui::Checkbox("ジェット排気を表示 (Enable Jet Exhaust)", &enableJetExhaust_);
-    ImGui::Checkbox("Player死亡中は隠す (Hide When Player Dead)", &hideWhenPlayerDead_);
-    ImGui::Checkbox("排気デバッグ表示 (Show Exhaust Debug)", &showDebugVisuals_);
-    ImGui::TextWrapped("Preset: %s", presetPath_.c_str());
-    ImGui::TextWrapped("Status: %s", loadStatus_.c_str());
-    if (ImGui::Button("排気プリセット再読込 (Reload Jet Preset)")) {
-        LoadPreset();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("推奨値に戻す (Reset Recommended)")) {
-        ResetToRecommendedSettings();
-    }
-
-    ImGui::SeparatorText("ノズル位置 (Nozzle Offset)");
-    ImGui::DragFloat("後方オフセット (Back Offset)", &nozzleBackOffset_, 0.01f, -3.0f, 3.0f, "%.2f");
-    ImGui::DragFloat("上下オフセット (Up Offset)", &nozzleUpOffset_, 0.01f, -2.0f, 2.0f, "%.2f");
-    ImGui::DragFloat("左右オフセット (Side Offset)", &nozzleSideOffset_, 0.01f, -2.0f, 2.0f, "%.2f");
-    ImGui::Checkbox("排気方向を反転 (Invert Exhaust Direction)", &invertExhaustDirection_);
-    ImGui::Text("Nozzle: %.2f, %.2f, %.2f", currentNozzlePosition_.x, currentNozzlePosition_.y, currentNozzlePosition_.z);
-    ImGui::Text("Direction: %.2f, %.2f, %.2f", currentExhaustDirection_.x, currentExhaustDirection_.y, currentExhaustDirection_.z);
+    afterCloudAlphaScale_ = 1.00f;
+    afterCloudBrightnessScale_ = 0.69f;
+    generateUnusedList_ = true;
+    useDeadList_ = true;
+    autoReuseDeadParticles_ = true;
+    maxActiveExhaustParticles_ = 1024;
+    maxEmitPerFrame_ = 64;
+    maxOuterEmitPerFrame_ = 64;
+    maxCoreEmitPerFrame_ = 16;
     if (beamCore_) {
-        beamCore_->DrawImGui();
+        beamCore_->ApplyCurrentTunedPreset();
     }
-
-    ImGui::SeparatorText("Jet Exhaust Visibility");
-    ImGui::Checkbox("雲の後に排気を描画 (Draw Jet Exhaust After Cloud)", &drawAfterCloud_);
-    ImGui::Checkbox("AfterCloud Debug表示 (Show After Cloud Layer Debug)", &showAfterCloudLayerDebug_);
-    ImGui::DragFloat("After Cloud Alpha Scale", &afterCloudAlphaScale_, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::DragFloat("After Cloud Brightness Scale", &afterCloudBrightnessScale_, 0.01f, 0.0f, 2.0f, "%.2f");
-    if (showAfterCloudLayerDebug_) {
-        ImGui::Text("Current Layer: %s", drawAfterCloud_ ? "After Cloud" : "Before Cloud");
-    }
-    ImGui::SeparatorText("炎パラメータ (Flame Parameters)");
-    ImGui::DragFloat("円錐角度 (Cone Angle)", &coneAngleDegrees_, 0.1f, 1.0f, 70.0f, "%.1f deg");
-    ImGui::DragFloat("Emitter Cone Height", &emitterConeHeight_, 0.005f, 0.001f, 1.0f, "%.3f");
-    ImGui::BeginDisabled();
-    ImGui::DragFloat("Core Spawn Rate", &spawnRate_, 1.0f, 0.0f, 2000.0f, "%.0f/sec");
-    ImGui::DragFloat("Core Speed", &exhaustSpeed_, 0.1f, 0.0f, 80.0f, "%.1f");
-    ImGui::DragFloat("Core Lifetime Min", &lifeTimeMin_, 0.005f, 0.02f, 2.0f, "%.3f");
-    ImGui::DragFloat("Core Lifetime Max", &lifeTimeMax_, 0.005f, 0.02f, 2.0f, "%.3f");
-    ImGui::DragFloat("Core Start Size", &coreStartSize_, 0.001f, 0.001f, 1.0f, "%.3f");
-    ImGui::DragFloat("Core End Size", &coreEndSize_, 0.001f, 0.001f, 1.0f, "%.3f");
-    ImGui::EndDisabled();
-    ImGui::DragFloat("Outer Spawn Rate", &outerSpawnRate_, 1.0f, 0.0f, 2000.0f, "%.0f/sec");
-    ImGui::DragFloat("Outer Speed", &outerExhaustSpeed_, 0.1f, 0.0f, 80.0f, "%.1f");
-    ImGui::DragFloat("Outer Lifetime Min", &outerLifeTimeMin_, 0.005f, 0.02f, 2.0f, "%.3f");
-    ImGui::DragFloat("Outer Lifetime Max", &outerLifeTimeMax_, 0.005f, 0.02f, 2.0f, "%.3f");
-    ImGui::DragFloat("Outer Start Size", &outerStartSize_, 0.001f, 0.001f, 1.0f, "%.3f");
-    ImGui::DragFloat("Outer End Size", &outerEndSize_, 0.001f, 0.001f, 1.0f, "%.3f");
-    ImGui::DragFloat("Outer Particle Scale", &outerParticleScale_, 0.01f, 0.0f, 2.0f, "%.2f");
-    ImGui::DragFloat("Outer Particle Alpha", &outerParticleAlphaScale_, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::DragFloat("明るさ (Brightness)", &brightness_, 0.01f, 0.0f, 4.0f, "%.2f");
-
-    ImGui::SeparatorText("Boost連動 (Boost Link)");
-    ImGui::DragFloat("Boost Length Multiplier", &boostLengthMultiplier_, 0.01f, 0.1f, 6.0f, "%.2f");
-    ImGui::DragFloat("Boost Speed Multiplier", &boostSpeedMultiplier_, 0.01f, 0.1f, 6.0f, "%.2f");
-    ImGui::DragFloat("Boost Spawn Rate Multiplier", &boostSpawnRateMultiplier_, 0.01f, 0.1f, 6.0f, "%.2f");
-    ImGui::DragFloat("Boost Brightness Multiplier", &boostBrightnessMultiplier_, 0.01f, 0.1f, 6.0f, "%.2f");
-    ImGui::Text("Boost Power: %.2f", smoothedBoostPower_);
-    ImGui::Text("Current Length / Speed / Rate / Brightness: %.2f / %.2f / %.2f / %.2f",
-        currentLengthMultiplier_, currentSpeedMultiplier_, currentSpawnRateMultiplier_, currentBrightness_);
-
-    ImGui::SeparatorText("外力設定 (Flow / Influence)");
-    ImGui::TextUnformatted("排気はデフォルトで風圧フィールド・平面衝突・Rail相対流れの影響を受けません。");
-    ImGui::Checkbox("Rail相対流れを受ける (Affected By Rail Flow)", &affectedByRailFlow_);
-    ImGui::DragFloat("Rail Flow Scale", &railFlowScale_, 0.01f, 0.0f, 5.0f, "%.2f");
-    ImGui::Text("Update Count: %llu", static_cast<unsigned long long>(updateCount_));
-    ImGui::Text("Active Particle Estimate: %u", particleSystem_ ? particleSystem_->GetActiveCountEstimate() : 0u);
-    ImGui::End();
-#endif
+    NormalizeFlameRanges();
 }
+
+void PlayerJetExhaustController::ApplyLightweightPreset() {
+    outerSpawnRate_ = 120.0f;
+    outerLifeTimeMin_ = 0.08f;
+    outerLifeTimeMax_ = 0.18f;
+    outerStartSize_ = 0.04f;
+    outerEndSize_ = 0.13f;
+    outerParticleScale_ = 1.0f;
+    outerParticleAlphaScale_ = 0.35f;
+    maxActiveExhaustParticles_ = 512;
+    maxEmitPerFrame_ = 48;
+    maxOuterEmitPerFrame_ = 48;
+    maxCoreEmitPerFrame_ = 12;
+    generateUnusedList_ = true;
+    useDeadList_ = true;
+    autoReuseDeadParticles_ = true;
+    NormalizeFlameRanges();
+}
+
+void PlayerJetExhaustController::ResetToRecommendedSettings() {
+    ApplyLightweightPreset();
+}
+
+
+
+
+
+
+

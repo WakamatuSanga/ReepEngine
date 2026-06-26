@@ -684,6 +684,10 @@ private:
 				if (!ParseBool(runtime.useFreeListEmit)) {
 					return false;
 				}
+			} else if (key == "generateUnusedList") {
+				if (!ParseBool(runtime.generateUnusedList)) {
+					return false;
+				}
 			} else if (key == "useDeadList") {
 				if (!ParseBool(runtime.useDeadList)) {
 					return false;
@@ -692,8 +696,20 @@ private:
 				if (!ParseBool(runtime.autoRecycleDeadList)) {
 					return false;
 				}
+			} else if (key == "autoReuseDeadParticles") {
+				if (!ParseBool(runtime.autoReuseDeadParticles)) {
+					return false;
+				}
 			} else if (key == "updateEnabled") {
 				if (!ParseBool(runtime.updateEnabled)) {
+					return false;
+				}
+			} else if (key == "maxActiveParticles") {
+				if (!ParseUint(runtime.maxActiveParticles)) {
+					return false;
+				}
+			} else if (key == "maxEmitPerFrame") {
+				if (!ParseUint(runtime.maxEmitPerFrame)) {
 					return false;
 				}
 			} else if (!SkipValue()) {
@@ -879,9 +895,13 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 		stream << "  \"runtime\": {\n";
 		stream << "    \"randomEnabled\": " << ToJsonBool(outputData.runtime.randomEnabled) << ",\n";
 		stream << "    \"useFreeListEmit\": " << ToJsonBool(outputData.runtime.useFreeListEmit) << ",\n";
+		stream << "    \"generateUnusedList\": " << ToJsonBool(outputData.runtime.generateUnusedList) << ",\n";
 		stream << "    \"useDeadList\": " << ToJsonBool(outputData.runtime.useDeadList) << ",\n";
 		stream << "    \"autoRecycleDeadList\": " << ToJsonBool(outputData.runtime.autoRecycleDeadList) << ",\n";
-		stream << "    \"updateEnabled\": " << ToJsonBool(outputData.runtime.updateEnabled) << "\n";
+		stream << "    \"autoReuseDeadParticles\": " << ToJsonBool(outputData.runtime.autoReuseDeadParticles) << ",\n";
+		stream << "    \"updateEnabled\": " << ToJsonBool(outputData.runtime.updateEnabled) << ",\n";
+		stream << "    \"maxActiveParticles\": " << outputData.runtime.maxActiveParticles << ",\n";
+		stream << "    \"maxEmitPerFrame\": " << outputData.runtime.maxEmitPerFrame << "\n";
 		stream << "  }\n";
 		stream << "}\n";
 		return true;
@@ -928,3 +948,4 @@ bool GpuParticle::GpuParticleEffectSerializer::Load(const std::string& filePath,
 	ApplyParticleEffectDataToState(effectData, state);
 	return true;
 }
+

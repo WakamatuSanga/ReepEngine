@@ -444,8 +444,20 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::TextWrapped("Base Flow Speed は雲が奥から手前へ流れる基本速度です。Boost中はここに倍率が掛かります。");
     ImGui::Checkbox("Boost連動を使う (Use Boost Flow Multiplier)", &useBoostFlowMultiplier_);
     ImGui::Text("外部Boost倍率 (External Boost Multiplier): %.2f", externalFlowMultiplier_);
-    ImGui::Text("現在の流速 (Current Flow Speed): %.2f", currentCloudFlowSpeed_);
-    ImGui::Text("現在の流れ方向 (Current Flow Direction): %.2f, %.2f, %.2f",
+    ImGui::Text("Cloud Flow Base Speed: %.2f", cloudBaseFlowSpeed_);
+    ImGui::Text("Cloud Boost Target Multiplier: %.2f", useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f);
+    ImGui::Text("Cloud Boost Current Multiplier: %.2f", useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f);
+    ImGui::Text("Cloud Boost Max Multiplier: 2.00");
+    ImGui::Text("現在の流速 (Cloud Flow Current Speed): %.2f", currentCloudFlowSpeed_);
+    ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase_);
+    ImGui::Text("Cloud Flow Phase Increasing: %s", cloudFlowPhaseIncreasing_ ? "true" : "false");
+    if (cloudFlowPhaseDecreasedWarning_) {
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.15f, 1.0f), "Warning: Cloud flow phase decreased. This may cause rewind.");
+        if (ImGui::Button("Cloud Flow警告をクリア (Clear Cloud Flow Warning)")) {
+            cloudFlowPhaseDecreasedWarning_ = false;
+        }
+    }
+    ImGui::Text("現在の流れ方向 (Cloud Flow Direction): %.2f, %.2f, %.2f",
         currentCloudFlowDirection_.x,
         currentCloudFlowDirection_.y,
         currentCloudFlowDirection_.z);

@@ -57,6 +57,9 @@ public:
     bool IsBarrelRollEffectEnabled() const;
     float GetDamageReduction() const;
     float GetBarrelRollClearBulletRadius() const;
+    float GetVisualAlpha() const { return currentPlayerAlpha_; }
+    bool ShouldCenterFadeAffectFakeShadow() const { return affectCenterFadeToFakeShadow_; }
+    bool ShouldCenterFadeAffectJetExhaust() const { return affectCenterFadeToJetExhaust_; }
 
 private:
     void LoadModel();
@@ -64,6 +67,8 @@ private:
     void UpdateWorldPosition();
     void UpdateObjectTransform();
     void UpdateVisualTilt(float deltaTime);
+    void UpdateCenterVisibilityAssist(float deltaTime);
+    void ApplyModelAlpha(float alpha);
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
@@ -105,6 +110,16 @@ private:
     bool useFallbackModel_ = false;
     bool useLightweightVisual_ = false;
     bool enableVisualTilt_ = true;
+    bool enableCenterFade_ = true;
+    bool affectCenterFadeToFakeShadow_ = false;
+    bool affectCenterFadeToJetExhaust_ = false;
+    bool centerProjectionValid_ = false;
+    float centerFadeInnerRadius_ = 0.04f;
+    float centerFadeOuterRadius_ = 0.20f;
+    float centerFadeMinAlpha_ = 0.55f;
+    float centerFadeSpeed_ = 10.0f;
+    float currentScreenDistance_ = 1.0f;
+    float currentPlayerAlpha_ = 1.0f;
     bool gameViewInputActive_ = false;
     bool hasExternalBase_ = false;
     BaseMode baseMode_ = BaseMode::CameraFront;
@@ -120,3 +135,5 @@ private:
     bool lastInputApplied_ = false;
     Vector3 lastRawMoveInput_{ 0.0f, 0.0f, 0.0f };
 };
+
+

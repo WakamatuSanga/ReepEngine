@@ -41,12 +41,20 @@ float3 ApplyRadialBlur(float2 texcoord, float3 baseColor)
     }
 
     float2 direction = texcoord - gPostEffectParameters.radialBlurCenter;
+    float centerClearRadius = max(gPostEffectParameters.radialBlurCenterClearRadius, 0.0f);
+    float outerEffectRadius = max(gPostEffectParameters.radialBlurOuterEffectRadius, centerClearRadius + 0.0001f);
+    float centerMask = smoothstep(centerClearRadius, outerEffectRadius, length(direction));
+    float effectiveStrength = gPostEffectParameters.radialBlurStrength * centerMask;
+    if (effectiveStrength <= 0.0001f) {
+        return baseColor;
+    }
+
     float3 accumulatedColor = baseColor;
 
     [loop]
     for (uint i = 1; i < sampleCount; ++i) {
         float t = (float)i / (float)(sampleCount - 1u);
-        float2 sampleUV = texcoord - direction * (gPostEffectParameters.radialBlurStrength * t);
+        float2 sampleUV = texcoord - direction * (effectiveStrength * t);
         accumulatedColor += SampleRadialBlurSource(sampleUV);
     }
 

@@ -117,6 +117,25 @@ void PlayerJetExhaustBeamCore::Draw(const Camera* camera, float brightnessScale,
     }
 }
 
+void PlayerJetExhaustBeamCore::ApplyCurrentTunedPreset() {
+    enableBeamCore_ = true;
+    enableOuterParticles_ = true;
+    enableNozzleGlow_ = true;
+    useCrossBillboard_ = true;
+    baseBeamLength_ = 2.22f;
+    boostBeamLength_ = 2.17f;
+    beamStartWidth_ = 0.375f;
+    beamEndWidth_ = 0.910f;
+    baseBeamBrightness_ = 2.12f;
+    boostBeamBrightness_ = 3.02f;
+    beamFlickerStrength_ = 0.480f;
+    beamEdgeSoftness_ = 3.28f;
+    beamTipFadePower_ = 2.89f;
+    nozzleGlowSize_ = 0.12f;
+    boostNozzleGlowSize_ = 0.01f;
+    nozzleGlowBrightness_ = 1.22f;
+    boostNozzleGlowBrightness_ = 2.04f;
+}
 void PlayerJetExhaustBeamCore::DrawImGui() {
 #ifdef USE_IMGUI
     if (ImGui::TreeNodeEx("Beam Core / Glow", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -207,3 +226,4 @@ void PlayerJetExhaustBeamCore::AddQuad(
     vertices.push_back({ startB, { 0.0f, 0.0f } });
     vertices.push_back({ endB, { 1.0f, 0.0f } });
 }
+

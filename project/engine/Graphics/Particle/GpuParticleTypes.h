@@ -255,6 +255,12 @@ struct State {
 	uint32_t activeCountEstimate = kParticleCount;
 	uint32_t freeListRemainingEstimate = 0;
 	uint32_t deadListCountEstimate = 0;
+	uint32_t maxActiveParticles = kParticleCount;
+	uint32_t maxEmitPerFrame = kParticleCount;
+	uint32_t lastRequestedEmitCount = 0;
+	uint32_t lastActualEmitCount = 0;
+	uint32_t lastSkippedEmitCount = 0;
+	uint32_t lastReusedCount = 0;
 	uint32_t lastEmitDispatchCount = 0;
 	uint32_t recycleCount = kParticleCount;
 	uint32_t lastRecycleDispatchCount = 0;
@@ -434,8 +440,13 @@ inline void ResetListsForFreeListMode(State& state) {
 	state.freeListRemainingEstimate = 0;
 	state.deadListCountEstimate = 0;
 	state.lastRecycleDispatchCount = 0;
+	state.lastRequestedEmitCount = 0;
+	state.lastActualEmitCount = 0;
+	state.lastSkippedEmitCount = 0;
+	state.lastReusedCount = 0;
 	state.isCounterReadbackValid = false;
 	state.isCounterReadbackPending = false;
 }
 
 } // namespace GpuParticle
+

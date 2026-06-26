@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
@@ -237,6 +238,7 @@ void Player::Update(float deltaTime) {
     }
 
     UpdateWorldPosition();
+    UpdateCenterVisibilityAssist(safeDeltaTime);
     if (actionController_) {
         actionController_->Update(
             safeDeltaTime,
@@ -407,6 +409,19 @@ void Player::DrawImGui() {
         actionController_->DrawImGui();
     }
 
+    ImGui::SeparatorText("Player Visibility Assist");
+    ImGui::Checkbox("中心付近でPlayerを薄くする (Enable Player Center Fade)", &enableCenterFade_);
+    ImGui::DragFloat("Center Fade Inner Radius", &centerFadeInnerRadius_, 0.005f, 0.0f, 1.0f, "%.3f");
+    ImGui::DragFloat("Center Fade Outer Radius", &centerFadeOuterRadius_, 0.005f, 0.0f, 1.0f, "%.3f");
+    centerFadeOuterRadius_ = (std::max)(centerFadeOuterRadius_, centerFadeInnerRadius_ + 0.001f);
+    ImGui::DragFloat("Center Min Alpha", &centerFadeMinAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("Center Fade Speed", &centerFadeSpeed_, 0.1f, 0.0f, 60.0f, "%.1f");
+    ImGui::Text("Current Screen Distance: %.3f", currentScreenDistance_);
+    ImGui::Text("Current Player Alpha: %.3f", currentPlayerAlpha_);
+    ImGui::Text("Projection Valid: %s", centerProjectionValid_ ? "true" : "false");
+    ImGui::Checkbox("FakeShadowにも反映 (Affect FakeShadow)", &affectCenterFadeToFakeShadow_);
+    ImGui::Checkbox("Jet Exhaustにも反映 (Affect Jet Exhaust)", &affectCenterFadeToJetExhaust_);
+
     ImGui::DragFloat("Move Speed", &moveSpeed_, 0.05f, 0.0f, 30.0f, "%.2f");
     ImGui::DragFloat("Move Limit X", &moveLimitX_, 0.05f, 0.0f, 20.0f, "%.2f");
     ImGui::DragFloat("Move Limit Y", &moveLimitY_, 0.05f, 0.0f, 20.0f, "%.2f");
@@ -552,6 +567,7 @@ void Player::LoadModel() {
     if (object_) {
         object_->SetModel(model_);
     }
+    ApplyModelAlpha(currentPlayerAlpha_);
 }
 
 void Player::ResetPosition() {
@@ -582,6 +598,53 @@ void Player::UpdateWorldPosition() {
         ScaleVector3(cameraUp, localOffsetY_));
 }
 
+void Player::UpdateCenterVisibilityAssist(float deltaTime) {
+    if (!camera_ || !model_) {
+        return;
+    }
+
+    centerProjectionValid_ = false;
+    float targetAlpha = 1.0f;
+    currentScreenDistance_ = 1.0f;
+    if (enableCenterFade_ && centerFadeOuterRadius_ > centerFadeInnerRadius_) {
+        const Matrix4x4& viewProjection = camera_->GetViewProjectionMatrix();
+        const Vector3& p = worldPosition_;
+        const float clipX = p.x * viewProjection.m[0][0] + p.y * viewProjection.m[1][0] + p.z * viewProjection.m[2][0] + viewProjection.m[3][0];
+        const float clipY = p.x * viewProjection.m[0][1] + p.y * viewProjection.m[1][1] + p.z * viewProjection.m[2][1] + viewProjection.m[3][1];
+        const float clipW = p.x * viewProjection.m[0][3] + p.y * viewProjection.m[1][3] + p.z * viewProjection.m[2][3] + viewProjection.m[3][3];
+        if (clipW > 0.0001f && std::isfinite(clipW)) {
+            const float ndcX = clipX / clipW;
+            const float ndcY = clipY / clipW;
+            if (std::isfinite(ndcX) && std::isfinite(ndcY)) {
+                const float normalizedX = ndcX * 0.5f + 0.5f;
+                const float normalizedY = -ndcY * 0.5f + 0.5f;
+                const float dx = normalizedX - 0.5f;
+                const float dy = normalizedY - 0.5f;
+                currentScreenDistance_ = std::sqrt(dx * dx + dy * dy);
+                const float fadeT = std::clamp(
+                    (currentScreenDistance_ - centerFadeInnerRadius_) / (centerFadeOuterRadius_ - centerFadeInnerRadius_),
+                    0.0f,
+                    1.0f);
+                const float smoothT = fadeT * fadeT * (3.0f - 2.0f * fadeT);
+                targetAlpha = LerpFloat(std::clamp(centerFadeMinAlpha_, 0.0f, 1.0f), 1.0f, smoothT);
+                centerProjectionValid_ = true;
+            }
+        }
+    }
+
+    const float alphaT = std::clamp(deltaTime * centerFadeSpeed_, 0.0f, 1.0f);
+    currentPlayerAlpha_ = LerpFloat(currentPlayerAlpha_, targetAlpha, alphaT);
+    ApplyModelAlpha(currentPlayerAlpha_);
+}
+
+void Player::ApplyModelAlpha(float alpha) {
+    if (!model_) {
+        return;
+    }
+    if (Model::Material* material = model_->GetMaterialData()) {
+        material->color.w = std::clamp(alpha, 0.0f, 1.0f);
+    }
+}
 void Player::UpdateObjectTransform() {
     if (!object_) {
         return;
@@ -623,4 +686,8 @@ void Player::UpdateVisualTilt(float deltaTime) {
         LerpFloat(currentVisualTilt_.z, targetTilt.z, t)
     };
 }
+
+
+
+
 

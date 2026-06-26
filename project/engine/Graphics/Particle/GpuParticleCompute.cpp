@@ -378,6 +378,7 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		state.emitBatchEstimates.push_back({ actualEmitCount, 0.0f, GpuParticle::GetParticleType(state, emitter.particleTypeIndex).lifeTimeMax });
 		totalEmitCount += actualEmitCount;
 		if (actualEmitCount < requestedEmitCount) {
+			state.lastSkippedEmitCount = (std::min)(state.lastSkippedEmitCount + requestedEmitCount - actualEmitCount, GpuParticle::kParticleCount);
 			emitter.pendingEmitCount = requestedEmitCount - actualEmitCount;
 			emitter.pendingEmit = true;
 			hasPendingEmit = true;
@@ -388,6 +389,7 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		}
 	}
 	state.lastEmitDispatchCount = totalEmitCount;
+	state.lastActualEmitCount = totalEmitCount;
 	state.needsEmitDispatch = hasPendingEmit;
 }
 
@@ -462,6 +464,7 @@ void GpuParticleCompute::DispatchRecycleIfNeeded(
 	state.deadListCountEstimate -= count;
 	state.freeListRemainingEstimate = (std::min)(state.freeListRemainingEstimate + count, GpuParticle::kParticleCount);
 	state.lastRecycleDispatchCount = count;
+	state.lastReusedCount = count;
 	state.needsRecycleDispatch = false;
 }
 
@@ -491,3 +494,4 @@ void GpuParticleCompute::UpdateFreeListEstimate(GpuParticle::State& state, float
 		state.freeListRemainingEstimate = (std::min)(state.freeListRemainingEstimate + returnedCount, GpuParticle::kParticleCount);
 	}
 }
+

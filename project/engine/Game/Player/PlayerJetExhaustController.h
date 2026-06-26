@@ -2,6 +2,7 @@
 
 #include "Engine/math/Matrix4x4.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -43,6 +44,10 @@ private:
     void UpdateDebugObjects();
     void EnsureDebugObjects();
     void ResetToRecommendedSettings();
+    void ApplyCurrentTunedPreset();
+    void ApplyLightweightPreset();
+    void NormalizeFlameRanges();
+    float LimitEmissionRateForFrame(float emissionRate, uint32_t maxEmitPerFrame, float deltaTime) const;
     void DrawLayer(bool afterCloudLayer);
 
     Object3dCommon* object3dCommon_ = nullptr;
@@ -71,25 +76,38 @@ private:
     bool affectedByRailFlow_ = false;
     bool drawAfterCloud_ = true;
     bool showAfterCloudLayerDebug_ = false;
+    bool generateUnusedList_ = true;
+    bool useDeadList_ = true;
+    bool autoReuseDeadParticles_ = true;
+    bool autoReadbackPoolCounters_ = false;
+    bool showPoolWarning_ = true;
 
-    float nozzleBackOffset_ = 0.55f;
+    uint32_t maxActiveExhaustParticles_ = 1024;
+    uint32_t maxEmitPerFrame_ = 64;
+    uint32_t maxOuterEmitPerFrame_ = 64;
+    uint32_t maxCoreEmitPerFrame_ = 16;
+
+    float currentCoreSpawnRate_ = 0.0f;
+    float currentOuterSpawnRate_ = 0.0f;
+
+    float nozzleBackOffset_ = 0.22f;
     float nozzleUpOffset_ = -0.02f;
     float nozzleSideOffset_ = 0.0f;
-    float coneAngleDegrees_ = 10.0f;
-    float emitterConeHeight_ = 0.08f;
+    float coneAngleDegrees_ = 10.1f;
+    float emitterConeHeight_ = 0.160f;
     float spawnRate_ = 260.0f;
-    float outerSpawnRate_ = 55.0f;
+    float outerSpawnRate_ = 2003.0f;
     float exhaustSpeed_ = 12.0f;
-    float outerExhaustSpeed_ = 8.0f;
+    float outerExhaustSpeed_ = 3.8f;
     float lifeTimeMin_ = 0.16f;
     float lifeTimeMax_ = 0.28f;
-    float outerLifeTimeMin_ = 0.08f;
-    float outerLifeTimeMax_ = 0.16f;
+    float outerLifeTimeMin_ = 0.010f;
+    float outerLifeTimeMax_ = 0.390f;
     float coreStartSize_ = 0.055f;
     float coreEndSize_ = 0.020f;
-    float outerStartSize_ = 0.07f;
+    float outerStartSize_ = 0.032f;
     float outerEndSize_ = 0.18f;
-    float brightness_ = 0.90f;
+    float brightness_ = 1.21f;
     float boostLengthMultiplier_ = 1.8f;
     float boostSpeedMultiplier_ = 1.65f;
     float boostSpawnRateMultiplier_ = 1.75f;
@@ -97,10 +115,10 @@ private:
     float boostSmoothSpeed_ = 12.0f;
     float railFlowScale_ = 0.0f;
     float debugDirectionLength_ = 0.9f;
-    float afterCloudAlphaScale_ = 0.75f;
-    float afterCloudBrightnessScale_ = 0.90f;
-    float outerParticleScale_ = 0.65f;
-    float outerParticleAlphaScale_ = 0.70f;
+    float afterCloudAlphaScale_ = 1.00f;
+    float afterCloudBrightnessScale_ = 0.69f;
+    float outerParticleScale_ = 2.00f;
+    float outerParticleAlphaScale_ = 0.38f;
 
     float smoothedBoostPower_ = 0.0f;
     float currentLengthMultiplier_ = 1.0f;
@@ -111,3 +129,6 @@ private:
     Vector3 currentNozzlePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 currentExhaustDirection_{ 0.0f, 0.0f, -1.0f };
 };
+
+
+

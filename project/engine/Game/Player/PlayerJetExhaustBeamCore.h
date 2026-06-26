@@ -22,6 +22,7 @@ public:
         bool exhaustEnabled);
     void Draw(const Camera* camera, float brightnessScale = 1.0f, float alphaScale = 1.0f);
     void DrawImGui();
+    void ApplyCurrentTunedPreset();
 
     bool IsBeamEnabled() const { return enableBeamCore_; }
     bool IsOuterParticlesEnabled() const { return enableOuterParticles_; }
@@ -76,3 +77,4 @@ private:
     Vector3 currentBeamEndPosition_{ 0.0f, 0.0f, -1.0f };
     Vector3 currentExhaustDirection_{ 0.0f, 0.0f, -1.0f };
 };
+

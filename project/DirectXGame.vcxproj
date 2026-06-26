@@ -175,6 +175,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\BoostController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
@@ -565,3 +566,5 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>
+
+

@@ -120,7 +120,7 @@ private:
         Vector4 cloudFlowDirectionSpeed;
         float cloudTime = 0.0f;
         uint32_t enableCloudFlow = 0;
-        float padding3 = 0.0f;
+        float cloudRawTime = 0.0f;
         float padding4 = 0.0f;
         Vector4 nearCameraFade;
         Vector4 cloudLayerFade;
@@ -256,6 +256,12 @@ private:
     float cloudBaseFlowSpeed_ = 10.0f;
     float externalFlowMultiplier_ = 1.0f;
     float currentCloudFlowSpeed_ = 0.35f;
+    float cloudFlowPhase_ = 0.0f;
+    float previousCloudElapsedTime_ = 0.0f;
+    float previousCloudFlowPhase_ = 0.0f;
+    bool hasPreviousCloudElapsedTime_ = false;
+    bool cloudFlowPhaseIncreasing_ = true;
+    bool cloudFlowPhaseDecreasedWarning_ = false;
     float cloudNearDistance_ = -5.0f;
     float cloudFarDistance_ = 200.0f;
     float cloudBehindCameraDistance_ = 5.0f;
