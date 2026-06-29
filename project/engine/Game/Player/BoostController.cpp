@@ -22,6 +22,8 @@ void BoostController::Initialize(VolumetricCloudPass* cloudPass) {
     cloudPass_ = cloudPass;
     currentCloudFlowMultiplier_ = 1.0f;
     targetCloudFlowMultiplier_ = 1.0f;
+    currentCloudBoostExtraSpeed_ = 0.0f;
+    targetCloudBoostExtraSpeed_ = 0.0f;
     PushMultiplierToCloud();
 }
 
@@ -116,14 +118,22 @@ void BoostController::DrawImGui() {
     ImGui::DragFloat("Boost Cooldown", &boostCooldown_, 0.01f, 0.0f, 10.0f, "%.2f");
     ImGui::DragFloat("Ease In Time", &boostEaseInTime_, 0.01f, 0.0f, 3.0f, "%.2f");
     ImGui::DragFloat("Ease Out Time", &boostEaseOutTime_, 0.01f, 0.0f, 3.0f, "%.2f");
-    ImGui::DragFloat("Cloud Flow Multiplier", &boostCloudFlowMultiplier_, 0.05f, 1.0f, 2.0f, "%.2f");
-    ImGui::DragFloat("Cloud Boost Max Multiplier", &maxCloudBoostMultiplier_, 0.01f, 1.0f, 2.0f, "%.2f");
+    ImGui::SeparatorText("雲Boost追加速度 (Cloud Boost Extra Speed)");
+    ImGui::DragFloat("最大Cloud Boost追加速度 (Max Cloud Boost Extra Speed)", &maxCloudBoostExtraSpeed_, 0.5f, 0.0f, 30.0f, "%.1f");
     ImGui::DragFloat("Cloud Boost Smooth Speed", &cloudBoostMultiplierSmoothSpeed_, 0.1f, 0.0f, 30.0f, "%.1f");
+    const float baseCloudFlowSpeed = cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0.0f;
+    const float currentCloudFlowSpeed = cloudPass_ ? cloudPass_->GetCurrentCloudFlowSpeed() : baseCloudFlowSpeed + currentCloudBoostExtraSpeed_;
+    const float cloudFlowPhase = cloudPass_ ? cloudPass_->GetCloudFlowPhase() : 0.0f;
+    ImGui::Text("Base Cloud Flow Speed: %.2f", baseCloudFlowSpeed);
+    ImGui::Text("Target Cloud Boost Extra Speed: %.2f", targetCloudBoostExtraSpeed_);
+    ImGui::Text("Current Cloud Boost Extra Speed: %.2f", currentCloudBoostExtraSpeed_);
+    ImGui::Text("Current Cloud Flow Speed: %.2f", currentCloudFlowSpeed);
+    ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase);
+    ImGui::Text("Equivalent Cloud Flow Multiplier: %.2f", GetCloudFlowMultiplier());
+    ImGui::Text("Target Equivalent Multiplier: %.2f", targetCloudFlowMultiplier_);
     ImGui::DragFloat("Visual Speed Multiplier", &boostVisualSpeedMultiplier_, 0.05f, 1.0f, 10.0f, "%.2f");
     ImGui::DragFloat("Future Radial Blur Intensity", &radialBlurIntensity_, 0.01f, 0.0f, 0.2f, "%.2f");
     ImGui::DragFloat("Future FOV Boost Amount", &fovBoostAmount_, 0.1f, 0.0f, 60.0f, "%.1f");
-    ImGui::Text("Applied Cloud Flow Multiplier: %.2f", GetCloudFlowMultiplier());
-    ImGui::Text("Target Cloud Flow Multiplier: %.2f", targetCloudFlowMultiplier_);
     ImGui::Text("Boost Effect Center: %.2f, %.2f (%s)", lastBoostEffectCenterX_, lastBoostEffectCenterY_, lastBoostEffectCenterValid_ ? "valid" : "invalid");
     ImGui::Text("Applied Visual Speed Multiplier: %.2f", GetVisualSpeedMultiplier());
     ImGui::Text("Game View Input Active: %s", gameViewInputActive_ ? "true" : "false");
@@ -176,20 +186,26 @@ void BoostController::ResetBoost() {
     currentBoostPower_ = 0.0f;
     currentCloudFlowMultiplier_ = 1.0f;
     targetCloudFlowMultiplier_ = 1.0f;
+    currentCloudBoostExtraSpeed_ = 0.0f;
+    targetCloudBoostExtraSpeed_ = 0.0f;
     UpdateBoostPostEffect();
     inputBlockedReason_ = "Reset";
 }
 
 void BoostController::UpdateCloudFlowMultiplier(float deltaTime) {
-    const float clampedMax = std::clamp(maxCloudBoostMultiplier_, 1.0f, 2.0f);
-    const float requestedBoost = std::clamp(boostCloudFlowMultiplier_, 1.0f, clampedMax);
-    targetCloudFlowMultiplier_ = 1.0f + (requestedBoost - 1.0f) * Saturate(currentBoostPower_);
+    const float baseCloudSpeed = cloudPass_ ? (std::max)(cloudPass_->GetCloudBaseFlowSpeed(), 0.0f) : 0.0f;
+    const float clampedExtraSpeed = std::clamp(maxCloudBoostExtraSpeed_, 0.0f, 30.0f);
+    targetCloudBoostExtraSpeed_ = clampedExtraSpeed * Saturate(currentBoostPower_);
     const float smoothSpeed = (std::max)(cloudBoostMultiplierSmoothSpeed_, 0.0f);
     const float t = smoothSpeed <= 0.0f ? 1.0f : 1.0f - std::exp(-std::clamp(deltaTime, 0.0f, 1.0f / 15.0f) * smoothSpeed);
-    currentCloudFlowMultiplier_ += (targetCloudFlowMultiplier_ - currentCloudFlowMultiplier_) * std::clamp(t, 0.0f, 1.0f);
-    if (!std::isfinite(currentCloudFlowMultiplier_)) {
-        currentCloudFlowMultiplier_ = 1.0f;
+    currentCloudBoostExtraSpeed_ += (targetCloudBoostExtraSpeed_ - currentCloudBoostExtraSpeed_) * std::clamp(t, 0.0f, 1.0f);
+    if (!std::isfinite(currentCloudBoostExtraSpeed_)) {
+        currentCloudBoostExtraSpeed_ = 0.0f;
     }
+    currentCloudBoostExtraSpeed_ = std::clamp(currentCloudBoostExtraSpeed_, 0.0f, 30.0f);
+
+    targetCloudFlowMultiplier_ = baseCloudSpeed > 0.0001f ? (baseCloudSpeed + targetCloudBoostExtraSpeed_) / baseCloudSpeed : 1.0f;
+    currentCloudFlowMultiplier_ = baseCloudSpeed > 0.0001f ? (baseCloudSpeed + currentCloudBoostExtraSpeed_) / baseCloudSpeed : 1.0f;
 }
 
 void BoostController::UpdateBoostPostEffect() {
@@ -231,7 +247,8 @@ bool BoostController::ProjectPlayerToScreen(float& outX, float& outY) const {
 
 void BoostController::PushMultiplierToCloud() {
     if (cloudPass_) {
-        cloudPass_->SetExternalFlowMultiplier(GetCloudFlowMultiplier());
+        cloudPass_->SetExternalFlowMultiplier(1.0f);
+        cloudPass_->SetExternalBoostExtraFlowSpeed(currentCloudBoostExtraSpeed_);
     }
 }
 

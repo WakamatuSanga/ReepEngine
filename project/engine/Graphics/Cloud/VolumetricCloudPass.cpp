@@ -245,6 +245,15 @@ void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
     externalFlowMultiplier_ = std::clamp(multiplier, 0.0f, 2.0f);
 }
 
+void VolumetricCloudPass::SetExternalBoostExtraFlowSpeed(float extraSpeed)
+{
+    if (!std::isfinite(extraSpeed)) {
+        externalBoostExtraFlowSpeed_ = 0.0f;
+        return;
+    }
+    externalBoostExtraFlowSpeed_ = std::clamp(extraSpeed, 0.0f, 30.0f);
+}
+
 void VolumetricCloudPass::SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count)
 {
     const uint32_t clampedCount = std::clamp(count, 0u, 16u);
@@ -477,9 +486,8 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     Vector3 flowDirection = ResolveCloudFlowDirection(camera);
     currentCloudFlowDirection_ = flowDirection;
 
-    const float rawBoostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
-    const float boostMultiplier = std::isfinite(rawBoostMultiplier) ? std::clamp(rawBoostMultiplier, 0.0f, 2.0f) : 1.0f;
-    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * boostMultiplier : 0.0f;
+    const float boostExtraSpeed = useBoostFlowMultiplier_ ? std::clamp(externalBoostExtraFlowSpeed_, 0.0f, 30.0f) : 0.0f;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ + boostExtraSpeed : 0.0f;
 
     const float elapsedTime = cloudVolume->GetElapsedTime();
     float deltaTime = 0.0f;

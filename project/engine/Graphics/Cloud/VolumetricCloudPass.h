@@ -70,6 +70,7 @@ public:
     void SetForceMode(ForceMode mode) { forceMode_ = mode; }
     ForceMode GetForceMode() const { return forceMode_; }
     void SetExternalFlowMultiplier(float multiplier);
+    void SetExternalBoostExtraFlowSpeed(float extraSpeed);
     void SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count);
     void SetCloudInfluenceEnabled(bool enabled);
     void SetCameraForwardTunnelSettings(bool enabled, float length, float radius, float clearStrength);
@@ -77,6 +78,10 @@ public:
     void SetDiagnosticDisableComposite(bool disabled) { diagnosticDisableCloudComposite_ = disabled; }
     void SetDiagnosticDisableDepthAwareUpsample(bool disabled) { diagnosticDisableDepthAwareUpsample_ = disabled; }
     float GetExternalFlowMultiplier() const { return externalFlowMultiplier_; }
+    float GetExternalBoostExtraFlowSpeed() const { return externalBoostExtraFlowSpeed_; }
+    float GetCloudBaseFlowSpeed() const { return cloudBaseFlowSpeed_; }
+    float GetCurrentCloudFlowSpeed() const { return currentCloudFlowSpeed_; }
+    float GetCloudFlowPhase() const { return cloudFlowPhase_; }
     float GetCloudResolutionScale() const { return cloudResolutionScale_; }
     bool IsLowResolutionCloudEnabled() const { return useLowResolutionCloud_; }
     bool IsCloudCompositeEnabled() const { return enableCloudComposite_ && !diagnosticDisableCloudComposite_; }
@@ -255,6 +260,7 @@ private:
     float lightStepScale_ = 1.0f;
     float cloudBaseFlowSpeed_ = 10.0f;
     float externalFlowMultiplier_ = 1.0f;
+    float externalBoostExtraFlowSpeed_ = 0.0f;
     float currentCloudFlowSpeed_ = 0.35f;
     float cloudFlowPhase_ = 0.0f;
     float previousCloudElapsedTime_ = 0.0f;

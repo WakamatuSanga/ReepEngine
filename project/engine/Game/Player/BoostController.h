@@ -38,6 +38,8 @@ public:
     bool IsBoosting() const { return state_ == State::Boosting; }
     float GetCurrentBoostPower() const { return currentBoostPower_; }
     float GetCloudFlowMultiplier() const;
+    float GetCurrentCloudBoostExtraSpeed() const { return currentCloudBoostExtraSpeed_; }
+    float GetTargetCloudBoostExtraSpeed() const { return targetCloudBoostExtraSpeed_; }
     float GetVisualSpeedMultiplier() const;
     float GetRadialBlurIntensity() const { return radialBlurIntensity_ * currentBoostPower_; }
     float GetFovBoostAmount() const { return fovBoostAmount_ * currentBoostPower_; }
@@ -78,9 +80,12 @@ private:
     float boostEaseOutTime_ = 0.3f;
     float currentBoostPower_ = 0.0f;
     float maxCloudBoostMultiplier_ = 2.0f;
+    float maxCloudBoostExtraSpeed_ = 28.0f;
     float cloudBoostMultiplierSmoothSpeed_ = 8.0f;
     float currentCloudFlowMultiplier_ = 1.0f;
     float targetCloudFlowMultiplier_ = 1.0f;
+    float currentCloudBoostExtraSpeed_ = 0.0f;
+    float targetCloudBoostExtraSpeed_ = 0.0f;
     float radialBlurIntensity_ = 0.08f;
     float lastBoostEffectCenterX_ = 0.5f;
     float lastBoostEffectCenterY_ = 0.5f;
