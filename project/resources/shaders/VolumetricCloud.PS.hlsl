@@ -31,7 +31,7 @@ struct CloudPassConstants
     float4 cloudFlowDirectionSpeed;
     float cloudTime;
     uint enableCloudFlow;
-    float padding3;
+    float cloudRawTime;
     float padding4;
     float4 nearCameraFade;
     float4 cloudLayerFade;
@@ -46,6 +46,11 @@ struct CloudPassConstants
     float4 cloudSeaShape;
     float4 cloudSeaFlow;
     float4 cloudSeaColor;
+    float4 influenceCentersAndRadius[16];
+    float4 influenceParams[16];
+    float4 influenceSettings; // x:count y:enableCloudClear z:enableTunnel w:tunnelClearStrength
+    float4 cameraTunnelStartLength; // xyz:start w:length
+    float4 cameraTunnelDirectionRadius; // xyz:direction w:radius
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -55,6 +60,8 @@ struct VertexShaderOutput
     float4 position : SV_POSITION;
     float2 texcoord : TEXCOORD0;
 };
+
+static const uint kInfluenceFieldFlagAffectCloud = 1u << 2;
 
 float Hash31(float3 p)
 {
@@ -89,6 +96,55 @@ float ValueNoise3D(float3 p)
     return lerp(nxy0, nxy1, local.z);
 }
 
+float ComputeInfluenceClearFactor(float3 worldPosition)
+{
+    float clearFactor = 0.0f;
+    if (gCloudPass.influenceSettings.y > 0.5f)
+    {
+        uint fieldCount = min((uint)(gCloudPass.influenceSettings.x + 0.5f), 16u);
+        [loop]
+        for (uint index = 0u; index < fieldCount; ++index)
+        {
+            float4 centerAndRadius = gCloudPass.influenceCentersAndRadius[index];
+            float4 params = gCloudPass.influenceParams[index];
+            uint flags = (uint)(params.w + 0.5f);
+            if ((flags & kInfluenceFieldFlagAffectCloud) == 0u)
+            {
+                continue;
+            }
+
+            float radius = max(centerAndRadius.w, 0.0001f);
+            float distanceValue = distance(worldPosition, centerAndRadius.xyz);
+            if (distanceValue >= radius)
+            {
+                continue;
+            }
+
+            float falloff = pow(saturate(1.0f - distanceValue / radius), max(params.z, 0.01f));
+            float edgeNoise = lerp(0.90f, 1.08f, ValueNoise3D(worldPosition * 0.09f + index * 11.37f));
+            clearFactor = max(clearFactor, falloff * saturate(params.y) * edgeNoise);
+        }
+    }
+
+    if (gCloudPass.influenceSettings.z > 0.5f)
+    {
+        float tunnelLength = max(gCloudPass.cameraTunnelStartLength.w, 0.0f);
+        float tunnelRadius = max(gCloudPass.cameraTunnelDirectionRadius.w, 0.0001f);
+        float3 tunnelStart = gCloudPass.cameraTunnelStartLength.xyz;
+        float3 tunnelDirection = normalize(gCloudPass.cameraTunnelDirectionRadius.xyz);
+        float along = clamp(dot(worldPosition - tunnelStart, tunnelDirection), 0.0f, tunnelLength);
+        float3 closestPoint = tunnelStart + tunnelDirection * along;
+        float distanceToTunnel = distance(worldPosition, closestPoint);
+        if (distanceToTunnel < tunnelRadius)
+        {
+            float radial = pow(saturate(1.0f - distanceToTunnel / tunnelRadius), 2.0f);
+            float lengthFade = smoothstep(0.0f, min(8.0f, max(tunnelLength, 0.0001f)), along) * (1.0f - smoothstep(max(tunnelLength - 8.0f, 0.0f), tunnelLength, along));
+            clearFactor = max(clearFactor, radial * lengthFade * saturate(gCloudPass.influenceSettings.w));
+        }
+    }
+
+    return saturate(clearFactor);
+}
 float FBM(float3 p)
 {
     float value = 0.0f;
@@ -205,7 +261,7 @@ float ComputeCloudDensity(float3 worldPosition)
     float3 flowOffset = 0.0f;
     if (gCloudPass.enableCloudFlow != 0u)
     {
-        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime * gCloudPass.cloudFlowDirectionSpeed.w;
+        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime;
     }
 
     float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
@@ -237,6 +293,7 @@ float ComputeCloudDensity(float3 worldPosition)
         float fade = smoothstep(gCloudPass.nearCameraFade.x, gCloudPass.nearCameraFade.y, distanceFromCamera);
         density *= lerp(gCloudPass.nearCameraFade.z, 1.0f, fade);
     }
+    density *= 1.0f - ComputeInfluenceClearFactor(worldPosition);
     return max(density, 0.0f);
 }
 
@@ -268,7 +325,7 @@ float4 ComputeFarCloudLayer(float2 uv, float3 rayDirection, float depth)
     float3 farPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
     float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
     float scale = max(gCloudPass.farCloudLayer.w, 0.00001f);
-    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudTime * gCloudPass.farCloudLayerExtra.y * scale;
+    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.farCloudLayerExtra.y * scale;
     float noiseA = FBM(float3(cloudUv, 6.37f));
     float noiseB = FBM(float3(cloudUv * 2.73f + 13.17f, 3.19f));
     float noiseValue = noiseA * 0.62f + noiseB * 0.38f;
@@ -315,7 +372,7 @@ float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
     float2 cameraRelativeUv = float2(rightDistance, forwardDistance);
     float2 noiseSource = lerp(seaPosition.xz, cameraRelativeUv, saturate(gCloudPass.cloudSeaFlow.y));
     float noiseScale = max(gCloudPass.cloudSeaShape.z, 0.0001f);
-    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudTime * gCloudPass.cloudSeaFlow.x * noiseScale;
+    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.cloudSeaFlow.x * noiseScale;
     float noiseA = FBM(float3(seaUv, 11.23f));
     float noiseB = FBM(float3(seaUv * 2.41f + 23.7f, 4.91f));
     float noiseValue = noiseA * 0.68f + noiseB * 0.32f;

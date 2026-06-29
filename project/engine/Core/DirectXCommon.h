@@ -37,6 +37,8 @@ public:
         float radialBlurStrength = 0.02f;
         std::array<float, 2> radialBlurCenter = { 0.5f, 0.5f };
         uint32_t radialBlurSampleCount = 8;
+        float radialBlurCenterClearRadius = 0.0f;
+        float radialBlurOuterEffectRadius = 1.0f;
         uint32_t dissolveEnabled = 0;
         float dissolveThreshold = 0.0f;
         float dissolveEdgeWidth = 0.05f;

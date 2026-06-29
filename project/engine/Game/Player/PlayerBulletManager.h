@@ -39,6 +39,15 @@ public:
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity, int damage);
     void DeleteAllBullets();
+    bool CheckHitAndKillFirstEllipsoid(
+        const Vector3& center,
+        float radius,
+        const Vector3& axisScale,
+        Vector3* hitPosition,
+        int* damage,
+        float* lastDistance,
+        float* lastRadiusSum,
+        float* lastBulletRadius);
     bool CheckHitAndKillFirstSphere(
         const Vector3& center,
         float radius,

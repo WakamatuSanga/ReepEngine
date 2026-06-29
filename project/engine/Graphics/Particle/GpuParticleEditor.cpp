@@ -1,4 +1,4 @@
-﻿#include "GpuParticleEditor.h"
+#include "GpuParticleEditor.h"
 
 #include "GpuParticleEffectSerializer.h"
 #include "GpuParticleRenderer.h"
@@ -117,6 +117,7 @@ bool DrawEmitterInspector(GpuParticle::State& state, int selectedEmitterIndex) {
 	ImGui::Text("選択中エミッター (Selected Emitter): %d", selectedEmitterIndex);
 	changed |= ImGui::Checkbox("エミッター有効 (Enabled)", &emitter.enabled);
 	changed |= ImGui::DragFloat3("発生位置 (Position)", &emitter.position.x, 0.05f, -10.0f, 10.0f, "%.2f");
+	changed |= ImGui::DragFloat3("発生方向 (Direction)", &emitter.direction.x, 0.01f, -1.0f, 1.0f, "%.2f");
 	changed |= ImGui::DragFloat("発生半径 (Radius)", &emitter.radius, 0.01f, 0.0f, 5.0f, "%.2f");
 	const char* shapeItems[] = {
 		"Sphere",
@@ -258,6 +259,18 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 		result.changed |= ImGui::DragFloat("衝突減衰 (Collision Damping)", &type.collisionDamping, 0.01f, 0.0f, 2.0f, "%.2f");
 		ImGui::TreePop();
 	}
+	if (ImGui::TreeNodeEx("風圧フィールド反応 (Influence Field Response)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("Player/Enemy周囲の風圧でParticleを押しのけます。火花はON、煙などは倍率を下げると自然です。");
+		result.changed |= ImGui::Checkbox("風圧を受ける (Affected By Influence Field)", &type.affectedByInfluenceField);
+		result.changed |= ImGui::DragFloat("風圧反応倍率 (Influence Response Scale)", &type.influenceResponseScale, 0.01f, 0.0f, 10.0f, "%.2f");
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNodeEx("レール相対流れ (Rail Particle Flow)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("Rail Shooter用の相対流れを受けるParticleだけONにします。velocityへ蓄積せず、最終移動にだけ足されます。");
+		result.changed |= ImGui::Checkbox("レール流れを受ける (Affected By Rail Flow)", &type.affectedByRailFlow);
+		result.changed |= ImGui::DragFloat("レール流れ倍率 (Rail Flow Scale)", &type.railFlowScale, 0.01f, 0.0f, 10.0f, "%.2f");
+		ImGui::TreePop();
+	}
 	result.changed |= ImGui::Checkbox("アトラス使用 (Use Atlas)", &type.useAtlas);
 	int atlasRows = static_cast<int>(type.atlasRows);
 	if (ImGui::DragInt("アトラス行数 (Atlas Rows)", &atlasRows, 0.05f, 1, 64)) {
@@ -288,6 +301,8 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	type.bounceVelocityThreshold = (std::max)(type.bounceVelocityThreshold, 0.0f);
 	type.maxBounceCount = std::clamp(type.maxBounceCount, 0u, 255u);
 	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
+	type.influenceResponseScale = std::clamp(type.influenceResponseScale, 0.0f, 10.0f);
+	type.railFlowScale = std::clamp(type.railFlowScale, 0.0f, 10.0f);
 	type.atlasRows = (std::max)(type.atlasRows, 1u);
 	type.atlasColumns = (std::max)(type.atlasColumns, 1u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);
@@ -609,4 +624,3 @@ void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResource
 	(void)particleTextureIndex;
 #endif
 }
-

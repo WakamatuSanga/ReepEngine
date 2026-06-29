@@ -391,6 +391,10 @@ private:
 				if (!ParseVector3(emitter.position)) {
 					return false;
 				}
+			} else if (key == "direction") {
+				if (!ParseVector3(emitter.direction)) {
+					return false;
+				}
 			} else if (key == "radius") {
 				if (!ParseFloat(emitter.radius)) {
 					return false;
@@ -602,6 +606,22 @@ private:
 				if (!ParseFloat(type.collisionDamping)) {
 					return false;
 				}
+			} else if (key == "affectedByInfluenceField") {
+				if (!ParseBool(type.affectedByInfluenceField)) {
+					return false;
+				}
+			} else if (key == "influenceResponseScale") {
+				if (!ParseFloat(type.influenceResponseScale)) {
+					return false;
+				}
+			} else if (key == "affectedByRailFlow") {
+				if (!ParseBool(type.affectedByRailFlow)) {
+					return false;
+				}
+			} else if (key == "railFlowScale") {
+				if (!ParseFloat(type.railFlowScale)) {
+					return false;
+				}
 			} else if (key == "useAtlas") {
 				if (!ParseBool(type.useAtlas)) {
 					return false;
@@ -664,6 +684,10 @@ private:
 				if (!ParseBool(runtime.useFreeListEmit)) {
 					return false;
 				}
+			} else if (key == "generateUnusedList") {
+				if (!ParseBool(runtime.generateUnusedList)) {
+					return false;
+				}
 			} else if (key == "useDeadList") {
 				if (!ParseBool(runtime.useDeadList)) {
 					return false;
@@ -672,8 +696,20 @@ private:
 				if (!ParseBool(runtime.autoRecycleDeadList)) {
 					return false;
 				}
+			} else if (key == "autoReuseDeadParticles") {
+				if (!ParseBool(runtime.autoReuseDeadParticles)) {
+					return false;
+				}
 			} else if (key == "updateEnabled") {
 				if (!ParseBool(runtime.updateEnabled)) {
+					return false;
+				}
+			} else if (key == "maxActiveParticles") {
+				if (!ParseUint(runtime.maxActiveParticles)) {
+					return false;
+				}
+			} else if (key == "maxEmitPerFrame") {
+				if (!ParseUint(runtime.maxEmitPerFrame)) {
 					return false;
 				}
 			} else if (!SkipValue()) {
@@ -788,6 +824,9 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"position\": ";
 			WriteVector3(stream, emitter.position);
 			stream << ",\n";
+			stream << "      \"direction\": ";
+			WriteVector3(stream, emitter.direction);
+			stream << ",\n";
 			stream << "      \"radius\": " << emitter.radius << ",\n";
 			stream << "      \"shape\": ";
 			WriteJsonString(stream, ToEmitterShapeJsonString(emitter.shape));
@@ -840,6 +879,10 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"maxBounceCount\": " << type.maxBounceCount << ",\n";
 			stream << "      \"killBelowPlane\": " << ToJsonBool(type.killBelowPlane) << ",\n";
 			stream << "      \"collisionDamping\": " << type.collisionDamping << ",\n";
+			stream << "      \"affectedByInfluenceField\": " << ToJsonBool(type.affectedByInfluenceField) << ",\n";
+			stream << "      \"influenceResponseScale\": " << type.influenceResponseScale << ",\n";
+			stream << "      \"affectedByRailFlow\": " << ToJsonBool(type.affectedByRailFlow) << ",\n";
+			stream << "      \"railFlowScale\": " << type.railFlowScale << ",\n";
 			stream << "      \"useAtlas\": " << ToJsonBool(type.useAtlas) << ",\n";
 			stream << "      \"atlasRows\": " << type.atlasRows << ",\n";
 			stream << "      \"atlasColumns\": " << type.atlasColumns << ",\n";
@@ -852,9 +895,13 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 		stream << "  \"runtime\": {\n";
 		stream << "    \"randomEnabled\": " << ToJsonBool(outputData.runtime.randomEnabled) << ",\n";
 		stream << "    \"useFreeListEmit\": " << ToJsonBool(outputData.runtime.useFreeListEmit) << ",\n";
+		stream << "    \"generateUnusedList\": " << ToJsonBool(outputData.runtime.generateUnusedList) << ",\n";
 		stream << "    \"useDeadList\": " << ToJsonBool(outputData.runtime.useDeadList) << ",\n";
 		stream << "    \"autoRecycleDeadList\": " << ToJsonBool(outputData.runtime.autoRecycleDeadList) << ",\n";
-		stream << "    \"updateEnabled\": " << ToJsonBool(outputData.runtime.updateEnabled) << "\n";
+		stream << "    \"autoReuseDeadParticles\": " << ToJsonBool(outputData.runtime.autoReuseDeadParticles) << ",\n";
+		stream << "    \"updateEnabled\": " << ToJsonBool(outputData.runtime.updateEnabled) << ",\n";
+		stream << "    \"maxActiveParticles\": " << outputData.runtime.maxActiveParticles << ",\n";
+		stream << "    \"maxEmitPerFrame\": " << outputData.runtime.maxEmitPerFrame << "\n";
 		stream << "  }\n";
 		stream << "}\n";
 		return true;
@@ -901,3 +948,4 @@ bool GpuParticle::GpuParticleEffectSerializer::Load(const std::string& filePath,
 	ApplyParticleEffectDataToState(effectData, state);
 	return true;
 }
+

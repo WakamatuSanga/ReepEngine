@@ -1,4 +1,4 @@
-﻿#include "RailShooterCameraRig.h"
+#include "RailShooterCameraRig.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 #include <algorithm>
@@ -124,6 +124,47 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Checkbox("CameraRig中はRail Debugを隠す (Hide Rail Debug While Camera Rig Active)", &hideRailDebugWhileActive_);
     ImGui::Checkbox("CameraRig中はRail点を隠す (Hide Rail Points While Camera Rig Active)", &hideRailPointsWhileActive_);
     ImGui::Checkbox("CameraRig中はEvent Debugを隠す (Hide Event Debug While Camera Rig Active)", &hideEventDebugWhileActive_);
+
+    ImGui::SeparatorText("Camera Composition Debug");
+    ImGui::Checkbox("斜め上カメラを使う (Enable Angled Player Camera)", &enableAngledPlayerCamera_);
+    ImGui::Checkbox("見た目用Camera Forwardのみ変更 (Use Visual Camera Forward Only)", &useVisualCameraForwardOnly_);
+    ImGui::Checkbox("Camera Composition Debug表示 (Show Camera Composition Debug)", &showCameraCompositionDebug_);
+    ImGui::DragFloat("Camera Height Offset", &cameraHeightOffset_, 0.01f, -4.0f, 8.0f, "%.2f");
+    ImGui::DragFloat("Camera Side Offset", &cameraSideOffset_, 0.01f, -4.0f, 4.0f, "%.2f");
+    ImGui::DragFloat("Look Down Angle", &lookDownAngleDeg_, 0.1f, -20.0f, 30.0f, "%.1f deg");
+    ImGui::DragFloat("Look At Y Offset", &lookAtYOffset_, 0.01f, -4.0f, 4.0f, "%.2f");
+    ImGui::DragFloat("Player Screen Y Offset", &playerScreenYOffset_, 0.01f, -2.0f, 2.0f, "%.2f");
+    ImGui::DragFloat("Composition Look Ahead", &compositionLookAhead_, 0.05f, 0.1f, 50.0f, "%.2f");
+    if (ImGui::Button("Default Rear")) {
+        enableAngledPlayerCamera_ = false;
+        cameraHeightOffset_ = 0.0f;
+        cameraSideOffset_ = 0.0f;
+        lookDownAngleDeg_ = 0.0f;
+        lookAtYOffset_ = 0.0f;
+        playerScreenYOffset_ = 0.0f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Angled Above")) {
+        enableAngledPlayerCamera_ = true;
+        cameraHeightOffset_ = 1.2f;
+        cameraSideOffset_ = 0.0f;
+        lookDownAngleDeg_ = 6.0f;
+        lookAtYOffset_ = -0.4f;
+        playerScreenYOffset_ = -0.2f;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cinematic Rail Shooter")) {
+        enableAngledPlayerCamera_ = true;
+        cameraHeightOffset_ = 1.6f;
+        cameraSideOffset_ = 0.35f;
+        lookDownAngleDeg_ = 8.0f;
+        lookAtYOffset_ = -0.55f;
+        playerScreenYOffset_ = -0.25f;
+    }
+    if (showCameraCompositionDebug_) {
+        ImGui::Text("Visual Camera Position: %.3f, %.3f, %.3f", visualCameraPosition_.x, visualCameraPosition_.y, visualCameraPosition_.z);
+        ImGui::Text("Visual Camera Forward: %.3f, %.3f, %.3f", visualCameraForward_.x, visualCameraForward_.y, visualCameraForward_.z);
+    }
 
     ImGui::SeparatorText("Initial Camera");
     if (ImGui::Button("初期カメラを適用 (Apply Initial Camera)")) {

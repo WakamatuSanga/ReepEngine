@@ -1,0 +1,167 @@
+{
+    "emitters":  [
+                     {
+                         "enabled":  false,
+                         "position":  [
+                                          0.0,
+                                          0.0,
+                                          0.0
+                                      ],
+                         "direction":  [
+                                           0.0,
+                                           0.0,
+                                           -1.0
+                                       ],
+                         "radius":  0.0285,
+                         "shape":  "Cone",
+                         "boxSize":  [
+                                         0.05,
+                                         0.05,
+                                         0.05
+                                     ],
+                         "coneHeight":  0.16,
+                         "emitCount":  96,
+                         "emitInterval":  0.0,
+                         "emissionRate":  0.0,
+                         "randomSeed":  101,
+                         "particleTypeIndex":  0
+                     },
+                     {
+                         "enabled":  true,
+                         "position":  [
+                                          0.0,
+                                          0.0,
+                                          0.0
+                                      ],
+                         "direction":  [
+                                           0.0,
+                                           0.0,
+                                           -1.0
+                                       ],
+                         "radius":  0.0285,
+                         "shape":  "Cone",
+                         "boxSize":  [
+                                         0.05,
+                                         0.05,
+                                         0.05
+                                     ],
+                         "coneHeight":  0.16,
+                         "emitCount":  96,
+                         "emitInterval":  0.0,
+                         "emissionRate":  2003,
+                         "randomSeed":  211,
+                         "particleTypeIndex":  1
+                     }
+                 ],
+    "particleTypes":  [
+                          {
+                              "name":  "JetCore",
+                              "texturePath":  "resources/particle/circle2.png",
+                              "baseColor":  [
+                                                1.0,
+                                                0.95,
+                                                0.68,
+                                                0.90
+                                            ],
+                              "startColor":  [
+                                                 1.0,
+                                                 0.96,
+                                                 0.72,
+                                                 0.88
+                                             ],
+                              "endColor":  [
+                                               1.0,
+                                               0.22,
+                                               0.03,
+                                               0.0
+                                           ],
+                              "startScale":  0.055,
+                              "endScale":  0.02,
+                              "lifeTimeMin":  0.16,
+                              "lifeTimeMax":  0.28,
+                              "speedMin":  10.2,
+                              "speedMax":  13.8,
+                              "gravity":  0.0,
+                              "drag":  0.85,
+                              "enablePhysics":  false,
+                              "enablePlaneCollision":  false,
+                              "collisionPlaneY":  0.0,
+                              "restitution":  0.0,
+                              "friction":  1.0,
+                              "bounceVelocityThreshold":  0.0,
+                              "maxBounceCount":  0,
+                              "killBelowPlane":  false,
+                              "collisionDamping":  1.0,
+                              "affectedByInfluenceField":  false,
+                              "influenceResponseScale":  0.0,
+                              "affectedByRailFlow":  false,
+                              "railFlowScale":  0.0,
+                              "useAtlas":  false,
+                              "atlasRows":  1,
+                              "atlasColumns":  1,
+                              "frameCount":  1,
+                              "frameSpeed":  8.0,
+                              "loopAtlas":  true
+                          },
+                          {
+                              "name":  "JetOuterFlame",
+                              "texturePath":  "resources/particle/circle2.png",
+                              "baseColor":  [
+                                                1.0,
+                                                0.32,
+                                                0.035,
+                                                0.20
+                                            ],
+                              "startColor":  [
+                                                 1.0,
+                                                 0.38,
+                                                 0.045,
+                                                 0.18
+                                             ],
+                              "endColor":  [
+                                               0.95,
+                                               0.05,
+                                               0.01,
+                                               0.0
+                                           ],
+                              "startScale":  0.032,
+                              "endScale":  0.18,
+                              "lifeTimeMin":  0.01,
+                              "lifeTimeMax":  0.39,
+                              "speedMin":  3.23,
+                              "speedMax":  4.37,
+                              "gravity":  0.0,
+                              "drag":  0.95,
+                              "enablePhysics":  false,
+                              "enablePlaneCollision":  false,
+                              "collisionPlaneY":  0.0,
+                              "restitution":  0.0,
+                              "friction":  1.0,
+                              "bounceVelocityThreshold":  0.0,
+                              "maxBounceCount":  0,
+                              "killBelowPlane":  false,
+                              "collisionDamping":  1.0,
+                              "affectedByInfluenceField":  false,
+                              "influenceResponseScale":  0.0,
+                              "affectedByRailFlow":  false,
+                              "railFlowScale":  0.0,
+                              "useAtlas":  false,
+                              "atlasRows":  1,
+                              "atlasColumns":  1,
+                              "frameCount":  1,
+                              "frameSpeed":  8.0,
+                              "loopAtlas":  true
+                          }
+                      ],
+    "runtime":  {
+                    "randomEnabled":  true,
+                    "useFreeListEmit":  true,
+                    "generateUnusedList":  true,
+                    "useDeadList":  true,
+                    "autoRecycleDeadList":  true,
+                    "autoReuseDeadParticles":  true,
+                    "updateEnabled":  true,
+                    "maxActiveParticles":  1024,
+                    "maxEmitPerFrame":  64
+                }
+}

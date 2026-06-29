@@ -441,15 +441,27 @@ void VolumetricCloudPass::DrawImGui()
         ImGui::DragFloat3("固定流れ方向 (Flow Direction)", &fixedCloudFlowDirection_.x, 0.01f, -10.0f, 10.0f, "%.2f");
     }
     ImGui::DragFloat("基本流速 (Base Flow Speed)", &cloudBaseFlowSpeed_, 0.01f, 0.0f, 20.0f, "%.2f");
-    ImGui::TextWrapped("Base Flow Speed は雲が奥から手前へ流れる基本速度です。Boost中はここに倍率が掛かります。");
-    ImGui::Checkbox("Boost連動を使う (Use Boost Flow Multiplier)", &useBoostFlowMultiplier_);
-    ImGui::Text("外部Boost倍率 (External Boost Multiplier): %.2f", externalFlowMultiplier_);
-    ImGui::Text("現在の流速 (Current Flow Speed): %.2f", currentCloudFlowSpeed_);
-    ImGui::Text("現在の流れ方向 (Current Flow Direction): %.2f, %.2f, %.2f",
+    ImGui::TextWrapped("Base Flow Speed は雲が奥から手前へ流れる基本速度です。Boost中は通常速度に追加速度が足されます。");
+    ImGui::Checkbox("Boost連動を使う (Use Boost Flow Extra Speed)", &useBoostFlowMultiplier_);
+    ImGui::Text("旧Boost倍率互換値 (Legacy External Boost Multiplier): %.2f", externalFlowMultiplier_);
+    ImGui::Text("Base Cloud Flow Speed: %.2f", cloudBaseFlowSpeed_);
+    ImGui::Text("Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
+    ImGui::Text("Target Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
+    ImGui::Text("Current Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
+    ImGui::Text("現在の流速 (Cloud Flow Current Speed): %.2f", currentCloudFlowSpeed_);
+    ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase_);
+    ImGui::Text("Cloud Flow Phase Increasing: %s", cloudFlowPhaseIncreasing_ ? "true" : "false");
+    if (cloudFlowPhaseDecreasedWarning_) {
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.15f, 1.0f), "Warning: Cloud flow phase decreased. This may cause rewind.");
+        if (ImGui::Button("Cloud Flow警告をクリア (Clear Cloud Flow Warning)")) {
+            cloudFlowPhaseDecreasedWarning_ = false;
+        }
+    }
+    ImGui::Text("現在の流れ方向 (Cloud Flow Direction): %.2f, %.2f, %.2f",
         currentCloudFlowDirection_.x,
         currentCloudFlowDirection_.y,
         currentCloudFlowDirection_.z);
-    ImGui::TextWrapped("Boost連動ONでは、基本流速にBoostControllerの倍率を掛けます。通常時は1.0倍、Boost中は設定倍率へ近づきます。");
+    ImGui::TextWrapped("Boost連動ONでは、基本流速にBoostControllerの追加速度を足します。通常時は+0、Boost中は最大追加速度へ近づきます。");
 
     ImGui::SeparatorText("カメラ相対の雲範囲 (Camera Relative Cloud Volume)");
     ImGui::TextWrapped("Cloud Near Distanceを負にすると、カメラの少し後ろまで雲を描けます。Y方向は雲レイヤー設定でカメラより上へ逃がし、初期状態では雲の下で戦えるようにします。");

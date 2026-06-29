@@ -242,9 +242,46 @@ void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
         externalFlowMultiplier_ = 1.0f;
         return;
     }
-    externalFlowMultiplier_ = (std::max)(0.0f, multiplier);
+    externalFlowMultiplier_ = std::clamp(multiplier, 0.0f, 2.0f);
 }
 
+void VolumetricCloudPass::SetExternalBoostExtraFlowSpeed(float extraSpeed)
+{
+    if (!std::isfinite(extraSpeed)) {
+        externalBoostExtraFlowSpeed_ = 0.0f;
+        return;
+    }
+    externalBoostExtraFlowSpeed_ = std::clamp(extraSpeed, 0.0f, 30.0f);
+}
+
+void VolumetricCloudPass::SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count)
+{
+    const uint32_t clampedCount = std::clamp(count, 0u, 16u);
+    influenceFieldCount_ = clampedCount;
+    influenceCentersAndRadius_.fill({ 0.0f, 0.0f, 0.0f, 0.0f });
+    influenceParams_.fill({ 0.0f, 0.0f, 1.0f, 0.0f });
+    if (!centersAndRadius || !params) {
+        influenceFieldCount_ = 0;
+        return;
+    }
+    for (uint32_t index = 0; index < clampedCount; ++index) {
+        influenceCentersAndRadius_[index] = centersAndRadius[index];
+        influenceParams_[index] = params[index];
+    }
+}
+
+void VolumetricCloudPass::SetCloudInfluenceEnabled(bool enabled)
+{
+    enableCloudInfluenceClear_ = enabled;
+}
+
+void VolumetricCloudPass::SetCameraForwardTunnelSettings(bool enabled, float length, float radius, float clearStrength)
+{
+    enableCameraForwardTunnel_ = enabled;
+    cameraForwardTunnelLength_ = (std::max)(length, 0.0f);
+    cameraForwardTunnelRadius_ = (std::max)(radius, 0.0f);
+    cameraForwardTunnelClearStrength_ = std::clamp(clearStrength, 0.0f, 1.0f);
+}
 void VolumetricCloudPass::ApplyGameModePerformancePreset()
 {
     const bool needsRecreate = std::fabs(cloudResolutionScale_ - 0.25f) > 0.001f;
@@ -449,17 +486,45 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     Vector3 flowDirection = ResolveCloudFlowDirection(camera);
     currentCloudFlowDirection_ = flowDirection;
 
-    const float boostMultiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
-    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ * (std::max)(0.0f, boostMultiplier) : 0.0f;
+    const float boostExtraSpeed = useBoostFlowMultiplier_ ? std::clamp(externalBoostExtraFlowSpeed_, 0.0f, 30.0f) : 0.0f;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ + boostExtraSpeed : 0.0f;
+
+    const float elapsedTime = cloudVolume->GetElapsedTime();
+    float deltaTime = 0.0f;
+    if (std::isfinite(elapsedTime)) {
+        if (hasPreviousCloudElapsedTime_) {
+            deltaTime = elapsedTime - previousCloudElapsedTime_;
+            if (deltaTime < 0.0f) {
+                cloudFlowPhase_ = 0.0f;
+                previousCloudFlowPhase_ = 0.0f;
+                cloudFlowPhaseIncreasing_ = true;
+                cloudFlowPhaseDecreasedWarning_ = false;
+                deltaTime = 0.0f;
+            }
+        }
+        previousCloudElapsedTime_ = elapsedTime;
+        hasPreviousCloudElapsedTime_ = true;
+    }
+    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 30.0f);
+    previousCloudFlowPhase_ = cloudFlowPhase_;
+    cloudFlowPhase_ += currentCloudFlowSpeed_ * safeDeltaTime;
+    if (!std::isfinite(cloudFlowPhase_)) {
+        cloudFlowPhase_ = previousCloudFlowPhase_;
+    }
+    cloudFlowPhaseIncreasing_ = cloudFlowPhase_ + 0.0001f >= previousCloudFlowPhase_;
+    if (!cloudFlowPhaseIncreasing_) {
+        cloudFlowPhaseDecreasedWarning_ = true;
+    }
+
     constantData_->cloudFlowDirectionSpeed = {
         flowDirection.x,
         flowDirection.y,
         flowDirection.z,
         currentCloudFlowSpeed_
     };
-    constantData_->cloudTime = cloudVolume->GetElapsedTime();
+    constantData_->cloudTime = cloudFlowPhase_;
     constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
-    constantData_->padding3 = 0.0f;
+    constantData_->cloudRawTime = std::isfinite(elapsedTime) ? elapsedTime : 0.0f;
     constantData_->padding4 = 0.0f;
     constantData_->nearCameraFade = {
         nearFadeStart_,
@@ -478,6 +543,27 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         std::clamp(cloudBottomFlattenStrength_, 0.0f, 1.0f),
         std::clamp(cloudBottomSmoothness_, 0.0f, 1.0f),
         std::clamp(cloudBottomNoiseSuppression_, 0.0f, 1.0f)
+    };
+    constantData_->influenceCentersAndRadius = influenceCentersAndRadius_;
+    constantData_->influenceParams = influenceParams_;
+    const Vector3 tunnelForward = Normalize(GetCameraForward(camera));
+    constantData_->influenceSettings = {
+        static_cast<float>(std::clamp(influenceFieldCount_, 0u, 16u)),
+        enableCloudInfluenceClear_ ? 1.0f : 0.0f,
+        enableCameraForwardTunnel_ ? 1.0f : 0.0f,
+        cameraForwardTunnelClearStrength_
+    };
+    constantData_->cameraTunnelStartLength = {
+        constantData_->cameraPosition.x,
+        constantData_->cameraPosition.y,
+        constantData_->cameraPosition.z,
+        cameraForwardTunnelLength_
+    };
+    constantData_->cameraTunnelDirectionRadius = {
+        tunnelForward.x,
+        tunnelForward.y,
+        tunnelForward.z,
+        cameraForwardTunnelRadius_
     };
     UpdateQualityConstantBuffer();
 }

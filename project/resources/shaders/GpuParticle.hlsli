@@ -38,8 +38,11 @@ struct ParticleType
     float bounceVelocityThreshold;
     uint maxBounceCount;
     float collisionDamping;
-    uint padding1;
-    float padding2;
+    uint affectedByInfluenceField;
+    float influenceResponseScale;
+    uint affectedByRailFlow;
+    float railFlowScale;
+    float2 padding2;
 };
 
 struct PerView

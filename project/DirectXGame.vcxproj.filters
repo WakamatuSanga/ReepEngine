@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="ソース ファイル">
@@ -75,6 +75,12 @@
     </Filter>
     <Filter Include="ヘッダー ファイル\engine\Game\Enemy">
       <UniqueIdentifier>{0ca6023a-53d5-49ed-b8bb-7c31e7760bc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Field">
+      <UniqueIdentifier>{7e2d9f5b-df3f-4751-b893-1d6d932a63e4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Field">
+      <UniqueIdentifier>{2a866948-9a0e-4f4a-99fa-5ebba8f03c12}</UniqueIdentifier>
     </Filter>
     <Filter Include="ソース ファイル\engine\Game\Camera">
       <UniqueIdentifier>{398aa9d9-f541-4edc-8c24-fef20b555ee1}</UniqueIdentifier>
@@ -288,6 +294,9 @@
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyHitShape.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
@@ -299,6 +308,9 @@
     </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyManager.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Field\InfluenceFieldManager.cpp">
+      <Filter>ソース ファイル\engine\Game\Field</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
@@ -312,10 +324,28 @@
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
@@ -629,6 +659,12 @@
     <ClInclude Include="engine\Game\Enemy\EnemyManager.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Field\InfluenceField.h">
+      <Filter>ヘッダー ファイル\engine\Game\Field</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Field\InfluenceFieldManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Field</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
     </ClInclude>
@@ -639,6 +675,18 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerJetExhaustController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">
@@ -874,3 +922,4 @@
     </None>
   </ItemGroup>
 </Project>
+

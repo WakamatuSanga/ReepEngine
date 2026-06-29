@@ -70,10 +70,18 @@ public:
     void SetForceMode(ForceMode mode) { forceMode_ = mode; }
     ForceMode GetForceMode() const { return forceMode_; }
     void SetExternalFlowMultiplier(float multiplier);
+    void SetExternalBoostExtraFlowSpeed(float extraSpeed);
+    void SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count);
+    void SetCloudInfluenceEnabled(bool enabled);
+    void SetCameraForwardTunnelSettings(bool enabled, float length, float radius, float clearStrength);
     void ApplyGameModePerformancePreset();
     void SetDiagnosticDisableComposite(bool disabled) { diagnosticDisableCloudComposite_ = disabled; }
     void SetDiagnosticDisableDepthAwareUpsample(bool disabled) { diagnosticDisableDepthAwareUpsample_ = disabled; }
     float GetExternalFlowMultiplier() const { return externalFlowMultiplier_; }
+    float GetExternalBoostExtraFlowSpeed() const { return externalBoostExtraFlowSpeed_; }
+    float GetCloudBaseFlowSpeed() const { return cloudBaseFlowSpeed_; }
+    float GetCurrentCloudFlowSpeed() const { return currentCloudFlowSpeed_; }
+    float GetCloudFlowPhase() const { return cloudFlowPhase_; }
     float GetCloudResolutionScale() const { return cloudResolutionScale_; }
     bool IsLowResolutionCloudEnabled() const { return useLowResolutionCloud_; }
     bool IsCloudCompositeEnabled() const { return enableCloudComposite_ && !diagnosticDisableCloudComposite_; }
@@ -117,7 +125,7 @@ private:
         Vector4 cloudFlowDirectionSpeed;
         float cloudTime = 0.0f;
         uint32_t enableCloudFlow = 0;
-        float padding3 = 0.0f;
+        float cloudRawTime = 0.0f;
         float padding4 = 0.0f;
         Vector4 nearCameraFade;
         Vector4 cloudLayerFade;
@@ -132,6 +140,11 @@ private:
         Vector4 cloudSeaShape;
         Vector4 cloudSeaFlow;
         Vector4 cloudSeaColor;
+        std::array<Vector4, 16> influenceCentersAndRadius{};
+        std::array<Vector4, 16> influenceParams{};
+        Vector4 influenceSettings;
+        Vector4 cameraTunnelStartLength;
+        Vector4 cameraTunnelDirectionRadius;
     };
 
     struct CloudCompositeConstants {
@@ -247,7 +260,14 @@ private:
     float lightStepScale_ = 1.0f;
     float cloudBaseFlowSpeed_ = 10.0f;
     float externalFlowMultiplier_ = 1.0f;
+    float externalBoostExtraFlowSpeed_ = 0.0f;
     float currentCloudFlowSpeed_ = 0.35f;
+    float cloudFlowPhase_ = 0.0f;
+    float previousCloudElapsedTime_ = 0.0f;
+    float previousCloudFlowPhase_ = 0.0f;
+    bool hasPreviousCloudElapsedTime_ = false;
+    bool cloudFlowPhaseIncreasing_ = true;
+    bool cloudFlowPhaseDecreasedWarning_ = false;
     float cloudNearDistance_ = -5.0f;
     float cloudFarDistance_ = 200.0f;
     float cloudBehindCameraDistance_ = 5.0f;
@@ -285,6 +305,14 @@ private:
     float cloudSeaNoiseScale_ = 0.02f;
     float cloudSeaSoftness_ = 0.5f;
     Vector4 cloudSeaColor_{ 0.90f, 0.95f, 1.0f, 1.0f };
+    std::array<Vector4, 16> influenceCentersAndRadius_{};
+    std::array<Vector4, 16> influenceParams_{};
+    uint32_t influenceFieldCount_ = 0;
+    bool enableCloudInfluenceClear_ = true;
+    bool enableCameraForwardTunnel_ = true;
+    float cameraForwardTunnelLength_ = 18.0f;
+    float cameraForwardTunnelRadius_ = 3.0f;
+    float cameraForwardTunnelClearStrength_ = 0.45f;
     char farCloudTexturePath_[128] = "procedural";
     int cloudRenderInterval_ = 1;
     uint32_t frameCounter_ = 0;

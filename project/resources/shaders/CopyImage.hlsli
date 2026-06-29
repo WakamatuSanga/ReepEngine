@@ -22,6 +22,8 @@ struct PostEffectParameters
     float radialBlurStrength;
     float2 radialBlurCenter;
     uint radialBlurSampleCount;
+    float radialBlurCenterClearRadius;
+    float radialBlurOuterEffectRadius;
     uint dissolveEnabled;
     float dissolveThreshold;
     float dissolveEdgeWidth;

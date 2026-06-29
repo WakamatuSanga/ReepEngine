@@ -1,4 +1,4 @@
-﻿#include "EnemyManager.h"
+#include "EnemyManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Player/Player.h"
 #include "Enemy.h"
@@ -120,8 +120,14 @@ void EnemyManager::DrawImGui() {
     if (ImGui::DragFloat("Default Enemy Hit Radius", &defaultHitRadius_, 0.01f, 0.001f, 20.0f, "%.3f")) {
         defaultHitRadius_ = (std::max)(0.001f, defaultHitRadius_);
     }
-    if (ImGui::Button("Apply Hit Radius To All Enemies")) {
-        ApplyDefaultHitRadiusToAllEnemies();
+    ImGui::Checkbox("横長Enemy Hit判定 (Use Ellipsoid Enemy Hit Shape)", &useEllipsoidHitShape_);
+    if (ImGui::DragFloat3("Default Enemy Hit Scale", &defaultHitScale_.x, 0.01f, 0.1f, 10.0f, "%.2f")) {
+        defaultHitScale_.x = (std::max)(defaultHitScale_.x, 0.1f);
+        defaultHitScale_.y = (std::max)(defaultHitScale_.y, 0.1f);
+        defaultHitScale_.z = (std::max)(defaultHitScale_.z, 0.1f);
+    }
+    if (ImGui::Button("Apply Hit Shape To All Enemies")) {
+        ApplyDefaultHitShapeToAllEnemies();
     }
     ImGui::SeparatorText("敵出現演出 (Enemy Spawn Presentation)");
     ImGui::Checkbox("Camera基準の画面外Entry (Use Camera Relative Spawn Entry)", &useCameraRelativeSpawnEntry_);
@@ -221,6 +227,8 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
     enemy->SetEnemyType(enemyType);
     enemy->SetUseLightweightVisual(useLightweightEnemyVisual_);
     enemy->SetHitRadius(defaultHitRadius_);
+    enemy->SetHitScale(defaultHitScale_);
+    enemy->SetUseEllipsoidHitShape(useEllipsoidHitShape_);
     const Vector3 spawnLookTarget = GetSpawnLookTarget();
     enemy->SetSpawnPresentationOptions(
         spawnFaceDownDuringSpawn_,
@@ -316,10 +324,34 @@ void EnemyManager::SetDefaultHitRadius(float hitRadius) {
     defaultHitRadius_ = (std::max)(0.001f, hitRadius);
 }
 
+void EnemyManager::SetDefaultHitScale(const Vector3& hitScale) {
+    defaultHitScale_ = {
+        (std::max)(hitScale.x, 0.1f),
+        (std::max)(hitScale.y, 0.1f),
+        (std::max)(hitScale.z, 0.1f)
+    };
+}
+
+void EnemyManager::SetUseEllipsoidHitShape(bool enabled) {
+    useEllipsoidHitShape_ = enabled;
+}
+
 void EnemyManager::ApplyDefaultHitRadiusToAllEnemies() {
     for (std::unique_ptr<Enemy>& enemy : enemies_) {
         if (enemy) {
             enemy->SetHitRadius(defaultHitRadius_);
+    enemy->SetHitScale(defaultHitScale_);
+    enemy->SetUseEllipsoidHitShape(useEllipsoidHitShape_);
+        }
+    }
+}
+
+void EnemyManager::ApplyDefaultHitShapeToAllEnemies() {
+    for (std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (enemy) {
+            enemy->SetHitRadius(defaultHitRadius_);
+            enemy->SetHitScale(defaultHitScale_);
+            enemy->SetUseEllipsoidHitShape(useEllipsoidHitShape_);
         }
     }
 }

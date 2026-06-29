@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Scene/IScene.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -24,6 +24,7 @@ class EventActionDispatcher;
 class GameOverFlowController;
 class GpuParticleEffectPlayer;
 class GpuParticleSystem;
+class InfluenceFieldManager;
 class GameViewport;
 class LevelSceneRuntime;
 class Model;
@@ -33,6 +34,8 @@ class PlayerDeathSequenceController;
 class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerEnemyBulletCollision;
+class PlayerJetExhaustController;
+class PlayerSonicBoostRingController;
 class PlayerRailController;
 class PlayerEventTriggerBridge;
 class PostEffectActionBridge;
@@ -78,10 +81,13 @@ private:
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Player> player_;
     std::unique_ptr<BoostController> boostController_;
+    std::unique_ptr<PlayerJetExhaustController> playerJetExhaustController_;
+    std::unique_ptr<PlayerSonicBoostRingController> playerSonicBoostRingController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
+    std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;
     std::unique_ptr<EnemyBulletManager> enemyBulletManager_;
     std::unique_ptr<EnemyAttackController> enemyAttackController_;
     std::unique_ptr<PlayerBulletEnemyCollision> playerBulletEnemyCollision_;

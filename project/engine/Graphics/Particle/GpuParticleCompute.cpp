@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <d3dcompiler.h>
 
 namespace {
@@ -81,6 +82,18 @@ void InsertUavBarrier(ID3D12GraphicsCommandList* commandList) {
 	commandList->ResourceBarrier(1, &barrier);
 }
 
+float Length(const Vector3& value) {
+	return std::sqrt(value.x * value.x + value.y * value.y + value.z * value.z);
+}
+
+Vector3 NormalizeOrUp(const Vector3& value) {
+	const float length = Length(value);
+	if (length <= 0.00001f) {
+		return { 0.0f, 1.0f, 0.0f };
+	}
+	return { value.x / length, value.y / length, value.z / length };
+}
+
 Vector3 MakePositiveVector3(const Vector3& value) {
 	return {
 		(std::max)(value.x, 0.0f),
@@ -100,9 +113,7 @@ void WriteEmitterShapeSettings(const GpuParticle::Emitter& emitter, GpuParticle:
 	info.emitterBoxSize = MakePositiveVector3(emitter.boxSize);
 	info.emitterConeHeight = (std::max)(emitter.coneHeight, 0.001f);
 	info.emitterShape = static_cast<uint32_t>(GpuParticle::ClampEmitterShape(emitter.shape));
-	info.padding[0] = 0.0f;
-	info.padding[1] = 0.0f;
-	info.padding[2] = 0.0f;
+	info.emitterDirection = NormalizeOrUp(emitter.direction);
 }
 
 }
@@ -140,6 +151,15 @@ bool GpuParticleCompute::CreateConstantBuffers(const GpuParticle::State& state) 
 	updateInfoData_->deltaTime = state.deltaTime;
 	updateInfoData_->freeListEnabled = state.useFreeListEmit ? 1u : 0u;
 	updateInfoData_->deadListEnabled = (state.useFreeListEmit && state.useDeadList) ? 1u : 0u;
+	updateInfoData_->influenceCentersAndRadius = state.influenceCentersAndRadius;
+	updateInfoData_->influenceParams = state.influenceParams;
+	updateInfoData_->influenceFieldCount = std::clamp(state.influenceFieldCount, 0u, GpuParticle::kMaxInfluenceFields);
+	updateInfoData_->enableParticleInfluence = state.enableParticleInfluence ? 1u : 0u;
+	updateInfoData_->particleInfluenceResponseScale = std::clamp(state.particleInfluenceResponseScale, 0.0f, 10.0f);
+	updateInfoData_->padding = 0.0f;
+	updateInfoData_->railFlowDirectionSpeed = { state.railFlowDirection.x, state.railFlowDirection.y, state.railFlowDirection.z, (std::max)(state.railFlowSpeed, 0.0f) };
+	updateInfoData_->railFlowSettings = { state.enableRailParticleFlow ? 1.0f : 0.0f, std::clamp(state.railFlowScale, 0.0f, 10.0f), (std::max)(state.railSpawnAheadDistance, 0.0f), (std::max)(state.railDespawnBehindDistance, 0.0f) };
+	updateInfoData_->railFlowCameraPosition = { state.railFlowCameraPosition.x, state.railFlowCameraPosition.y, state.railFlowCameraPosition.z, 1.0f };
 
 	emitterInfoResource_ = dxCommon_->CreateBufferResource(GpuParticle::AlignConstantBufferSize(sizeof(GpuParticle::EmitterInfo)));
 	emitterInfoResource_->Map(0, nullptr, reinterpret_cast<void**>(&emitterInfoData_));
@@ -358,6 +378,7 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		state.emitBatchEstimates.push_back({ actualEmitCount, 0.0f, GpuParticle::GetParticleType(state, emitter.particleTypeIndex).lifeTimeMax });
 		totalEmitCount += actualEmitCount;
 		if (actualEmitCount < requestedEmitCount) {
+			state.lastSkippedEmitCount = (std::min)(state.lastSkippedEmitCount + requestedEmitCount - actualEmitCount, GpuParticle::kParticleCount);
 			emitter.pendingEmitCount = requestedEmitCount - actualEmitCount;
 			emitter.pendingEmit = true;
 			hasPendingEmit = true;
@@ -368,6 +389,7 @@ void GpuParticleCompute::DispatchEmitIfNeeded(
 		}
 	}
 	state.lastEmitDispatchCount = totalEmitCount;
+	state.lastActualEmitCount = totalEmitCount;
 	state.needsEmitDispatch = hasPendingEmit;
 }
 
@@ -380,6 +402,15 @@ void GpuParticleCompute::DispatchUpdate(ID3D12GraphicsCommandList* commandList, 
 	updateInfoData_->deltaTime = state.deltaTime;
 	updateInfoData_->freeListEnabled = state.useFreeListEmit ? 1u : 0u;
 	updateInfoData_->deadListEnabled = (state.useFreeListEmit && state.useDeadList) ? 1u : 0u;
+	updateInfoData_->influenceCentersAndRadius = state.influenceCentersAndRadius;
+	updateInfoData_->influenceParams = state.influenceParams;
+	updateInfoData_->influenceFieldCount = std::clamp(state.influenceFieldCount, 0u, GpuParticle::kMaxInfluenceFields);
+	updateInfoData_->enableParticleInfluence = state.enableParticleInfluence ? 1u : 0u;
+	updateInfoData_->particleInfluenceResponseScale = std::clamp(state.particleInfluenceResponseScale, 0.0f, 10.0f);
+	updateInfoData_->padding = 0.0f;
+	updateInfoData_->railFlowDirectionSpeed = { state.railFlowDirection.x, state.railFlowDirection.y, state.railFlowDirection.z, (std::max)(state.railFlowSpeed, 0.0f) };
+	updateInfoData_->railFlowSettings = { state.enableRailParticleFlow ? 1.0f : 0.0f, std::clamp(state.railFlowScale, 0.0f, 10.0f), (std::max)(state.railSpawnAheadDistance, 0.0f), (std::max)(state.railDespawnBehindDistance, 0.0f) };
+	updateInfoData_->railFlowCameraPosition = { state.railFlowCameraPosition.x, state.railFlowCameraPosition.y, state.railFlowCameraPosition.z, 1.0f };
 	resources.TransitionParticleResource(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	commandList->SetComputeRootSignature(updateRootSignature_.Get());
 	commandList->SetPipelineState(updatePipelineState_.Get());
@@ -433,6 +464,7 @@ void GpuParticleCompute::DispatchRecycleIfNeeded(
 	state.deadListCountEstimate -= count;
 	state.freeListRemainingEstimate = (std::min)(state.freeListRemainingEstimate + count, GpuParticle::kParticleCount);
 	state.lastRecycleDispatchCount = count;
+	state.lastReusedCount = count;
 	state.needsRecycleDispatch = false;
 }
 
@@ -462,3 +494,4 @@ void GpuParticleCompute::UpdateFreeListEstimate(GpuParticle::State& state, float
 		state.freeListRemainingEstimate = (std::min)(state.freeListRemainingEstimate + returnedCount, GpuParticle::kParticleCount);
 	}
 }
+

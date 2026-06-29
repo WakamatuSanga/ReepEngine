@@ -1,4 +1,4 @@
-﻿#include "PlayerBulletEnemyCollision.h"
+#include "PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -23,6 +23,8 @@ void PlayerBulletEnemyCollision::Initialize(
     combatEffectController_ = combatEffectController;
     if (enemyManager_) {
         enemyHitRadiusForDebug_ = enemyManager_->GetDefaultHitRadius();
+        enemyHitScaleForDebug_ = enemyManager_->GetDefaultHitScale();
+        useEllipsoidHitShapeForDebug_ = enemyManager_->IsUsingEllipsoidHitShape();
     }
 }
 
@@ -55,14 +57,25 @@ void PlayerBulletEnemyCollision::Update() {
         float lastDistance = -1.0f;
         float lastRadiusSum = 0.0f;
         const float enemyRadius = enemy->GetHitRadius();
-        if (!bulletManager_->CheckHitAndKillFirstSphere(
-            enemy->GetPosition(),
-            enemyRadius,
-            &hitPosition,
-            &damage,
-            &lastDistance,
-            &lastRadiusSum,
-            &lastBulletRadius)) {
+        const bool hit = enemy->IsUsingEllipsoidHitShape()
+            ? bulletManager_->CheckHitAndKillFirstEllipsoid(
+                enemy->GetPosition(),
+                enemyRadius,
+                enemy->GetHitScale(),
+                &hitPosition,
+                &damage,
+                &lastDistance,
+                &lastRadiusSum,
+                &lastBulletRadius)
+            : bulletManager_->CheckHitAndKillFirstSphere(
+                enemy->GetPosition(),
+                enemyRadius,
+                &hitPosition,
+                &damage,
+                &lastDistance,
+                &lastRadiusSum,
+                &lastBulletRadius);
+        if (!hit) {
             if (lastDistance_ < 0.0f || (lastDistance >= 0.0f && lastDistance < lastDistance_)) {
                 lastDistance_ = lastDistance;
                 lastRadiusSum_ = lastRadiusSum;
@@ -107,6 +120,18 @@ void PlayerBulletEnemyCollision::DrawImGui() {
         if (enemyManager_) {
             enemyManager_->SetDefaultHitRadius(enemyHitRadiusForDebug_);
             enemyManager_->ApplyDefaultHitRadiusToAllEnemies();
+        }
+    }
+    if (ImGui::Checkbox("横長Enemy Hit判定 (Use Ellipsoid Hit Shape)", &useEllipsoidHitShapeForDebug_)) {
+        if (enemyManager_) {
+            enemyManager_->SetUseEllipsoidHitShape(useEllipsoidHitShapeForDebug_);
+            enemyManager_->ApplyDefaultHitShapeToAllEnemies();
+        }
+    }
+    if (ImGui::DragFloat3("Enemy Hit Scale", &enemyHitScaleForDebug_.x, 0.01f, 0.1f, 10.0f, "%.2f")) {
+        if (enemyManager_) {
+            enemyManager_->SetDefaultHitScale(enemyHitScaleForDebug_);
+            enemyManager_->ApplyDefaultHitShapeToAllEnemies();
         }
     }
     ImGui::Checkbox("Play Combat Effect", &playCombatEffect_);

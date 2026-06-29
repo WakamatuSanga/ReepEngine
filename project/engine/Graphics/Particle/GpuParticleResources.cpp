@@ -199,8 +199,12 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.bounceVelocityThreshold = (std::max)(source.bounceVelocityThreshold, 0.0f);
 		destination.maxBounceCount = std::clamp(source.maxBounceCount, 0u, 255u);
 		destination.collisionDamping = std::clamp(source.collisionDamping, 0.0f, 2.0f);
-		destination.padding1 = 0u;
-		destination.padding2 = 0.0f;
+		destination.affectedByInfluenceField = source.affectedByInfluenceField ? 1u : 0u;
+		destination.influenceResponseScale = std::clamp(source.influenceResponseScale, 0.0f, 10.0f);
+		destination.affectedByRailFlow = source.affectedByRailFlow ? 1u : 0u;
+		destination.railFlowScale = std::clamp(source.railFlowScale, 0.0f, 10.0f);
+		destination.padding2[0] = 0.0f;
+		destination.padding2[1] = 0.0f;
 	}
 }
 

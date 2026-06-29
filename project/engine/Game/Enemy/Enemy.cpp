@@ -1,4 +1,4 @@
-﻿#include "Enemy.h"
+#include "Enemy.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -265,6 +265,12 @@ void Enemy::DrawImGui() {
     ImGui::DragFloat3("Scale", &scale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
     ImGui::DragFloat3("Velocity", &velocity_.x, 0.01f, -100.0f, 100.0f, "%.2f");
     ImGui::DragFloat("Enemy Hit Radius", &hitRadius_, 0.01f, 0.001f, 20.0f, "%.3f");
+    ImGui::Checkbox("横長Hit判定を使う (Use Ellipsoid Hit Shape)", &useEllipsoidHitShape_);
+    ImGui::DragFloat3("Enemy Hit Scale", &hitScale_.x, 0.01f, 0.1f, 10.0f, "%.2f");
+    ImGui::Checkbox("Enemy Hit Shape Debug", &showHitShapeDebug_);
+    hitScale_.x = (std::max)(hitScale_.x, 0.1f);
+    hitScale_.y = (std::max)(hitScale_.y, 0.1f);
+    hitScale_.z = (std::max)(hitScale_.z, 0.1f);
     ImGui::DragInt("HP", &hp_, 1.0f, 0, 999);
     if (ImGui::Button("Reload Model")) {
         LoadModel();
@@ -321,10 +327,6 @@ void Enemy::SetForward(const Vector3& forward) {
 
 void Enemy::LookAt(const Vector3& targetPosition) {
     SetForward(SubtractVector3(targetPosition, position_));
-}
-
-void Enemy::SetHitRadius(float hitRadius) {
-    hitRadius_ = (std::max)(0.001f, hitRadius);
 }
 
 void Enemy::SetUseLightweightVisual(bool useLightweightVisual) {
