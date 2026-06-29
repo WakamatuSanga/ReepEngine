@@ -18,6 +18,7 @@ public:
     };
 
     bool Initialize(DirectXCommon* dxCommon);
+    bool IsInitialized() const { return initialized_; }
     void Draw(
         const std::vector<Vertex>& vertices,
         const Camera* camera,
@@ -47,6 +48,7 @@ private:
     Constants* constantData_ = nullptr;
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     size_t vertexCapacity_ = 0;
+    bool initialized_ = false;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
 };

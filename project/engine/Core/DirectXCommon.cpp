@@ -5,6 +5,8 @@
 #include <cmath>
 #include <vector>
 #include <string>
+#include <filesystem>
+#include <sstream>
 
 #include "Engine/Utility/Logger.h"
 #include "SrvManager.h"
@@ -24,6 +26,30 @@ using namespace Microsoft::WRL;
 // ======================================
 // 深度ステンシル用テクスチャ生成ヘルパ
 // ======================================
+static std::string FormatHResult(HRESULT hr)
+{
+    std::ostringstream stream;
+    stream << "0x" << std::hex << std::uppercase << static_cast<uint32_t>(hr);
+    return stream.str();
+}
+
+static std::string GetCurrentWorkingDirectoryForLog()
+{
+    std::error_code error;
+    const std::filesystem::path currentPath = std::filesystem::current_path(error);
+    if (error) {
+        return std::string("<failed: ") + error.message() + ">";
+    }
+    return StringUtility::ConvertString(currentPath.wstring());
+}
+
+static void LogShaderLoadFailure(const std::wstring& filePath, HRESULT hr)
+{
+    Logger::Log("[Shader Load Failed]\n");
+    Logger::Log("path: " + StringUtility::ConvertString(filePath) + "\n");
+    Logger::Log("HRESULT: " + FormatHResult(hr) + "\n");
+    Logger::Log("current working directory: " + GetCurrentWorkingDirectoryForLog() + "\n");
+}
 static ID3D12Resource* CreateDepthStencilTextureResource(
     ID3D12Device* device,
     int32_t width,
@@ -487,6 +513,10 @@ void DirectXCommon::CreateCopyPipelineState()
     CreateCopyRootSignature();
 
     ComPtr<IDxcBlob> vs = CompileShader(L"resources/shaders/CopyImage.VS.hlsl", L"vs_6_0");
+    if (!vs) {
+        Logger::Log("[Shader Pipeline Failed]\nCopyImage vertex shader is unavailable. Copy pipeline creation was skipped.\n");
+        return;
+    }
 
     D3D12_BLEND_DESC blendDesc{};
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
@@ -514,6 +544,10 @@ void DirectXCommon::CreateCopyPipelineState()
 
     auto CreatePostEffectPipelineState = [&](const std::wstring& pixelShaderPath, Microsoft::WRL::ComPtr<ID3D12PipelineState>& pipelineState) {
         ComPtr<IDxcBlob> ps = CompileShader(pixelShaderPath, L"ps_6_0");
+        if (!ps) {
+            Logger::Log("[Shader Pipeline Failed]\nPixel shader is unavailable: " + StringUtility::ConvertString(pixelShaderPath) + "\n");
+            return;
+        }
         pipelineStateDesc.PS = { ps->GetBufferPointer(), ps->GetBufferSize() };
         HRESULT hr = device->CreateGraphicsPipelineState(
             &pipelineStateDesc,
@@ -1023,7 +1057,11 @@ ComPtr<IDxcBlob> DirectXCommon::CompileShader(
     // ファイル読み込み
     ComPtr<IDxcBlobEncoding> sourceBlob;
     HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &sourceBlob);
-    assert(SUCCEEDED(hr));
+    if (FAILED(hr) || !sourceBlob) {
+        LogShaderLoadFailure(filePath, hr);
+        assert(false && "Failed to load shader file.");
+        return nullptr;
+    }
 
     DxcBuffer sourceBuffer{};
     sourceBuffer.Ptr = sourceBlob->GetBufferPointer();

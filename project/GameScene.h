@@ -35,6 +35,7 @@ class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
+class PlayerSonicBoostRingController;
 class PlayerRailController;
 class PlayerEventTriggerBridge;
 class PostEffectActionBridge;
@@ -81,6 +82,7 @@ private:
     std::unique_ptr<Player> player_;
     std::unique_ptr<BoostController> boostController_;
     std::unique_ptr<PlayerJetExhaustController> playerJetExhaustController_;
+    std::unique_ptr<PlayerSonicBoostRingController> playerSonicBoostRingController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;

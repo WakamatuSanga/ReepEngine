@@ -178,6 +178,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
@@ -330,6 +331,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.h" />
+    <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />

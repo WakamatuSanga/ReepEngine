@@ -13,21 +13,12 @@ struct PixelShaderInput
     float2 uv : TEXCOORD0;
 };
 
-struct PixelShaderOutput
+float4 MakeOutput(float4 color) : SV_TARGET0
 {
-    float4 color : SV_TARGET0;
-    float4 normal : SV_TARGET1;
-};
-
-PixelShaderOutput MakeOutput(float4 color)
-{
-    PixelShaderOutput output;
-    output.color = color;
-    output.normal = float4(0.5f, 0.5f, 1.0f, 1.0f);
-    return output;
+    return color;
 }
 
-PixelShaderOutput main(PixelShaderInput input)
+float4 main(PixelShaderInput input) : SV_TARGET0
 {
     float brightness = max(gBeam.params.x, 0.0f);
     float flickerStrength = saturate(gBeam.params.y);
@@ -48,6 +39,21 @@ PixelShaderOutput main(PixelShaderInput input)
         }
         float flicker = 1.0f + sin(time * 43.0f) * flickerStrength * 0.04f;
         return MakeOutput(float4(float3(1.0f, 0.94f, 0.58f) * brightness * flicker, alpha * 0.62f));
+    }
+
+    if (mode == 2u)
+    {
+        float u = saturate(input.uv.x);
+        float edge = abs(input.uv.y * 2.0f - 1.0f);
+        float band = pow(saturate(1.0f - edge), 1.45f);
+        float angularFlicker = 1.0f + sin(u * 37.0f + time * 18.0f) * flickerStrength * 0.08f;
+        float alpha = band * alphaScale;
+        if (alpha <= 0.01f)
+        {
+            discard;
+        }
+        float3 rimColor = lerp(float3(0.45f, 0.82f, 1.0f), float3(1.0f, 1.0f, 1.0f), band);
+        return MakeOutput(float4(rimColor * brightness * angularFlicker, alpha));
     }
 
     float u = saturate(input.uv.x);

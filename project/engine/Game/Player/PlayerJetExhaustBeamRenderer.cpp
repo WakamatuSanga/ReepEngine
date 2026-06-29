@@ -18,11 +18,24 @@ namespace {
 }
 
 bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon) {
-    assert(dxCommon);
+    initialized_ = false;
     dxCommon_ = dxCommon;
+    constantData_ = nullptr;
+    vertexData_ = nullptr;
+    if (!dxCommon_) {
+        return false;
+    }
+
     constantResource_ = dxCommon_->CreateBufferResource(AlignConstantBufferSize(sizeof(Constants)));
-    constantResource_->Map(0, nullptr, reinterpret_cast<void**>(&constantData_));
-    return EnsureVertexCapacity(kInitialVertexCapacity) && CreateRootSignature() && CreatePipelineState();
+    if (!constantResource_) {
+        return false;
+    }
+    if (FAILED(constantResource_->Map(0, nullptr, reinterpret_cast<void**>(&constantData_))) || !constantData_) {
+        return false;
+    }
+
+    initialized_ = EnsureVertexCapacity(kInitialVertexCapacity) && CreateRootSignature() && CreatePipelineState();
+    return initialized_;
 }
 
 void PlayerJetExhaustBeamRenderer::Draw(
@@ -35,7 +48,10 @@ void PlayerJetExhaustBeamRenderer::Draw(
     float tipFadePower,
     float time,
     uint32_t mode) {
-    if (!dxCommon_ || !camera || vertices.empty() || !constantData_ || !EnsureVertexCapacity(vertices.size())) {
+    if (!initialized_ || !dxCommon_ || !camera || vertices.empty() || !constantData_ || !rootSignature_ || !pipelineState_) {
+        return;
+    }
+    if (!EnsureVertexCapacity(vertices.size())) {
         return;
     }
 
@@ -57,6 +73,9 @@ void PlayerJetExhaustBeamRenderer::Draw(
     };
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
+    if (!commandList) {
+        return;
+    }
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
     commandList->SetPipelineState(pipelineState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -125,13 +144,12 @@ bool PlayerJetExhaustBeamRenderer::CreatePipelineState() {
     desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-    desc.BlendState.RenderTarget[1].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;
     desc.DepthStencilState.DepthEnable = TRUE;
     desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
     desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-    desc.NumRenderTargets = 2;
+    desc.NumRenderTargets = 1;
     desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-    desc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     desc.SampleDesc.Count = 1;
     desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -151,8 +169,17 @@ bool PlayerJetExhaustBeamRenderer::EnsureVertexCapacity(size_t vertexCount) {
     }
 
     vertexCapacity_ = (std::max)(vertexCount, kInitialVertexCapacity);
+    if (!dxCommon_) {
+        return false;
+    }
     vertexResource_ = dxCommon_->CreateBufferResource(sizeof(Vertex) * vertexCapacity_);
-    vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData_));
+    if (!vertexResource_) {
+        vertexData_ = nullptr;
+        return false;
+    }
+    if (FAILED(vertexResource_->Map(0, nullptr, reinterpret_cast<void**>(&vertexData_))) || !vertexData_) {
+        return false;
+    }
     vertexBufferView_.BufferLocation = vertexResource_->GetGPUVirtualAddress();
     vertexBufferView_.SizeInBytes = static_cast<UINT>(sizeof(Vertex) * vertexCapacity_);
     vertexBufferView_.StrideInBytes = sizeof(Vertex);

@@ -37,6 +37,7 @@
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
+#include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
@@ -514,6 +515,8 @@ void GameScene::Initialize() {
     boostController_->Initialize(MyGame::GetInstance()->GetVolumetricCloudPass());
     playerJetExhaustController_ = std::make_unique<PlayerJetExhaustController>();
     playerJetExhaustController_->Initialize(object3dCommon, camera_.get(), player_.get(), boostController_.get(), MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
+    playerSonicBoostRingController_ = std::make_unique<PlayerSonicBoostRingController>();
+    playerSonicBoostRingController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get(), player_.get(), boostController_.get());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
@@ -940,6 +943,10 @@ void GameScene::Finalize() {
         playerBulletManager_->Finalize();
     }
     playerBulletManager_.reset();
+    if (playerSonicBoostRingController_) {
+        playerSonicBoostRingController_->Finalize();
+    }
+    playerSonicBoostRingController_.reset();
     if (playerJetExhaustController_) {
         playerJetExhaustController_->Finalize();
     }
@@ -1137,6 +1144,10 @@ void GameScene::Update() {
     }
     if (boostController_) {
         boostController_->Update(gameplayDeltaTime);
+    }
+    if (playerSonicBoostRingController_) {
+        playerSonicBoostRingController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
+        playerSonicBoostRingController_->Update(gameplayDeltaTime);
     }
     if (playerJetExhaustController_) {
         playerJetExhaustController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
@@ -1395,6 +1406,9 @@ void GameScene::Update() {
     }
     if (playerJetExhaustController_) {
         playerJetExhaustController_->DrawImGui();
+    }
+    if (playerSonicBoostRingController_) {
+        playerSonicBoostRingController_->DrawImGui();
     }
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawImGui();
@@ -2076,6 +2090,9 @@ void GameScene::Draw() {
     if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->Draw();
     }
+    if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
+        playerSonicBoostRingController_->Draw();
+    }
 
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
@@ -2096,6 +2113,9 @@ void GameScene::Draw() {
 
     if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
+    }
+    if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
+        playerSonicBoostRingController_->DrawAfterCloud();
     }
 
     if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
