@@ -52,6 +52,22 @@ from .rail_editor import (
     MYADDON_OT_initialize_rail_info,
     VIEW3D_PT_level_rail_editor,
 )
+from .stage_analysis_overlay import (
+    DrawStageAnalysisOverlay,
+    MYADDON_OT_analyze_stage_brightness,
+    MYADDON_OT_analyze_stage_perception,
+    MYADDON_OT_mark_stage_important_object,
+    MYADDON_OT_create_or_switch_stage_editor_workspace,
+    MYADDON_OT_setup_stage_editor_layout,
+    MYADDON_OT_set_active_area_camera_preview,
+    MYADDON_OT_set_active_area_main_edit,
+    MYADDON_OT_set_active_area_stage_parameters,
+    MYADDON_OT_reset_stage_editor_layout,
+    VIEW3D_PT_stage_analysis_overlay,
+    register_stage_analysis_properties,
+    unregister_stage_analysis_properties,
+)
+_topbar_menu_appended = False
 
 classes = (
     MYADDON_OT_create_ico_sphere,
@@ -73,16 +89,26 @@ classes = (
     OBJECT_PT_collider,
     MYADDON_OT_send_live_sync,
     MYADDON_OT_initialize_rail_info,
+    MYADDON_OT_analyze_stage_brightness,
+    MYADDON_OT_analyze_stage_perception,
+    MYADDON_OT_mark_stage_important_object,
+    MYADDON_OT_create_or_switch_stage_editor_workspace,
+    MYADDON_OT_setup_stage_editor_layout,
+    MYADDON_OT_set_active_area_camera_preview,
+    MYADDON_OT_set_active_area_main_edit,
+    MYADDON_OT_set_active_area_stage_parameters,
+    MYADDON_OT_reset_stage_editor_layout,
     VIEW3D_PT_level_live_sync,
     VIEW3D_PT_level_event_flag_editor,
     VIEW3D_PT_level_event_link_view,
     VIEW3D_PT_level_rail_editor,
+    VIEW3D_PT_stage_analysis_overlay,
     TOPBAR_MT_my_menu,
 )
 
 
 def _is_class_registered(cls):
-    return hasattr(bpy.types, cls.__name__)
+    return bool(getattr(cls, "is_registered", False)) or hasattr(bpy.types, cls.__name__)
 
 
 def _register_class_once(cls):
@@ -93,7 +119,7 @@ def _register_class_once(cls):
     try:
         bpy.utils.register_class(cls)
         print(f"[LevelEditorAddon] class registered: {cls.__name__}")
-    except RuntimeError as error:
+    except (RuntimeError, ValueError) as error:
         if "already registered" in str(error):
             print(f"[LevelEditorAddon] class already registered: {cls.__name__}")
             return
@@ -108,23 +134,27 @@ def _unregister_class_if_registered(cls):
     try:
         bpy.utils.unregister_class(cls)
         print(f"[LevelEditorAddon] class unregistered: {cls.__name__}")
-    except RuntimeError as error:
+    except (RuntimeError, ValueError) as error:
         print(f"[LevelEditorAddon] class unregister skipped: {cls.__name__}: {error}")
 
 
 def register():
+    global _topbar_menu_appended
     print("[LevelEditorAddon] register start")
     register_live_sync()
     register_event_link_view_properties()
+    register_stage_analysis_properties()
     for cls in classes:
         _register_class_once(cls)
     register_event_flag_editor_properties()
 
-    try:
-        bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
-        print("[LevelEditorAddon] topbar menu appended")
-    except Exception as error:
-        print(f"[LevelEditorAddon] topbar menu append failed: {error}")
+    if not _topbar_menu_appended:
+        try:
+            bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
+            _topbar_menu_appended = True
+            print("[LevelEditorAddon] topbar menu appended")
+        except Exception as error:
+            print(f"[LevelEditorAddon] topbar menu append failed: {error}")
 
     if DrawCollider.handle is None:
         try:
@@ -140,17 +170,25 @@ def register():
         print("[LevelEditorAddon] event link draw handlers registered")
     except Exception as error:
         print(f"[LevelEditorAddon] event link draw handler register failed: {error}")
-
+    try:
+        DrawStageAnalysisOverlay.register_handler()
+        print("[LevelEditorAddon] stage analysis overlay draw handler registered")
+    except Exception as error:
+        print(f"[LevelEditorAddon] stage analysis overlay draw handler register failed: {error}")
     print("[LevelEditorAddon] register finished")
 
 
 def unregister():
+    global _topbar_menu_appended
     print("[LevelEditorAddon] unregister start")
-    try:
-        bpy.types.TOPBAR_MT_editor_menus.remove(TOPBAR_MT_my_menu.submenu)
-        print("[LevelEditorAddon] topbar menu removed")
-    except Exception as error:
-        print(f"[LevelEditorAddon] topbar menu remove skipped: {error}")
+    if _topbar_menu_appended:
+        try:
+            bpy.types.TOPBAR_MT_editor_menus.remove(TOPBAR_MT_my_menu.submenu)
+            print("[LevelEditorAddon] topbar menu removed")
+        except Exception as error:
+            print(f"[LevelEditorAddon] topbar menu remove skipped: {error}")
+        finally:
+            _topbar_menu_appended = False
 
     if DrawCollider.handle is not None:
         try:
@@ -166,10 +204,15 @@ def unregister():
         print("[LevelEditorAddon] event link draw handlers removed")
     except Exception as error:
         print(f"[LevelEditorAddon] event link draw handler remove skipped: {error}")
-
+    try:
+        DrawStageAnalysisOverlay.unregister_handler()
+        print("[LevelEditorAddon] stage analysis overlay draw handler removed")
+    except Exception as error:
+        print(f"[LevelEditorAddon] stage analysis overlay draw handler remove skipped: {error}")
     unregister_event_flag_editor_properties()
     for cls in reversed(classes):
         _unregister_class_if_registered(cls)
     unregister_event_link_view_properties()
+    unregister_stage_analysis_properties()
     unregister_live_sync()
     print("[LevelEditorAddon] unregister finished")

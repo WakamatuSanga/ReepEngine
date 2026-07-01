@@ -24,6 +24,14 @@ class TOPBAR_MT_my_menu(bpy.types.Menu):
         layout.operator(MYADDON_OT_add_collider.bl_idname, icon='MESH_CUBE')
         layout.operator(MYADDON_OT_add_event_flag_properties.bl_idname, icon='BOOKMARKS')
         layout.separator()
+        layout.label(text="ステージエディタ")
+        layout.operator("myaddon.create_or_switch_stage_editor_workspace", text="ステージエディタ ワークスペースを開く")
+        layout.operator("myaddon.setup_stage_editor_layout", text="ステージエディタ レイアウトを適用")
+        layout.operator("myaddon.set_active_area_camera_preview", text="このエリアをカメラビューにする")
+        layout.operator("myaddon.set_active_area_main_edit", text="このエリアを編集ビューにする")
+        layout.operator("myaddon.set_active_area_stage_parameters", text="このエリアをパラメーターUIにする")
+        layout.operator("myaddon.reset_stage_editor_layout", text="レイアウトをリセット")
+        layout.separator()
         layout.operator("wm.url_open_preset", text="Manual", icon='HELP')
 
     def submenu(self, context):
