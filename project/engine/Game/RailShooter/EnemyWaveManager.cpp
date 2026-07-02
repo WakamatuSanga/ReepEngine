@@ -1,6 +1,7 @@
 #include "EnemyWaveManager.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
+#include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/EnemyWaveLoader.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -105,6 +106,11 @@ void EnemyWaveManager::Initialize(EnemyManager* enemyManager, const Camera* came
     } else {
         AddLog("Default wave not loaded: " + result);
     }
+    if (LoadWaveById("wave_002", result)) {
+        AddLog("Loaded optional wave: " + result);
+    } else {
+        AddLog("Optional wave_002 not loaded yet: " + result);
+    }
 }
 
 void EnemyWaveManager::Finalize() {
@@ -116,6 +122,7 @@ void EnemyWaveManager::Finalize() {
     activeWaves_.clear();
     waveEnemies_.clear();
     waveLog_.clear();
+    ClearPendingNextWave();
     gameModeWasActive_ = false;
 }
 
@@ -124,6 +131,9 @@ void EnemyWaveManager::SetCurrentBoostPower(float boostPower) {
 }
 
 void EnemyWaveManager::SetGameModeActive(bool isGameMode) {
+    if (!isGameMode && gameModeWasActive_) {
+        StopAllWaves();
+    }
     if (isGameMode && !gameModeWasActive_ && autoStartWaveOnGameMode_) {
         std::string result;
         if (RestartAutoStartWave(result)) {
@@ -171,7 +181,10 @@ void EnemyWaveManager::Update(float deltaTime) {
             lastWaveSpawnedCount_ = activeWave.spawnedCount;
 
             if (Enemy* spawnedEnemy = enemyManager_->SpawnEnemyAt(spawnPosition, spawn.enemyType, spawnForward)) {
-                RegisterWaveEnemy(spawnedEnemy, spawn);
+                if (IsScreenAnchorMovePattern(spawn.movePattern)) {
+                    ConfigureScreenAnchorSpawn(spawnedEnemy, spawn, spawnPosition);
+                }
+                RegisterWaveEnemy(spawnedEnemy, spawn, activeWave.waveIndex);
                 ++spawnedEnemyCount_;
                 lastWaveSpawnedCount_ = activeWave.spawnedCount;
                 lastSpawnPosition_ = spawnPosition;
@@ -184,106 +197,24 @@ void EnemyWaveManager::Update(float deltaTime) {
                     std::to_string(spawnPosition.y) + ", " +
                     std::to_string(spawnPosition.z) + ")");
             } else {
+                ++activeWave.endedCount;
+                ++activeWave.escapedCount;
                 AddLog("Enemy spawn failed in wave=" + wave.waveId + " type=" + spawn.enemyType);
             }
         }
 
-        if (activeWave.spawnedCount >= wave.enemies.size()) {
-            activeWave.stopped = true;
+        if (activeWave.spawnedCount >= wave.enemies.size() && !activeWave.allSpawnsScheduled) {
+            activeWave.allSpawnsScheduled = true;
             AddLog("Wave scheduled all enemies: " + wave.waveId);
         }
     }
 
+    UpdateWaveEnemyMovement(deltaTime);
+    UpdateWaveProgression(deltaTime);
+
     activeWaves_.erase(
         std::remove_if(activeWaves_.begin(), activeWaves_.end(), [](const ActiveWave& wave) { return wave.stopped; }),
         activeWaves_.end());
-
-    UpdateWaveEnemyMovement(deltaTime);
-}
-
-void EnemyWaveManager::DrawImGui() {
-#ifdef USE_IMGUI
-    ImGui::SetNextWindowSize(ImVec2(430.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Enemy Wave Debug")) {
-        ImGui::End();
-        return;
-    }
-
-    ImGui::Checkbox("Enable SpawnWave Action", &enabled_);
-    ImGui::Checkbox("Auto Load Missing Wave", &autoLoadMissingWave_);
-    ImGui::Checkbox("GameMode開始時にWave 1を再生 (Auto Start Wave On GameMode)", &autoStartWaveOnGameMode_);
-    ImGui::TextWrapped("Auto Start Wave ID: %s", autoStartWaveId_.c_str());
-    ImGui::DragFloat("Spawn Width", &spawnWidth_, 0.1f, 1.0f, 100.0f);
-    ImGui::DragFloat("Spawn Height", &spawnHeight_, 0.1f, 1.0f, 100.0f);
-    ImGui::DragFloat("接近速度 (Approach Speed)", &approachSpeed_, 0.1f, 0.0f, 60.0f, "%.1f");
-    ImGui::DragFloat("Boost接近速度加算 (Boost Approach Bonus)", &boostApproachBonus_, 0.1f, 0.0f, 30.0f, "%.1f");
-    ImGui::DragFloat("接近停止距離 (Approach Stop Distance)", &approachStopDistance_, 0.1f, 0.0f, 40.0f, "%.1f");
-    ImGui::Text("Current Boost Power: %.2f", currentBoostPower_);
-    ImGui::Text("Current Approach Speed: %.2f", approachSpeed_ + currentBoostPower_ * boostApproachBonus_);
-    ImGui::Text("Loaded Wave Count: %zu", waves_.size());
-    ImGui::Text("Active Wave Count: %zu", activeWaves_.size());
-    ImGui::Text("Started Wave Count: %zu", startedWaveCount_);
-    ImGui::Text("Failed Wave Count: %zu", failedWaveCount_);
-    ImGui::Text("Spawned Enemy Count: %zu", spawnedEnemyCount_);
-    ImGui::Text("Tracked Wave Enemy Count: %zu", waveEnemies_.size());
-    ImGui::Text("Despawned Out Of Camera Count: %zu", despawnedOutOfCameraCount_);
-    ImGui::Text("Last Locked Direction: %.2f, %.2f, %.2f", lastLockedApproachDirection_.x, lastLockedApproachDirection_.y, lastLockedApproachDirection_.z);
-    ImGui::Text("GameMode Auto Start Count: %zu", lastGameModeAutoStartCount_);
-    ImGui::Text("Last Wave Elapsed Time: %.2f", lastWaveElapsedTime_);
-    ImGui::Text("Last Wave Spawned Count: %zu / %zu", lastWaveSpawnedCount_, lastWaveEnemyCount_);
-    ImGui::TextWrapped("Current / Last Wave ID: %s", lastWaveId_.c_str());
-    ImGui::TextWrapped("Last Result: %s", lastResult_.c_str());
-    ImGui::Text("Last Spawn Position: %.2f, %.2f, %.2f", lastSpawnPosition_.x, lastSpawnPosition_.y, lastSpawnPosition_.z);
-
-    if (!activeWaves_.empty() && activeWaves_.front().waveIndex < waves_.size()) {
-        const ActiveWave& waveState = activeWaves_.front();
-        const EnemyWaveDefinition& wave = waves_[waveState.waveIndex];
-        ImGui::SeparatorText("Current Active Wave");
-        ImGui::TextWrapped("Wave: %s / %s", wave.waveId.c_str(), wave.name.c_str());
-        ImGui::Text("Elapsed Time: %.2f", waveState.elapsedTime);
-        ImGui::Text("Spawned: %zu / %zu", waveState.spawnedCount, wave.enemies.size());
-    }
-
-    ImGui::SeparatorText("Manual Play Wave");
-    ImGui::InputText("Wave ID", manualWaveIdBuffer_.data(), manualWaveIdBuffer_.size());
-    if (ImGui::Button("Manual Play Wave")) {
-        std::string result;
-        PlayWave(TrimCopy(manualWaveIdBuffer_.data()), result);
-        lastResult_ = result;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Stop Wave")) {
-        StopAllWaves();
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Clear Log")) {
-        waveLog_.clear();
-    }
-
-    if (ImGui::TreeNode("Loaded Waves")) {
-        if (waves_.empty()) {
-            ImGui::TextDisabled("No loaded waves.");
-        } else {
-            for (const EnemyWaveDefinition& wave : waves_) {
-                ImGui::TextWrapped("%s  name=%s  enemies=%zu", wave.waveId.c_str(), wave.name.c_str(), wave.enemies.size());
-            }
-        }
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Wave Log")) {
-        if (waveLog_.empty()) {
-            ImGui::TextDisabled("No wave log yet.");
-        } else {
-            for (const std::string& line : waveLog_) {
-                ImGui::TextWrapped("%s", line.c_str());
-            }
-        }
-        ImGui::TreePop();
-    }
-
-    ImGui::End();
-#endif
 }
 
 bool EnemyWaveManager::HandleSpawnWaveAction(const FiredEventAction& action, std::string& resultMessage) {
@@ -323,6 +254,10 @@ bool EnemyWaveManager::PlayWave(const std::string& waveId, std::string& resultMe
         return false;
     }
 
+    if (pendingNextWaveActive_ && pendingNextWaveId_ == trimmedWaveId) {
+        ClearPendingNextWave();
+    }
+
     if (!IsWaveLoaded(trimmedWaveId)) {
         if (!autoLoadMissingWave_ || !LoadWaveById(trimmedWaveId, resultMessage)) {
             lastResult_ = resultMessage;
@@ -360,6 +295,7 @@ bool EnemyWaveManager::PlayWave(const std::string& waveId, std::string& resultMe
 
 void EnemyWaveManager::StopAllWaves() {
     activeWaves_.clear();
+    ClearPendingNextWave();
     ClearTrackedWaveEnemies();
     AddLog("Stopped all active waves and tracked wave enemies.");
 }
@@ -414,8 +350,12 @@ std::string EnemyWaveManager::ResolveWaveIdFromAction(const FiredEventAction& ac
 }
 
 Vector3 EnemyWaveManager::ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn) const {
+    return ComputeScreenPosition(spawn.screenX, spawn.screenY, spawn.depth);
+}
+
+Vector3 EnemyWaveManager::ComputeScreenPosition(float screenX, float screenY, float depth) const {
     if (!camera_) {
-        return { spawn.screenX * spawnWidth_, spawn.screenY * spawnHeight_, spawn.depth };
+        return { screenX * spawnWidth_, screenY * spawnHeight_, depth };
     }
 
     const Vector3 cameraPosition = camera_->GetTranslate();
@@ -425,9 +365,9 @@ Vector3 EnemyWaveManager::ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn)
 
     return AddVector3(
         AddVector3(
-            AddVector3(cameraPosition, ScaleVector3(cameraForward, spawn.depth)),
-            ScaleVector3(cameraRight, spawn.screenX * spawnWidth_)),
-        ScaleVector3(cameraUp, spawn.screenY * spawnHeight_));
+            AddVector3(cameraPosition, ScaleVector3(cameraForward, depth)),
+            ScaleVector3(cameraRight, screenX * spawnWidth_)),
+        ScaleVector3(cameraUp, screenY * spawnHeight_));
 }
 
 Vector3 EnemyWaveManager::ComputeSpawnForward(const Vector3& spawnPosition) const {
@@ -447,11 +387,23 @@ Vector3 EnemyWaveManager::ResolveApproachTarget() const {
     return { 0.0f, 0.0f, 0.0f };
 }
 
-void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn) {
+void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex) {
     if (!enemy) {
         return;
     }
-    waveEnemies_.push_back({ enemy, spawn.movePattern });
+    WaveEnemyRuntime runtime;
+    runtime.enemy = enemy;
+    runtime.waveIndex = waveIndex;
+    runtime.movePattern = spawn.movePattern;
+    runtime.attackPattern = spawn.attackPattern;
+    runtime.screenX = spawn.screenX;
+    runtime.screenY = spawn.screenY;
+    runtime.depth = spawn.depth;
+    runtime.spawnScreenY = spawn.spawnScreenY;
+    runtime.dropDuration = spawn.dropDuration;
+    runtime.enemyScale = spawn.enemyScale;
+    runtime.rotationDuringDrop = spawn.rotationDuringDrop;
+    waveEnemies_.push_back(std::move(runtime));
 }
 
 void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
@@ -463,8 +415,16 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
     auto isAlive = [&aliveEnemies](Enemy* enemy) {
         return enemy && std::find(aliveEnemies.begin(), aliveEnemies.end(), enemy) != aliveEnemies.end();
         };
+    for (WaveEnemyRuntime& runtime : waveEnemies_) {
+        if (!isAlive(runtime.enemy)) {
+            if (laserController_) {
+                laserController_->ClearOwner(runtime.enemy);
+            }
+            MarkWaveEnemyEnded(runtime, runtime.enemy && runtime.enemy->IsDead() ? WaveEnemyEndReason::Dead : WaveEnemyEndReason::Escaped);
+        }
+    }
     waveEnemies_.erase(
-        std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [&isAlive](const WaveEnemyRuntime& runtime) { return !isAlive(runtime.enemy); }),
+        std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [](const WaveEnemyRuntime& runtime) { return runtime.ended; }),
         waveEnemies_.end());
 
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
@@ -474,10 +434,27 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
     const Vector3 cameraUp = camera_ ? GetCameraUp(*camera_) : Vector3{ 0.0f, 1.0f, 0.0f };
     const Vector3 cameraPosition = camera_ ? camera_->GetTranslate() : Vector3{ 0.0f, 0.0f, 0.0f };
     size_t despawnedThisFrame = 0;
+    screenAnchorEnemyCount_ = 0;
 
     for (WaveEnemyRuntime& runtime : waveEnemies_) {
         Enemy* enemy = runtime.enemy;
-        if (!enemy || !enemy->CanAttack()) {
+        if (!enemy || runtime.ended) {
+            continue;
+        }
+
+        if (screenAnchorEnabled_ && IsScreenAnchorMovePattern(runtime.movePattern)) {
+            ++screenAnchorEnemyCount_;
+            if (enemy->CanAttack()) {
+                const Vector3 anchorPosition = ComputeScreenPosition(runtime.screenX, runtime.screenY, runtime.depth);
+                lastScreenAnchorPosition_ = anchorPosition;
+                enemy->SetPosition(anchorPosition);
+                enemy->SetForward(ComputeLaserDirection(*enemy));
+                UpdateLaserTelegraph(runtime, safeDeltaTime);
+            }
+            continue;
+        }
+
+        if (!enemy->CanAttack()) {
             continue;
         }
 
@@ -488,6 +465,7 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
             const float side = Dot(fromCamera, cameraRight);
             const float height = Dot(fromCamera, cameraUp);
             if (depth < -5.0f || depth > 180.0f || std::fabs(side) > 90.0f || std::fabs(height) > 70.0f || Length(fromCamera) > 220.0f) {
+                MarkWaveEnemyEnded(runtime, WaveEnemyEndReason::Escaped);
                 enemy->Kill();
                 runtime.enemy = nullptr;
                 ++despawnedThisFrame;
@@ -526,10 +504,16 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
     }
 
     despawnedOutOfCameraCount_ += despawnedThisFrame;
+    for (WaveEnemyRuntime& runtime : waveEnemies_) {
+        if (!runtime.ended && (!runtime.enemy || runtime.enemy->IsDead())) {
+            MarkWaveEnemyEnded(runtime, WaveEnemyEndReason::Dead);
+        }
+    }
     waveEnemies_.erase(
-        std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [](const WaveEnemyRuntime& runtime) { return !runtime.enemy || runtime.enemy->IsDead(); }),
+        std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [](const WaveEnemyRuntime& runtime) { return runtime.ended || !runtime.enemy || runtime.enemy->IsDead(); }),
         waveEnemies_.end());
 }
+
 void EnemyWaveManager::ClearTrackedWaveEnemies() {
     if (!enemyManager_) {
         waveEnemies_.clear();
@@ -538,6 +522,9 @@ void EnemyWaveManager::ClearTrackedWaveEnemies() {
 
     const std::vector<Enemy*> aliveEnemies = enemyManager_->GetActiveEnemies();
     for (const WaveEnemyRuntime& runtime : waveEnemies_) {
+        if (laserController_) {
+            laserController_->ClearOwner(runtime.enemy);
+        }
         if (runtime.enemy && std::find(aliveEnemies.begin(), aliveEnemies.end(), runtime.enemy) != aliveEnemies.end()) {
             runtime.enemy->Kill();
         }

@@ -3,6 +3,9 @@
   "name": "Basic Drone Wave",
   "delay": 0.0,
   "clearCondition": "AllDead",
+  "nextWaveId": "wave_002",
+  "clearDelayAfterAllDead": 3.5,
+  "clearDelayAfterAllEscaped": 0.0,
   "enemies": [
     {
       "enemyType": "StraightDrone",

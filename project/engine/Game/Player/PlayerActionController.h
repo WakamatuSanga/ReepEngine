@@ -72,7 +72,7 @@ private:
     float barrelRollInvincibleTime_ = 0.5f;
     float barrelRollDamageReduction_ = 1.0f;
     float barrelRollClearBulletRadius_ = 1.5f;
-    float barrelRollClearBulletRadiusScale_ = 1.3f;
+    float barrelRollClearBulletRadiusScale_ = 1.4f;
     float barrelRollInputDoubleTapTime_ = 0.25f;
     float leftTapTimer_ = 999.0f;
     float rightTapTimer_ = 999.0f;

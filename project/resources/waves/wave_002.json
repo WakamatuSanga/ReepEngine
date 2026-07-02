@@ -1,0 +1,34 @@
+{
+  "waveId": "wave_002",
+  "name": "Laser Telegraph Test Wave",
+  "delay": 0.0,
+  "clearCondition": "Manual",
+  "enemies": [
+    {
+      "enemyType": "LaserTelegraphDrone",
+      "spawnTime": 0.0,
+      "screenX": -0.45,
+      "screenY": 0.38,
+      "depth": 30.0,
+      "movePattern": "ScreenAnchorDropIn",
+      "attackPattern": "TelegraphLaser",
+      "spawnScreenY": 0.95,
+      "dropDuration": 0.6,
+      "enemyScale": 1.45,
+      "rotationDuringDrop": 720.0
+    },
+    {
+      "enemyType": "LaserTelegraphDrone",
+      "spawnTime": 0.2,
+      "screenX": 0.45,
+      "screenY": 0.38,
+      "depth": 30.0,
+      "movePattern": "ScreenAnchorDropIn",
+      "attackPattern": "TelegraphLaser",
+      "spawnScreenY": 0.95,
+      "dropDuration": 0.6,
+      "enemyScale": 1.45,
+      "rotationDuringDrop": -720.0
+    }
+  ]
+}

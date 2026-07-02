@@ -71,6 +71,18 @@ namespace {
                     if (!ParseString(wave.clearCondition)) {
                         return Fail("Invalid clearCondition.");
                     }
+                } else if (key == "nextWaveId" || key == "next_wave_id") {
+                    if (!ParseString(wave.nextWaveId)) {
+                        return Fail("Invalid nextWaveId.");
+                    }
+                } else if (key == "clearDelayAfterAllDead" || key == "clear_delay_after_all_dead") {
+                    if (!ParseFloat(wave.clearDelayAfterAllDead)) {
+                        return Fail("Invalid clearDelayAfterAllDead.");
+                    }
+                } else if (key == "clearDelayAfterAllEscaped" || key == "clear_delay_after_all_escaped") {
+                    if (!ParseFloat(wave.clearDelayAfterAllEscaped)) {
+                        return Fail("Invalid clearDelayAfterAllEscaped.");
+                    }
                 } else if (key == "enemies") {
                     if (!ParseEnemies(wave.enemies)) {
                         return false;
@@ -158,6 +170,22 @@ namespace {
                 } else if (key == "attackPattern" || key == "attack_pattern") {
                     if (!ParseString(entry.attackPattern)) {
                         return Fail("Invalid attackPattern.");
+                    }
+                } else if (key == "spawnScreenY" || key == "spawn_screen_y") {
+                    if (!ParseFloat(entry.spawnScreenY)) {
+                        return Fail("Invalid spawnScreenY.");
+                    }
+                } else if (key == "dropDuration" || key == "drop_duration") {
+                    if (!ParseFloat(entry.dropDuration)) {
+                        return Fail("Invalid dropDuration.");
+                    }
+                } else if (key == "enemyScale" || key == "enemy_scale") {
+                    if (!ParseFloat(entry.enemyScale)) {
+                        return Fail("Invalid enemyScale.");
+                    }
+                } else if (key == "rotationDuringDrop" || key == "rotation_during_drop") {
+                    if (!ParseFloat(entry.rotationDuringDrop)) {
+                        return Fail("Invalid rotationDuringDrop.");
                     }
                 } else if (!SkipValue()) {
                     return false;
@@ -309,6 +337,12 @@ namespace {
         }
 
         void SkipWhitespace() {
+            if (position_ == 0 && source_.size() >= 3 &&
+                static_cast<unsigned char>(source_[0]) == 0xEF &&
+                static_cast<unsigned char>(source_[1]) == 0xBB &&
+                static_cast<unsigned char>(source_[2]) == 0xBF) {
+                position_ = 3;
+            }
             while (position_ < source_.size() && std::isspace(static_cast<unsigned char>(source_[position_])) != 0) {
                 ++position_;
             }

@@ -18,6 +18,7 @@ class EditorCameraController;
 class CombatEffectController;
 class EnemyAttackController;
 class EnemyBulletManager;
+class EnemyLaserTelegraphController;
 class EnemyManager;
 class EnemySpawnActionBridge;
 class EnemyWaveManager;
@@ -94,6 +95,7 @@ private:
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;
     std::unique_ptr<EnemyBulletManager> enemyBulletManager_;
+    std::unique_ptr<EnemyLaserTelegraphController> enemyLaserTelegraphController_;
     std::unique_ptr<EnemyAttackController> enemyAttackController_;
     std::unique_ptr<PlayerBulletEnemyCollision> playerBulletEnemyCollision_;
     std::unique_ptr<PlayerEnemyBulletCollision> playerEnemyBulletCollision_;

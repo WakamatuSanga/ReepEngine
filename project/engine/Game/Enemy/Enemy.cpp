@@ -486,6 +486,7 @@ void Enemy::UpdateObjectTransform() {
     }
     object_->SetRotate(visualModelRotation_);
     object_->SetScale(scale_);
+    object_->Update();
 }
 
 void Enemy::UpdateSpawnAnimation(float deltaTime) {

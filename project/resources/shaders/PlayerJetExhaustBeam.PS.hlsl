@@ -56,6 +56,20 @@ float4 main(PixelShaderInput input) : SV_TARGET0
         return MakeOutput(float4(rimColor * brightness * angularFlicker, alpha));
     }
 
+    if (mode == 3u)
+    {
+        float u = saturate(input.uv.x);
+        float edge = abs(input.uv.y * 2.0f - 1.0f);
+        float band = pow(saturate(1.0f - edge), edgeSoftness);
+        float pulse = 1.0f + sin(time * 58.0f + u * 11.0f) * flickerStrength * 0.08f;
+        float alpha = band * alphaScale;
+        if (alpha <= 0.01f)
+        {
+            discard;
+        }
+        float3 laserColor = lerp(float3(1.0f, 0.08f, 0.05f), float3(1.0f, 0.92f, 0.88f), pow(band, 2.2f));
+        return MakeOutput(float4(laserColor * brightness * pulse, alpha));
+    }
     float u = saturate(input.uv.x);
     float v = abs(input.uv.y * 2.0f - 1.0f);
     float center = saturate(1.0f - v);

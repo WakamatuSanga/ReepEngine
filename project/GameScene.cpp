@@ -30,6 +30,7 @@
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
+#include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Field/InfluenceFieldManager.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
@@ -543,6 +544,8 @@ void GameScene::Initialize() {
     }
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
+    enemyLaserTelegraphController_ = std::make_unique<EnemyLaserTelegraphController>();
+    enemyLaserTelegraphController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
     player_->SetBarrelRollEffectControllers(playerBarrelRollRingController_.get(), playerBulletCancelEffectController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
@@ -557,7 +560,7 @@ void GameScene::Initialize() {
     levelSceneRuntime_ = std::make_unique<LevelSceneRuntime>();
     levelSceneRuntime_->Initialize(object3dCommon, camera_.get());
     enemyAttackController_ = std::make_unique<EnemyAttackController>();
-    enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get());
+    enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get(), camera_.get());
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
@@ -579,6 +582,7 @@ void GameScene::Initialize() {
     enemyWaveManager_ = std::make_unique<EnemyWaveManager>();
     enemyWaveManager_->Initialize(enemyManager_.get(), camera_.get());
     enemyWaveManager_->SetPlayer(player_.get());
+    enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -878,6 +882,10 @@ void GameScene::Finalize() {
         enemyWaveManager_->Finalize();
     }
     enemyWaveManager_.reset();
+    if (enemyLaserTelegraphController_) {
+        enemyLaserTelegraphController_->Finalize();
+    }
+    enemyLaserTelegraphController_.reset();
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->Finalize();
     }
@@ -1241,6 +1249,9 @@ void GameScene::Update() {
         enemyWaveManager_->SetCurrentBoostPower(boostController_ ? boostController_->GetCurrentBoostPower() : 0.0f);
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
+    if (enemyLaserTelegraphController_) {
+        enemyLaserTelegraphController_->Update(gameplayDeltaTime);
+    }
     if (cloudVolume_) {
         cloudVolume_->Update(gameplayDeltaTime);
     }
@@ -1516,6 +1527,9 @@ void GameScene::Update() {
     }
     if (enemyWaveManager_) {
         enemyWaveManager_->DrawImGui();
+    }
+    if (enemyLaserTelegraphController_) {
+        enemyLaserTelegraphController_->DrawImGui();
     }
     if (startupEnemySpawnController_) {
         startupEnemySpawnController_->DrawImGui();
@@ -2125,6 +2139,9 @@ void GameScene::Draw() {
     if (enemyBulletManager_) {
         enemyBulletManager_->Draw();
     }
+    if (enemyLaserTelegraphController_ && !shadowDebugSettings.disableEffects) {
+        enemyLaserTelegraphController_->Draw();
+    }
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawDebug();
     }
@@ -2178,6 +2195,9 @@ void GameScene::Draw() {
     }
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
+    }
+    if (enemyLaserTelegraphController_ && !shadowDebugSettings.disableEffects) {
+        enemyLaserTelegraphController_->DrawAfterCloud();
     }
 
     if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {

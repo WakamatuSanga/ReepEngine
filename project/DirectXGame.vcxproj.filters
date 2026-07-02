@@ -300,6 +300,9 @@
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyLaserTelegraphController.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
@@ -364,6 +367,15 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerScreenAnchor.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerProgression.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp">
@@ -660,6 +672,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyLaserTelegraphController.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h">
