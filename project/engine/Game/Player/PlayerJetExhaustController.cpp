@@ -230,6 +230,8 @@ bool PlayerJetExhaustController::Initialize(
         return false;
     }
     LoadPreset();
+    ApplyCurrentTunedPreset();
+    loadStatus_ += " / Applied current tuned preset at startup.";
     return true;
 }
 

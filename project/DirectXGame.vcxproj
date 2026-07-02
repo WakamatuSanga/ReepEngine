@@ -184,6 +184,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp" />
     <ClCompile Include="engine\Game\RailShooter\PlayerEventTriggerBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp" />
@@ -336,6 +338,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h" />
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h" />
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveManager.h" />
     <ClInclude Include="engine\Game\RailShooter\EventActionDispatcher.h" />
     <ClInclude Include="engine\Game\RailShooter\PlayerEventTriggerBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h" />

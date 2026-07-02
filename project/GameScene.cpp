@@ -43,6 +43,7 @@
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
+#include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
@@ -567,6 +568,9 @@ void GameScene::Initialize() {
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();
     enemySpawnActionBridge_->Initialize(enemyManager_.get(), levelSceneRuntime_.get());
+    enemyWaveManager_ = std::make_unique<EnemyWaveManager>();
+    enemyWaveManager_->Initialize(enemyManager_.get(), camera_.get());
+    enemyWaveManager_->SetPlayer(player_.get());
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -576,6 +580,7 @@ void GameScene::Initialize() {
         levelSceneRuntime_->GetEventRuntime(),
         railShooterEventActionBridge_.get(),
         enemySpawnActionBridge_.get(),
+        enemyWaveManager_.get(),
         postEffectActionBridge_.get(),
         primitiveEffectSystem_.get(),
         levelSceneRuntime_.get());
@@ -861,6 +866,10 @@ void GameScene::Finalize() {
         startupEnemySpawnController_->Finalize();
     }
     startupEnemySpawnController_.reset();
+    if (enemyWaveManager_) {
+        enemyWaveManager_->Finalize();
+    }
+    enemyWaveManager_.reset();
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->Finalize();
     }
@@ -1000,6 +1009,9 @@ void GameScene::Update() {
     const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
     const bool isDeathSequenceActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
     const bool isGameMode = runtimeModeController_ ? runtimeModeController_->IsGameMode() : true;
+    if (enemyWaveManager_) {
+        enemyWaveManager_->SetGameModeActive(isGameMode);
+    }
     if (isGameMode && runtimeModeController_ && runtimeModeController_->ShouldAutoApplyGameModePerformancePreset() && volumetricCloudPass) {
         volumetricCloudPass->ApplyGameModePerformancePreset();
     }
@@ -1199,6 +1211,10 @@ void GameScene::Update() {
     }
     if (eventActionDispatcher_) {
         eventActionDispatcher_->Update();
+    }
+    if (enemyWaveManager_) {
+        enemyWaveManager_->SetCurrentBoostPower(boostController_ ? boostController_->GetCurrentBoostPower() : 0.0f);
+        enemyWaveManager_->Update(gameplayDeltaTime);
     }
     if (cloudVolume_) {
         cloudVolume_->Update(gameplayDeltaTime);
@@ -1466,6 +1482,9 @@ void GameScene::Update() {
     }
     if (enemySpawnActionBridge_) {
         enemySpawnActionBridge_->DrawImGui();
+    }
+    if (enemyWaveManager_) {
+        enemyWaveManager_->DrawImGui();
     }
     if (startupEnemySpawnController_) {
         startupEnemySpawnController_->DrawImGui();

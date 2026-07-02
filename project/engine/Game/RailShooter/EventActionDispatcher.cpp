@@ -1,5 +1,6 @@
-﻿#include "EventActionDispatcher.h"
+#include "EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
+#include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -29,6 +30,9 @@ namespace {
         if (!action.targetObjectName.empty()) {
             return action.targetObjectName;
         }
+        if (!action.waveId.empty()) {
+            return action.waveId;
+        }
         return "(none)";
     }
 }
@@ -41,12 +45,14 @@ void EventActionDispatcher::Initialize(
     LevelEventRuntime* eventRuntime,
     RailShooterEventActionBridge* cameraRailBridge,
     EnemySpawnActionBridge* enemySpawnBridge,
+    EnemyWaveManager* enemyWaveManager,
     PostEffectActionBridge* postEffectBridge,
     PrimitiveEffectSystem* primitiveEffectSystem,
     LevelSceneRuntime* levelSceneRuntime) {
     eventRuntime_ = eventRuntime;
     cameraRailBridge_ = cameraRailBridge;
     enemySpawnBridge_ = enemySpawnBridge;
+    enemyWaveManager_ = enemyWaveManager;
     postEffectBridge_ = postEffectBridge;
     primitiveEffectSystem_ = primitiveEffectSystem;
     levelSceneRuntime_ = levelSceneRuntime;
@@ -56,6 +62,7 @@ void EventActionDispatcher::Finalize() {
     eventRuntime_ = nullptr;
     cameraRailBridge_ = nullptr;
     enemySpawnBridge_ = nullptr;
+    enemyWaveManager_ = nullptr;
     postEffectBridge_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     levelSceneRuntime_ = nullptr;
@@ -83,6 +90,8 @@ void EventActionDispatcher::Update() {
             handled = postEffectBridge_ && postEffectBridge_->HandleAction(action, result);
         } else if (IsActionType(action.actionType, "spawnenemy")) {
             handled = enemySpawnBridge_ && enemySpawnBridge_->HandleAction(action, result);
+        } else if (IsActionType(action.actionType, "spawnwave")) {
+            handled = enemyWaveManager_ && enemyWaveManager_->HandleSpawnWaveAction(action, result);
         } else {
             result = "Unsupported actionType: " + lastActionType_;
         }

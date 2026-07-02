@@ -6,6 +6,7 @@
 class LevelEventRuntime;
 class LevelSceneRuntime;
 class EnemySpawnActionBridge;
+class EnemyWaveManager;
 class PostEffectActionBridge;
 class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
@@ -20,6 +21,7 @@ public:
         LevelEventRuntime* eventRuntime,
         RailShooterEventActionBridge* cameraRailBridge,
         EnemySpawnActionBridge* enemySpawnBridge,
+        EnemyWaveManager* enemyWaveManager,
         PostEffectActionBridge* postEffectBridge,
         PrimitiveEffectSystem* primitiveEffectSystem,
         LevelSceneRuntime* levelSceneRuntime);
@@ -35,6 +37,7 @@ private:
     LevelEventRuntime* eventRuntime_ = nullptr;
     RailShooterEventActionBridge* cameraRailBridge_ = nullptr;
     EnemySpawnActionBridge* enemySpawnBridge_ = nullptr;
+    EnemyWaveManager* enemyWaveManager_ = nullptr;
     PostEffectActionBridge* postEffectBridge_ = nullptr;
     PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
     LevelSceneRuntime* levelSceneRuntime_ = nullptr;

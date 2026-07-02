@@ -20,6 +20,7 @@ class EnemyAttackController;
 class EnemyBulletManager;
 class EnemyManager;
 class EnemySpawnActionBridge;
+class EnemyWaveManager;
 class EventActionDispatcher;
 class GameOverFlowController;
 class GpuParticleEffectPlayer;
@@ -99,6 +100,7 @@ private:
     std::unique_ptr<PlayerRailController> playerRailController_;
     std::unique_ptr<PlayerEventTriggerBridge> playerEventTriggerBridge_;
     std::unique_ptr<EnemySpawnActionBridge> enemySpawnActionBridge_;
+    std::unique_ptr<EnemyWaveManager> enemyWaveManager_;
     std::unique_ptr<PostEffectActionBridge> postEffectActionBridge_;
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;

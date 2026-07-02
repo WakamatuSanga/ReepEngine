@@ -1,0 +1,35 @@
+{
+  "waveId": "wave_001",
+  "name": "Basic Drone Wave",
+  "delay": 0.0,
+  "clearCondition": "AllDead",
+  "enemies": [
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 0.0,
+      "screenX": -0.45,
+      "screenY": 0.14,
+      "depth": 55.0,
+      "movePattern": "StraightApproach",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 0.3,
+      "screenX": 0.0,
+      "screenY": 0.16,
+      "depth": 62.0,
+      "movePattern": "StraightApproach",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 0.6,
+      "screenX": 0.45,
+      "screenY": 0.14,
+      "depth": 69.0,
+      "movePattern": "StraightApproach",
+      "attackPattern": "SingleShot"
+    }
+  ]
+}

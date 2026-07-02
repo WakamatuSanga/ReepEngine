@@ -31,7 +31,7 @@ private:
 
     bool enableShooting_ = true;
     float fireInterval_ = 1.5f;
-    float bulletSpeed_ = 6.0f;
+    float bulletSpeed_ = 9.0f;
     float fireTimer_ = 0.0f;
     uint64_t firedBulletCount_ = 0;
     Vector3 lastTargetPosition_{ 0.0f, 0.0f, 0.0f };
