@@ -11,6 +11,8 @@ class Model;
 class Object3d;
 class Object3dCommon;
 class PlayerActionController;
+class PlayerBarrelRollRingController;
+class PlayerBulletCancelEffectController;
 
 class Player {
 public:
@@ -38,6 +40,7 @@ public:
     void SetGameViewInputActive(bool isActive);
     void SetActionDebugVisualsEnabled(bool isEnabled);
     void SetBarrelRollDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
+    void SetBarrelRollEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
     void SetBaseMode(BaseMode baseMode);
     void SetExternalBasePosition(const Vector3& position);
     void SetExternalBaseForward(const Vector3& forward);

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 
+
 class Object3d {
     struct EnvironmentMapData {
         int32_t enableEnvironmentMap;
@@ -64,33 +65,34 @@ public:
     void Initialize(Object3dCommon* object3dCommon);
     void Update();
     void Draw();
+    bool IsValid() const { return initialized_; }
 
     void SetModel(Model* model) { model_ = model; }
     void SetCamera(Camera* camera) { camera_ = camera; }
     void SetEnvironmentTextureIndex(uint32_t textureIndex) { environmentTextureIndex_ = textureIndex; }
-    void SetEnvironmentMapEnabled(bool isEnabled) { environmentMapData_->enableEnvironmentMap = isEnabled ? 1 : 0; }
-    void SetEnvironmentMapIntensity(float intensity) { environmentMapData_->intensity = intensity; }
-    void SetDissolveEnabled(bool isEnabled) { dissolveData_->enableDissolve = isEnabled ? 1 : 0; }
-    void SetDissolveThreshold(float threshold) { dissolveData_->threshold = threshold; }
-    void SetDissolveEdgeWidth(float edgeWidth) { dissolveData_->edgeWidth = edgeWidth; }
-    void SetDissolveEdgeGlowStrength(float edgeGlowStrength) { dissolveData_->edgeGlowStrength = edgeGlowStrength; }
-    void SetDissolveEdgeNoiseStrength(float edgeNoiseStrength) { dissolveData_->edgeNoiseStrength = edgeNoiseStrength; }
-    void SetDissolveEdgeColor(const Vector4& edgeColor) { dissolveData_->edgeColor = edgeColor; }
+    void SetEnvironmentMapEnabled(bool isEnabled) { if (environmentMapData_) { environmentMapData_->enableEnvironmentMap = isEnabled ? 1 : 0; } }
+    void SetEnvironmentMapIntensity(float intensity) { if (environmentMapData_) { environmentMapData_->intensity = intensity; } }
+    void SetDissolveEnabled(bool isEnabled) { if (dissolveData_) { dissolveData_->enableDissolve = isEnabled ? 1 : 0; } }
+    void SetDissolveThreshold(float threshold) { if (dissolveData_) { dissolveData_->threshold = threshold; } }
+    void SetDissolveEdgeWidth(float edgeWidth) { if (dissolveData_) { dissolveData_->edgeWidth = edgeWidth; } }
+    void SetDissolveEdgeGlowStrength(float edgeGlowStrength) { if (dissolveData_) { dissolveData_->edgeGlowStrength = edgeGlowStrength; } }
+    void SetDissolveEdgeNoiseStrength(float edgeNoiseStrength) { if (dissolveData_) { dissolveData_->edgeNoiseStrength = edgeNoiseStrength; } }
+    void SetDissolveEdgeColor(const Vector4& edgeColor) { if (dissolveData_) { dissolveData_->edgeColor = edgeColor; } }
     void SetDissolveMaskTextureIndex(uint32_t textureIndex) { dissolveMaskTextureIndex_ = textureIndex; }
     void SetDissolveMaskTexture(const std::string& path);
-    void SetRandomEnabled(bool isEnabled) { randomNoiseData_->enableRandom = isEnabled ? 1 : 0; }
-    void SetRandomPreview(bool isPreview) { randomNoiseData_->previewRandom = isPreview ? 1 : 0; }
-    void SetRandomIntensity(float intensity) { randomNoiseData_->intensity = intensity; }
-    void SetRandomTime(float time) { randomNoiseData_->time = time; }
-    void SetRingAppearanceEnabled(bool isEnabled) { ringAppearanceData_->enableRingAppearance = isEnabled ? 1 : 0; }
-    void SetRingUVDirection(int32_t uvDirection) { ringAppearanceData_->uvDirection = uvDirection; }
-    void SetRingInnerRadiusRatio(float innerRadiusRatio) { ringAppearanceData_->innerRadiusRatio = innerRadiusRatio; }
-    void SetRingStartAlpha(float startAlpha) { ringAppearanceData_->startAlpha = startAlpha; }
-    void SetRingEndAlpha(float endAlpha) { ringAppearanceData_->endAlpha = endAlpha; }
-    void SetRingStartFadeRange(float startFadeRange) { ringAppearanceData_->startFadeRange = startFadeRange; }
-    void SetRingEndFadeRange(float endFadeRange) { ringAppearanceData_->endFadeRange = endFadeRange; }
-    void SetRingInnerColor(const Vector4& innerColor) { ringAppearanceData_->innerColor = innerColor; }
-    void SetRingOuterColor(const Vector4& outerColor) { ringAppearanceData_->outerColor = outerColor; }
+    void SetRandomEnabled(bool isEnabled) { if (randomNoiseData_) { randomNoiseData_->enableRandom = isEnabled ? 1 : 0; } }
+    void SetRandomPreview(bool isPreview) { if (randomNoiseData_) { randomNoiseData_->previewRandom = isPreview ? 1 : 0; } }
+    void SetRandomIntensity(float intensity) { if (randomNoiseData_) { randomNoiseData_->intensity = intensity; } }
+    void SetRandomTime(float time) { if (randomNoiseData_) { randomNoiseData_->time = time; } }
+    void SetRingAppearanceEnabled(bool isEnabled) { if (ringAppearanceData_) { ringAppearanceData_->enableRingAppearance = isEnabled ? 1 : 0; } }
+    void SetRingUVDirection(int32_t uvDirection) { if (ringAppearanceData_) { ringAppearanceData_->uvDirection = uvDirection; } }
+    void SetRingInnerRadiusRatio(float innerRadiusRatio) { if (ringAppearanceData_) { ringAppearanceData_->innerRadiusRatio = innerRadiusRatio; } }
+    void SetRingStartAlpha(float startAlpha) { if (ringAppearanceData_) { ringAppearanceData_->startAlpha = startAlpha; } }
+    void SetRingEndAlpha(float endAlpha) { if (ringAppearanceData_) { ringAppearanceData_->endAlpha = endAlpha; } }
+    void SetRingStartFadeRange(float startFadeRange) { if (ringAppearanceData_) { ringAppearanceData_->startFadeRange = startFadeRange; } }
+    void SetRingEndFadeRange(float endFadeRange) { if (ringAppearanceData_) { ringAppearanceData_->endFadeRange = endFadeRange; } }
+    void SetRingInnerColor(const Vector4& innerColor) { if (ringAppearanceData_) { ringAppearanceData_->innerColor = innerColor; } }
+    void SetRingOuterColor(const Vector4& outerColor) { if (ringAppearanceData_) { ringAppearanceData_->outerColor = outerColor; } }
 
     void SetScale(const Vector3& scale) { transform_.scale = scale; }
     void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
@@ -100,12 +102,12 @@ public:
     DirectionalLight* GetDirectionalLightData() { return directionalLightData_; }
 
 private:
-    void CreateTransformationMatrixResource();
-    void CreateDirectionalLightResource();
-    void CreateEnvironmentMapResource();
-    void CreateDissolveResource();
-    void CreateRandomNoiseResource();
-    void CreateRingAppearanceResource();
+    bool CreateTransformationMatrixResource();
+    bool CreateDirectionalLightResource();
+    bool CreateEnvironmentMapResource();
+    bool CreateDissolveResource();
+    bool CreateRandomNoiseResource();
+    bool CreateRingAppearanceResource();
 
 private:
     Object3dCommon* object3dCommon_ = nullptr;
@@ -133,4 +135,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> ringAppearanceResource_;
     RingAppearanceData* ringAppearanceData_ = nullptr;
+    bool initialized_ = false;
 };

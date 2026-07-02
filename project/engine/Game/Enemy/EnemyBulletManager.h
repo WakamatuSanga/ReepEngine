@@ -23,6 +23,7 @@ public:
     void DeleteAllBullets();
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
     size_t ClearBulletsInRadius(const Vector3& center, float radius);
+    size_t ClearBulletsInRadius(const Vector3& center, float radius, std::vector<Vector3>* clearedPositions, size_t maxRecordedPositions);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius);
     size_t GetBulletCount() const;

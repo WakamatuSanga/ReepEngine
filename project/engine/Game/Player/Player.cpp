@@ -487,6 +487,14 @@ void Player::SetBarrelRollDependencies(
     }
 }
 
+void Player::SetBarrelRollEffectControllers(
+    PlayerBarrelRollRingController* rollRingController,
+    PlayerBulletCancelEffectController* bulletCancelEffectController) {
+    if (actionController_) {
+        actionController_->SetEffectControllers(rollRingController, bulletCancelEffectController);
+    }
+}
+
 void Player::SetBaseMode(BaseMode baseMode) {
     baseMode_ = baseMode;
 }

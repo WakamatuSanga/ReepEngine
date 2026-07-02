@@ -1112,6 +1112,15 @@ ComPtr<IDxcBlob> DirectXCommon::CompileShader(
 // バッファリソース生成（アップロードヒープ）
 ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t sizeInBytes)
 {
+    if (!device) {
+        Logger::Log("[DirectXCommon] CreateBufferResource failed: device is null\n");
+        return nullptr;
+    }
+    if (sizeInBytes == 0) {
+        Logger::Log("[DirectXCommon] CreateBufferResource failed: sizeInBytes is 0\n");
+        return nullptr;
+    }
+
     D3D12_HEAP_PROPERTIES heapProps{};
     heapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
     heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
@@ -1138,7 +1147,10 @@ ComPtr<ID3D12Resource> DirectXCommon::CreateBufferResource(size_t sizeInBytes)
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(resource.GetAddressOf()));
-    assert(SUCCEEDED(hr));
+    if (FAILED(hr) || !resource) {
+        Logger::Log("[DirectXCommon] CreateBufferResource failed: hr=" + FormatHResult(hr) + " size=" + std::to_string(sizeInBytes) + "\n");
+        return nullptr;
+    }
 
     return resource;
 }

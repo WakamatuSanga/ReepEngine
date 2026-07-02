@@ -38,6 +38,8 @@
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
+#include "Engine/Game/Player/PlayerBarrelRollRingController.h"
+#include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
@@ -518,6 +520,10 @@ void GameScene::Initialize() {
     playerJetExhaustController_->Initialize(object3dCommon, camera_.get(), player_.get(), boostController_.get(), MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     playerSonicBoostRingController_ = std::make_unique<PlayerSonicBoostRingController>();
     playerSonicBoostRingController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get(), player_.get(), boostController_.get());
+    playerBarrelRollRingController_ = std::make_unique<PlayerBarrelRollRingController>();
+    playerBarrelRollRingController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
+    playerBulletCancelEffectController_ = std::make_unique<PlayerBulletCancelEffectController>();
+    playerBulletCancelEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
@@ -538,6 +544,7 @@ void GameScene::Initialize() {
     enemyBulletManager_ = std::make_unique<EnemyBulletManager>();
     enemyBulletManager_->Initialize(object3dCommon, camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
+    player_->SetBarrelRollEffectControllers(playerBarrelRollRingController_.get(), playerBulletCancelEffectController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
@@ -555,6 +562,7 @@ void GameScene::Initialize() {
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
+    playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
     gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();
@@ -952,6 +960,14 @@ void GameScene::Finalize() {
         playerBulletManager_->Finalize();
     }
     playerBulletManager_.reset();
+    if (playerBulletCancelEffectController_) {
+        playerBulletCancelEffectController_->Finalize();
+    }
+    playerBulletCancelEffectController_.reset();
+    if (playerBarrelRollRingController_) {
+        playerBarrelRollRingController_->Finalize();
+    }
+    playerBarrelRollRingController_.reset();
     if (playerSonicBoostRingController_) {
         playerSonicBoostRingController_->Finalize();
     }
@@ -1151,6 +1167,9 @@ void GameScene::Update() {
     if (playerRailController_) {
         playerRailController_->Update(gameplayDeltaTime);
     }
+    if (playerBulletCancelEffectController_) {
+        playerBulletCancelEffectController_->BeginFrame();
+    }
     if (player_) {
         player_->Update(gameplayDeltaTime);
     }
@@ -1160,6 +1179,12 @@ void GameScene::Update() {
     if (playerSonicBoostRingController_) {
         playerSonicBoostRingController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         playerSonicBoostRingController_->Update(gameplayDeltaTime);
+    }
+    if (playerBarrelRollRingController_) {
+        playerBarrelRollRingController_->Update(gameplayDeltaTime);
+    }
+    if (playerBulletCancelEffectController_) {
+        playerBulletCancelEffectController_->Update(gameplayDeltaTime);
     }
     if (playerJetExhaustController_) {
         playerJetExhaustController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
@@ -1425,6 +1450,12 @@ void GameScene::Update() {
     }
     if (playerSonicBoostRingController_) {
         playerSonicBoostRingController_->DrawImGui();
+    }
+    if (playerBarrelRollRingController_) {
+        playerBarrelRollRingController_->DrawImGui();
+    }
+    if (playerBulletCancelEffectController_) {
+        playerBulletCancelEffectController_->DrawImGui();
     }
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawImGui();
@@ -2112,6 +2143,12 @@ void GameScene::Draw() {
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
         playerSonicBoostRingController_->Draw();
     }
+    if (playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
+        playerBarrelRollRingController_->Draw();
+    }
+    if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
+        playerBulletCancelEffectController_->Draw();
+    }
 
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
@@ -2135,6 +2172,12 @@ void GameScene::Draw() {
     }
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
         playerSonicBoostRingController_->DrawAfterCloud();
+    }
+    if (playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
+        playerBarrelRollRingController_->DrawAfterCloud();
+    }
+    if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
+        playerBulletCancelEffectController_->DrawAfterCloud();
     }
 
     if (shouldDrawDebugVisuals && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {

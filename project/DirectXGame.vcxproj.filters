@@ -339,6 +339,12 @@
     <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -693,6 +699,12 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">

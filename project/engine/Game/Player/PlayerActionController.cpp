@@ -1,6 +1,9 @@
-﻿#include "PlayerActionController.h"
+#include "PlayerActionController.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
+#include "PlayerBarrelRollRingController.h"
+#include "PlayerBulletCancelEffectController.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
@@ -8,6 +11,7 @@
 #include "MyGame.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -42,9 +46,9 @@ void PlayerActionController::Initialize(Object3dCommon* object3dCommon, Camera* 
         clearRadiusModel_ = ModelManager::GetInstance()->CreateSphere("PlayerBarrelRollClearRadiusSphere", 24);
         clearRadiusObject_->SetModel(clearRadiusModel_);
         clearRadiusObject_->SetScale({
-            barrelRollClearBulletRadius_,
-            barrelRollClearBulletRadius_,
-            barrelRollClearBulletRadius_
+            GetEffectiveBarrelRollClearBulletRadius(),
+            GetEffectiveBarrelRollClearBulletRadius(),
+            GetEffectiveBarrelRollClearBulletRadius()
             });
         clearRadiusObject_->Update();
     }
@@ -55,6 +59,8 @@ void PlayerActionController::Finalize() {
     clearRadiusModel_ = nullptr;
     enemyBulletManager_ = nullptr;
     combatEffectController_ = nullptr;
+    rollRingController_ = nullptr;
+    bulletCancelEffectController_ = nullptr;
     object3dCommon_ = nullptr;
     camera_ = nullptr;
 }
@@ -64,6 +70,13 @@ void PlayerActionController::SetDependencies(
     CombatEffectController* combatEffectController) {
     enemyBulletManager_ = enemyBulletManager;
     combatEffectController_ = combatEffectController;
+}
+
+void PlayerActionController::SetEffectControllers(
+    PlayerBarrelRollRingController* rollRingController,
+    PlayerBulletCancelEffectController* bulletCancelEffectController) {
+    rollRingController_ = rollRingController;
+    bulletCancelEffectController_ = bulletCancelEffectController;
 }
 
 void PlayerActionController::SetDebugVisualsEnabled(bool isEnabled) {
@@ -137,7 +150,11 @@ void PlayerActionController::DrawImGui() {
     ImGui::DragFloat("Barrel Roll Cooldown", &barrelRollCooldown_, 0.01f, 0.0f, 5.0f, "%.2f");
     ImGui::DragFloat("Double Tap Time", &barrelRollInputDoubleTapTime_, 0.01f, 0.05f, 1.0f, "%.2f");
     ImGui::DragFloat("Invincible Time", &barrelRollInvincibleTime_, 0.01f, 0.0f, 3.0f, "%.2f");
-    ImGui::DragFloat("Clear Bullet Radius", &barrelRollClearBulletRadius_, 0.05f, 0.0f, 20.0f, "%.2f");
+    ImGui::DragFloat("Barrel Roll Bullet Clear Radius", &barrelRollClearBulletRadius_, 0.05f, 0.0f, 20.0f, "%.2f");
+    ImGui::SliderFloat("Bullet Clear Radius Scale", &barrelRollClearBulletRadiusScale_, 1.0f, 1.6f, "%.2f");
+    barrelRollClearBulletRadius_ = std::clamp(barrelRollClearBulletRadius_, 0.0f, 20.0f);
+    barrelRollClearBulletRadiusScale_ = std::clamp(barrelRollClearBulletRadiusScale_, 1.0f, 1.6f);
+    ImGui::Text("Effective Bullet Clear Radius: %.2f", GetEffectiveBarrelRollClearBulletRadius());
     ImGui::SliderFloat("Damage Reduction", &barrelRollDamageReduction_, 0.0f, 1.0f, "%.2f");
     ImGui::Checkbox("Show Barrel Roll Clear Radius", &showBarrelRollClearRadius_);
     ImGui::Text("Is Barrel Rolling: %s", IsBarrelRolling() ? "true" : "false");
@@ -159,6 +176,14 @@ void PlayerActionController::DrawImGui() {
 #endif
 }
 
+
+float PlayerActionController::GetBarrelRollClearBulletRadius() const {
+    return GetEffectiveBarrelRollClearBulletRadius();
+}
+
+float PlayerActionController::GetEffectiveBarrelRollClearBulletRadius() const {
+    return (std::max)(0.0f, barrelRollClearBulletRadius_) * std::clamp(barrelRollClearBulletRadiusScale_, 1.0f, 1.6f);
+}
 bool PlayerActionController::IsBarrelRolling() const {
     return isBarrelRolling_;
 }
@@ -207,9 +232,32 @@ void PlayerActionController::StartBarrelRoll(BarrelRollDirection direction, cons
     ++barrelRollCount_;
     lastClearedBulletCount_ = 0;
 
-    if (enemyBulletManager_ && barrelRollClearBulletRadius_ > 0.0f) {
-        lastClearedBulletCount_ = static_cast<uint32_t>(
-            enemyBulletManager_->ClearBulletsInRadius(playerPosition, barrelRollClearBulletRadius_));
+    if (rollRingController_) {
+        Vector3 forward{ 0.0f, 0.0f, 1.0f };
+        if (camera_) {
+            const Matrix4x4& matrix = camera_->GetWorldMatrix();
+            const float length = std::sqrt(matrix.m[2][0] * matrix.m[2][0] + matrix.m[2][1] * matrix.m[2][1] + matrix.m[2][2] * matrix.m[2][2]);
+            if (length > 0.00001f && std::isfinite(length)) {
+                forward = { matrix.m[2][0] / length, matrix.m[2][1] / length, matrix.m[2][2] / length };
+            }
+        }
+        rollRingController_->SpawnRollRings(playerPosition, forward, direction == BarrelRollDirection::Left ? -1 : 1);
+    }
+
+    const float effectiveClearRadius = GetEffectiveBarrelRollClearBulletRadius();
+    if (enemyBulletManager_ && effectiveClearRadius > 0.0f) {
+        std::vector<Vector3> clearedPositions;
+        const size_t maxEffectPositions = bulletCancelEffectController_ ? static_cast<size_t>((std::max)(0, bulletCancelEffectController_->GetMaxEffectsPerFrame())) : 0;
+        lastClearedBulletCount_ = static_cast<uint32_t>(enemyBulletManager_->ClearBulletsInRadius(
+            playerPosition,
+            effectiveClearRadius,
+            bulletCancelEffectController_ ? &clearedPositions : nullptr,
+            maxEffectPositions));
+        if (bulletCancelEffectController_) {
+            for (const Vector3& position : clearedPositions) {
+                bulletCancelEffectController_->SpawnCancelEffect(position);
+            }
+        }
     }
     if (enableBarrelRollEffect_ && combatEffectController_) {
         combatEffectController_->PlayEnemyBulletHitPlayer(playerPosition);
@@ -228,9 +276,9 @@ void PlayerActionController::UpdateDebugRadiusObject(const Vector3& playerPositi
     clearRadiusObject_->SetTranslate(playerPosition);
     clearRadiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
     clearRadiusObject_->SetScale({
-        barrelRollClearBulletRadius_,
-        barrelRollClearBulletRadius_,
-        barrelRollClearBulletRadius_
+        GetEffectiveBarrelRollClearBulletRadius(),
+        GetEffectiveBarrelRollClearBulletRadius(),
+        GetEffectiveBarrelRollClearBulletRadius()
         });
     clearRadiusObject_->Update();
 }
