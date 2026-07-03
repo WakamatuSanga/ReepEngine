@@ -17,6 +17,7 @@ class DirectXCommon;
 class EditorCameraController;
 class CombatEffectController;
 class EnemyAttackController;
+class EnemyDefeatEffectController;
 class EnemyBulletManager;
 class EnemyLaserTelegraphController;
 class EnemyManager;
@@ -92,6 +93,7 @@ private:
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
+    std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;
     std::unique_ptr<EnemyBulletManager> enemyBulletManager_;

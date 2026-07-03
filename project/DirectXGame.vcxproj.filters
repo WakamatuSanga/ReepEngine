@@ -294,6 +294,9 @@
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyDefeatEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyHitShape.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
@@ -669,6 +672,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\Enemy.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyDefeatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h">

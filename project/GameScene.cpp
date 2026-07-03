@@ -29,6 +29,7 @@
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
+#include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -532,6 +533,8 @@ void GameScene::Initialize() {
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
+    enemyDefeatEffectController_ = std::make_unique<EnemyDefeatEffectController>();
+    enemyDefeatEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyManager_->SetPlayer(player_.get());
@@ -563,6 +566,7 @@ void GameScene::Initialize() {
     enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get(), camera_.get());
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
+    playerBulletEnemyCollision_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
@@ -923,6 +927,10 @@ void GameScene::Finalize() {
         playerBulletEnemyCollision_->Finalize();
     }
     playerBulletEnemyCollision_.reset();
+    if (enemyDefeatEffectController_) {
+        enemyDefeatEffectController_->Finalize();
+    }
+    enemyDefeatEffectController_.reset();
     if (combatEffectController_) {
         combatEffectController_->Finalize();
     }
@@ -1178,6 +1186,9 @@ void GameScene::Update() {
     if (playerBulletCancelEffectController_) {
         playerBulletCancelEffectController_->BeginFrame();
     }
+    if (enemyDefeatEffectController_) {
+        enemyDefeatEffectController_->BeginFrame();
+    }
     if (player_) {
         player_->Update(gameplayDeltaTime);
     }
@@ -1226,6 +1237,9 @@ void GameScene::Update() {
     }
     if (combatEffectController_) {
         combatEffectController_->Update(gameplayDeltaTime, camera_.get());
+    }
+    if (enemyDefeatEffectController_) {
+        enemyDefeatEffectController_->Update(gameplayDeltaTime);
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Update(gameplayDeltaTime);
@@ -1467,6 +1481,9 @@ void GameScene::Update() {
     }
     if (playerBulletCancelEffectController_) {
         playerBulletCancelEffectController_->DrawImGui();
+    }
+    if (enemyDefeatEffectController_) {
+        enemyDefeatEffectController_->DrawImGui();
     }
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawImGui();
@@ -2166,6 +2183,9 @@ void GameScene::Draw() {
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->Draw();
     }
+    if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
+        enemyDefeatEffectController_->Draw();
+    }
 
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
@@ -2195,6 +2215,9 @@ void GameScene::Draw() {
     }
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
+    }
+    if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
+        enemyDefeatEffectController_->DrawAfterCloud();
     }
     if (enemyLaserTelegraphController_ && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->DrawAfterCloud();

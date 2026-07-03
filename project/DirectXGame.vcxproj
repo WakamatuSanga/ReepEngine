@@ -164,6 +164,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp" />
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyDefeatEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyHitShape.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyLaserTelegraphController.cpp" />
@@ -326,6 +327,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h" />
     <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyDefeatEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyLaserTelegraphController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h" />

@@ -1,5 +1,6 @@
 #include "PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -32,6 +33,11 @@ void PlayerBulletEnemyCollision::Finalize() {
     bulletManager_ = nullptr;
     enemyManager_ = nullptr;
     combatEffectController_ = nullptr;
+    enemyDefeatEffectController_ = nullptr;
+}
+
+void PlayerBulletEnemyCollision::SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller) {
+    enemyDefeatEffectController_ = controller;
 }
 
 void PlayerBulletEnemyCollision::Update() {
@@ -97,12 +103,13 @@ void PlayerBulletEnemyCollision::Update() {
         lastEnemyRadius_ = enemyRadius;
         ++hitCount_;
 
+        const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
         if (combatEffectController_ && playCombatEffect_) {
-            const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
             combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition, isLethalHit);
-            if (!wasDeadBeforeDamage && enemy->IsDead()) {
-                combatEffectController_->PlayEnemyDeathExplosion(enemy->GetPosition());
-            }
+        }
+        if (isLethalHit && enemyDefeatEffectController_) {
+            const float defeatEffectScale = std::clamp(enemy->GetHitRadius() * 1.4f, 0.8f, 1.8f);
+            enemyDefeatEffectController_->SpawnDefeatEffect(enemy->GetPosition(), defeatEffectScale);
         }
     }
 }
