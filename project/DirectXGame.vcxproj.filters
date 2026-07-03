@@ -294,10 +294,16 @@
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyDefeatEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyHitShape.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp">
+      <Filter>ソース ファイル\engine\Game\Enemy</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Enemy\EnemyLaserTelegraphController.cpp">
       <Filter>ソース ファイル\engine\Game\Enemy</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Enemy\EnemyBullet.cpp">
@@ -339,6 +345,12 @@
     <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -352,6 +364,21 @@
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerScreenAnchor.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerProgression.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp">
@@ -647,7 +674,13 @@
     <ClInclude Include="engine\Game\Enemy\Enemy.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyDefeatEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Enemy\EnemyLaserTelegraphController.h">
       <Filter>ヘッダー ファイル\engine\Game\Enemy</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h">
@@ -689,6 +722,12 @@
     <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
@@ -699,6 +738,15 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\EnemyWaveManager.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\EventActionDispatcher.h">

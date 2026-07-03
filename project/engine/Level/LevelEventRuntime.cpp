@@ -1,4 +1,4 @@
-﻿#include "LevelEventRuntime.h"
+#include "LevelEventRuntime.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -452,6 +452,7 @@ void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag, const std::st
             action.targetObjectId,
             action.actionDescription,
             action.postEffectType,
+            action.waveId,
             });
         AddLog(
             "  ObjectAction target=" +

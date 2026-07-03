@@ -13,6 +13,7 @@ struct LevelEventObjectAction {
     std::string actionType;
     std::string actionDescription;
     std::string postEffectType;
+    std::string waveId;
 };
 
 struct LevelEventFlag {
@@ -44,6 +45,7 @@ struct LevelEventObjectActionLink {
     std::string actionType;
     std::string actionDescription;
     std::string postEffectType;
+    std::string waveId;
 };
 
 struct LevelEventValidationResult {

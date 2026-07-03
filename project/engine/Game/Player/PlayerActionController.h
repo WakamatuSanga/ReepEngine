@@ -8,6 +8,8 @@ class Camera;
 class CombatEffectController;
 class EnemyBulletManager;
 class Model;
+class PlayerBarrelRollRingController;
+class PlayerBulletCancelEffectController;
 class Object3d;
 class Object3dCommon;
 
@@ -25,6 +27,7 @@ public:
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
     void SetDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
+    void SetEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
     void SetDebugVisualsEnabled(bool isEnabled);
     void Update(float deltaTime, bool canUseInput, const Vector3& playerPosition);
     void DrawDebugVisuals();
@@ -34,7 +37,7 @@ public:
     bool IsInvincible() const;
     bool IsBarrelRollEffectEnabled() const { return enableBarrelRollEffect_; }
     float GetDamageReduction() const { return barrelRollDamageReduction_; }
-    float GetBarrelRollClearBulletRadius() const { return barrelRollClearBulletRadius_; }
+    float GetBarrelRollClearBulletRadius() const;
     Vector3 GetVisualRotationOffset() const;
     BarrelRollDirection GetLastBarrelRollDirection() const { return lastBarrelRollDirection_; }
     uint32_t GetLastClearedBulletCount() const { return lastClearedBulletCount_; }
@@ -44,11 +47,14 @@ private:
     void UpdateTapTimers(float deltaTime);
     void UpdateDebugRadiusObject(const Vector3& playerPosition);
     const char* GetDirectionName(BarrelRollDirection direction) const;
+    float GetEffectiveBarrelRollClearBulletRadius() const;
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
     EnemyBulletManager* enemyBulletManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
+    PlayerBarrelRollRingController* rollRingController_ = nullptr;
+    PlayerBulletCancelEffectController* bulletCancelEffectController_ = nullptr;
     std::unique_ptr<Object3d> clearRadiusObject_;
     Model* clearRadiusModel_ = nullptr;
 
@@ -66,6 +72,7 @@ private:
     float barrelRollInvincibleTime_ = 0.5f;
     float barrelRollDamageReduction_ = 1.0f;
     float barrelRollClearBulletRadius_ = 1.5f;
+    float barrelRollClearBulletRadiusScale_ = 1.4f;
     float barrelRollInputDoubleTapTime_ = 0.25f;
     float leftTapTimer_ = 999.0f;
     float rightTapTimer_ = 999.0f;

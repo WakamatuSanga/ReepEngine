@@ -120,6 +120,9 @@ namespace {
             if (parts.size() >= 4) {
                 action.postEffectType = parts[3];
             }
+            if (parts.size() >= 5) {
+                action.waveId = parts[4];
+            }
             if (!action.targetObjectName.empty() || !action.actionType.empty()) {
                 actions.push_back(std::move(action));
             }
@@ -794,7 +797,7 @@ namespace {
                     if (!ParseString(action.targetObjectName)) {
                         return Fail("Invalid targetObjectName.");
                     }
-                } else if (key == "actionType" || key == "action_type") {
+                } else if (key == "actionType" || key == "action_type" || key == "type") {
                     if (!ParseString(action.actionType)) {
                         return Fail("Invalid actionType.");
                     }
@@ -805,6 +808,10 @@ namespace {
                 } else if (key == "postEffectType" || key == "post_effect_type") {
                     if (!ParseString(action.postEffectType)) {
                         return Fail("Invalid postEffectType.");
+                    }
+                } else if (key == "waveId" || key == "wave_id") {
+                    if (!ParseString(action.waveId)) {
+                        return Fail("Invalid waveId.");
                     }
                 } else if (!SkipValue()) {
                     return false;

@@ -6,6 +6,7 @@ class EnemyBulletManager;
 class Player;
 class CombatEffectController;
 class PlayerDeathSequenceController;
+class PlayerBulletCancelEffectController;
 
 class PlayerEnemyBulletCollision {
 public:
@@ -17,6 +18,7 @@ public:
         EnemyBulletManager* bulletManager,
         PlayerDeathSequenceController* deathSequence,
         CombatEffectController* combatEffectController);
+    void SetBulletCancelEffectController(PlayerBulletCancelEffectController* controller);
     void Finalize();
     void Update();
     void DrawImGui();
@@ -26,6 +28,7 @@ private:
     EnemyBulletManager* bulletManager_ = nullptr;
     PlayerDeathSequenceController* deathSequence_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
+    PlayerBulletCancelEffectController* bulletCancelEffectController_ = nullptr;
     bool enableCollision_ = true;
     bool lastHit_ = false;
     bool lastBlockedByBarrelRoll_ = false;

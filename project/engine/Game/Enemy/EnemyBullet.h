@@ -13,7 +13,7 @@ public:
     EnemyBullet();
     ~EnemyBullet();
 
-    void Initialize(Object3dCommon* object3dCommon, Camera* camera);
+    bool Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
     void Update(float deltaTime);
     void Draw();
@@ -35,6 +35,7 @@ public:
 
     bool IsActive() const { return isActive_; }
     bool IsDead() const { return isDead_; }
+    bool IsInitialized() const { return initialized_; }
     const Vector3& GetPosition() const { return position_; }
     const Vector3& GetVisualModelRotation() const { return visualModelRotation_; }
     float GetRadius() const { return radius_; }
@@ -72,4 +73,5 @@ private:
     bool useFallbackModel_ = false;
     bool useLightweightVisual_ = false;
     bool hasVisualForwardOverride_ = false;
+    bool initialized_ = false;
 };

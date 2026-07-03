@@ -6,6 +6,7 @@
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Input/Input.h"
+#include "Engine/Utility/Logger.h"
 #include <algorithm>
 #include <cmath>
 
@@ -339,12 +340,16 @@ void PlayerBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisua
 
 EnemyBullet* PlayerBulletManager::SpawnBullet(const Vector3& position, const Vector3& velocity, int damage) {
     if (!object3dCommon_ || !camera_) {
+        Logger::Log("[PlayerBulletManager] SpawnBullet skipped: Object3dCommon or Camera is null");
         return nullptr;
     }
 
     PlayerBulletInstance instance;
     instance.bullet = std::make_unique<EnemyBullet>();
-    instance.bullet->Initialize(object3dCommon_, camera_);
+    if (!instance.bullet->Initialize(object3dCommon_, camera_)) {
+        Logger::Log("[PlayerBulletManager] SpawnBullet failed: EnemyBullet visual initialize failed");
+        return nullptr;
+    }
     instance.bullet->SetModelPath(modelPath_);
     instance.bullet->SetPosition(position);
     instance.bullet->SetVelocity(velocity);

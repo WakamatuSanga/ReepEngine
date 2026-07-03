@@ -6,6 +6,7 @@
 class EnemyManager;
 class PlayerBulletManager;
 class CombatEffectController;
+class EnemyDefeatEffectController;
 
 class PlayerBulletEnemyCollision {
 public:
@@ -17,6 +18,7 @@ public:
         EnemyManager* enemyManager,
         CombatEffectController* combatEffectController);
     void Finalize();
+    void SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller);
     void Update();
     void DrawImGui();
 
@@ -24,6 +26,7 @@ private:
     PlayerBulletManager* bulletManager_ = nullptr;
     EnemyManager* enemyManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
+    EnemyDefeatEffectController* enemyDefeatEffectController_ = nullptr;
     Vector3 lastHitPosition_{ 0.0f, 0.0f, 0.0f };
     float enemyHitRadiusForDebug_ = 0.6f;
     Vector3 enemyHitScaleForDebug_{ 1.6f, 1.0f, 1.0f };

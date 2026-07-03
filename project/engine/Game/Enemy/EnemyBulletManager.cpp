@@ -1,5 +1,6 @@
 ﻿#include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
+#include "Engine/Utility/Logger.h"
 #include <algorithm>
 #include <cmath>
 
@@ -25,6 +26,12 @@ EnemyBulletManager::~EnemyBulletManager() = default;
 void EnemyBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object3dCommon_ = object3dCommon;
     camera_ = camera;
+    if (!object3dCommon_) {
+        Logger::Log("[EnemyBulletManager] Initialize warning: Object3dCommon is null");
+    }
+    if (!camera_) {
+        Logger::Log("[EnemyBulletManager] Initialize warning: Camera is null");
+    }
 }
 
 void EnemyBulletManager::Finalize() {
@@ -166,11 +173,15 @@ void EnemyBulletManager::DrawImGui() {
 
 EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vector3& velocity) {
     if (!object3dCommon_ || !camera_) {
+        Logger::Log("[EnemyBulletManager] SpawnBullet skipped: Object3dCommon or Camera is null");
         return nullptr;
     }
 
     auto bullet = std::make_unique<EnemyBullet>();
-    bullet->Initialize(object3dCommon_, camera_);
+    if (!bullet->Initialize(object3dCommon_, camera_)) {
+        Logger::Log("[EnemyBulletManager] SpawnBullet failed: EnemyBullet initialize failed");
+        return nullptr;
+    }
     bullet->SetPosition(position);
     bullet->SetVelocity(velocity);
     bullet->SetScale(defaultScale_);
@@ -212,6 +223,14 @@ void EnemyBulletManager::ApplyModelRotationOffsetToAllBullets() {
 }
 
 size_t EnemyBulletManager::ClearBulletsInRadius(const Vector3& center, float radius) {
+    return ClearBulletsInRadius(center, radius, nullptr, 0);
+}
+
+size_t EnemyBulletManager::ClearBulletsInRadius(
+    const Vector3& center,
+    float radius,
+    std::vector<Vector3>* clearedPositions,
+    size_t maxRecordedPositions) {
     const float safeRadius = (std::max)(0.0f, radius);
     size_t clearedCount = 0;
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
@@ -221,6 +240,9 @@ size_t EnemyBulletManager::ClearBulletsInRadius(const Vector3& center, float rad
 
         const float combinedRadius = safeRadius + bullet->GetRadius();
         if (DistanceSquared(center, bullet->GetPosition()) <= combinedRadius * combinedRadius) {
+            if (clearedPositions && clearedPositions->size() < maxRecordedPositions) {
+                clearedPositions->push_back(bullet->GetPosition());
+            }
             bullet->Kill();
             ++clearedCount;
         }

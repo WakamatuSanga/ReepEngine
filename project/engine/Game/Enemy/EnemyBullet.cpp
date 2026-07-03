@@ -4,6 +4,7 @@
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
+#include "Engine/Utility/Logger.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -75,31 +76,59 @@ EnemyBullet::EnemyBullet() = default;
 
 EnemyBullet::~EnemyBullet() = default;
 
-void EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
+bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
+    initialized_ = false;
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     currentTime_ = 0.0f;
-    isActive_ = true;
-    isDead_ = false;
+    isActive_ = false;
+    isDead_ = true;
+
+    if (!object3dCommon_ || !camera_) {
+        loadStatus_ = "Initialize failed: Object3dCommon or Camera is null.";
+        Logger::Log("[EnemyBullet] Initialize failed: Object3dCommon or Camera is null");
+        return false;
+    }
 
     object_ = std::make_unique<Object3d>();
     object_->Initialize(object3dCommon_);
+    if (!object_->IsValid()) {
+        loadStatus_ = "Initialize failed: Object3d resource creation failed.";
+        Logger::Log("[EnemyBullet] Initialize failed: Object3d is invalid");
+        object_.reset();
+        return false;
+    }
     object_->SetCamera(camera_);
     object_->SetEnvironmentMapEnabled(false);
+
     radiusObject_ = std::make_unique<Object3d>();
     radiusObject_->Initialize(object3dCommon_);
-    radiusObject_->SetCamera(camera_);
-    radiusObject_->SetEnvironmentMapEnabled(false);
-    radiusModel_ = ModelManager::GetInstance()->CreateSphere("EnemyBulletRadiusSphere", 12);
-    radiusObject_->SetModel(radiusModel_);
+    if (radiusObject_->IsValid()) {
+        radiusObject_->SetCamera(camera_);
+        radiusObject_->SetEnvironmentMapEnabled(false);
+        radiusModel_ = ModelManager::GetInstance()->CreateSphere("EnemyBulletRadiusSphere", 12);
+        radiusObject_->SetModel(radiusModel_);
+    } else {
+        Logger::Log("[EnemyBullet] Radius Object3d initialize failed; radius debug disabled");
+        radiusObject_.reset();
+        radiusModel_ = nullptr;
+    }
 
     LoadModel();
+    initialized_ = true;
+    isActive_ = true;
+    isDead_ = false;
     UpdateObjectTransform();
     object_->Update();
-    radiusObject_->Update();
+    if (radiusObject_ && radiusObject_->IsValid()) {
+        radiusObject_->Update();
+    }
+    return true;
 }
-
 void EnemyBullet::Finalize() {
+    initialized_ = false;
+    isActive_ = false;
+    isDead_ = true;
     radiusObject_.reset();
     radiusModel_ = nullptr;
     object_.reset();
@@ -107,7 +136,7 @@ void EnemyBullet::Finalize() {
 }
 
 void EnemyBullet::Update(float deltaTime) {
-    if (!object_ || !isActive_ || isDead_) {
+    if (!initialized_ || !object_ || !object_->IsValid() || !isActive_ || isDead_) {
         return;
     }
 
@@ -121,13 +150,13 @@ void EnemyBullet::Update(float deltaTime) {
     position_ = AddVector3(position_, ScaleVector3(velocity_, safeDeltaTime));
     UpdateObjectTransform();
     object_->Update();
-    if (radiusObject_) {
+    if (radiusObject_ && radiusObject_->IsValid()) {
         radiusObject_->Update();
     }
 }
 
 void EnemyBullet::Draw() {
-    if (!object3dCommon_ || !object_ || !model_ || !isActive_ || isDead_) {
+    if (!initialized_ || !object3dCommon_ || !object_ || !object_->IsValid() || !model_ || !isActive_ || isDead_) {
         return;
     }
 
@@ -136,7 +165,7 @@ void EnemyBullet::Draw() {
 }
 
 void EnemyBullet::DrawRadius() {
-    if (!object3dCommon_ || !radiusObject_ || !radiusModel_ || !isActive_ || isDead_) {
+    if (!initialized_ || !object3dCommon_ || !radiusObject_ || !radiusObject_->IsValid() || !radiusModel_ || !isActive_ || isDead_) {
         return;
     }
 
@@ -216,10 +245,10 @@ void EnemyBullet::DrawImGui() {
         Kill();
     }
     UpdateObjectTransform();
-    if (object_) {
+    if (object_ && object_->IsValid()) {
         object_->Update();
     }
-    if (radiusObject_) {
+    if (radiusObject_ && radiusObject_->IsValid()) {
         radiusObject_->Update();
     }
 #endif
@@ -332,7 +361,7 @@ void EnemyBullet::LoadModel() {
 }
 
 void EnemyBullet::UpdateObjectTransform() {
-    if (!object_) {
+    if (!initialized_ || !object_ || !object_->IsValid()) {
         return;
     }
 
@@ -347,7 +376,7 @@ void EnemyBullet::UpdateObjectTransform() {
         modelRotationOffset_);
     object_->SetRotate(visualModelRotation_);
     object_->SetScale(scale_);
-    if (radiusObject_) {
+    if (radiusObject_ && radiusObject_->IsValid()) {
         radiusObject_->SetTranslate(position_);
         radiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
         radiusObject_->SetScale({ radius_, radius_, radius_ });

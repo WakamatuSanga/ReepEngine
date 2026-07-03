@@ -70,7 +70,7 @@ private:
     bool lastInputTriggered_ = false;
     bool lastCanBoost_ = false;
 
-    float boostDuration_ = 1.0f;
+    float boostDuration_ = 1.4f;
     float boostCooldown_ = 1.5f;
     float boostTimer_ = 0.0f;
     float boostCooldownTimer_ = 0.0f;
