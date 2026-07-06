@@ -338,3 +338,6 @@ Release/
 # Keep Wavefront OBJ model assets under resources.
 !resources/**/*.obj
 !project/resources/**/*.obj
+# Temporary files
+tmp/
+tmp/**
