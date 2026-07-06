@@ -326,3 +326,15 @@ x64/
 x86/
 Debug/
 Release/
+# C/C++ build intermediate files
+*.obj
+*.o
+*.pch
+*.idb
+*.ilk
+*.exp
+*.map
+
+# Keep Wavefront OBJ model assets under resources.
+!resources/**/*.obj
+!project/resources/**/*.obj
