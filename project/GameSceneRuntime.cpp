@@ -39,6 +39,7 @@
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -300,6 +301,9 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (postEffectController_) {
         postEffectController_->Update(gameplayDeltaTime);
+    }
+    if (warningUIController_) {
+        warningUIController_->Update(gameplayDeltaTime);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();

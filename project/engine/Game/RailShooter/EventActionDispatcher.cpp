@@ -3,6 +3,7 @@
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -48,7 +49,8 @@ void EventActionDispatcher::Initialize(
     EnemyWaveManager* enemyWaveManager,
     PostEffectActionBridge* postEffectBridge,
     PrimitiveEffectSystem* primitiveEffectSystem,
-    LevelSceneRuntime* levelSceneRuntime) {
+    LevelSceneRuntime* levelSceneRuntime,
+    WarningUIController* warningUIController) {
     eventRuntime_ = eventRuntime;
     cameraRailBridge_ = cameraRailBridge;
     enemySpawnBridge_ = enemySpawnBridge;
@@ -56,6 +58,7 @@ void EventActionDispatcher::Initialize(
     postEffectBridge_ = postEffectBridge;
     primitiveEffectSystem_ = primitiveEffectSystem;
     levelSceneRuntime_ = levelSceneRuntime;
+    warningUIController_ = warningUIController;
 }
 
 void EventActionDispatcher::Finalize() {
@@ -66,6 +69,7 @@ void EventActionDispatcher::Finalize() {
     postEffectBridge_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     levelSceneRuntime_ = nullptr;
+    warningUIController_ = nullptr;
     dispatchLog_.clear();
 }
 
@@ -92,6 +96,8 @@ void EventActionDispatcher::Update() {
             handled = enemySpawnBridge_ && enemySpawnBridge_->HandleAction(action, result);
         } else if (IsActionType(action.actionType, "spawnwave")) {
             handled = enemyWaveManager_ && enemyWaveManager_->HandleSpawnWaveAction(action, result);
+        } else if (IsActionType(action.actionType, "showwarning")) {
+            handled = warningUIController_ && warningUIController_->HandleAction(action, result);
         } else {
             result = "Unsupported actionType: " + lastActionType_;
         }

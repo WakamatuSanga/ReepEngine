@@ -1,6 +1,7 @@
 #include "Sprite.h"
 #include "SpriteCommon.h"
 #include "Matrix4x4.h"
+#include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <cassert>
 
@@ -74,9 +75,13 @@ void Sprite::Update() {
     transform_.scale = { size_.x, size_.y, 1.0f };
 
     Matrix4x4 world = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
-    // スプライトは2D描画なので、基本的には正射影行列等を掛けるか、シェーダー内で調整します。
-    // （カメラを使わない場合、ViewProjは単位行列でOK）
-    Matrix4x4 vp = MakeIdentity4x4();
+    Matrix4x4 vp = Orthographic(
+        0.0f,
+        0.0f,
+        static_cast<float>(WinApp::kClientWidth),
+        static_cast<float>(WinApp::kClientHeight),
+        0.0f,
+        1.0f);
     Matrix4x4 wvp = Multipty(world, vp);
 
     if (transformationMatrixData_) {
@@ -121,14 +126,14 @@ void Sprite::Draw() {
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->IASetIndexBuffer(&indexBufferView_);
 
-    // CBV セット（RootParam 0,1）
-    if (transformationMatrixResource_) {
-        commandList->SetGraphicsRootConstantBufferView(
-            0, transformationMatrixResource_->GetGPUVirtualAddress());
-    }
+    // RootParam 0: Pixel Material, RootParam 1: Vertex TransformationMatrix
     if (materialResource_) {
         commandList->SetGraphicsRootConstantBufferView(
-            1, materialResource_->GetGPUVirtualAddress());
+            0, materialResource_->GetGPUVirtualAddress());
+    }
+    if (transformationMatrixResource_) {
+        commandList->SetGraphicsRootConstantBufferView(
+            1, transformationMatrixResource_->GetGPUVirtualAddress());
     }
 
     // テクスチャ SRV セット（RootParam 2）

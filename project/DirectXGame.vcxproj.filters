@@ -282,6 +282,9 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\UI\WarningUIController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp">
       <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
     </ClCompile>
@@ -682,6 +685,9 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h">
       <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\WarningUIController.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h">
       <Filter>ヘッダー ファイル\engine\Game\DebugGui</Filter>

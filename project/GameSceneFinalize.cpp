@@ -36,6 +36,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -143,6 +144,10 @@ void GameScene::FinalizeSceneResources() {
     if (boostController_) {
         boostController_->SetPostEffectContext(nullptr, nullptr, nullptr);
     }
+    if (warningUIController_) {
+        warningUIController_->Finalize();
+    }
+    warningUIController_.reset();
     if (postEffectController_) {
         postEffectController_->Finalize();
     }

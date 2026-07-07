@@ -17,6 +17,7 @@
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -183,5 +184,8 @@ void GameScene::DrawSceneRender() {
     }
     if (postEffectController_) {
         postEffectController_->Draw();
+    }
+    if (warningUIController_) {
+        warningUIController_->Draw();
     }
 }

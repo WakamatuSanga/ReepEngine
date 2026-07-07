@@ -60,7 +60,7 @@ private:
     bool showShadowDebug_ = false;
     bool isDebugMode_ = true;
     ShadowMode shadowMode_ = ShadowMode::Blob;
-    TargetMode targetMode_ = TargetMode::Both;
+    TargetMode targetMode_ = TargetMode::Player;
     Vector2 renderTargetSize_{ 1280.0f, 720.0f };
     Vector2 shadowOffset_{ 22.0f, 28.0f };
     Vector2 shadowBaseSize_{ 150.0f, 58.0f };

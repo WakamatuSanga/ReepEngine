@@ -38,6 +38,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -416,6 +417,8 @@ void GameScene::InitializeSceneResources() {
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
     postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
+    warningUIController_ = std::make_unique<WarningUIController>();
+    warningUIController_->Initialize(spriteCommon);
     if (boostController_) {
         boostController_->SetPostEffectContext(player_.get(), camera_.get(), postEffectController_.get());
     }
@@ -460,7 +463,8 @@ void GameScene::InitializeSceneResources() {
         enemyWaveManager_.get(),
         postEffectActionBridge_.get(),
         primitiveEffectSystem_.get(),
-        levelSceneRuntime_.get());
+        levelSceneRuntime_.get(),
+        warningUIController_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 

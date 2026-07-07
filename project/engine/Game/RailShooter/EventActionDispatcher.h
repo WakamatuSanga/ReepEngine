@@ -10,6 +10,7 @@ class EnemyWaveManager;
 class PostEffectActionBridge;
 class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
+class WarningUIController;
 struct FiredEventAction;
 
 class EventActionDispatcher {
@@ -24,7 +25,8 @@ public:
         EnemyWaveManager* enemyWaveManager,
         PostEffectActionBridge* postEffectBridge,
         PrimitiveEffectSystem* primitiveEffectSystem,
-        LevelSceneRuntime* levelSceneRuntime);
+        LevelSceneRuntime* levelSceneRuntime,
+        WarningUIController* warningUIController);
     void Finalize();
     void Update();
     void DrawImGui();
@@ -41,6 +43,7 @@ private:
     PostEffectActionBridge* postEffectBridge_ = nullptr;
     PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
     LevelSceneRuntime* levelSceneRuntime_ = nullptr;
+    WarningUIController* warningUIController_ = nullptr;
     std::vector<std::string> dispatchLog_;
     std::string lastActionType_ = "(none)";
     std::string lastTarget_ = "(none)";

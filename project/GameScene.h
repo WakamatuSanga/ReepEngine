@@ -56,6 +56,7 @@ class SkinningEditor;
 class Skybox;
 class StartupEnemySpawnController;
 class Sprite;
+class WarningUIController;
 struct Skeleton;
 
 class GameScene : public IScene {
@@ -108,6 +109,7 @@ private:
     std::unique_ptr<PlayerEnemyBulletCollision> playerEnemyBulletCollision_;
     std::unique_ptr<CameraShakeController> cameraShakeController_;
     std::unique_ptr<PostEffectController> postEffectController_;
+    std::unique_ptr<WarningUIController> warningUIController_;
     std::unique_ptr<PlayerDeathSequenceController> playerDeathSequenceController_;
     std::unique_ptr<GameOverFlowController> gameOverFlowController_;
     std::unique_ptr<PlayerRailController> playerRailController_;

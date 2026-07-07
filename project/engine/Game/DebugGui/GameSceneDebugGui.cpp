@@ -36,6 +36,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
@@ -281,6 +282,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->postEffectController_) {
         scene_->postEffectController_->DrawImGui();
+    }
+    if (scene_->warningUIController_) {
+        scene_->warningUIController_->DrawImGui();
     }
     if (scene_->levelSceneRuntime_) {
         scene_->levelSceneRuntime_->DrawImGui();
