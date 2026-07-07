@@ -1,10 +1,9 @@
 #pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Scene/IScene.h"
-#include "Engine/Graphics/Camera/Camera.h"
-#include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,6 +11,8 @@
 class GltfSkinnedModel;
 class BlenderLiveSync;
 class BoostController;
+class Camera;
+class CloudVolume;
 class CameraShakeController;
 class DirectXCommon;
 class EditorCameraController;
@@ -29,6 +30,7 @@ class GpuParticleEffectPlayer;
 class GpuParticleSystem;
 class InfluenceFieldManager;
 class GameViewport;
+class GameSceneDebugGui;
 class LevelSceneRuntime;
 class Model;
 class Object3d;
@@ -66,10 +68,12 @@ public:
     void Finalize() override;
 
 private:
-#ifdef USE_IMGUI
-    void DrawGameViewImGui(DirectXCommon* dxCommon);
-    void ClearGameViewDebugState();
-#endif
+    friend class GameSceneDebugGui;
+
+    void InitializeSceneResources();
+    void UpdateSceneRuntime();
+    void DrawSceneRender();
+    void FinalizeSceneResources();
 
     std::unique_ptr<Camera> camera_;
     std::unique_ptr<CloudVolume> cloudVolume_;
@@ -81,6 +85,7 @@ private:
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<RuntimeModeController> runtimeModeController_;
     std::unique_ptr<GameViewport> gameViewport_;
+    std::unique_ptr<GameSceneDebugGui> debugGui_;
     std::unique_ptr<EditorCameraController> editorCameraController_;
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;

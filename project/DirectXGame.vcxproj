@@ -158,6 +158,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp" />
+    <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp" />
+    <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGuiSceneTools.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
@@ -267,6 +269,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </ClCompile>
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
     <ClCompile Include="GameOverScene.cpp" />
+    <ClCompile Include="GameSceneSkinningPreview.cpp" />
+    <ClCompile Include="GameSceneInitialize.cpp" />
+    <ClCompile Include="GameSceneRuntime.cpp" />
+    <ClCompile Include="GameSceneRender.cpp" />
+    <ClCompile Include="GameSceneFinalize.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="engine\Graphics\Particle\GpuParticleCompute.cpp" />
     <ClCompile Include="engine\Graphics\Particle\GpuParticleEffectManager.cpp" />
@@ -321,6 +328,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Core\RuntimeModeController.h" />
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h" />
     <ClInclude Include="engine\Game\Camera\RailShooterCameraRig.h" />
+    <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h" />
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
