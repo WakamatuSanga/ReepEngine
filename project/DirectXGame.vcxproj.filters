@@ -88,6 +88,12 @@
     <Filter Include="ヘッダー ファイル\engine\Game\Camera">
       <UniqueIdentifier>{ca9e2159-7f27-43a2-a85c-d92c4517e9f0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Game\DebugGui">
+      <UniqueIdentifier>{f7c9010b-dfdb-4702-a146-35bfa038de40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\DebugGui">
+      <UniqueIdentifier>{8f45869f-8954-4c02-b31c-2be368ddf5ec}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\engine\Game\Collision">
       <UniqueIdentifier>{926793ac-cf26-4d30-801f-196191710253}</UniqueIdentifier>
     </Filter>
@@ -276,6 +282,12 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp">
+      <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGuiSceneTools.cpp">
+      <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Collision</Filter>
     </ClCompile>
@@ -448,6 +460,21 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="TitleScene.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneSkinningPreview.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneInitialize.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneRuntime.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneRender.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneFinalize.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="GameScene.cpp">
@@ -655,6 +682,9 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h">
       <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h">
+      <Filter>ヘッダー ファイル\engine\Game\DebugGui</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h">
       <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
