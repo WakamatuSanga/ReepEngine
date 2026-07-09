@@ -1,5 +1,7 @@
 #include "PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
@@ -31,10 +33,20 @@ void PlayerEnemyBulletCollision::Finalize() {
     deathSequence_ = nullptr;
     combatEffectController_ = nullptr;
     bulletCancelEffectController_ = nullptr;
+    slowMotionController_ = nullptr;
+    impactDistortionController_ = nullptr;
 }
 
 void PlayerEnemyBulletCollision::SetBulletCancelEffectController(PlayerBulletCancelEffectController* controller) {
     bulletCancelEffectController_ = controller;
+}
+
+void PlayerEnemyBulletCollision::SetSlowMotionController(CombatSlowMotionController* controller) {
+    slowMotionController_ = controller;
+}
+
+void PlayerEnemyBulletCollision::SetImpactDistortionController(ImpactDistortionController* controller) {
+    impactDistortionController_ = controller;
 }
 
 void PlayerEnemyBulletCollision::Update() {
@@ -72,6 +84,12 @@ void PlayerEnemyBulletCollision::Update() {
             lastBlockedReason_ = "Blocked by Barrel Roll";
             if (bulletCancelEffectController_) {
                 bulletCancelEffectController_->SpawnCancelEffect(lastHitPosition_);
+            }
+            if (slowMotionController_) {
+                slowMotionController_->TriggerBulletCancelSlowMotion(1);
+            }
+            if (impactDistortionController_) {
+                impactDistortionController_->TriggerBulletCancel(lastHitPosition_);
             }
             if (player_->IsBarrelRollEffectEnabled() && combatEffectController_) {
                 combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);

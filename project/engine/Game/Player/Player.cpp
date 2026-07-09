@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -492,6 +493,12 @@ void Player::SetBarrelRollEffectControllers(
     PlayerBulletCancelEffectController* bulletCancelEffectController) {
     if (actionController_) {
         actionController_->SetEffectControllers(rollRingController, bulletCancelEffectController);
+    }
+}
+
+void Player::SetBarrelRollSlowMotionController(CombatSlowMotionController* slowMotionController) {
+    if (actionController_) {
+        actionController_->SetSlowMotionController(slowMotionController);
     }
 }
 

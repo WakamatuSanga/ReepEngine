@@ -163,6 +163,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
+    <ClCompile Include="engine\Game\Effect\CombatSlowMotionController.cpp" />
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionController.cpp" />
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp" />
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
@@ -335,6 +338,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
+    <ClInclude Include="engine\Game\Effect\CombatSlowMotionController.h" />
+    <ClInclude Include="engine\Game\Effect\ImpactDistortionController.h" />
     <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h" />
     <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
@@ -467,6 +472,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ImpactDistortion.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

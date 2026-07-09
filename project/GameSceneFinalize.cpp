@@ -11,6 +11,8 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
@@ -123,6 +125,14 @@ void GameScene::FinalizeSceneResources() {
         enemyDefeatEffectController_->Finalize();
     }
     enemyDefeatEffectController_.reset();
+    if (impactDistortionController_) {
+        impactDistortionController_->Finalize();
+    }
+    impactDistortionController_.reset();
+    if (combatSlowMotionController_) {
+        combatSlowMotionController_->Finalize();
+    }
+    combatSlowMotionController_.reset();
     if (combatEffectController_) {
         combatEffectController_->Finalize();
     }

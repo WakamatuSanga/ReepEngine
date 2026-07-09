@@ -12,6 +12,8 @@
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -239,6 +241,12 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->combatEffectController_) {
         scene_->combatEffectController_->DrawImGui();
+    }
+    if (scene_->combatSlowMotionController_) {
+        scene_->combatSlowMotionController_->DrawImGui();
+    }
+    if (scene_->impactDistortionController_) {
+        scene_->impactDistortionController_->DrawImGui();
     }
     if (scene_->playerDeathSequenceController_) {
         scene_->playerDeathSequenceController_->DrawImGui();

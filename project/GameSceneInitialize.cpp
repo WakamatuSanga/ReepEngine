@@ -13,6 +13,8 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
@@ -401,6 +403,10 @@ void GameScene::InitializeSceneResources() {
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
+    combatSlowMotionController_ = std::make_unique<CombatSlowMotionController>();
+    combatSlowMotionController_->Initialize();
+    impactDistortionController_ = std::make_unique<ImpactDistortionController>();
+    impactDistortionController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get());
     enemyDefeatEffectController_ = std::make_unique<EnemyDefeatEffectController>();
     enemyDefeatEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
@@ -419,6 +425,7 @@ void GameScene::InitializeSceneResources() {
     enemyLaserTelegraphController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
     player_->SetBarrelRollEffectControllers(playerBarrelRollRingController_.get(), playerBulletCancelEffectController_.get());
+    player_->SetBarrelRollSlowMotionController(combatSlowMotionController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
@@ -437,9 +444,12 @@ void GameScene::InitializeSceneResources() {
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerBulletEnemyCollision_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
+    playerBulletEnemyCollision_->SetImpactDistortionController(impactDistortionController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
+    playerEnemyBulletCollision_->SetSlowMotionController(combatSlowMotionController_.get());
+    playerEnemyBulletCollision_->SetImpactDistortionController(impactDistortionController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
     gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();

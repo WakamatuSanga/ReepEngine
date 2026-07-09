@@ -6,6 +6,7 @@
 
 class Camera;
 class CombatEffectController;
+class CombatSlowMotionController;
 class EnemyBulletManager;
 class Model;
 class PlayerBarrelRollRingController;
@@ -28,6 +29,7 @@ public:
     void Finalize();
     void SetDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
+    void SetSlowMotionController(CombatSlowMotionController* slowMotionController);
     void SetDebugVisualsEnabled(bool isEnabled);
     void Update(float deltaTime, bool canUseInput, const Vector3& playerPosition);
     void DrawDebugVisuals();
@@ -55,6 +57,7 @@ private:
     CombatEffectController* combatEffectController_ = nullptr;
     PlayerBarrelRollRingController* rollRingController_ = nullptr;
     PlayerBulletCancelEffectController* bulletCancelEffectController_ = nullptr;
+    CombatSlowMotionController* slowMotionController_ = nullptr;
     std::unique_ptr<Object3d> clearRadiusObject_;
     Model* clearRadiusModel_ = nullptr;
 

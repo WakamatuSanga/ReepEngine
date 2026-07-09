@@ -1,5 +1,6 @@
 #include "PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -34,10 +35,15 @@ void PlayerBulletEnemyCollision::Finalize() {
     enemyManager_ = nullptr;
     combatEffectController_ = nullptr;
     enemyDefeatEffectController_ = nullptr;
+    impactDistortionController_ = nullptr;
 }
 
 void PlayerBulletEnemyCollision::SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller) {
     enemyDefeatEffectController_ = controller;
+}
+
+void PlayerBulletEnemyCollision::SetImpactDistortionController(ImpactDistortionController* controller) {
+    impactDistortionController_ = controller;
 }
 
 void PlayerBulletEnemyCollision::Update() {
@@ -110,6 +116,9 @@ void PlayerBulletEnemyCollision::Update() {
         if (isLethalHit && enemyDefeatEffectController_) {
             const float defeatEffectScale = std::clamp(enemy->GetHitRadius() * 1.4f, 0.8f, 1.8f);
             enemyDefeatEffectController_->SpawnDefeatEffect(enemy->GetPosition(), defeatEffectScale);
+        }
+        if (isLethalHit && impactDistortionController_) {
+            impactDistortionController_->TriggerEnemyDefeat(enemy->GetPosition());
         }
     }
 }

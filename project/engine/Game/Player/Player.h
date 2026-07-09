@@ -6,6 +6,7 @@
 
 class Camera;
 class CombatEffectController;
+class CombatSlowMotionController;
 class EnemyBulletManager;
 class Model;
 class Object3d;
@@ -41,6 +42,7 @@ public:
     void SetActionDebugVisualsEnabled(bool isEnabled);
     void SetBarrelRollDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetBarrelRollEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
+    void SetBarrelRollSlowMotionController(CombatSlowMotionController* slowMotionController);
     void SetBaseMode(BaseMode baseMode);
     void SetExternalBasePosition(const Vector3& position);
     void SetExternalBaseForward(const Vector3& forward);

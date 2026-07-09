@@ -17,6 +17,8 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
@@ -71,7 +73,8 @@ void GameScene::UpdateSceneRuntime() {
     auto& hitEffectParams = particleManager->GetHitEffectParams();
     auto audio = Audio::GetInstance();
     const FrameTimer& frameTimer = FrameTimer::GetInstance();
-    const float gameplayDeltaTime = frameTimer.GetGameplayDeltaTime();
+    const float unscaledDeltaTime = frameTimer.GetGameplayDeltaTime();
+    float gameplayDeltaTime = unscaledDeltaTime;
     RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings{};
     bool cameraProjectionUpdated = false;
 
@@ -152,7 +155,7 @@ void GameScene::UpdateSceneRuntime() {
     const bool gameViewFocused = gameViewport_ ? gameViewport_->IsGameViewFocused() : isGameMode;
     if (editorCameraController_) {
         editorCameraController_->Update(
-            gameplayDeltaTime,
+            unscaledDeltaTime,
             input,
             gameViewHovered,
             gameViewFocused,
@@ -189,7 +192,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (editorCameraController_) {
         editorCameraController_->Update(
-            gameplayDeltaTime,
+            unscaledDeltaTime,
             input,
             true,
             true,
@@ -219,6 +222,15 @@ void GameScene::UpdateSceneRuntime() {
         runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
     }
 
+    if (combatSlowMotionController_) {
+        combatSlowMotionController_->Update(unscaledDeltaTime);
+        gameplayDeltaTime = unscaledDeltaTime * combatSlowMotionController_->GetTimeScale();
+    }
+
+    const float effectDeltaTime = (combatSlowMotionController_ && !combatSlowMotionController_->ShouldUseScaledDeltaForEffects())
+        ? unscaledDeltaTime
+        : gameplayDeltaTime;
+
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     if (railShooterCameraRig_) {
@@ -246,6 +258,9 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyDefeatEffectController_) {
         enemyDefeatEffectController_->BeginFrame();
     }
+    if (impactDistortionController_) {
+        impactDistortionController_->BeginFrame();
+    }
     if (player_) {
         player_->Update(gameplayDeltaTime);
     }
@@ -254,27 +269,27 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerSonicBoostRingController_) {
         playerSonicBoostRingController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
-        playerSonicBoostRingController_->Update(gameplayDeltaTime);
+        playerSonicBoostRingController_->Update(effectDeltaTime);
     }
     if (playerBarrelRollRingController_) {
-        playerBarrelRollRingController_->Update(gameplayDeltaTime);
+        playerBarrelRollRingController_->Update(effectDeltaTime);
     }
     if (playerBulletCancelEffectController_) {
-        playerBulletCancelEffectController_->Update(gameplayDeltaTime);
+        playerBulletCancelEffectController_->Update(effectDeltaTime);
     }
     if (playerJetExhaustController_) {
         playerJetExhaustController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         playerJetExhaustController_->SetPlayerAlive(!(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()));
-        playerJetExhaustController_->Update(gameplayDeltaTime);
+        playerJetExhaustController_->Update(effectDeltaTime);
     }
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
     }
     if (playerChargeFeedbackController_) {
-        playerChargeFeedbackController_->Update(gameplayDeltaTime);
+        playerChargeFeedbackController_->Update(effectDeltaTime);
     }
     if (playerChargeGatherEffectController_) {
-        playerChargeGatherEffectController_->Update(gameplayDeltaTime);
+        playerChargeGatherEffectController_->Update(effectDeltaTime);
     }
     if (startupEnemySpawnController_) {
         startupEnemySpawnController_->Update(gameplayDeltaTime);
@@ -298,11 +313,14 @@ void GameScene::UpdateSceneRuntime() {
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
     }
+    if (impactDistortionController_) {
+        impactDistortionController_->Update(effectDeltaTime);
+    }
     if (combatEffectController_) {
-        combatEffectController_->Update(gameplayDeltaTime, camera_.get());
+        combatEffectController_->Update(effectDeltaTime, camera_.get());
     }
     if (enemyDefeatEffectController_) {
-        enemyDefeatEffectController_->Update(gameplayDeltaTime);
+        enemyDefeatEffectController_->Update(effectDeltaTime);
     }
     if (playerDeathSequenceController_) {
         playerDeathSequenceController_->Update(gameplayDeltaTime);
@@ -311,7 +329,7 @@ void GameScene::UpdateSceneRuntime() {
         postEffectController_->Update(gameplayDeltaTime);
     }
     if (warningUIController_) {
-        warningUIController_->Update(gameplayDeltaTime);
+        warningUIController_->Update(unscaledDeltaTime);
     }
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
@@ -416,7 +434,7 @@ void GameScene::UpdateSceneRuntime() {
         primitivePreviewObject->Update();
     }
     if (primitiveEffectSystem_) {
-        primitiveEffectSystem_->Update(gameplayDeltaTime);
+        primitiveEffectSystem_->Update(effectDeltaTime);
     }
     debugSprite_->Update();
 

@@ -300,6 +300,15 @@
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\CombatSlowMotionController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionControllerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
@@ -707,6 +716,12 @@
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Effect\CombatSlowMotionController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\ImpactDistortionController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
@@ -940,6 +955,9 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ImpactDistortion.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage.VS.hlsl">

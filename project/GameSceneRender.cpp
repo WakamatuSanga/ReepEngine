@@ -4,6 +4,7 @@
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
@@ -184,6 +185,10 @@ void GameScene::DrawSceneRender() {
 
     if (isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
+    }
+
+    if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
+        impactDistortionController_->Draw();
     }
 
     spriteCommon->CommonDrawSetting();

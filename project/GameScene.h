@@ -17,6 +17,8 @@ class CameraShakeController;
 class DirectXCommon;
 class EditorCameraController;
 class CombatEffectController;
+class ImpactDistortionController;
+class CombatSlowMotionController;
 class EnemyAttackController;
 class EnemyDefeatEffectController;
 class EnemyBulletManager;
@@ -103,6 +105,8 @@ private:
     std::unique_ptr<PlayerChargeGatherEffectController> playerChargeGatherEffectController_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
+    std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;
+    std::unique_ptr<ImpactDistortionController> impactDistortionController_;
     std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;
