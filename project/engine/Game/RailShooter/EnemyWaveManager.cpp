@@ -4,6 +4,7 @@
 #include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/EnemyWaveLoader.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include <algorithm>
@@ -117,11 +118,13 @@ void EnemyWaveManager::Finalize() {
     enemyManager_ = nullptr;
     camera_ = nullptr;
     player_ = nullptr;
+    warningUIController_ = nullptr;
     waves_.clear();
     waveIndexById_.clear();
     activeWaves_.clear();
     waveEnemies_.clear();
     waveLog_.clear();
+    ClearPendingStartWarning();
     ClearPendingNextWave();
     gameModeWasActive_ = false;
 }
@@ -148,6 +151,8 @@ void EnemyWaveManager::Update(float deltaTime) {
     if (!enabled_ || !enemyManager_) {
         return;
     }
+
+    UpdatePendingStartWarning(deltaTime);
 
     for (ActiveWave& activeWave : activeWaves_) {
         if (activeWave.stopped || activeWave.waveIndex >= waves_.size()) {
@@ -277,26 +282,21 @@ bool EnemyWaveManager::PlayWave(const std::string& waveId, std::string& resultMe
     }
 
     const EnemyWaveDefinition& wave = waves_[it->second];
-    lastWaveElapsedTime_ = 0.0f;
-    lastWaveSpawnedCount_ = 0;
-    lastWaveEnemyCount_ = wave.enemies.size();
-    ActiveWave activeWave;
-    activeWave.waveIndex = it->second;
-    activeWave.elapsedTime = -std::max(0.0f, wave.delay);
-    activeWave.spawned.assign(wave.enemies.size(), false);
-    activeWaves_.push_back(std::move(activeWave));
+    if (wave.showWarningOnStart && wave.waitForWarningBeforeSpawn) {
+        return QueueWaveStartWarning(it->second, resultMessage);
+    }
 
-    ++startedWaveCount_;
-    resultMessage = "Started wave " + wave.waveId + " enemies=" + std::to_string(wave.enemies.size());
-    lastResult_ = resultMessage;
-    AddLog(resultMessage);
-    return true;
+    return StartWaveNow(it->second, resultMessage, true);
 }
 
 void EnemyWaveManager::StopAllWaves() {
     activeWaves_.clear();
+    ClearPendingStartWarning();
     ClearPendingNextWave();
     ClearTrackedWaveEnemies();
+    if (warningUIController_) {
+        warningUIController_->HideWarning();
+    }
     AddLog("Stopped all active waves and tracked wave enemies.");
 }
 

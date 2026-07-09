@@ -24,5 +24,10 @@ struct EnemyWaveDefinition {
     std::string nextWaveId;
     float clearDelayAfterAllDead = 3.5f;
     float clearDelayAfterAllEscaped = 0.0f;
+    bool showWarningOnStart = false;
+    std::string warningText = "WARNING";
+    float warningDuration = 1.5f;
+    bool waitForWarningBeforeSpawn = false;
+    float postWarningDelay = 0.0f;
     std::vector<EnemyWaveSpawnEntry> enemies;
 };

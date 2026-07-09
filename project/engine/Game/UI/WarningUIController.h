@@ -26,6 +26,8 @@ public:
 
     void ShowWarning(float duration);
     void ShowWarning(const std::string& text, float duration);
+    void ShowWarning(const std::string& text, float duration, const std::string& source);
+    void HideWarning();
     bool HandleAction(const FiredEventAction& action, std::string& resultMessage);
 
     bool IsActive() const { return isActive_; }
@@ -49,6 +51,7 @@ private:
     float elapsedTime_ = 0.0f;
     float duration_ = 1.5f;
     float debugDuration_ = 1.5f;
+    float lastShowDuration_ = 0.0f;
     float centerX_ = 0.5f;
     float centerY_ = 0.38f;
     float displayWidth_ = 980.0f;
@@ -65,6 +68,7 @@ private:
     GlowMode glowMode_ = GlowMode::SimpleSpriteGlow;
     std::string currentText_ = "WARNING";
     std::string lastShowSource_ = "Debug";
+    uint64_t showCount_ = 0;
 
     bool forceFullAlpha_ = false;
     bool disableBlinkForDebug_ = false;

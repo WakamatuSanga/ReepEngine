@@ -258,8 +258,7 @@ void WarningUIController::DrawImGui() {
 
     ImGui::Checkbox("WARNING UI??? (Enable Warning UI)", &enabled_);
     if (ImGui::Button("Test Show Warning")) {
-        ShowWarning(debugDuration_);
-        lastShowSource_ = "Debug";
+        ShowWarning("WARNING", debugDuration_, "Debug");
     }
     ImGui::DragFloat("Duration", &debugDuration_, 0.05f, 0.1f, 10.0f, "%.2f");
     ImGui::DragFloat("Position X", &centerX_, 0.005f, 0.0f, 1.0f, "%.3f");
@@ -335,27 +334,40 @@ void WarningUIController::DrawImGui() {
     ImGui::Text("Current Time: %.2f / %.2f", elapsedTime_, duration_);
     ImGui::TextWrapped("Text: %s", currentText_.c_str());
     ImGui::TextWrapped("Last Source: %s", lastShowSource_.c_str());
+    ImGui::Text("Last Show Duration: %.2f", lastShowDuration_);
+    ImGui::Text("Show Count: %llu", static_cast<unsigned long long>(showCount_));
 
     ImGui::End();
 #endif
 }
 
 void WarningUIController::ShowWarning(float duration) {
-    ShowWarning("WARNING", duration);
+    ShowWarning("WARNING", duration, "Direct");
 }
 
 void WarningUIController::ShowWarning(const std::string& text, float duration) {
+    ShowWarning(text, duration, "Direct");
+}
+
+void WarningUIController::ShowWarning(const std::string& text, float duration, const std::string& source) {
     currentText_ = text.empty() ? "WARNING" : text;
     duration_ = SafeDuration(duration);
+    lastShowDuration_ = duration_;
+    lastShowSource_ = source.empty() ? "Direct" : source;
+    ++showCount_;
     elapsedTime_ = 0.0f;
     isActive_ = true;
     drawDebugSolidRect_ = false;
 }
 
+void WarningUIController::HideWarning() {
+    isActive_ = false;
+    elapsedTime_ = duration_;
+}
+
 bool WarningUIController::HandleAction(const FiredEventAction& action, std::string& resultMessage) {
     const float duration = action.warningDuration > 0.0f ? action.warningDuration : debugDuration_;
-    ShowWarning(action.warningText.empty() ? "WARNING" : action.warningText, duration);
-    lastShowSource_ = "EventAction";
+    ShowWarning(action.warningText.empty() ? "WARNING" : action.warningText, duration, "EventAction");
     resultMessage =
         "ShowWarning text=" + currentText_ +
         " duration=" + std::to_string(duration_);

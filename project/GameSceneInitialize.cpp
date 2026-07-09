@@ -451,6 +451,7 @@ void GameScene::InitializeSceneResources() {
     enemyWaveManager_->Initialize(enemyManager_.get(), camera_.get());
     enemyWaveManager_->SetPlayer(player_.get());
     enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
+    enemyWaveManager_->SetWarningUIController(warningUIController_.get());
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -625,4 +626,3 @@ void GameScene::InitializeSceneResources() {
     skinningEditor_->SelectTargetByLabel("walk.gltf");
     skinningEditor_->SetStatusMessage(skinningLoadStatus);
 }
-

@@ -3,6 +3,11 @@
   "name": "Laser Telegraph Test Wave",
   "delay": 0.0,
   "clearCondition": "Manual",
+  "showWarningOnStart": true,
+  "warningText": "WARNING",
+  "warningDuration": 1.5,
+  "waitForWarningBeforeSpawn": true,
+  "postWarningDelay": 0.15,
   "enemies": [
     {
       "enemyType": "LaserTelegraphDrone",
