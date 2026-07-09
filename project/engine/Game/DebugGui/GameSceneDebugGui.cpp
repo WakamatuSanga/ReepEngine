@@ -26,6 +26,8 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -213,6 +215,12 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->playerBulletManager_) {
         scene_->playerBulletManager_->DrawImGui();
+    }
+    if (scene_->playerChargeFeedbackController_) {
+        scene_->playerChargeFeedbackController_->DrawImGui();
+    }
+    if (scene_->playerChargeGatherEffectController_) {
+        scene_->playerChargeGatherEffectController_->DrawImGui();
     }
     if (scene_->enemyManager_) {
         scene_->enemyManager_->DrawImGui();

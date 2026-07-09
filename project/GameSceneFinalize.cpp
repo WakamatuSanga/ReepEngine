@@ -26,6 +26,8 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -166,6 +168,14 @@ void GameScene::FinalizeSceneResources() {
         enemyManager_->Finalize();
     }
     enemyManager_.reset();
+    if (playerChargeGatherEffectController_) {
+        playerChargeGatherEffectController_->Finalize();
+    }
+    playerChargeGatherEffectController_.reset();
+    if (playerChargeFeedbackController_) {
+        playerChargeFeedbackController_->Finalize();
+    }
+    playerChargeFeedbackController_.reset();
     if (playerBulletManager_) {
         playerBulletManager_->Finalize();
     }

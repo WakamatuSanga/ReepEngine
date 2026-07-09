@@ -57,6 +57,11 @@ inline void NormalizeParticleEffectType(ParticleType& type) {
 	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
 	type.influenceResponseScale = std::clamp(type.influenceResponseScale, 0.0f, 10.0f);
 	type.railFlowScale = std::clamp(type.railFlowScale, 0.0f, 10.0f);
+	type.chargeGatherStrength = (std::max)(type.chargeGatherStrength, 0.0f);
+	type.chargeGatherKillRadius = (std::max)(type.chargeGatherKillRadius, 0.001f);
+	type.chargeGatherSwirlStrength = (std::max)(type.chargeGatherSwirlStrength, 0.0f);
+	type.chargeGatherResponseScale = std::clamp(type.chargeGatherResponseScale, 0.0f, 10.0f);
+	type.chargeGatherTargetMode = std::clamp(type.chargeGatherTargetMode, 0u, 3u);
 	type.atlasRows = std::clamp(type.atlasRows, 1u, 64u);
 	type.atlasColumns = std::clamp(type.atlasColumns, 1u, 64u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);

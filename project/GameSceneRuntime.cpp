@@ -32,6 +32,8 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -267,6 +269,12 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
+    }
+    if (playerChargeFeedbackController_) {
+        playerChargeFeedbackController_->Update(gameplayDeltaTime);
+    }
+    if (playerChargeGatherEffectController_) {
+        playerChargeGatherEffectController_->Update(gameplayDeltaTime);
     }
     if (startupEnemySpawnController_) {
         startupEnemySpawnController_->Update(gameplayDeltaTime);

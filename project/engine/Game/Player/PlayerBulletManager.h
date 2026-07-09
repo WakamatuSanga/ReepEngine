@@ -58,6 +58,14 @@ public:
         float* lastBulletRadius);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
+    float GetChargeTime() const { return chargeTime_; }
+    float GetMaxChargeTime() const { return maxChargeTime_; }
+    float GetChargeRate() const { return chargeRate_; }
+    bool IsChargeMax() const { return isChargeMax_; }
+    bool IsChargeInputHeld() const { return lastLeftClickHeld_; }
+    const Vector3& GetLastAimPoint() const { return lastAimPoint_; }
+    const Vector3& GetLastAimDirection() const { return lastAimDirection_; }
+    const Vector3& GetLastMuzzlePosition() const { return lastMuzzlePosition_; }
 
 private:
     struct PlayerBulletInstance {
@@ -71,6 +79,7 @@ private:
     void UpdateCameraVelocity(float deltaTime);
     void UpdateViewportDebugState();
     void ApplyModelRotationOffsetToBullets();
+    void UpdateChargeState(float deltaTime, bool inputBlocked);
     Vector3 ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward);
     bool ShouldBlockFireInput();
 
@@ -106,6 +115,9 @@ private:
     float muzzleOffset_ = 0.5f;
     float aimDistance_ = 30.0f;
     float inheritCameraVelocityFactor_ = 0.5f;
+    float chargeTime_ = 0.0f;
+    float maxChargeTime_ = 1.2f;
+    float chargeRate_ = 0.0f;
     int bulletDamage_ = 1;
     int selectedBulletIndex_ = -1;
     AimMode aimMode_ = AimMode::MouseAimPlane;
@@ -116,6 +128,8 @@ private:
     bool useLightweightBulletVisual_ = false;
     bool autoRemoveDeadBullets_ = true;
     bool inheritCameraVelocity_ = true;
+    bool enableChargeFeedbackInput_ = true;
+    bool isChargeMax_ = false;
     bool mouseInGameView_ = false;
     bool hasPreviousCameraPosition_ = false;
     bool lastLeftClickPressed_ = false;

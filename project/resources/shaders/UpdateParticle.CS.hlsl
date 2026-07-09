@@ -42,6 +42,16 @@ struct ParticleType
     float influenceResponseScale;
     uint affectedByRailFlow;
     float railFlowScale;
+    uint affectedByChargeGather;
+    float chargeGatherStrength;
+    float chargeGatherKillRadius;
+    float chargeGatherSwirlStrength;
+    float chargeGatherResponseScale;
+    uint scaleByChargeRate;
+    uint brightnessByChargeRate;
+    uint emissionByChargeRate;
+    uint chargeGatherTargetMode;
+    float3 chargeGatherTargetOffset;
     float2 padding2;
 };
 
@@ -60,6 +70,8 @@ struct UpdateInfo
     float4 railFlowDirectionSpeed;
     float4 railFlowSettings;
     float4 railFlowCameraPosition;
+    float4 chargeGatherTargetAndRate;
+    float4 chargeGatherSettings;
 };
 
 static const uint kParticlePhysicsEnable = 1u << 0;
@@ -99,6 +111,65 @@ void SetBounceCount(inout Particle particle, uint bounceCount)
     particle.padding = asfloat(bounceCount);
 }
 
+
+float3 SafeNormalize(float3 value, float3 fallback)
+{
+    float lengthSq = dot(value, value);
+    if (lengthSq <= 0.00000001f)
+    {
+        return fallback;
+    }
+    return value * rsqrt(lengthSq);
+}
+
+bool ApplyChargeGather(uint particleIndex, ParticleType particleType, inout Particle particle)
+{
+    if (gUpdateInfo.chargeGatherSettings.x <= 0.5f || particleType.affectedByChargeGather == 0u)
+    {
+        return false;
+    }
+
+    const float chargeRate = saturate(gUpdateInfo.chargeGatherTargetAndRate.w);
+    const float3 target = gUpdateInfo.chargeGatherTargetAndRate.xyz + particleType.chargeGatherTargetOffset;
+    const float3 toTarget = target - particle.translate;
+    const float killRadius = max(particleType.chargeGatherKillRadius, 0.001f);
+    const float distanceSq = dot(toTarget, toTarget);
+    if (distanceSq <= killRadius * killRadius)
+    {
+        RecycleParticle(particleIndex, particle);
+        return true;
+    }
+
+    const float distance = sqrt(max(distanceSq, 0.000001f));
+    const float3 direction = SafeNormalize(toTarget, float3(0.0f, 0.0f, 1.0f));
+    const float rateScale = lerp(0.45f, 1.0f, chargeRate);
+    const float strength = max(particleType.chargeGatherStrength, 0.0f)
+        * max(particleType.chargeGatherResponseScale, 0.0f)
+        * max(gUpdateInfo.chargeGatherSettings.y, 0.0f)
+        * rateScale;
+
+    const float gatherDamping = exp(-lerp(3.0f, 7.0f, chargeRate) * gUpdateInfo.deltaTime);
+    particle.velocity *= gatherDamping;
+    particle.velocity += direction * strength * gUpdateInfo.deltaTime;
+
+    const float directStep = min(max(distance - killRadius, 0.0f), strength * 0.20f * gUpdateInfo.deltaTime);
+    particle.translate += direction * directStep;
+
+    const float3 helper = abs(direction.y) < 0.95f ? float3(0.0f, 1.0f, 0.0f) : float3(1.0f, 0.0f, 0.0f);
+    const float3 swirlDirection = SafeNormalize(cross(direction, helper), float3(1.0f, 0.0f, 0.0f));
+    const float swirlStrength = max(particleType.chargeGatherSwirlStrength, 0.0f)
+        * max(gUpdateInfo.chargeGatherSettings.z, 0.0f)
+        * rateScale;
+    particle.velocity += swirlDirection * swirlStrength * gUpdateInfo.deltaTime;
+
+    const float3 afterToTarget = target - particle.translate;
+    if (dot(afterToTarget, afterToTarget) <= killRadius * killRadius)
+    {
+        RecycleParticle(particleIndex, particle);
+        return true;
+    }
+    return false;
+}
 void ApplyInfluenceFields(ParticleType particleType, inout Particle particle)
 {
     if (gUpdateInfo.enableParticleInfluence == 0u || particleType.affectedByInfluenceField == 0u)
@@ -217,11 +288,26 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     particle.velocity.y += particleType.gravity * gUpdateInfo.deltaTime;
     particle.velocity *= exp(-max(particleType.drag, 0.0f) * gUpdateInfo.deltaTime);
     ApplyInfluenceFields(particleType, particle);
+    if (ApplyChargeGather(particleIndex, particleType, particle))
+    {
+        gParticles[particleIndex] = particle;
+        return;
+    }
+
     const float3 railFlowVelocity = GetRailFlowVelocity(particleType);
     particle.translate += (particle.velocity + railFlowVelocity) * gUpdateInfo.deltaTime;
     ResolvePlaneCollision(particleIndex, particleType, particle);
     particle.currentTime = min(particle.currentTime, particle.lifeTime);
-    particle.scale = lerp(particleType.startScale, particleType.endScale, saturate(particle.currentTime / max(particle.lifeTime, 0.0001f)));
+    const float lifeRate = saturate(particle.currentTime / max(particle.lifeTime, 0.0001f));
+    const float chargeRate = saturate(gUpdateInfo.chargeGatherTargetAndRate.w);
+    const float scaleBoost = particleType.scaleByChargeRate != 0u ? lerp(0.75f, 1.35f, chargeRate) : 1.0f;
+    particle.scale = lerp(particleType.startScale, particleType.endScale, lifeRate) * scaleBoost;
+    particle.color = lerp(particleType.startColor, particleType.endColor, lifeRate);
+    if (particleType.brightnessByChargeRate != 0u)
+    {
+        particle.color.rgb *= lerp(1.0f, max(gUpdateInfo.chargeGatherSettings.w, 1.0f), chargeRate);
+    }
+
     if (particle.alive != 0u && particle.currentTime >= particle.lifeTime)
     {
         RecycleParticle(particleIndex, particle);

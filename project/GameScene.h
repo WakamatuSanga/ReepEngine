@@ -40,6 +40,8 @@ class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerBarrelRollRingController;
 class PlayerBulletCancelEffectController;
+class PlayerChargeFeedbackController;
+class PlayerChargeGatherEffectController;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
 class PlayerSonicBoostRingController;
@@ -97,6 +99,8 @@ private:
     std::unique_ptr<PlayerBarrelRollRingController> playerBarrelRollRingController_;
     std::unique_ptr<PlayerBulletCancelEffectController> playerBulletCancelEffectController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
+    std::unique_ptr<PlayerChargeFeedbackController> playerChargeFeedbackController_;
+    std::unique_ptr<PlayerChargeGatherEffectController> playerChargeGatherEffectController_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;

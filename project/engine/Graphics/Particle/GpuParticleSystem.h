@@ -31,6 +31,7 @@ public:
 	void SetParticleInfluenceEnabled(bool enabled);
 	void SetParticleInfluenceResponseScale(float scale);
 	void SetRailParticleFlow(bool enabled, const Vector3& cameraPosition, const Vector3& direction, float speed, float scale, float spawnAheadDistance, float despawnBehindDistance);
+	void SetChargeGather(bool enabled, const Vector3& targetPosition, float chargeRate, float strengthScale, float swirlScale, float brightnessScale);
 	void SetRuntimePoolOptions(bool generateUnusedList, bool useDeadList, bool autoReuseDeadParticles);
 	void SetRuntimeParticleLimits(uint32_t maxActiveParticles, uint32_t maxEmitPerFrame);
 	void SetCounterReadbackEnabled(bool enabled);

@@ -28,6 +28,8 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -391,6 +393,10 @@ void GameScene::InitializeSceneResources() {
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
+    playerChargeFeedbackController_ = std::make_unique<PlayerChargeFeedbackController>();
+    playerChargeFeedbackController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get(), player_.get(), playerBulletManager_.get());
+    playerChargeGatherEffectController_ = std::make_unique<PlayerChargeGatherEffectController>();
+    playerChargeGatherEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get(), player_.get(), playerBulletManager_.get());
     gpuParticleEffectPlayer_ = std::make_unique<GpuParticleEffectPlayer>();
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();

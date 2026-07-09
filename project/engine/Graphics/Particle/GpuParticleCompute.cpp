@@ -160,6 +160,8 @@ bool GpuParticleCompute::CreateConstantBuffers(const GpuParticle::State& state) 
 	updateInfoData_->railFlowDirectionSpeed = { state.railFlowDirection.x, state.railFlowDirection.y, state.railFlowDirection.z, (std::max)(state.railFlowSpeed, 0.0f) };
 	updateInfoData_->railFlowSettings = { state.enableRailParticleFlow ? 1.0f : 0.0f, std::clamp(state.railFlowScale, 0.0f, 10.0f), (std::max)(state.railSpawnAheadDistance, 0.0f), (std::max)(state.railDespawnBehindDistance, 0.0f) };
 	updateInfoData_->railFlowCameraPosition = { state.railFlowCameraPosition.x, state.railFlowCameraPosition.y, state.railFlowCameraPosition.z, 1.0f };
+	updateInfoData_->chargeGatherTargetAndRate = { state.chargeGatherTargetPosition.x, state.chargeGatherTargetPosition.y, state.chargeGatherTargetPosition.z, std::clamp(state.chargeGatherRate, 0.0f, 1.0f) };
+	updateInfoData_->chargeGatherSettings = { state.enableChargeGather ? 1.0f : 0.0f, std::clamp(state.chargeGatherStrengthScale, 0.0f, 10.0f), std::clamp(state.chargeGatherSwirlScale, 0.0f, 10.0f), std::clamp(state.chargeGatherBrightnessScale, 0.0f, 10.0f) };
 
 	emitterInfoResource_ = dxCommon_->CreateBufferResource(GpuParticle::AlignConstantBufferSize(sizeof(GpuParticle::EmitterInfo)));
 	emitterInfoResource_->Map(0, nullptr, reinterpret_cast<void**>(&emitterInfoData_));
@@ -411,6 +413,8 @@ void GpuParticleCompute::DispatchUpdate(ID3D12GraphicsCommandList* commandList, 
 	updateInfoData_->railFlowDirectionSpeed = { state.railFlowDirection.x, state.railFlowDirection.y, state.railFlowDirection.z, (std::max)(state.railFlowSpeed, 0.0f) };
 	updateInfoData_->railFlowSettings = { state.enableRailParticleFlow ? 1.0f : 0.0f, std::clamp(state.railFlowScale, 0.0f, 10.0f), (std::max)(state.railSpawnAheadDistance, 0.0f), (std::max)(state.railDespawnBehindDistance, 0.0f) };
 	updateInfoData_->railFlowCameraPosition = { state.railFlowCameraPosition.x, state.railFlowCameraPosition.y, state.railFlowCameraPosition.z, 1.0f };
+	updateInfoData_->chargeGatherTargetAndRate = { state.chargeGatherTargetPosition.x, state.chargeGatherTargetPosition.y, state.chargeGatherTargetPosition.z, std::clamp(state.chargeGatherRate, 0.0f, 1.0f) };
+	updateInfoData_->chargeGatherSettings = { state.enableChargeGather ? 1.0f : 0.0f, std::clamp(state.chargeGatherStrengthScale, 0.0f, 10.0f), std::clamp(state.chargeGatherSwirlScale, 0.0f, 10.0f), std::clamp(state.chargeGatherBrightnessScale, 0.0f, 10.0f) };
 	resources.TransitionParticleResource(commandList, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 	commandList->SetComputeRootSignature(updateRootSignature_.Get());
 	commandList->SetPipelineState(updatePipelineState_.Get());

@@ -271,6 +271,24 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 		result.changed |= ImGui::DragFloat("レール流れ倍率 (Rail Flow Scale)", &type.railFlowScale, 0.01f, 0.0f, 10.0f, "%.2f");
 		ImGui::TreePop();
 	}
+	if (ImGui::TreeNodeEx("チャージ収束 (Charge Gather)", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::TextWrapped("Playerショット溜め中に、ParticleをPlayer前方のチャージ核へ吸い寄せます。既存EffectではOFFのままです。");
+		result.changed |= ImGui::Checkbox("チャージ収束を受ける (Affected By Charge Gather)", &type.affectedByChargeGather);
+		int targetMode = static_cast<int>(type.chargeGatherTargetMode);
+		if (ImGui::Combo("収束ターゲット (Target Mode)", &targetMode, "World Target\0Player Front Core\0Reserved 2\0Reserved 3\0")) {
+			type.chargeGatherTargetMode = static_cast<uint32_t>(std::clamp(targetMode, 0, 3));
+			result.changed = true;
+		}
+		result.changed |= ImGui::DragFloat3("ターゲット補正 (Target Offset)", &type.chargeGatherTargetOffset.x, 0.01f, -10.0f, 10.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("収束力 (Gather Strength)", &type.chargeGatherStrength, 0.01f, 0.0f, 100.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("吸収半径 (Kill Radius)", &type.chargeGatherKillRadius, 0.005f, 0.001f, 10.0f, "%.3f");
+		result.changed |= ImGui::DragFloat("渦巻き力 (Swirl Strength)", &type.chargeGatherSwirlStrength, 0.01f, 0.0f, 100.0f, "%.2f");
+		result.changed |= ImGui::DragFloat("反応倍率 (Response Scale)", &type.chargeGatherResponseScale, 0.01f, 0.0f, 10.0f, "%.2f");
+		result.changed |= ImGui::Checkbox("チャージ率でサイズ変化 (Scale By Charge Rate)", &type.scaleByChargeRate);
+		result.changed |= ImGui::Checkbox("チャージ率で明るさ変化 (Brightness By Charge Rate)", &type.brightnessByChargeRate);
+		result.changed |= ImGui::Checkbox("チャージ率で発生量変化 (Emission By Charge Rate)", &type.emissionByChargeRate);
+		ImGui::TreePop();
+	}
 	result.changed |= ImGui::Checkbox("アトラス使用 (Use Atlas)", &type.useAtlas);
 	int atlasRows = static_cast<int>(type.atlasRows);
 	if (ImGui::DragInt("アトラス行数 (Atlas Rows)", &atlasRows, 0.05f, 1, 64)) {
@@ -303,6 +321,11 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
 	type.influenceResponseScale = std::clamp(type.influenceResponseScale, 0.0f, 10.0f);
 	type.railFlowScale = std::clamp(type.railFlowScale, 0.0f, 10.0f);
+	type.chargeGatherStrength = (std::max)(type.chargeGatherStrength, 0.0f);
+	type.chargeGatherKillRadius = (std::max)(type.chargeGatherKillRadius, 0.001f);
+	type.chargeGatherSwirlStrength = (std::max)(type.chargeGatherSwirlStrength, 0.0f);
+	type.chargeGatherResponseScale = std::clamp(type.chargeGatherResponseScale, 0.0f, 10.0f);
+	type.chargeGatherTargetMode = std::clamp(type.chargeGatherTargetMode, 0u, 3u);
 	type.atlasRows = (std::max)(type.atlasRows, 1u);
 	type.atlasColumns = (std::max)(type.atlasColumns, 1u);
 	type.frameCount = std::clamp(type.frameCount, 1u, type.atlasRows * type.atlasColumns);
