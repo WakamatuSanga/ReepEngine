@@ -25,6 +25,7 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -133,6 +134,10 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
+    if (playerDamageFeedbackController_) {
+        playerDamageFeedbackController_->Finalize();
+    }
+    playerDamageFeedbackController_.reset();
     if (combatEffectController_) {
         combatEffectController_->Finalize();
     }

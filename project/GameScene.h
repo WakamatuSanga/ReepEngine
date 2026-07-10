@@ -38,6 +38,7 @@ class Model;
 class Object3d;
 class Player;
 class PlayerDeathSequenceController;
+class PlayerDamageFeedbackController;
 class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerBarrelRollRingController;
@@ -95,6 +96,7 @@ private:
     std::unique_ptr<LevelSceneRuntime> levelSceneRuntime_;
     std::unique_ptr<BlenderLiveSync> blenderLiveSync_;
     std::unique_ptr<Player> player_;
+    std::unique_ptr<PlayerDamageFeedbackController> playerDamageFeedbackController_;
     std::unique_ptr<BoostController> boostController_;
     std::unique_ptr<PlayerJetExhaustController> playerJetExhaustController_;
     std::unique_ptr<PlayerSonicBoostRingController> playerSonicBoostRingController_;

@@ -27,6 +27,7 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -403,6 +404,8 @@ void GameScene::InitializeSceneResources() {
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
+    playerDamageFeedbackController_ = std::make_unique<PlayerDamageFeedbackController>();
+    playerDamageFeedbackController_->Initialize(spriteCommon, player_.get(), combatEffectController_.get());
     combatSlowMotionController_ = std::make_unique<CombatSlowMotionController>();
     combatSlowMotionController_->Initialize();
     impactDistortionController_ = std::make_unique<ImpactDistortionController>();
@@ -450,6 +453,7 @@ void GameScene::InitializeSceneResources() {
     playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
     playerEnemyBulletCollision_->SetSlowMotionController(combatSlowMotionController_.get());
     playerEnemyBulletCollision_->SetImpactDistortionController(impactDistortionController_.get());
+    playerEnemyBulletCollision_->SetDamageFeedbackController(playerDamageFeedbackController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
     gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();

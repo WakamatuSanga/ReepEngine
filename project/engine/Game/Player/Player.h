@@ -43,6 +43,7 @@ public:
     void SetBarrelRollDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetBarrelRollEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
     void SetBarrelRollSlowMotionController(CombatSlowMotionController* slowMotionController);
+    void SetDamageFeedbackAlpha(float alpha);
     void SetBaseMode(BaseMode baseMode);
     void SetExternalBasePosition(const Vector3& position);
     void SetExternalBaseForward(const Vector3& forward);
@@ -125,6 +126,7 @@ private:
     float centerFadeSpeed_ = 10.0f;
     float currentScreenDistance_ = 1.0f;
     float currentPlayerAlpha_ = 1.0f;
+    float damageFeedbackAlpha_ = 1.0f;
     bool gameViewInputActive_ = false;
     bool hasExternalBase_ = false;
     BaseMode baseMode_ = BaseMode::CameraFront;

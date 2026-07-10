@@ -13,6 +13,7 @@
 #include "Engine/Game/Field/InfluenceFieldManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -192,6 +193,9 @@ void GameScene::DrawSceneRender() {
     }
 
     spriteCommon->CommonDrawSetting();
+    if (playerDamageFeedbackController_) {
+        playerDamageFeedbackController_->Draw();
+    }
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }

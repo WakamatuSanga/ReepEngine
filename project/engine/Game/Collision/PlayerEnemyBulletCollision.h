@@ -8,6 +8,7 @@ class CombatEffectController;
 class CombatSlowMotionController;
 class ImpactDistortionController;
 class PlayerDeathSequenceController;
+class PlayerDamageFeedbackController;
 class PlayerBulletCancelEffectController;
 
 class PlayerEnemyBulletCollision {
@@ -23,6 +24,7 @@ public:
     void SetBulletCancelEffectController(PlayerBulletCancelEffectController* controller);
     void SetSlowMotionController(CombatSlowMotionController* controller);
     void SetImpactDistortionController(ImpactDistortionController* controller);
+    void SetDamageFeedbackController(PlayerDamageFeedbackController* controller);
     void Finalize();
     void Update();
     void DrawImGui();
@@ -35,9 +37,11 @@ private:
     PlayerBulletCancelEffectController* bulletCancelEffectController_ = nullptr;
     CombatSlowMotionController* slowMotionController_ = nullptr;
     ImpactDistortionController* impactDistortionController_ = nullptr;
+    PlayerDamageFeedbackController* damageFeedbackController_ = nullptr;
     bool enableCollision_ = true;
     bool lastHit_ = false;
     bool lastBlockedByBarrelRoll_ = false;
+    bool lastBlockedByDamageInvincible_ = false;
     uint64_t hitCount_ = 0;
     uint64_t barrelRollBlockCount_ = 0;
     float lastDistance_ = -1.0f;

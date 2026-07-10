@@ -188,6 +188,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerDamageFeedbackController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerChargeFeedbackController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
@@ -361,6 +362,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h" />
+    <ClInclude Include="engine\Game\Player\PlayerDamageFeedbackController.h" />
     <ClInclude Include="engine\Game\Player\PlayerChargeFeedbackController.h" />
     <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />

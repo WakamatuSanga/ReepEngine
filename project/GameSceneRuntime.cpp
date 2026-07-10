@@ -31,6 +31,7 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -263,6 +264,9 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (player_) {
         player_->Update(gameplayDeltaTime);
+    }
+    if (playerDamageFeedbackController_) {
+        playerDamageFeedbackController_->Update(unscaledDeltaTime);
     }
     if (boostController_) {
         boostController_->Update(gameplayDeltaTime);
