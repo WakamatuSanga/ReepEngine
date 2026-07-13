@@ -35,14 +35,18 @@ public:
     void SetCloudPass(VolumetricCloudPass* cloudPass) { cloudPass_ = cloudPass; }
     void SetPostEffectContext(Player* player, Camera* camera, PostEffectController* postEffectController);
 
+    State GetState() const { return state_; }
     bool IsBoosting() const { return state_ == State::Boosting; }
+    bool IsCoolingDown() const { return state_ == State::Cooldown; }
     float GetCurrentBoostPower() const { return currentBoostPower_; }
     float GetCloudFlowMultiplier() const;
     float GetCurrentCloudBoostExtraSpeed() const { return currentCloudBoostExtraSpeed_; }
+    float GetBoostGaugeRate() const;
     float GetTargetCloudBoostExtraSpeed() const { return targetCloudBoostExtraSpeed_; }
     float GetVisualSpeedMultiplier() const;
     float GetRadialBlurIntensity() const { return radialBlurIntensity_ * currentBoostPower_; }
     float GetFovBoostAmount() const { return fovBoostAmount_ * currentBoostPower_; }
+    uint64_t GetBoostCount() const { return boostCount_; }
 
 private:
     void StartBoost(bool ignoreCooldown);

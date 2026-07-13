@@ -63,6 +63,7 @@ public:
     float GetChargeRate() const { return chargeRate_; }
     bool IsChargeMax() const { return isChargeMax_; }
     bool IsChargeInputHeld() const { return lastLeftClickHeld_; }
+    size_t GetFiredBulletCount() const { return firedBulletCount_; }
     const Vector3& GetLastAimPoint() const { return lastAimPoint_; }
     const Vector3& GetLastAimDirection() const { return lastAimDirection_; }
     const Vector3& GetLastMuzzlePosition() const { return lastMuzzlePosition_; }

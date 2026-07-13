@@ -21,6 +21,7 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
@@ -195,6 +196,9 @@ void GameScene::DrawSceneRender() {
     spriteCommon->CommonDrawSetting();
     if (playerDamageFeedbackController_) {
         playerDamageFeedbackController_->Draw();
+    }
+    if (playerHudController_) {
+        playerHudController_->Draw();
     }
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();

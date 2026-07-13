@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
@@ -25,6 +25,7 @@ public:
     bool IsDead() const { return hp_ <= 0; }
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
+    uint64_t GetDamageFeedbackCount() const { return damageFeedbackCount_; }
 
 private:
     void ResetHp();

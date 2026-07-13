@@ -43,6 +43,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
@@ -406,6 +407,8 @@ void GameScene::InitializeSceneResources() {
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
     playerDamageFeedbackController_ = std::make_unique<PlayerDamageFeedbackController>();
     playerDamageFeedbackController_->Initialize(spriteCommon, player_.get(), combatEffectController_.get());
+    playerHudController_ = std::make_unique<PlayerHudController>();
+    playerHudController_->Initialize(spriteCommon, playerDamageFeedbackController_.get(), playerBulletManager_.get(), boostController_.get());
     combatSlowMotionController_ = std::make_unique<CombatSlowMotionController>();
     combatSlowMotionController_->Initialize();
     impactDistortionController_ = std::make_unique<ImpactDistortionController>();

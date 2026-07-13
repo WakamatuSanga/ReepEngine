@@ -44,6 +44,7 @@
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
@@ -316,6 +317,10 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
+    }
+    if (playerHudController_) {
+        playerHudController_->SetGameModeActive(isGameMode);
+        playerHudController_->Update(unscaledDeltaTime);
     }
     if (impactDistortionController_) {
         impactDistortionController_->Update(effectDeltaTime);

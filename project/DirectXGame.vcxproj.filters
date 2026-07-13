@@ -285,6 +285,12 @@
     <ClCompile Include="engine\Game\UI\WarningUIController.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\UI\PlayerHudController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp">
       <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
     </ClCompile>
@@ -705,6 +711,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\UI\WarningUIController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\PlayerHudController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h">
