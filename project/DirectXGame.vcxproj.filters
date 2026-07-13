@@ -282,6 +282,15 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\UI\WarningUIController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\PlayerHudController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp">
       <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
     </ClCompile>
@@ -295,6 +304,15 @@
       <Filter>ソース ファイル\engine\Game\Collision</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\CombatSlowMotionController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Effect\ImpactDistortionControllerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Effect\GpuParticleEffectPlayer.cpp">
@@ -361,6 +379,15 @@
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerDamageFeedbackController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerChargeFeedbackController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp">
@@ -683,6 +710,12 @@
     <ClInclude Include="engine\Game\Camera\CameraShakeController.h">
       <Filter>ヘッダー ファイル\engine\Game\Camera</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\UI\WarningUIController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\PlayerHudController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h">
       <Filter>ヘッダー ファイル\engine\Game\DebugGui</Filter>
     </ClInclude>
@@ -693,6 +726,12 @@
       <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\CombatSlowMotionController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Effect\ImpactDistortionController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Effect\GpuParticleEffectPlayer.h">
@@ -756,6 +795,15 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerDamageFeedbackController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerChargeFeedbackController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">
@@ -922,6 +970,9 @@
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\ImpactDistortion.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\CopyImage.VS.hlsl">

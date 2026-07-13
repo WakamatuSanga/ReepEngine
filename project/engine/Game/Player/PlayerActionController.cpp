@@ -1,5 +1,6 @@
 #include "PlayerActionController.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "PlayerBarrelRollRingController.h"
 #include "PlayerBulletCancelEffectController.h"
@@ -61,6 +62,7 @@ void PlayerActionController::Finalize() {
     combatEffectController_ = nullptr;
     rollRingController_ = nullptr;
     bulletCancelEffectController_ = nullptr;
+    slowMotionController_ = nullptr;
     object3dCommon_ = nullptr;
     camera_ = nullptr;
 }
@@ -77,6 +79,10 @@ void PlayerActionController::SetEffectControllers(
     PlayerBulletCancelEffectController* bulletCancelEffectController) {
     rollRingController_ = rollRingController;
     bulletCancelEffectController_ = bulletCancelEffectController;
+}
+
+void PlayerActionController::SetSlowMotionController(CombatSlowMotionController* slowMotionController) {
+    slowMotionController_ = slowMotionController;
 }
 
 void PlayerActionController::SetDebugVisualsEnabled(bool isEnabled) {
@@ -257,6 +263,9 @@ void PlayerActionController::StartBarrelRoll(BarrelRollDirection direction, cons
             for (const Vector3& position : clearedPositions) {
                 bulletCancelEffectController_->SpawnCancelEffect(position);
             }
+        }
+        if (slowMotionController_ && lastClearedBulletCount_ > 0) {
+            slowMotionController_->TriggerBulletCancelSlowMotion(static_cast<int>(lastClearedBulletCount_));
         }
     }
     if (enableBarrelRollEffect_ && combatEffectController_) {

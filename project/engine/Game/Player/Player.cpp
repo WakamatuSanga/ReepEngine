@@ -1,5 +1,6 @@
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -495,6 +496,17 @@ void Player::SetBarrelRollEffectControllers(
     }
 }
 
+void Player::SetBarrelRollSlowMotionController(CombatSlowMotionController* slowMotionController) {
+    if (actionController_) {
+        actionController_->SetSlowMotionController(slowMotionController);
+    }
+}
+
+void Player::SetDamageFeedbackAlpha(float alpha) {
+    damageFeedbackAlpha_ = std::clamp(alpha, 0.0f, 1.0f);
+    ApplyModelAlpha(currentPlayerAlpha_ * damageFeedbackAlpha_);
+}
+
 void Player::SetBaseMode(BaseMode baseMode) {
     baseMode_ = baseMode;
 }
@@ -575,7 +587,7 @@ void Player::LoadModel() {
     if (object_) {
         object_->SetModel(model_);
     }
-    ApplyModelAlpha(currentPlayerAlpha_);
+    ApplyModelAlpha(currentPlayerAlpha_ * damageFeedbackAlpha_);
 }
 
 void Player::ResetPosition() {
@@ -642,7 +654,7 @@ void Player::UpdateCenterVisibilityAssist(float deltaTime) {
 
     const float alphaT = std::clamp(deltaTime * centerFadeSpeed_, 0.0f, 1.0f);
     currentPlayerAlpha_ = LerpFloat(currentPlayerAlpha_, targetAlpha, alphaT);
-    ApplyModelAlpha(currentPlayerAlpha_);
+    ApplyModelAlpha(currentPlayerAlpha_ * damageFeedbackAlpha_);
 }
 
 void Player::ApplyModelAlpha(float alpha) {

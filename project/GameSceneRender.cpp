@@ -4,6 +4,7 @@
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
@@ -12,11 +13,16 @@
 #include "Engine/Game/Field/InfluenceFieldManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -126,6 +132,9 @@ void GameScene::DrawSceneRender() {
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->Draw();
     }
+    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
+        playerChargeFeedbackController_->Draw();
+    }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->Draw();
     }
@@ -159,6 +168,12 @@ void GameScene::DrawSceneRender() {
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
     }
+    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
+        playerChargeFeedbackController_->DrawAfterCloud();
+    }
+    if (playerChargeGatherEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        playerChargeGatherEffectController_->Draw();
+    }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();
     }
@@ -174,7 +189,17 @@ void GameScene::DrawSceneRender() {
         particleManager->Draw();
     }
 
+    if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
+        impactDistortionController_->Draw();
+    }
+
     spriteCommon->CommonDrawSetting();
+    if (playerDamageFeedbackController_) {
+        playerDamageFeedbackController_->Draw();
+    }
+    if (playerHudController_) {
+        playerHudController_->Draw();
+    }
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }
@@ -183,5 +208,8 @@ void GameScene::DrawSceneRender() {
     }
     if (postEffectController_) {
         postEffectController_->Draw();
+    }
+    if (warningUIController_) {
+        warningUIController_->Draw();
     }
 }

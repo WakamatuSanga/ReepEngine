@@ -1,9 +1,12 @@
 #include "PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -31,15 +34,30 @@ void PlayerEnemyBulletCollision::Finalize() {
     deathSequence_ = nullptr;
     combatEffectController_ = nullptr;
     bulletCancelEffectController_ = nullptr;
+    slowMotionController_ = nullptr;
+    impactDistortionController_ = nullptr;
+    damageFeedbackController_ = nullptr;
 }
 
 void PlayerEnemyBulletCollision::SetBulletCancelEffectController(PlayerBulletCancelEffectController* controller) {
     bulletCancelEffectController_ = controller;
 }
 
+void PlayerEnemyBulletCollision::SetSlowMotionController(CombatSlowMotionController* controller) {
+    slowMotionController_ = controller;
+}
+
+void PlayerEnemyBulletCollision::SetImpactDistortionController(ImpactDistortionController* controller) {
+    impactDistortionController_ = controller;
+}
+
+void PlayerEnemyBulletCollision::SetDamageFeedbackController(PlayerDamageFeedbackController* controller) {
+    damageFeedbackController_ = controller;
+}
 void PlayerEnemyBulletCollision::Update() {
     lastHit_ = false;
     lastBlockedByBarrelRoll_ = false;
+    lastBlockedByDamageInvincible_ = false;
     lastBlockedReason_ = "None";
     if (!enableCollision_) {
         lastBlockedReason_ = "Collision disabled";
@@ -73,13 +91,36 @@ void PlayerEnemyBulletCollision::Update() {
             if (bulletCancelEffectController_) {
                 bulletCancelEffectController_->SpawnCancelEffect(lastHitPosition_);
             }
+            if (slowMotionController_) {
+                slowMotionController_->TriggerBulletCancelSlowMotion(1);
+            }
+            if (impactDistortionController_) {
+                impactDistortionController_->TriggerBulletCancel(lastHitPosition_);
+            }
             if (player_->IsBarrelRollEffectEnabled() && combatEffectController_) {
                 combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);
             }
             return;
         }
-        if (combatEffectController_) {
+        if (damageFeedbackController_ && damageFeedbackController_->IsInvincible()) {
+            lastBlockedByDamageInvincible_ = true;
+            lastBlockedReason_ = "Blocked by damage invincible";
+            return;
+        }
+
+        bool shouldStartDeath = true;
+        if (damageFeedbackController_) {
+            const bool damageApplied = damageFeedbackController_->ApplyDamage(lastHitPosition_, 1);
+            shouldStartDeath = damageApplied && damageFeedbackController_->IsDead();
+            lastBlockedReason_ = damageApplied ? "Player damaged" : "Damage ignored";
+        } else if (combatEffectController_) {
             combatEffectController_->PlayEnemyBulletHitPlayer(lastHitPosition_);
+        }
+
+        if (!shouldStartDeath) {
+            return;
+        }
+        if (combatEffectController_) {
             combatEffectController_->PlayPlayerDeathExplosion(lastPlayerPosition_);
         }
         deathSequence_->StartDeathSequence();
@@ -97,12 +138,17 @@ void PlayerEnemyBulletCollision::DrawImGui() {
     ImGui::Checkbox("Enable Collision", &enableCollision_);
     ImGui::Text("Last Hit: %s", lastHit_ ? "true" : "false");
     ImGui::Text("Blocked By Barrel Roll: %s", lastBlockedByBarrelRoll_ ? "true" : "false");
+    ImGui::Text("Blocked By Damage Invincible: %s", lastBlockedByDamageInvincible_ ? "true" : "false");
     ImGui::Text("Hit Count: %llu", static_cast<unsigned long long>(hitCount_));
     ImGui::Text("Barrel Roll Block Count: %llu", static_cast<unsigned long long>(barrelRollBlockCount_));
     ImGui::Text("Last Distance: %.3f", lastDistance_);
     ImGui::Text("Last Radius Sum: %.3f", lastRadiusSum_);
     ImGui::Text("Player Hit Radius: %.3f", lastPlayerHitRadius_);
     ImGui::Text("Player Damage Reduction: %.3f", lastPlayerDamageReduction_);
+    if (damageFeedbackController_) {
+        ImGui::Text("Damage Feedback HP: %d / %d", damageFeedbackController_->GetHp(), damageFeedbackController_->GetMaxHp());
+        ImGui::Text("Damage Feedback Invincible: %s", damageFeedbackController_->IsInvincible() ? "true" : "false");
+    }
     ImGui::Text("Bullet Radius: %.3f", lastBulletRadius_);
     ImGui::Text("Player Position: %.2f, %.2f, %.2f", lastPlayerPosition_.x, lastPlayerPosition_.y, lastPlayerPosition_.z);
     ImGui::Text("Last Hit Position: %.2f, %.2f, %.2f", lastHitPosition_.x, lastHitPosition_.y, lastHitPosition_.z);

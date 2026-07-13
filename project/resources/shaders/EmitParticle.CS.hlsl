@@ -42,6 +42,16 @@ struct ParticleType
     float influenceResponseScale;
     uint affectedByRailFlow;
     float railFlowScale;
+    uint affectedByChargeGather;
+    float chargeGatherStrength;
+    float chargeGatherKillRadius;
+    float chargeGatherSwirlStrength;
+    float chargeGatherResponseScale;
+    uint scaleByChargeRate;
+    uint brightnessByChargeRate;
+    uint emissionByChargeRate;
+    uint chargeGatherTargetMode;
+    float3 chargeGatherTargetOffset;
     float2 padding2;
 };
 

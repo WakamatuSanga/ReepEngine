@@ -203,6 +203,16 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.influenceResponseScale = std::clamp(source.influenceResponseScale, 0.0f, 10.0f);
 		destination.affectedByRailFlow = source.affectedByRailFlow ? 1u : 0u;
 		destination.railFlowScale = std::clamp(source.railFlowScale, 0.0f, 10.0f);
+		destination.affectedByChargeGather = source.affectedByChargeGather ? 1u : 0u;
+		destination.chargeGatherStrength = (std::max)(source.chargeGatherStrength, 0.0f);
+		destination.chargeGatherKillRadius = (std::max)(source.chargeGatherKillRadius, 0.001f);
+		destination.chargeGatherSwirlStrength = (std::max)(source.chargeGatherSwirlStrength, 0.0f);
+		destination.chargeGatherResponseScale = std::clamp(source.chargeGatherResponseScale, 0.0f, 10.0f);
+		destination.scaleByChargeRate = source.scaleByChargeRate ? 1u : 0u;
+		destination.brightnessByChargeRate = source.brightnessByChargeRate ? 1u : 0u;
+		destination.emissionByChargeRate = source.emissionByChargeRate ? 1u : 0u;
+		destination.chargeGatherTargetMode = source.chargeGatherTargetMode;
+		destination.chargeGatherTargetOffset = source.chargeGatherTargetOffset;
 		destination.padding2[0] = 0.0f;
 		destination.padding2[1] = 0.0f;
 	}

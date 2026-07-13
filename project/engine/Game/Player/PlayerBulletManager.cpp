@@ -142,9 +142,13 @@ void PlayerBulletManager::Update(float deltaTime) {
         lastLeftClickHeld_ = input->MouseDown(Input::MouseLeft);
     }
 
-    if (input && ShouldBlockFireInput()) {
-        // ShouldBlockFireInput writes inputBlockedReason_.
-    } else if (input) {
+    bool inputBlocked = true;
+    if (input) {
+        inputBlocked = ShouldBlockFireInput();
+    }
+    UpdateChargeState(safeDeltaTime, !input || inputBlocked);
+
+    if (!inputBlocked && input) {
         lastCanFire_ = fireTimer_ >= fireInterval_;
         if (lastLeftClickPressed_ && lastCanFire_) {
             FireFromPlayer();
@@ -152,7 +156,6 @@ void PlayerBulletManager::Update(float deltaTime) {
             lastCanFire_ = false;
         }
     }
-
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
             instance.bullet->Update(safeDeltaTime);
@@ -198,6 +201,11 @@ void PlayerBulletManager::DrawImGui() {
         lastLeftClickPressed_ ? "true" : "false",
         lastLeftClickHeld_ ? "true" : "false");
     ImGui::Text("Can Fire Now: %s", lastCanFire_ ? "true" : "false");
+    ImGui::SeparatorText("チャージ表示用入力 (Charge Feedback Source)");
+    ImGui::Checkbox("Enable Charge Feedback Input", &enableChargeFeedbackInput_);
+    ImGui::DragFloat("Max Charge Time", &maxChargeTime_, 0.01f, 0.05f, 5.0f, "%.2f");
+    ImGui::Text("Charge Time / Rate: %.2f / %.2f", chargeTime_, chargeRate_);
+    ImGui::Text("Is Charge Max: %s", isChargeMax_ ? "true" : "false");
     ImGui::SeparatorText("狙い設定 (Aim)");
     int aimModeIndex = static_cast<int>(aimMode_);
     const char* aimModeItems[] = { "CameraForward", "MouseRay", "MouseAimPlane" };
@@ -479,6 +487,20 @@ void PlayerBulletManager::ApplyModelRotationOffsetToBullets() {
             instance.bullet->SetModelRotationOffset(playerBulletModelRotationOffset_);
         }
     }
+}
+
+void PlayerBulletManager::UpdateChargeState(float deltaTime, bool inputBlocked) {
+    maxChargeTime_ = (std::max)(maxChargeTime_, 0.05f);
+    if (!enableChargeFeedbackInput_ || inputBlocked || !lastLeftClickHeld_) {
+        chargeTime_ = 0.0f;
+        chargeRate_ = 0.0f;
+        isChargeMax_ = false;
+        return;
+    }
+
+    chargeTime_ = (std::min)(maxChargeTime_, chargeTime_ + (std::max)(deltaTime, 0.0f));
+    chargeRate_ = std::clamp(chargeTime_ / maxChargeTime_, 0.0f, 1.0f);
+    isChargeMax_ = chargeRate_ >= 1.0f;
 }
 
 Vector3 PlayerBulletManager::ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward) {

@@ -11,6 +11,8 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
@@ -23,9 +25,12 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -36,6 +41,8 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -120,6 +127,22 @@ void GameScene::FinalizeSceneResources() {
         enemyDefeatEffectController_->Finalize();
     }
     enemyDefeatEffectController_.reset();
+    if (impactDistortionController_) {
+        impactDistortionController_->Finalize();
+    }
+    impactDistortionController_.reset();
+    if (combatSlowMotionController_) {
+        combatSlowMotionController_->Finalize();
+    }
+    combatSlowMotionController_.reset();
+    if (playerHudController_) {
+        playerHudController_->Finalize();
+    }
+    playerHudController_.reset();
+    if (playerDamageFeedbackController_) {
+        playerDamageFeedbackController_->Finalize();
+    }
+    playerDamageFeedbackController_.reset();
     if (combatEffectController_) {
         combatEffectController_->Finalize();
     }
@@ -143,6 +166,10 @@ void GameScene::FinalizeSceneResources() {
     if (boostController_) {
         boostController_->SetPostEffectContext(nullptr, nullptr, nullptr);
     }
+    if (warningUIController_) {
+        warningUIController_->Finalize();
+    }
+    warningUIController_.reset();
     if (postEffectController_) {
         postEffectController_->Finalize();
     }
@@ -161,6 +188,14 @@ void GameScene::FinalizeSceneResources() {
         enemyManager_->Finalize();
     }
     enemyManager_.reset();
+    if (playerChargeGatherEffectController_) {
+        playerChargeGatherEffectController_->Finalize();
+    }
+    playerChargeGatherEffectController_.reset();
+    if (playerChargeFeedbackController_) {
+        playerChargeFeedbackController_->Finalize();
+    }
+    playerChargeFeedbackController_.reset();
     if (playerBulletManager_) {
         playerBulletManager_->Finalize();
     }

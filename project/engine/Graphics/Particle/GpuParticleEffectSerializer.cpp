@@ -622,7 +622,47 @@ private:
 				if (!ParseFloat(type.railFlowScale)) {
 					return false;
 				}
-			} else if (key == "useAtlas") {
+			} else if (key == "affectedByChargeGather") {
+                if (!ParseBool(type.affectedByChargeGather)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherStrength") {
+                if (!ParseFloat(type.chargeGatherStrength)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherKillRadius") {
+                if (!ParseFloat(type.chargeGatherKillRadius)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherSwirlStrength") {
+                if (!ParseFloat(type.chargeGatherSwirlStrength)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherResponseScale") {
+                if (!ParseFloat(type.chargeGatherResponseScale)) {
+                    return false;
+                }
+            } else if (key == "scaleByChargeRate") {
+                if (!ParseBool(type.scaleByChargeRate)) {
+                    return false;
+                }
+            } else if (key == "brightnessByChargeRate") {
+                if (!ParseBool(type.brightnessByChargeRate)) {
+                    return false;
+                }
+            } else if (key == "emissionByChargeRate") {
+                if (!ParseBool(type.emissionByChargeRate)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherTargetMode") {
+                if (!ParseUint(type.chargeGatherTargetMode)) {
+                    return false;
+                }
+            } else if (key == "chargeGatherTargetOffset") {
+                if (!ParseVector3(type.chargeGatherTargetOffset)) {
+                    return false;
+                }
+            } else if (key == "useAtlas") {
 				if (!ParseBool(type.useAtlas)) {
 					return false;
 				}
@@ -883,6 +923,18 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"influenceResponseScale\": " << type.influenceResponseScale << ",\n";
 			stream << "      \"affectedByRailFlow\": " << ToJsonBool(type.affectedByRailFlow) << ",\n";
 			stream << "      \"railFlowScale\": " << type.railFlowScale << ",\n";
+			stream << "      \"affectedByChargeGather\": " << ToJsonBool(type.affectedByChargeGather) << ",\n";
+			stream << "      \"chargeGatherTargetMode\": " << type.chargeGatherTargetMode << ",\n";
+			stream << "      \"chargeGatherTargetOffset\": ";
+			WriteVector3(stream, type.chargeGatherTargetOffset);
+			stream << ",\n";
+			stream << "      \"chargeGatherStrength\": " << type.chargeGatherStrength << ",\n";
+			stream << "      \"chargeGatherKillRadius\": " << type.chargeGatherKillRadius << ",\n";
+			stream << "      \"chargeGatherSwirlStrength\": " << type.chargeGatherSwirlStrength << ",\n";
+			stream << "      \"chargeGatherResponseScale\": " << type.chargeGatherResponseScale << ",\n";
+			stream << "      \"scaleByChargeRate\": " << ToJsonBool(type.scaleByChargeRate) << ",\n";
+			stream << "      \"brightnessByChargeRate\": " << ToJsonBool(type.brightnessByChargeRate) << ",\n";
+			stream << "      \"emissionByChargeRate\": " << ToJsonBool(type.emissionByChargeRate) << ",\n";
 			stream << "      \"useAtlas\": " << ToJsonBool(type.useAtlas) << ",\n";
 			stream << "      \"atlasRows\": " << type.atlasRows << ",\n";
 			stream << "      \"atlasColumns\": " << type.atlasColumns << ",\n";
@@ -891,7 +943,7 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"loopAtlas\": " << ToJsonBool(type.loopAtlas) << "\n";
 			stream << "    }" << (index + 1 < outputData.particleTypes.size() ? "," : "") << "\n";
 		}
-		stream << "  ],\n";
+			stream << "  ],\n";
 		stream << "  \"runtime\": {\n";
 		stream << "    \"randomEnabled\": " << ToJsonBool(outputData.runtime.randomEnabled) << ",\n";
 		stream << "    \"useFreeListEmit\": " << ToJsonBool(outputData.runtime.useFreeListEmit) << ",\n";

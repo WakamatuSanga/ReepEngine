@@ -83,6 +83,26 @@ namespace {
                     if (!ParseFloat(wave.clearDelayAfterAllEscaped)) {
                         return Fail("Invalid clearDelayAfterAllEscaped.");
                     }
+                } else if (key == "showWarningOnStart" || key == "show_warning_on_start") {
+                    if (!ParseBool(wave.showWarningOnStart)) {
+                        return Fail("Invalid showWarningOnStart.");
+                    }
+                } else if (key == "warningText" || key == "warning_text") {
+                    if (!ParseString(wave.warningText)) {
+                        return Fail("Invalid warningText.");
+                    }
+                } else if (key == "warningDuration" || key == "warning_duration") {
+                    if (!ParseFloat(wave.warningDuration)) {
+                        return Fail("Invalid warningDuration.");
+                    }
+                } else if (key == "waitForWarningBeforeSpawn" || key == "wait_for_warning_before_spawn") {
+                    if (!ParseBool(wave.waitForWarningBeforeSpawn)) {
+                        return Fail("Invalid waitForWarningBeforeSpawn.");
+                    }
+                } else if (key == "postWarningDelay" || key == "post_warning_delay") {
+                    if (!ParseFloat(wave.postWarningDelay)) {
+                        return Fail("Invalid postWarningDelay.");
+                    }
                 } else if (key == "enemies") {
                     if (!ParseEnemies(wave.enemies)) {
                         return false;
@@ -255,6 +275,21 @@ namespace {
             }
             out = value;
             return true;
+        }
+
+        bool ParseBool(bool& out) {
+            SkipWhitespace();
+            if (source_.substr(position_, 4) == "true") {
+                position_ += 4;
+                out = true;
+                return true;
+            }
+            if (source_.substr(position_, 5) == "false") {
+                position_ += 5;
+                out = false;
+                return true;
+            }
+            return false;
         }
 
         bool SkipValue() {

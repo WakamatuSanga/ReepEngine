@@ -123,6 +123,16 @@ namespace {
             if (parts.size() >= 5) {
                 action.waveId = parts[4];
             }
+            if (parts.size() >= 6) {
+                action.warningText = parts[5];
+            }
+            if (parts.size() >= 7) {
+                try {
+                    action.warningDuration = std::stof(parts[6]);
+                } catch (...) {
+                    action.warningDuration = 0.0f;
+                }
+            }
             if (!action.targetObjectName.empty() || !action.actionType.empty()) {
                 actions.push_back(std::move(action));
             }
@@ -813,6 +823,16 @@ namespace {
                     if (!ParseString(action.waveId)) {
                         return Fail("Invalid waveId.");
                     }
+                } else if (key == "text" || key == "warningText" || key == "warning_text") {
+                    if (!ParseString(action.warningText)) {
+                        return Fail("Invalid warning text.");
+                    }
+                } else if (key == "duration" || key == "warningDuration" || key == "warning_duration") {
+                    double value = 0.0;
+                    if (!ParseNumber(value)) {
+                        return Fail("Invalid warning duration.");
+                    }
+                    action.warningDuration = static_cast<float>(value);
                 } else if (!SkipValue()) {
                     return false;
                 }

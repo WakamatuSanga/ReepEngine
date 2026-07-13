@@ -78,6 +78,16 @@ struct ParticleType {
 	float influenceResponseScale = 1.0f;
 	bool affectedByRailFlow = false;
 	float railFlowScale = 1.0f;
+	bool affectedByChargeGather = false;
+	float chargeGatherStrength = 0.0f;
+	float chargeGatherKillRadius = 0.15f;
+	float chargeGatherSwirlStrength = 0.0f;
+	float chargeGatherResponseScale = 1.0f;
+	bool scaleByChargeRate = false;
+	bool brightnessByChargeRate = false;
+	bool emissionByChargeRate = false;
+	uint32_t chargeGatherTargetMode = 1;
+	Vector3 chargeGatherTargetOffset = { 0.0f, 0.0f, 0.0f };
 };
 
 struct ParticleTypeForGPU {
@@ -110,9 +120,19 @@ struct ParticleTypeForGPU {
 	float influenceResponseScale;
 	uint32_t affectedByRailFlow;
 	float railFlowScale;
+	uint32_t affectedByChargeGather;
+	float chargeGatherStrength;
+	float chargeGatherKillRadius;
+	float chargeGatherSwirlStrength;
+	float chargeGatherResponseScale;
+	uint32_t scaleByChargeRate;
+	uint32_t brightnessByChargeRate;
+	uint32_t emissionByChargeRate;
+	uint32_t chargeGatherTargetMode;
+	Vector3 chargeGatherTargetOffset;
 	float padding2[2];
 };
-static_assert(sizeof(ParticleTypeForGPU) == 160, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
+static_assert(sizeof(ParticleTypeForGPU) == 208, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, endColor) == 32, "endColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, drag) == 76, "drag offset must match HLSL ParticleType.");
@@ -131,6 +151,10 @@ static_assert(offsetof(ParticleTypeForGPU, affectedByInfluenceField) == 136, "af
 static_assert(offsetof(ParticleTypeForGPU, influenceResponseScale) == 140, "influenceResponseScale offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, affectedByRailFlow) == 144, "affectedByRailFlow offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, railFlowScale) == 148, "railFlowScale offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, affectedByChargeGather) == 152, "affectedByChargeGather offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, chargeGatherStrength) == 156, "chargeGatherStrength offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, chargeGatherTargetMode) == 184, "chargeGatherTargetMode offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, chargeGatherTargetOffset) == 188, "chargeGatherTargetOffset offset must match HLSL ParticleType.");
 
 enum class EmitterShape : uint32_t {
 	Sphere = 0,
@@ -171,8 +195,14 @@ struct UpdateInfo {
 	Vector4 railFlowDirectionSpeed = {0.0f, 0.0f, -1.0f, 0.0f};
 	Vector4 railFlowSettings = {0.0f, 1.0f, 24.0f, 8.0f};
 	Vector4 railFlowCameraPosition = {0.0f, 0.0f, 0.0f, 1.0f};
+	Vector4 chargeGatherTargetAndRate = {0.0f, 0.0f, 0.0f, 0.0f};
+	Vector4 chargeGatherSettings = {0.0f, 1.0f, 1.0f, 1.0f};
 };
 
+static_assert(sizeof(UpdateInfo) == 624, "UpdateInfo must match the HLSL constant buffer layout.");
+static_assert(offsetof(UpdateInfo, railFlowDirectionSpeed) == 544, "railFlowDirectionSpeed offset must match HLSL UpdateInfo.");
+static_assert(offsetof(UpdateInfo, chargeGatherTargetAndRate) == 592, "chargeGatherTargetAndRate offset must match HLSL UpdateInfo.");
+static_assert(offsetof(UpdateInfo, chargeGatherSettings) == 608, "chargeGatherSettings offset must match HLSL UpdateInfo.");
 struct EmitterInfo {
 	uint32_t emitCount;
 	uint32_t randomSeed;
@@ -279,6 +309,12 @@ struct State {
 	Vector3 railFlowCameraPosition = {0.0f, 0.0f, 0.0f};
 	float railSpawnAheadDistance = 24.0f;
 	float railDespawnBehindDistance = 8.0f;
+		bool enableChargeGather = false;
+	Vector3 chargeGatherTargetPosition = {0.0f, 0.0f, 0.0f};
+	float chargeGatherRate = 0.0f;
+	float chargeGatherStrengthScale = 1.0f;
+	float chargeGatherSwirlScale = 1.0f;
+	float chargeGatherBrightnessScale = 1.0f;
 	std::vector<ParticleType> particleTypes;
 	std::vector<Emitter> emitters;
 	std::vector<EmitBatchEstimate> emitBatchEstimates;

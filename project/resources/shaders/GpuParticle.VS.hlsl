@@ -51,9 +51,8 @@ VertexShaderOutput main(uint vertexId : SV_VertexID, uint instanceId : SV_Instan
     Particle particle = gParticles[instanceId];
     ParticleType particleType = gParticleTypes[particle.type];
     float alive = particle.alive != 0u ? 1.0f : 0.0f;
-    float lifeRate = saturate(particle.currentTime / max(particle.lifeTime, 0.0001f));
-    float particleScale = lerp(particleType.startScale, particleType.endScale, lifeRate);
-    float4 particleColor = lerp(particleType.startColor, particleType.endColor, lifeRate);
+    float particleScale = max(particle.scale, 0.0f);
+    float4 particleColor = particle.color;
 
     float3 localPosition = float3(kPositions[vertexId] * particleScale, 0.0f);
     float3 billboardOffset = mul(float4(localPosition, 0.0f), gPerView.billboardMatrix).xyz;

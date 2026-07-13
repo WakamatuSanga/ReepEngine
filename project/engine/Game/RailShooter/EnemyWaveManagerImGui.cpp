@@ -53,6 +53,17 @@ void EnemyWaveManager::DrawImGui() {
     ImGui::TextWrapped("Wave State: %s", pendingNextWaveActive_ ? "Pending Next Wave" : (activeWaves_.empty() ? "Idle" : "Active"));
     ImGui::TextWrapped("Last Completed Wave ID: %s", lastCompletedWaveId_.c_str());
     ImGui::TextWrapped("Last Completed Reason: %s", lastCompletedReason_.c_str());
+    ImGui::TextWrapped("Last Started Wave ID: %s", lastStartedWaveId_.c_str());
+    ImGui::Text("Show Warning On Start: %s", lastStartedWaveShowWarning_ ? "true" : "false");
+    ImGui::TextWrapped("Wave Warning Text: %s", lastWaveWarningText_.c_str());
+    ImGui::Text("Wave Warning Duration: %.2f", lastWaveWarningDuration_);
+    ImGui::Text("Wave Start Warning Count: %zu", waveStartWarningCount_);
+    ImGui::Text("Waiting Start Warning: %s", pendingStartWarningActive_ ? "true" : "false");
+    ImGui::TextWrapped("Pending Start Wave ID: %s", pendingStartWarningActive_ ? pendingStartWaveId_.c_str() : "(none)");
+    ImGui::Text("Start Warning Time: %.2f / %.2f", pendingStartWarningActive_ ? (pendingStartWarningDuration_ + pendingStartPostDelay_ - pendingStartWarningTimer_) : 0.0f, pendingStartWarningDuration_ + pendingStartPostDelay_);
+    ImGui::Text("Post Warning Delay: %.2f", pendingStartPostDelay_);
+    ImGui::Text("Start Warning Countdown: %.2f", pendingStartWarningActive_ ? pendingStartWarningTimer_ : 0.0f);
+    ImGui::Text("Wait For Warning Before Spawn: %s", lastStartedWaveWaitForWarning_ ? "true" : "false");
     ImGui::TextWrapped("Next Wave ID: %s", pendingNextWaveActive_ ? pendingNextWaveId_.c_str() : "(none)");
     ImGui::Text("Next Wave Countdown: %.2f", pendingNextWaveActive_ ? pendingNextWaveTimer_ : 0.0f);
     ImGui::Text("Started Wave Count: %zu", startedWaveCount_);
@@ -130,4 +141,3 @@ void EnemyWaveManager::DrawImGui() {
     ImGui::End();
 #endif
 }
-

@@ -453,6 +453,8 @@ void LevelEventRuntime::FireFlag(LevelEventRuntimeFlagState& flag, const std::st
             action.actionDescription,
             action.postEffectType,
             action.waveId,
+            action.warningText,
+            action.warningDuration,
             });
         AddLog(
             "  ObjectAction target=" +

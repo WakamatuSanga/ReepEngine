@@ -7,6 +7,7 @@ class EnemyManager;
 class PlayerBulletManager;
 class CombatEffectController;
 class EnemyDefeatEffectController;
+class ImpactDistortionController;
 
 class PlayerBulletEnemyCollision {
 public:
@@ -19,6 +20,7 @@ public:
         CombatEffectController* combatEffectController);
     void Finalize();
     void SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller);
+    void SetImpactDistortionController(ImpactDistortionController* controller);
     void Update();
     void DrawImGui();
 
@@ -27,6 +29,7 @@ private:
     EnemyManager* enemyManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
     EnemyDefeatEffectController* enemyDefeatEffectController_ = nullptr;
+    ImpactDistortionController* impactDistortionController_ = nullptr;
     Vector3 lastHitPosition_{ 0.0f, 0.0f, 0.0f };
     float enemyHitRadiusForDebug_ = 0.6f;
     Vector3 enemyHitScaleForDebug_{ 1.6f, 1.0f, 1.0f };

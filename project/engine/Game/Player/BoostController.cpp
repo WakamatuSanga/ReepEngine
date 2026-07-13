@@ -157,6 +157,17 @@ float BoostController::GetCloudFlowMultiplier() const {
     return currentCloudFlowMultiplier_;
 }
 
+float BoostController::GetBoostGaugeRate() const {
+    if (state_ == State::Boosting) {
+        const float safeDuration = (std::max)(boostDuration_, 0.001f);
+        return 1.0f - Saturate(boostTimer_ / safeDuration);
+    }
+    if (state_ == State::Cooldown) {
+        const float safeCooldown = (std::max)(boostCooldown_, 0.001f);
+        return 1.0f - Saturate(boostCooldownTimer_ / safeCooldown);
+    }
+    return 1.0f;
+}
 float BoostController::GetVisualSpeedMultiplier() const {
     return 1.0f + (std::max)(0.0f, boostVisualSpeedMultiplier_ - 1.0f) * currentBoostPower_;
 }

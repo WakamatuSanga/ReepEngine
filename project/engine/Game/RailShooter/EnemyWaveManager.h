@@ -12,6 +12,7 @@ class Enemy;
 class EnemyLaserTelegraphController;
 class EnemyManager;
 class Player;
+class WarningUIController;
 struct FiredEventAction;
 
 class EnemyWaveManager {
@@ -26,6 +27,7 @@ public:
 
     void SetPlayer(const Player* player) { player_ = player; }
     void SetLaserTelegraphController(EnemyLaserTelegraphController* laserController) { laserController_ = laserController; }
+    void SetWarningUIController(WarningUIController* warningUIController) { warningUIController_ = warningUIController; }
     void SetCurrentBoostPower(float boostPower);
     void SetGameModeActive(bool isGameMode);
 
@@ -107,6 +109,11 @@ private:
     bool IsScreenAnchorMovePattern(const std::string& movePattern) const;
     bool IsLaserTelegraphAttackPattern(const std::string& attackPattern) const;
     bool RestartAutoStartWave(std::string& resultMessage);
+    bool QueueWaveStartWarning(size_t waveIndex, std::string& resultMessage);
+    bool StartWaveNow(size_t waveIndex, std::string& resultMessage, bool showStartWarning);
+    void NotifyWaveStartWarning(const EnemyWaveDefinition& wave);
+    void UpdatePendingStartWarning(float deltaTime);
+    void ClearPendingStartWarning();
     void UpdateWaveProgression(float deltaTime);
     void MarkWaveEnemyEnded(WaveEnemyRuntime& runtime, WaveEnemyEndReason reason);
     ActiveWave* FindActiveWave(size_t waveIndex);
@@ -120,6 +127,7 @@ private:
     const Camera* camera_ = nullptr;
     const Player* player_ = nullptr;
     EnemyLaserTelegraphController* laserController_ = nullptr;
+    WarningUIController* warningUIController_ = nullptr;
     std::vector<EnemyWaveDefinition> waves_;
     std::unordered_map<std::string, size_t> waveIndexById_;
     std::vector<ActiveWave> activeWaves_;
@@ -129,11 +137,19 @@ private:
     std::string lastResult_ = "(none)";
     std::string lastCompletedWaveId_ = "(none)";
     std::string lastCompletedReason_ = "(none)";
+    std::string lastStartedWaveId_ = "(none)";
+    std::string lastWaveWarningText_ = "(none)";
+    std::string pendingStartWaveId_;
     std::string pendingNextWaveId_;
     Vector3 lastSpawnPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 lastScreenAnchorPosition_{ 0.0f, 0.0f, 0.0f };
     float lastWaveElapsedTime_ = 0.0f;
     float pendingNextWaveTimer_ = 0.0f;
+    float lastWaveWarningDuration_ = 0.0f;
+    float pendingStartWarningTimer_ = 0.0f;
+    float pendingStartWarningDuration_ = 0.0f;
+    float pendingStartPostDelay_ = 0.0f;
+    size_t pendingStartWaveIndex_ = 0;
     size_t lastWaveSpawnedCount_ = 0;
     size_t lastWaveEnemyCount_ = 0;
     std::array<char, 64> manualWaveIdBuffer_{};
@@ -142,6 +158,9 @@ private:
     bool autoStartWaveOnGameMode_ = true;
     bool autoProgressEnabled_ = true;
     bool pendingNextWaveActive_ = false;
+    bool lastStartedWaveShowWarning_ = false;
+    bool lastStartedWaveWaitForWarning_ = false;
+    bool pendingStartWarningActive_ = false;
     bool gameModeWasActive_ = false;
     bool screenAnchorEnabled_ = true;
     std::string autoStartWaveId_ = "wave_001";
@@ -161,10 +180,10 @@ private:
     float currentBoostPower_ = 0.0f;
     Vector3 lastLockedApproachDirection_{ 0.0f, 0.0f, -1.0f };
     size_t startedWaveCount_ = 0;
+    size_t waveStartWarningCount_ = 0;
     size_t failedWaveCount_ = 0;
     size_t spawnedEnemyCount_ = 0;
     size_t lastGameModeAutoStartCount_ = 0;
     size_t despawnedOutOfCameraCount_ = 0;
     size_t screenAnchorEnemyCount_ = 0;
 };
-

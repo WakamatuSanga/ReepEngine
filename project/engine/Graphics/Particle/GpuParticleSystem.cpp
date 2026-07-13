@@ -192,6 +192,14 @@ void GpuParticleSystem::SetRailParticleFlow(bool enabled, const Vector3& cameraP
 	state_.railDespawnBehindDistance = (std::max)(despawnBehindDistance, 0.0f);
 }
 
+void GpuParticleSystem::SetChargeGather(bool enabled, const Vector3& targetPosition, float chargeRate, float strengthScale, float swirlScale, float brightnessScale) {
+	state_.enableChargeGather = enabled;
+	state_.chargeGatherTargetPosition = targetPosition;
+	state_.chargeGatherRate = std::clamp(chargeRate, 0.0f, 1.0f);
+	state_.chargeGatherStrengthScale = std::clamp(strengthScale, 0.0f, 10.0f);
+	state_.chargeGatherSwirlScale = std::clamp(swirlScale, 0.0f, 10.0f);
+	state_.chargeGatherBrightnessScale = std::clamp(brightnessScale, 0.0f, 10.0f);
+}
 void GpuParticleSystem::SetRuntimePoolOptions(bool generateUnusedList, bool useDeadList, bool autoReuseDeadParticles) {
 	const bool listModeChanged = state_.useFreeListEmit != generateUnusedList || state_.useDeadList != useDeadList;
 	state_.useFreeListEmit = generateUnusedList;

@@ -12,6 +12,8 @@
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -23,9 +25,12 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -36,6 +41,8 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
@@ -189,6 +196,12 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     if (scene_->player_) {
         scene_->player_->DrawImGui();
     }
+    if (scene_->playerDamageFeedbackController_) {
+        scene_->playerDamageFeedbackController_->DrawImGui();
+    }
+    if (scene_->playerHudController_) {
+        scene_->playerHudController_->DrawImGui();
+    }
     if (scene_->boostController_) {
         scene_->boostController_->DrawImGui();
     }
@@ -213,6 +226,12 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     if (scene_->playerBulletManager_) {
         scene_->playerBulletManager_->DrawImGui();
     }
+    if (scene_->playerChargeFeedbackController_) {
+        scene_->playerChargeFeedbackController_->DrawImGui();
+    }
+    if (scene_->playerChargeGatherEffectController_) {
+        scene_->playerChargeGatherEffectController_->DrawImGui();
+    }
     if (scene_->enemyManager_) {
         scene_->enemyManager_->DrawImGui();
     }
@@ -230,6 +249,12 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->combatEffectController_) {
         scene_->combatEffectController_->DrawImGui();
+    }
+    if (scene_->combatSlowMotionController_) {
+        scene_->combatSlowMotionController_->DrawImGui();
+    }
+    if (scene_->impactDistortionController_) {
+        scene_->impactDistortionController_->DrawImGui();
     }
     if (scene_->playerDeathSequenceController_) {
         scene_->playerDeathSequenceController_->DrawImGui();
@@ -281,6 +306,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->postEffectController_) {
         scene_->postEffectController_->DrawImGui();
+    }
+    if (scene_->warningUIController_) {
+        scene_->warningUIController_->DrawImGui();
     }
     if (scene_->levelSceneRuntime_) {
         scene_->levelSceneRuntime_->DrawImGui();

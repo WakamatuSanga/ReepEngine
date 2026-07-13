@@ -13,6 +13,8 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/CombatSlowMotionController.h"
+#include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyAttackController.h"
@@ -25,9 +27,12 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
+#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -38,6 +43,8 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/UI/PlayerHudController.h"
+#include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -390,10 +397,22 @@ void GameScene::InitializeSceneResources() {
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
+    playerChargeFeedbackController_ = std::make_unique<PlayerChargeFeedbackController>();
+    playerChargeFeedbackController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get(), player_.get(), playerBulletManager_.get());
+    playerChargeGatherEffectController_ = std::make_unique<PlayerChargeGatherEffectController>();
+    playerChargeGatherEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get(), player_.get(), playerBulletManager_.get());
     gpuParticleEffectPlayer_ = std::make_unique<GpuParticleEffectPlayer>();
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
+    playerDamageFeedbackController_ = std::make_unique<PlayerDamageFeedbackController>();
+    playerDamageFeedbackController_->Initialize(spriteCommon, player_.get(), combatEffectController_.get());
+    playerHudController_ = std::make_unique<PlayerHudController>();
+    playerHudController_->Initialize(spriteCommon, playerDamageFeedbackController_.get(), playerBulletManager_.get(), boostController_.get());
+    combatSlowMotionController_ = std::make_unique<CombatSlowMotionController>();
+    combatSlowMotionController_->Initialize();
+    impactDistortionController_ = std::make_unique<ImpactDistortionController>();
+    impactDistortionController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get());
     enemyDefeatEffectController_ = std::make_unique<EnemyDefeatEffectController>();
     enemyDefeatEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
@@ -412,10 +431,13 @@ void GameScene::InitializeSceneResources() {
     enemyLaserTelegraphController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
     player_->SetBarrelRollDependencies(enemyBulletManager_.get(), combatEffectController_.get());
     player_->SetBarrelRollEffectControllers(playerBarrelRollRingController_.get(), playerBulletCancelEffectController_.get());
+    player_->SetBarrelRollSlowMotionController(combatSlowMotionController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
     postEffectController_ = std::make_unique<PostEffectController>();
     postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
+    warningUIController_ = std::make_unique<WarningUIController>();
+    warningUIController_->Initialize(spriteCommon);
     if (boostController_) {
         boostController_->SetPostEffectContext(player_.get(), camera_.get(), postEffectController_.get());
     }
@@ -428,9 +450,13 @@ void GameScene::InitializeSceneResources() {
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerBulletEnemyCollision_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
+    playerBulletEnemyCollision_->SetImpactDistortionController(impactDistortionController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
+    playerEnemyBulletCollision_->SetSlowMotionController(combatSlowMotionController_.get());
+    playerEnemyBulletCollision_->SetImpactDistortionController(impactDistortionController_.get());
+    playerEnemyBulletCollision_->SetDamageFeedbackController(playerDamageFeedbackController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
     gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
     playerRailController_ = std::make_unique<PlayerRailController>();
@@ -448,6 +474,7 @@ void GameScene::InitializeSceneResources() {
     enemyWaveManager_->Initialize(enemyManager_.get(), camera_.get());
     enemyWaveManager_->SetPlayer(player_.get());
     enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
+    enemyWaveManager_->SetWarningUIController(warningUIController_.get());
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -460,7 +487,8 @@ void GameScene::InitializeSceneResources() {
         enemyWaveManager_.get(),
         postEffectActionBridge_.get(),
         primitiveEffectSystem_.get(),
-        levelSceneRuntime_.get());
+        levelSceneRuntime_.get(),
+        warningUIController_.get());
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
@@ -621,4 +649,3 @@ void GameScene::InitializeSceneResources() {
     skinningEditor_->SelectTargetByLabel("walk.gltf");
     skinningEditor_->SetStatusMessage(skinningLoadStatus);
 }
-

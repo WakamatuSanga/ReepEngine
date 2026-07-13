@@ -23,6 +23,8 @@ struct FiredEventAction {
     std::string actionDescription;
     std::string postEffectType;
     std::string waveId;
+    std::string warningText;
+    float warningDuration = 0.0f;
 };
 
 enum class LevelEventTriggerSource {

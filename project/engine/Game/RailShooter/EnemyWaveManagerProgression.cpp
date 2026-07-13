@@ -1,6 +1,140 @@
 #include "EnemyWaveManager.h"
+#include "Engine/Game/UI/WarningUIController.h"
 
 #include <algorithm>
+#include <utility>
+
+void EnemyWaveManager::NotifyWaveStartWarning(const EnemyWaveDefinition& wave) {
+    lastStartedWaveId_ = wave.waveId.empty() ? "(none)" : wave.waveId;
+    lastStartedWaveShowWarning_ = wave.showWarningOnStart;
+    lastStartedWaveWaitForWarning_ = wave.waitForWarningBeforeSpawn;
+    lastWaveWarningText_ = wave.warningText.empty() ? "WARNING" : wave.warningText;
+    lastWaveWarningDuration_ = wave.warningDuration > 0.0f ? wave.warningDuration : 1.5f;
+
+    if (!wave.showWarningOnStart) {
+        return;
+    }
+    if (!warningUIController_) {
+        AddLog("Wave start WARNING skipped: WarningUIController missing wave=" + lastStartedWaveId_);
+        return;
+    }
+
+    warningUIController_->ShowWarning(
+        lastWaveWarningText_,
+        lastWaveWarningDuration_,
+        "EnemyWave:" + lastStartedWaveId_);
+    ++waveStartWarningCount_;
+    AddLog(
+        "Wave start WARNING shown: wave=" + lastStartedWaveId_ +
+        " text=" + lastWaveWarningText_ +
+        " duration=" + std::to_string(lastWaveWarningDuration_));
+}
+
+bool EnemyWaveManager::QueueWaveStartWarning(size_t waveIndex, std::string& resultMessage) {
+    if (waveIndex >= waves_.size()) {
+        resultMessage = "Invalid pending warning wave index.";
+        lastResult_ = resultMessage;
+        ++failedWaveCount_;
+        AddLog("SpawnWave failed: " + resultMessage);
+        return false;
+    }
+
+    const EnemyWaveDefinition& wave = waves_[waveIndex];
+    if (pendingStartWarningActive_ && pendingStartWaveId_ == wave.waveId) {
+        resultMessage = "Wave already waiting for start WARNING: " + wave.waveId;
+        lastResult_ = resultMessage;
+        AddLog(resultMessage);
+        return true;
+    }
+    if (pendingStartWarningActive_) {
+        AddLog("Replaced pending start WARNING wave=" + pendingStartWaveId_ + " with wave=" + wave.waveId);
+        ClearPendingStartWarning();
+    }
+
+    pendingStartWarningActive_ = true;
+    pendingStartWaveIndex_ = waveIndex;
+    pendingStartWaveId_ = wave.waveId;
+    pendingStartWarningDuration_ = wave.warningDuration > 0.0f ? wave.warningDuration : 1.5f;
+    pendingStartPostDelay_ = (std::max)(0.0f, wave.postWarningDelay);
+    pendingStartWarningTimer_ = pendingStartWarningDuration_ + pendingStartPostDelay_;
+    lastWaveElapsedTime_ = 0.0f;
+    lastWaveSpawnedCount_ = 0;
+    lastWaveEnemyCount_ = wave.enemies.size();
+
+    NotifyWaveStartWarning(wave);
+    resultMessage =
+        "Queued wave start WARNING " + wave.waveId +
+        " warningDuration=" + std::to_string(pendingStartWarningDuration_) +
+        " postDelay=" + std::to_string(pendingStartPostDelay_);
+    lastResult_ = resultMessage;
+    AddLog(resultMessage);
+    return true;
+}
+
+bool EnemyWaveManager::StartWaveNow(size_t waveIndex, std::string& resultMessage, bool showStartWarning) {
+    if (!enemyManager_) {
+        resultMessage = "EnemyManager is missing.";
+        lastResult_ = resultMessage;
+        ++failedWaveCount_;
+        AddLog("SpawnWave failed: " + resultMessage);
+        return false;
+    }
+    if (waveIndex >= waves_.size()) {
+        resultMessage = "Loaded wave index is invalid.";
+        lastResult_ = resultMessage;
+        ++failedWaveCount_;
+        AddLog("SpawnWave failed: " + resultMessage);
+        return false;
+    }
+
+    const EnemyWaveDefinition& wave = waves_[waveIndex];
+    lastWaveId_ = wave.waveId.empty() ? "(none)" : wave.waveId;
+    lastWaveElapsedTime_ = 0.0f;
+    lastWaveSpawnedCount_ = 0;
+    lastWaveEnemyCount_ = wave.enemies.size();
+
+    ActiveWave activeWave;
+    activeWave.waveIndex = waveIndex;
+    activeWave.elapsedTime = -std::max(0.0f, wave.delay);
+    activeWave.spawned.assign(wave.enemies.size(), false);
+    activeWaves_.push_back(std::move(activeWave));
+
+    ++startedWaveCount_;
+    resultMessage = "Started wave " + wave.waveId + " enemies=" + std::to_string(wave.enemies.size());
+    lastResult_ = resultMessage;
+    AddLog(resultMessage);
+    if (showStartWarning) {
+        NotifyWaveStartWarning(wave);
+    }
+    return true;
+}
+
+void EnemyWaveManager::UpdatePendingStartWarning(float deltaTime) {
+    if (!pendingStartWarningActive_) {
+        return;
+    }
+
+    pendingStartWarningTimer_ -= (std::max)(0.0f, deltaTime);
+    if (pendingStartWarningTimer_ > 0.0f) {
+        return;
+    }
+
+    const size_t waveIndex = pendingStartWaveIndex_;
+    ClearPendingStartWarning();
+
+    std::string result;
+    StartWaveNow(waveIndex, result, false);
+    lastResult_ = result;
+}
+
+void EnemyWaveManager::ClearPendingStartWarning() {
+    pendingStartWarningActive_ = false;
+    pendingStartWaveId_.clear();
+    pendingStartWaveIndex_ = 0;
+    pendingStartWarningTimer_ = 0.0f;
+    pendingStartWarningDuration_ = 0.0f;
+    pendingStartPostDelay_ = 0.0f;
+}
 
 void EnemyWaveManager::UpdateWaveProgression(float deltaTime) {
     if (!autoProgressEnabled_) {
@@ -94,6 +228,9 @@ EnemyWaveManager::ActiveWave* EnemyWaveManager::FindActiveWave(size_t waveIndex)
 }
 
 bool EnemyWaveManager::IsWaveCurrentlyActive(const std::string& waveId) const {
+    if (pendingStartWarningActive_ && pendingStartWaveId_ == waveId) {
+        return true;
+    }
     const auto found = waveIndexById_.find(waveId);
     if (found == waveIndexById_.end()) {
         return false;
