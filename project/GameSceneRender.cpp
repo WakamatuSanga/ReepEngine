@@ -21,6 +21,8 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
+#include "Engine/Game/Targeting/AimCorridorTargetingController.h"
+#include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -191,6 +193,12 @@ void GameScene::DrawSceneRender() {
 
     if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
         impactDistortionController_->Draw();
+    }
+    if (aimCorridorVisualController_) {
+        aimCorridorVisualController_->Draw();
+    }
+    if (aimCorridorTargetingController_) {
+        aimCorridorTargetingController_->Draw();
     }
 
     spriteCommon->CommonDrawSetting();

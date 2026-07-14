@@ -10,6 +10,13 @@ class Enemy;
 class Object3dCommon;
 class Player;
 
+struct EnemyTargetView {
+    std::string runtimeId;
+    std::string enemyType;
+    Vector3 worldPosition{};
+    float worldRadius = 0.0f;
+};
+
 class EnemyManager {
 public:
     EnemyManager();
@@ -31,6 +38,7 @@ public:
     size_t GetActiveCount() const;
     std::vector<Vector3> GetActiveEnemyPositions() const;
     std::vector<Enemy*> GetActiveEnemies() const;
+    void CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const;
     void SetDefaultHitRadius(float hitRadius);
     void SetDefaultHitScale(const Vector3& hitScale);
     void SetUseEllipsoidHitShape(bool enabled);

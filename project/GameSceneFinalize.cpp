@@ -41,6 +41,8 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/Targeting/AimCorridorTargetingController.h"
+#include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -135,6 +137,14 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
+    if (aimCorridorTargetingController_) {
+        aimCorridorTargetingController_->Finalize();
+    }
+    aimCorridorTargetingController_.reset();
+    if (aimCorridorVisualController_) {
+        aimCorridorVisualController_->Finalize();
+    }
+    aimCorridorVisualController_.reset();
     if (playerHudController_) {
         playerHudController_->Finalize();
     }
