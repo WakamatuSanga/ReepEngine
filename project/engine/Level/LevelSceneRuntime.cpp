@@ -240,6 +240,9 @@ void LevelSceneRuntime::DrawImGui() {
     ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("レベルエディタ確認 (Level Editor Debug)")) {
         ImGui::End();
+        if (railRuntime_) {
+            railRuntime_->DrawRuntimeV2ImGui();
+        }
         return;
     }
 
@@ -350,6 +353,9 @@ void LevelSceneRuntime::DrawImGui() {
     }
 
     ImGui::End();
+    if (railRuntime_) {
+        railRuntime_->DrawRuntimeV2ImGui();
+    }
 #endif
 }
 

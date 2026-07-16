@@ -195,6 +195,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ArcLength.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp" />
@@ -230,6 +235,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelRailEvaluator.cpp" />
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp" />
+    <ClCompile Include="engine\Level\LevelRailRuntimeV2Panel.cpp" />
     <ClCompile Include="engine\Level\LevelSceneData.cpp" />
     <ClCompile Include="engine\Level\LevelSceneLoader.cpp" />
     <ClCompile Include="engine\Level\LevelSceneRuntime.cpp" />
@@ -380,6 +386,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h" />

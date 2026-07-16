@@ -11,6 +11,7 @@ class Camera;
 class Model;
 class Object3d;
 class Object3dCommon;
+class RailPathRuntimeV2;
 struct LevelRailRuntimeRail;
 struct LevelSceneData;
 
@@ -49,6 +50,8 @@ public:
     void Draw(uint64_t frameCounter);
     bool DrawImGui();
     void SetExternalDebugActorHidden(bool hidden);
+    void DrawRuntimeV2ImGui();
+    const RailPathRuntimeV2* GetRailPathRuntimeV2() const;
 
     LevelRailEvaluation EvaluateByT(const std::string& railId, float t) const;
     LevelRailEvaluation EvaluateByDistance(const std::string& railId, float distance) const;
@@ -65,12 +68,14 @@ private:
     void UpdateDebugActorVisual(uint64_t frameCounter);
     void EnsureDebugActorVisual();
     void ResetRailActor();
+    void RebuildRuntimeV2Preview();
 
     std::vector<std::unique_ptr<LevelRailRuntimeRail>> rails_;
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
     std::unique_ptr<Object3d> actorObject_;
     std::unique_ptr<Object3d> forwardObject_;
+    std::unique_ptr<RailPathRuntimeV2> railPathRuntimeV2_;
     Model* actorModel_ = nullptr;
     Model* forwardModel_ = nullptr;
     LevelRailEvaluation currentEvaluation_;

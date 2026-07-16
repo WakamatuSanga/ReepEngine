@@ -432,6 +432,21 @@
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ArcLength.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
@@ -496,6 +511,9 @@
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\LevelRailRuntimeV2Panel.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelSceneData.cpp">
@@ -856,6 +874,12 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>

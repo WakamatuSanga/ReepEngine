@@ -1,4 +1,6 @@
 ﻿#include "LevelRailRuntime.h"
+#include "Engine/Game/RailShooter/RailPathRuntimeV2.h"
+#include "Engine/Game/RailShooter/RailPathRuntimeV2Adapter.h"
 #include "LevelSceneData.h"
 #include "LevelTransformConverter.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -177,10 +179,15 @@ void LevelRailRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camera
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     EnsureDebugActorVisual();
+    railPathRuntimeV2_ = std::make_unique<RailPathRuntimeV2>();
+    railPathRuntimeV2_->InitializeDebug(object3dCommon_, camera_);
 }
 
 void LevelRailRuntime::Clear() {
     rails_.clear();
+    if (railPathRuntimeV2_) {
+        railPathRuntimeV2_->Clear();
+    }
     currentEvaluation_ = {};
     selectedRailIndex_ = 0;
     previousSelectedRailIndex_ = -1;
@@ -228,6 +235,7 @@ void LevelRailRuntime::Rebuild(const LevelSceneData& sceneData, bool axisConvers
     previousSelectedRailIndex_ = -1;
     SyncSelectionDefaults();
     UpdateCurrentEvaluation();
+    RebuildRuntimeV2Preview();
 }
 
 void LevelRailRuntime::Update(float deltaTime, uint64_t frameCounter) {
@@ -260,6 +268,9 @@ void LevelRailRuntime::Update(float deltaTime, uint64_t frameCounter) {
 }
 
 void LevelRailRuntime::Draw(uint64_t frameCounter) {
+    if (railPathRuntimeV2_) {
+        railPathRuntimeV2_->DrawDebug();
+    }
     if (!runtimeEnabled_ || !showDebugRailActor_ || externalHideDebugActor_ || !object3dCommon_ || !currentEvaluation_.valid) {
         return;
     }
@@ -282,6 +293,9 @@ void LevelRailRuntime::Draw(uint64_t frameCounter) {
 
 void LevelRailRuntime::SetExternalDebugActorHidden(bool hidden) {
     externalHideDebugActor_ = hidden;
+    if (railPathRuntimeV2_) {
+        railPathRuntimeV2_->SetExternalDebugHidden(hidden);
+    }
 }
 
 bool LevelRailRuntime::DrawImGui() {
@@ -335,6 +349,7 @@ bool LevelRailRuntime::DrawImGui() {
                 previousSelectedRailIndex_ = -1;
                 SyncSelectionDefaults();
                 UpdateCurrentEvaluation();
+                RebuildRuntimeV2Preview();
             }
             if (selected) {
                 ImGui::SetItemDefaultFocus();
@@ -498,6 +513,14 @@ void LevelRailRuntime::SyncSelectionDefaults() {
         railT_ = 0.0f;
     }
     previousSelectedRailIndex_ = selectedRailIndex_;
+}
+
+void LevelRailRuntime::RebuildRuntimeV2Preview() {
+    if (!railPathRuntimeV2_) return;
+    const LevelRailRuntimeRail* rail = GetSelectedRail();
+    if (!rail) { railPathRuntimeV2_->Clear(); return; }
+    RailPathRuntimeV2Adapter::BuildFromWaypointPositions(*railPathRuntimeV2_, rail->points, rail->sampleTable,
+        "Waypoint位置をコピー（軸変換・反転適用後）");
 }
 
 void LevelRailRuntime::UpdateCurrentEvaluation() {
