@@ -9,6 +9,8 @@
 #include <vector>
 
 class GltfSkinnedModel;
+class AimCorridorTargetingController;
+class AimCorridorVisualController;
 class BlenderLiveSync;
 class BoostController;
 class Camera;
@@ -99,6 +101,8 @@ private:
     std::unique_ptr<Player> player_;
     std::unique_ptr<PlayerDamageFeedbackController> playerDamageFeedbackController_;
     std::unique_ptr<PlayerHudController> playerHudController_;
+    std::unique_ptr<AimCorridorVisualController> aimCorridorVisualController_;
+    std::unique_ptr<AimCorridorTargetingController> aimCorridorTargetingController_;
     std::unique_ptr<BoostController> boostController_;
     std::unique_ptr<PlayerJetExhaustController> playerJetExhaustController_;
     std::unique_ptr<PlayerSonicBoostRingController> playerSonicBoostRingController_;

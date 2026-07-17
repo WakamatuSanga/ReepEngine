@@ -291,6 +291,36 @@
     <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingControllerImGui.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingProjection.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerBaseOffset.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerImGui.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerPresentation.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp">
       <Filter>ソース ファイル\engine\Game\DebugGui</Filter>
     </ClCompile>
@@ -402,6 +432,21 @@
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ArcLength.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
@@ -468,6 +513,9 @@
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Level\LevelRailRuntimeV2Panel.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Level\LevelSceneData.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
@@ -475,6 +523,15 @@
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelSceneRuntime.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerification.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationImGui.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationRenderer.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
     <ClCompile Include="engine\Level\LevelTransformConverter.cpp">
@@ -716,6 +773,18 @@
     <ClInclude Include="engine\Game\UI\PlayerHudController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Targeting\AimCorridorTargetingController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\AimCorridorVisualController.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\AimCorridorVisualRenderer.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h">
       <Filter>ヘッダー ファイル\engine\Game\DebugGui</Filter>
     </ClInclude>
@@ -815,6 +884,12 @@
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
@@ -885,6 +960,12 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelSceneRuntime.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerification.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerificationRenderer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelTransformConverter.h">
@@ -963,6 +1044,12 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="resources\shaders\AimCorridor.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\AimCorridor.VS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </FxCompile>
     <FxCompile Include="resources\shaders\GaussianBlurX.PS.hlsl">
       <Filter>リソース ファイル</Filter>
     </FxCompile>

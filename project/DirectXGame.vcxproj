@@ -195,6 +195,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ArcLength.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp" />
@@ -206,6 +211,16 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\RailShooter\PostEffectActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailShooterEventActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\StartupEnemySpawnController.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingController.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingControllerImGui.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingProjection.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp" />
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualController.cpp" />
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerBaseOffset.cpp" />
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerImGui.cpp" />
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerPresentation.cpp" />
+    <ClCompile Include="engine\Game\UI\AimCorridorVisualRenderer.cpp" />
     <ClCompile Include="engine\Game\UI\WarningUIController.cpp" />
     <ClCompile Include="engine\Game\UI\PlayerHudController.cpp" />
     <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp" />
@@ -220,9 +235,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Level\LevelRailDebugVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelRailEvaluator.cpp" />
     <ClCompile Include="engine\Level\LevelRailRuntime.cpp" />
+    <ClCompile Include="engine\Level\LevelRailRuntimeV2Panel.cpp" />
     <ClCompile Include="engine\Level\LevelSceneData.cpp" />
     <ClCompile Include="engine\Level\LevelSceneLoader.cpp" />
     <ClCompile Include="engine\Level\LevelSceneRuntime.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerification.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationImGui.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationRenderer.cpp" />
     <ClCompile Include="engine\Level\LevelTransformConverter.cpp" />
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudVolume.cpp" />
@@ -370,6 +389,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
+    <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h" />
@@ -379,6 +400,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\RailShooter\PostEffectActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\RailShooterEventActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h" />
+    <ClInclude Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.h" />
+    <ClInclude Include="engine\Game\Targeting\AimCorridorTargetingController.h" />
+    <ClInclude Include="engine\Game\UI\AimCorridorVisualController.h" />
+    <ClInclude Include="engine\Game\UI\AimCorridorVisualRenderer.h" />
     <ClInclude Include="engine\Game\UI\WarningUIController.h" />
     <ClInclude Include="engine\Game\UI\PlayerHudController.h" />
     <ClInclude Include="engine\Level\LevelEventConnectionVisualizer.h" />
@@ -396,6 +421,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Level\LevelSceneData.h" />
     <ClInclude Include="engine\Level\LevelSceneLoader.h" />
     <ClInclude Include="engine\Level\LevelSceneRuntime.h" />
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerification.h" />
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerificationRenderer.h" />
     <ClInclude Include="engine\Level\LevelTransformConverter.h" />
     <ClInclude Include="engine\Graphics\Camera\Camera.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudVolume.h" />
@@ -466,6 +493,16 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="resources\shaders\AimCorridor.PS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\AimCorridor.VS.hlsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="resources\shaders\GaussianBlurX.PS.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

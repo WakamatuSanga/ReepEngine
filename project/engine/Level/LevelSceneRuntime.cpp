@@ -1,5 +1,6 @@
 ﻿#include "LevelSceneRuntime.h"
 #include "LevelEventConnectionVisualizer.h"
+#include "BlenderRailPipelineVerification.h"
 #include "LevelEventDebugView.h"
 #include "LevelEventLabelVisualizer.h"
 #include "LevelEventObjectActionVisualizer.h"
@@ -169,6 +170,8 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     eventRuntime_ = std::make_unique<LevelEventRuntime>();
     railDebugVisualizer_ = std::make_unique<LevelRailDebugVisualizer>();
     railRuntime_ = std::make_unique<LevelRailRuntime>();
+    blenderRailVerification_ = std::make_unique<BlenderRailPipelineVerification>();
+    blenderRailVerification_->Initialize(object3dCommon, camera);
     objectDebugVisualizer_->Initialize(object3dCommon, camera);
     eventVisualizer_->Initialize(object3dCommon, camera);
     connectionVisualizer_->Initialize(object3dCommon, camera);
@@ -229,6 +232,9 @@ void LevelSceneRuntime::Draw() {
         railRuntime_->SetExternalDebugActorHidden(hideRailDebug || gameplayPreviewMode_);
         railRuntime_->Draw(frameCounter_);
     }
+    if (blenderRailVerification_) {
+        blenderRailVerification_->Draw();
+    }
 }
 
 void LevelSceneRuntime::DrawImGui() {
@@ -240,6 +246,12 @@ void LevelSceneRuntime::DrawImGui() {
     ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("レベルエディタ確認 (Level Editor Debug)")) {
         ImGui::End();
+        if (railRuntime_) {
+            railRuntime_->DrawRuntimeV2ImGui();
+        }
+        if (blenderRailVerification_ && railRuntime_) {
+            blenderRailVerification_->DrawImGui(sceneData_, *railRuntime_, axisConversionEnabled_);
+        }
         return;
     }
 
@@ -350,6 +362,12 @@ void LevelSceneRuntime::DrawImGui() {
     }
 
     ImGui::End();
+    if (railRuntime_) {
+        railRuntime_->DrawRuntimeV2ImGui();
+    }
+    if (blenderRailVerification_ && railRuntime_) {
+        blenderRailVerification_->DrawImGui(sceneData_, *railRuntime_, axisConversionEnabled_);
+    }
 #endif
 }
 
@@ -389,9 +407,27 @@ void LevelSceneRuntime::ApplySceneData(
     RequestRebuild(sourceName.find("UDP") != std::string::npos ? "LiveSync" : sourceName);
 }
 
-void LevelSceneRuntime::SetLiveSyncDiagnostics(bool autoApplyEnabled, uint64_t lastPacketApplied) {
+void LevelSceneRuntime::SetLiveSyncDiagnostics(
+    bool autoApplyEnabled,
+    uint64_t lastPacketApplied,
+    bool receiverRunning,
+    uint64_t receivedPacketCount,
+    const std::string& lastReceiveTime,
+    const std::string& lastApplyStatus,
+    const std::string& lastError) {
     liveAutoApplyEnabled_ = autoApplyEnabled;
     lastPacketApplied_ = lastPacketApplied;
+    if (blenderRailVerification_) {
+        BlenderRailLiveSyncDiagnostics diagnostics;
+        diagnostics.receiverRunning = receiverRunning;
+        diagnostics.autoApplyEnabled = autoApplyEnabled;
+        diagnostics.receivedPacketCount = receivedPacketCount;
+        diagnostics.appliedPacketCount = lastPacketApplied;
+        diagnostics.lastReceiveTime = lastReceiveTime;
+        diagnostics.lastApplyStatus = lastApplyStatus;
+        diagnostics.lastError = lastError;
+        blenderRailVerification_->SetLiveSyncDiagnostics(diagnostics);
+    }
 }
 
 bool LevelSceneRuntime::TryFindObjectWorldPosition(
@@ -428,6 +464,9 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
     lastLoadStatus_ = result.message;
     lastResolvedPath_ = result.resolvedPath;
     selectedObjectIndex_ = -1;
+    if (blenderRailVerification_) {
+        blenderRailVerification_->SetStageJsonDiagnostics(jsonPath_, result.resolvedPath, result.message, result.success);
+    }
 
     if (result.success) {
         RequestRebuild("LoadJson");
@@ -455,6 +494,9 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
         }
         if (railRuntime_) {
             railRuntime_->Clear();
+        }
+        if (blenderRailVerification_) {
+            blenderRailVerification_->Clear();
         }
         engineCameraStart_ = {};
         hasEngineCameraStart_ = false;
@@ -497,6 +539,9 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     }
     if (railRuntime_) {
         railRuntime_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);
+    }
+    if (blenderRailVerification_ && railRuntime_) {
+        blenderRailVerification_->OnStageRebuilt(sceneData_, *railRuntime_, axisConversionEnabled_, lastApplySource_);
     }
     if (eventVisualizer_) {
         eventVisualizer_->Rebuild(sceneData_, axisConversionEnabled_, frameCounter_);

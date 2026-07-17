@@ -6,6 +6,11 @@ from .add_filename import MYADDON_OT_add_filename
 from .add_collider import MYADDON_OT_add_collider
 from .add_event_flag import MYADDON_OT_add_event_flag_properties
 from .live_sync import MYADDON_OT_send_live_sync
+from .rail_auto_generator import (
+    MYADDON_OT_generate_auto_rail,
+    MYADDON_OT_regenerate_selected_auto_rail,
+    MYADDON_OT_reset_auto_rail_settings,
+)
 
 
 class TOPBAR_MT_my_menu(bpy.types.Menu):
@@ -23,6 +28,20 @@ class TOPBAR_MT_my_menu(bpy.types.Menu):
         layout.operator(MYADDON_OT_add_filename.bl_idname, icon='FILE')
         layout.operator(MYADDON_OT_add_collider.bl_idname, icon='MESH_CUBE')
         layout.operator(MYADDON_OT_add_event_flag_properties.bl_idname, icon='BOOKMARKS')
+        layout.separator()
+        layout.label(text="レール自動生成")
+        layout.operator(
+            MYADDON_OT_generate_auto_rail.bl_idname,
+            text="新規レールを自動生成",
+            icon='CURVE_DATA')
+        layout.operator(
+            MYADDON_OT_regenerate_selected_auto_rail.bl_idname,
+            text="選択レールを再生成",
+            icon='FILE_REFRESH')
+        layout.operator(
+            MYADDON_OT_reset_auto_rail_settings.bl_idname,
+            text="レール生成設定をリセット",
+            icon='LOOP_BACK')
         layout.separator()
         layout.label(text="ステージエディタ")
         layout.operator("myaddon.create_or_switch_stage_editor_workspace", text="ステージエディタ ワークスペースを開く")

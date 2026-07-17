@@ -320,6 +320,32 @@ std::vector<Enemy*> EnemyManager::GetActiveEnemies() const {
     return activeEnemies;
 }
 
+void EnemyManager::CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const {
+    outTargets.clear();
+    outTargets.reserve(enemies_.size());
+    for (const std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (!enemy || !enemy->CanAttack()) {
+            continue;
+        }
+        const std::string& enemyType = enemy->GetEnemyType();
+        if (enemyType == "Debug" || enemyType == "debug") {
+            continue;
+        }
+        const Vector3& position = enemy->GetPosition();
+        if (!std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z)) {
+            continue;
+        }
+        float radiusScale = 1.0f;
+        if (enemy->IsUsingEllipsoidHitShape()) {
+            const Vector3& hitScale = enemy->GetHitScale();
+            radiusScale = (std::max)({ std::abs(hitScale.x), std::abs(hitScale.y), std::abs(hitScale.z) });
+        }
+        const float worldRadius = enemy->GetHitRadius() * radiusScale;
+        outTargets.push_back({ enemy->GetEnemyId(), enemyType, position,
+            std::isfinite(worldRadius) && worldRadius > 0.0f ? worldRadius : 0.0f });
+    }
+}
+
 void EnemyManager::SetDefaultHitRadius(float hitRadius) {
     defaultHitRadius_ = (std::max)(0.001f, hitRadius);
 }

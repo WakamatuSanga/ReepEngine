@@ -52,6 +52,9 @@ public:
     BaseMode GetBaseMode() const { return baseMode_; }
     const Vector3& GetBasePosition() const { return basePosition_; }
     const Vector3& GetWorldPosition() const { return worldPosition_; }
+    Vector2 GetMoveInput() const {
+        return lastInputApplied_ ? Vector2{ lastRawMoveInput_.x, lastRawMoveInput_.y } : Vector2{};
+    }
     const Vector3& GetBaseForward() const { return baseForward_; }
     const Vector3& GetVisualModelRotation() const { return visualFinalRotation_; }
     float GetEventTriggerRadius() const { return eventTriggerRadius_; }
