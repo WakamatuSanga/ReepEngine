@@ -525,6 +525,15 @@
     <ClCompile Include="engine\Level\LevelSceneRuntime.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerification.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationImGui.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationRenderer.cpp">
+      <Filter>ソース ファイル\engine\Level</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Level\LevelTransformConverter.cpp">
       <Filter>ソース ファイル\engine\Level</Filter>
     </ClCompile>
@@ -951,6 +960,12 @@
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelSceneRuntime.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerification.h">
+      <Filter>ヘッダー ファイル\engine\Level</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerificationRenderer.h">
       <Filter>ヘッダー ファイル\engine\Level</Filter>
     </ClInclude>
     <ClInclude Include="engine\Level\LevelTransformConverter.h">

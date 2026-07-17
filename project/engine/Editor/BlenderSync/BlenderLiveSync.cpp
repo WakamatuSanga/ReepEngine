@@ -28,6 +28,7 @@ void BlenderLiveSync::Initialize(LevelSceneRuntime* levelSceneRuntime) {
     CopyPathToBuffer(blendFilePathBuffer_, launcher_->GetBlendFilePath());
     CopyPathToBuffer(startupScriptPathBuffer_, launcher_->GetStartupScriptPath());
     lastApplyStatus_ = "受信停止中です。 (Receiver stopped.)";
+    PublishDiagnostics();
 }
 
 void BlenderLiveSync::Update() {
@@ -36,6 +37,7 @@ void BlenderLiveSync::Update() {
     }
 
     receiver_->Update();
+    PublishDiagnostics();
     if (!receiver_->HasUnreadPacket()) {
         return;
     }
@@ -46,9 +48,7 @@ void BlenderLiveSync::Update() {
     if (autoApply_) {
         ApplyPendingScene();
     }
-    if (levelSceneRuntime_) {
-        levelSceneRuntime_->SetLiveSyncDiagnostics(autoApply_, appliedPacketCount_);
-    }
+    PublishDiagnostics();
 }
 
 void BlenderLiveSync::DrawImGui() {
@@ -147,9 +147,7 @@ void BlenderLiveSync::DrawImGui() {
     }
 
     ImGui::Checkbox("自動反映 (Auto Apply)", &autoApply_);
-    if (levelSceneRuntime_) {
-        levelSceneRuntime_->SetLiveSyncDiagnostics(autoApply_, appliedPacketCount_);
-    }
+    PublishDiagnostics();
     if (ImGui::Button("最後の受信データを反映 (Apply Last Packet)")) {
         if (!hasPendingScene_ && !receiver_->GetLastPacket().empty()) {
             ParseLatestPacket();
@@ -274,7 +272,7 @@ void BlenderLiveSync::ApplyPendingScene() {
     }
     if (levelSceneRuntime_->IsLiveApplyPaused()) {
         lastApplyStatus_ = "ライブ反映は一時停止中です。 (Live Apply paused.)";
-        levelSceneRuntime_->SetLiveSyncDiagnostics(autoApply_, appliedPacketCount_);
+        PublishDiagnostics();
         return;
     }
     if (levelSceneRuntime_->IsRebuildOnlyWhenJsonChangedEnabled() &&
@@ -282,7 +280,7 @@ void BlenderLiveSync::ApplyPendingScene() {
         pendingJsonText_ == lastAppliedJsonText_) {
         ++duplicatePacketSkipCount_;
         lastApplyStatus_ = "同一JSONパケットのためスキップしました。 (Skipped duplicate JSON packet.)";
-        levelSceneRuntime_->SetLiveSyncDiagnostics(autoApply_, appliedPacketCount_);
+        PublishDiagnostics();
         return;
     }
 
@@ -294,8 +292,26 @@ void BlenderLiveSync::ApplyPendingScene() {
         "UDP 127.0.0.1:50000 packet=" + std::to_string(pendingPacketCount_));
     lastAppliedJsonText_ = pendingJsonText_;
     appliedPacketCount_ = pendingPacketCount_;
-    levelSceneRuntime_->SetLiveSyncDiagnostics(autoApply_, appliedPacketCount_);
     lastApplyStatus_ = status;
+    PublishDiagnostics();
+}
+
+void BlenderLiveSync::PublishDiagnostics() {
+    if (!levelSceneRuntime_) return;
+    bool running = false;
+    uint64_t receivedPacketCount = 0;
+    std::string lastReceiveTime;
+    std::string receiverError;
+    if (receiver_) {
+        const BlenderUdpReceiverStatus& status = receiver_->GetStatus();
+        running = status.isRunning;
+        receivedPacketCount = status.packetCount;
+        lastReceiveTime = status.lastReceiveTime;
+        receiverError = status.lastError;
+    }
+    levelSceneRuntime_->SetLiveSyncDiagnostics(
+        autoApply_, appliedPacketCount_, running, receivedPacketCount, lastReceiveTime,
+        lastApplyStatus_, receiverError.empty() ? lastError_ : receiverError);
 }
 
 std::string BlenderLiveSync::MakeJsonPreview(const std::string& jsonText) const {

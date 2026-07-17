@@ -28,6 +28,7 @@ private:
     void TestOpenBlendOnly();
     void ParseLatestPacket();
     void ApplyPendingScene();
+    void PublishDiagnostics();
     std::string MakeJsonPreview(const std::string& jsonText) const;
     void SyncLauncherPathsFromBuffers();
     void CopyPathToBuffer(std::array<char, kPathBufferSize>& buffer, const std::string& text);

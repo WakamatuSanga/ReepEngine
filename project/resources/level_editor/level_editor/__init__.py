@@ -34,6 +34,15 @@ from .export_scene import WM_OT_level_export, MYADDON_OT_export_scene
 from .import_scene import MYADDON_OT_import_scene
 from .file_name import OBJECT_PT_file_name
 from .collider import OBJECT_PT_collider
+from .rail_auto_generator import (
+    MYADDON_PG_auto_rail_settings,
+    MYADDON_OT_generate_auto_rail,
+    MYADDON_OT_regenerate_selected_auto_rail,
+    MYADDON_OT_reset_auto_rail_settings,
+    VIEW3D_PT_auto_rail_generator,
+    register_auto_rail_properties,
+    unregister_auto_rail_properties,
+)
 from .my_menu import TOPBAR_MT_my_menu
 from .draw_collider import DrawCollider
 from .draw_event_links import (
@@ -68,8 +77,10 @@ from .stage_analysis_overlay import (
     unregister_stage_analysis_properties,
 )
 _topbar_menu_appended = False
+_TOPBAR_CALLBACK_KEY = "level_editor.topbar_menu_callback"
 
 classes = (
+    MYADDON_PG_auto_rail_settings,
     MYADDON_OT_create_ico_sphere,
     WM_OT_level_export,
     MYADDON_OT_add_filename,
@@ -89,6 +100,9 @@ classes = (
     OBJECT_PT_collider,
     MYADDON_OT_send_live_sync,
     MYADDON_OT_initialize_rail_info,
+    MYADDON_OT_generate_auto_rail,
+    MYADDON_OT_regenerate_selected_auto_rail,
+    MYADDON_OT_reset_auto_rail_settings,
     MYADDON_OT_analyze_stage_brightness,
     MYADDON_OT_analyze_stage_perception,
     MYADDON_OT_mark_stage_important_object,
@@ -102,19 +116,39 @@ classes = (
     VIEW3D_PT_level_event_flag_editor,
     VIEW3D_PT_level_event_link_view,
     VIEW3D_PT_level_rail_editor,
+    VIEW3D_PT_auto_rail_generator,
     VIEW3D_PT_stage_analysis_overlay,
     TOPBAR_MT_my_menu,
 )
 
 
-def _is_class_registered(cls):
-    return bool(getattr(cls, "is_registered", False)) or hasattr(bpy.types, cls.__name__)
+def _get_registered_class(cls):
+    for base_class in cls.__mro__[1:]:
+        lookup = getattr(base_class, "bl_rna_get_subclass_py", None)
+        if lookup is None:
+            continue
+        try:
+            registered_class = lookup(cls.__name__, None)
+        except (AttributeError, TypeError):
+            continue
+        if registered_class is not None:
+            return registered_class
+    return None
 
 
 def _register_class_once(cls):
-    if _is_class_registered(cls):
+    if bool(getattr(cls, "is_registered", False)):
         print(f"[LevelEditorAddon] class already registered: {cls.__name__}")
         return
+
+    registered_class = _get_registered_class(cls)
+    if registered_class is not None and registered_class is not cls:
+        try:
+            bpy.utils.unregister_class(registered_class)
+            print(f"[LevelEditorAddon] stale class unregistered: {cls.__name__}")
+        except (RuntimeError, ValueError) as error:
+            print(f"[LevelEditorAddon] stale class unregister failed: {cls.__name__}: {error}")
+            raise
 
     try:
         bpy.utils.register_class(cls)
@@ -128,11 +162,12 @@ def _register_class_once(cls):
 
 
 def _unregister_class_if_registered(cls):
-    if not _is_class_registered(cls):
+    registered_class = cls if bool(getattr(cls, "is_registered", False)) else _get_registered_class(cls)
+    if registered_class is None:
         return
 
     try:
-        bpy.utils.unregister_class(cls)
+        bpy.utils.unregister_class(registered_class)
         print(f"[LevelEditorAddon] class unregistered: {cls.__name__}")
     except (RuntimeError, ValueError) as error:
         print(f"[LevelEditorAddon] class unregister skipped: {cls.__name__}: {error}")
@@ -144,17 +179,37 @@ def register():
     register_live_sync()
     register_event_link_view_properties()
     register_stage_analysis_properties()
+    registered_auto_rail_class = _get_registered_class(MYADDON_PG_auto_rail_settings)
+    if (
+        registered_auto_rail_class is not None
+        and registered_auto_rail_class is not MYADDON_PG_auto_rail_settings
+    ):
+        unregister_auto_rail_properties()
     for cls in classes:
         _register_class_once(cls)
+    register_auto_rail_properties()
     register_event_flag_editor_properties()
 
-    if not _topbar_menu_appended:
+    current_callback = TOPBAR_MT_my_menu.submenu
+    registered_callback = bpy.app.driver_namespace.get(_TOPBAR_CALLBACK_KEY)
+    if registered_callback is not None and registered_callback is not current_callback:
         try:
-            bpy.types.TOPBAR_MT_editor_menus.append(TOPBAR_MT_my_menu.submenu)
+            bpy.types.TOPBAR_MT_editor_menus.remove(registered_callback)
+            print("[LevelEditorAddon] stale topbar menu removed")
+        except Exception as error:
+            print(f"[LevelEditorAddon] stale topbar menu remove skipped: {error}")
+        registered_callback = None
+
+    if registered_callback is not current_callback:
+        try:
+            bpy.types.TOPBAR_MT_editor_menus.append(current_callback)
+            bpy.app.driver_namespace[_TOPBAR_CALLBACK_KEY] = current_callback
             _topbar_menu_appended = True
             print("[LevelEditorAddon] topbar menu appended")
         except Exception as error:
             print(f"[LevelEditorAddon] topbar menu append failed: {error}")
+    else:
+        _topbar_menu_appended = True
 
     if DrawCollider.handle is None:
         try:
@@ -181,9 +236,12 @@ def register():
 def unregister():
     global _topbar_menu_appended
     print("[LevelEditorAddon] unregister start")
-    if _topbar_menu_appended:
+    registered_callback = bpy.app.driver_namespace.pop(_TOPBAR_CALLBACK_KEY, None)
+    if registered_callback is not None or _topbar_menu_appended:
         try:
-            bpy.types.TOPBAR_MT_editor_menus.remove(TOPBAR_MT_my_menu.submenu)
+            bpy.types.TOPBAR_MT_editor_menus.remove(
+                registered_callback or TOPBAR_MT_my_menu.submenu
+            )
             print("[LevelEditorAddon] topbar menu removed")
         except Exception as error:
             print(f"[LevelEditorAddon] topbar menu remove skipped: {error}")
@@ -209,6 +267,7 @@ def unregister():
         print("[LevelEditorAddon] stage analysis overlay draw handler removed")
     except Exception as error:
         print(f"[LevelEditorAddon] stage analysis overlay draw handler remove skipped: {error}")
+    unregister_auto_rail_properties()
     unregister_event_flag_editor_properties()
     for cls in reversed(classes):
         _unregister_class_if_registered(cls)

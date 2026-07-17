@@ -6,6 +6,7 @@
 #include <string>
 
 class Camera;
+class BlenderRailPipelineVerification;
 class LevelEventConnectionVisualizer;
 class LevelEventLabelVisualizer;
 class LevelEventObjectActionVisualizer;
@@ -38,7 +39,14 @@ public:
         const LevelSceneData& sceneData,
         const std::string& statusMessage,
         const std::string& sourceName);
-    void SetLiveSyncDiagnostics(bool autoApplyEnabled, uint64_t lastPacketApplied);
+    void SetLiveSyncDiagnostics(
+        bool autoApplyEnabled,
+        uint64_t lastPacketApplied,
+        bool receiverRunning = false,
+        uint64_t receivedPacketCount = 0,
+        const std::string& lastReceiveTime = {},
+        const std::string& lastApplyStatus = {},
+        const std::string& lastError = {});
 
     const LevelSceneData& GetSceneData() const { return sceneData_; }
     LevelEventRuntime* GetEventRuntime() const { return eventRuntime_.get(); }
@@ -71,6 +79,7 @@ private:
     std::unique_ptr<LevelEventRuntime> eventRuntime_;
     std::unique_ptr<LevelRailDebugVisualizer> railDebugVisualizer_;
     std::unique_ptr<LevelRailRuntime> railRuntime_;
+    std::unique_ptr<BlenderRailPipelineVerification> blenderRailVerification_;
     LevelSceneData sceneData_;
     LevelCameraStart engineCameraStart_;
     std::array<char, 260> jsonPathBuffer_{};

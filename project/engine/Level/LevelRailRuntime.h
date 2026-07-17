@@ -59,6 +59,8 @@ public:
     LevelRailEvaluation FindClosestEvaluation(const std::string& railId, const Vector3& position, bool loopEnabled) const;
     size_t GetRailCount() const;
     bool GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outInfo) const;
+    bool CopyRailBuildInput(
+        size_t index, std::vector<Vector3>& outPoints, LevelRailSampleTable& outSampleTable) const;
 
 private:
     const LevelRailRuntimeRail* FindRailById(const std::string& railId) const;

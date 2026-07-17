@@ -461,12 +461,10 @@ LevelRailEvaluation LevelRailRuntime::FindClosestEvaluation(
 size_t LevelRailRuntime::GetRailCount() const {
     return rails_.size();
 }
-
 bool LevelRailRuntime::GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outInfo) const {
     if (index >= rails_.size() || !rails_[index]) {
         return false;
     }
-
     const LevelRailRuntimeRail& rail = *rails_[index];
     outInfo.railId = rail.railId;
     outInfo.name = rail.name;
@@ -479,7 +477,10 @@ bool LevelRailRuntime::GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outIn
     outInfo.sampledPointCount = rail.sampleTable.sampledPoints.size();
     return true;
 }
-
+bool LevelRailRuntime::CopyRailBuildInput(size_t index, std::vector<Vector3>& outPoints, LevelRailSampleTable& outSampleTable) const {
+    if (index >= rails_.size() || !rails_[index]) { outPoints.clear(); outSampleTable = {}; return false; }
+    outPoints = rails_[index]->points; outSampleTable = rails_[index]->sampleTable; return true;
+}
 const LevelRailRuntimeRail* LevelRailRuntime::FindRailById(const std::string& railId) const {
     for (const auto& rail : rails_) {
         if (!rail) {

@@ -239,6 +239,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Level\LevelSceneData.cpp" />
     <ClCompile Include="engine\Level\LevelSceneLoader.cpp" />
     <ClCompile Include="engine\Level\LevelSceneRuntime.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerification.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationImGui.cpp" />
+    <ClCompile Include="engine\Level\BlenderRailPipelineVerificationRenderer.cpp" />
     <ClCompile Include="engine\Level\LevelTransformConverter.cpp" />
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudVolume.cpp" />
@@ -418,6 +421,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Level\LevelSceneData.h" />
     <ClInclude Include="engine\Level\LevelSceneLoader.h" />
     <ClInclude Include="engine\Level\LevelSceneRuntime.h" />
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerification.h" />
+    <ClInclude Include="engine\Level\BlenderRailPipelineVerificationRenderer.h" />
     <ClInclude Include="engine\Level\LevelTransformConverter.h" />
     <ClInclude Include="engine\Graphics\Camera\Camera.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudVolume.h" />
