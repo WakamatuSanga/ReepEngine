@@ -3,10 +3,9 @@
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Graphics/Camera/Camera.h"
-#include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Input/Input.h"
-#include "Engine/Utility/Logger.h"
 #include <algorithm>
 #include <cmath>
 
@@ -121,6 +120,7 @@ void PlayerBulletManager::Finalize() {
     camera_ = nullptr;
     player_ = nullptr;
     gameViewport_ = nullptr;
+    projectileRailMotionAdapter_ = nullptr;
 }
 
 void PlayerBulletManager::Update(float deltaTime) {
@@ -158,7 +158,15 @@ void PlayerBulletManager::Update(float deltaTime) {
     }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
+            if (projectileRailMotionAdapter_) {
+                projectileRailMotionAdapter_->ApplyToProjectile(
+                    *instance.bullet, ProjectileRailMotionAdapter::ProjectileKind::Player);
+            }
             instance.bullet->Update(safeDeltaTime);
+            if (projectileRailMotionAdapter_ && instance.bullet->IsDead()) {
+                projectileRailMotionAdapter_->RecordDespawn(
+                    ProjectileRailMotionAdapter::ProjectileKind::Player, instance.bullet->GetDeathReason());
+            }
         }
     }
 
@@ -346,35 +354,6 @@ void PlayerBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisua
     }
 }
 
-EnemyBullet* PlayerBulletManager::SpawnBullet(const Vector3& position, const Vector3& velocity, int damage) {
-    if (!object3dCommon_ || !camera_) {
-        Logger::Log("[PlayerBulletManager] SpawnBullet skipped: Object3dCommon or Camera is null");
-        return nullptr;
-    }
-
-    PlayerBulletInstance instance;
-    instance.bullet = std::make_unique<EnemyBullet>();
-    if (!instance.bullet->Initialize(object3dCommon_, camera_)) {
-        Logger::Log("[PlayerBulletManager] SpawnBullet failed: EnemyBullet visual initialize failed");
-        return nullptr;
-    }
-    instance.bullet->SetModelPath(modelPath_);
-    instance.bullet->SetPosition(position);
-    instance.bullet->SetVelocity(velocity);
-    instance.bullet->SetScale(defaultScale_);
-    instance.bullet->SetRotation(defaultRotation_);
-    instance.bullet->SetModelRotationOffset(playerBulletModelRotationOffset_);
-    instance.bullet->SetRadius(bulletRadius_);
-    instance.bullet->SetLifeTime(bulletLifeTime_);
-    instance.bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
-    instance.damage = (std::max)(1, damage);
-
-    EnemyBullet* bulletPtr = instance.bullet.get();
-    bullets_.push_back(std::move(instance));
-    ++firedBulletCount_;
-    return bulletPtr;
-}
-
 void PlayerBulletManager::DeleteAllBullets() {
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
@@ -406,10 +385,15 @@ void PlayerBulletManager::FireFromPlayer() {
     }
 
     const Vector3 cameraForward = GetCameraForward(*camera_);
-    const Vector3 direction = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
-    const Vector3 startPosition = AddVector3(player_->GetWorldPosition(), ScaleVector3(direction, muzzleOffset_));
+    const Vector3 initialDirection = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
+    const Vector3 startPosition = AddVector3(
+        player_->GetWorldPosition(), ScaleVector3(initialDirection, muzzleOffset_));
+    const Vector3 direction = Normalize(
+        SubtractVector3(lastAimPoint_, startPosition), initialDirection);
     Vector3 velocity = ScaleVector3(direction, bulletSpeed_);
-    if (inheritCameraVelocity_) {
+    if (inheritCameraVelocity_ &&
+        !(projectileRailMotionAdapter_ &&
+            projectileRailMotionAdapter_->ShouldSuppressCameraVelocityInheritance())) {
         velocity = AddVector3(velocity, ScaleVector3(cameraVelocity_, inheritCameraVelocityFactor_));
     }
 
@@ -424,6 +408,11 @@ void PlayerBulletManager::FireFromPlayer() {
         AddVector3(MakeRotationFromForward(lastVisualDirection_), defaultRotation_),
         playerBulletModelRotationOffset_);
     if (EnemyBullet* bullet = SpawnBullet(startPosition, velocity, bulletDamage_)) {
+        if (projectileRailMotionAdapter_) {
+            projectileRailMotionAdapter_->RecordShot(
+                ProjectileRailMotionAdapter::ProjectileKind::Player,
+                startPosition, lastAimPoint_, direction, velocity);
+        }
         if (visualDirectionSource_ == VisualDirectionSource::AimDirection) {
             bullet->SetVisualForwardOverride(direction);
         } else {

@@ -120,6 +120,7 @@ RailShooterCameraRig::RailShooterCameraRig() = default;
 RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
+    InvalidateProjectileRailContinuity();
     camera_ = camera;
     railRuntime_ = railRuntime;
     runtimeV2Trial_ = std::make_unique<RailPathRuntimeV2>();
@@ -131,6 +132,7 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    InvalidateProjectileRailContinuity();
     ClearRuntimeV2ForceTests();
     ResetBoostRailSpeedState();
     ResetRuntimeV2PoseState(true);
@@ -403,6 +405,10 @@ void RailShooterCameraRig::ApplyToCamera() {
 
     currentForward_ = Normalize(currentForward_, { 0.0f, 0.0f, 1.0f });
     BuildBasis(currentForward_, currentUp_, currentRight_, currentUp_);
+    projectileRailPosition_ = currentPosition_;
+    projectileRailForward_ = currentForward_;
+    projectileRailUp_ = currentUp_;
+    projectileRailRight_ = currentRight_;
 
     visualCameraPosition_ = currentPosition_;
     visualCameraForward_ = currentForward_;
@@ -463,6 +469,7 @@ void RailShooterCameraRig::RestoreDebugHomeCamera() {
         return;
     }
 
+    InvalidateProjectileRailContinuity();
     camera_->SetTranslate(savedCameraPosition_);
     camera_->SetRotate(savedCameraRotation_);
     camera_->Update();
@@ -491,6 +498,7 @@ Vector3 RailShooterCameraRig::SmoothCameraForward(const Vector3& targetForward, 
 }
 
 void RailShooterCameraRig::ResetCameraRig() {
+    InvalidateProjectileRailContinuity();
     railDistance_ = 0.0f;
     railT_ = 0.0f;
     currentSegmentIndex_ = 0;
@@ -509,6 +517,7 @@ void RailShooterCameraRig::ResetCameraRig() {
 }
 
 void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
+    InvalidateProjectileRailContinuity();
     railDistance_ = 0.0f;
     railT_ = 0.0f;
     currentSegmentIndex_ = 0;
@@ -543,6 +552,7 @@ void RailShooterCameraRig::StartRail() {
         return;
     }
 
+    InvalidateProjectileRailContinuity();
     SaveDebugHomeCameraIfNeeded();
     lastStartSource_ = "Manual";
     lastRequestedStartMode_ = "SelectedRail";
@@ -567,6 +577,7 @@ void RailShooterCameraRig::StartRail() {
 }
 
 void RailShooterCameraRig::StopRail() {
+    InvalidateProjectileRailContinuity();
     mode_ = Mode::Disabled;
     autoPlay_ = false;
     currentEvaluationValid_ = false;

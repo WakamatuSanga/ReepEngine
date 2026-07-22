@@ -57,6 +57,7 @@ class PlayerHudController;
 class PostEffectActionBridge;
 class PostEffectController;
 class PrimitiveEffectSystem;
+class ProjectileRailMotionAdapter;
 class RailShooterEventActionBridge;
 class RailShooterCameraRig;
 class RuntimeModeController;
@@ -136,6 +137,7 @@ private:
     std::unique_ptr<PostEffectActionBridge> postEffectActionBridge_;
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
+    std::unique_ptr<ProjectileRailMotionAdapter> projectileRailMotionAdapter_;
     std::unique_ptr<PlayerRailFlightVisualTiltController> playerRailFlightVisualTiltController_;
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
     std::unique_ptr<ScreenSpaceFakeShadowPass> screenSpaceFakeShadowPass_;

@@ -219,6 +219,7 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
         return failStart("Failed to evaluate rail: " + railKey);
     }
 
+    InvalidateProjectileRailContinuity();
     SaveDebugHomeCameraIfNeeded();
     selectedRailIndex_ = static_cast<int>(matchedIndex);
     selectedRailId_ = resolvedRailKey;
@@ -300,6 +301,7 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
 }
 
 void RailShooterCameraRig::StopAndRestoreCamera() {
+    InvalidateProjectileRailContinuity();
     mode_ = Mode::Disabled;
     autoPlay_ = false;
     currentEvaluationValid_ = false;

@@ -72,7 +72,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             if (lastBulletRadius) {
                 *lastBulletRadius = bulletRadius;
             }
-            bullet->Kill();
+            bullet->Kill("Enemyとの衝突");
             return true;
         }
     }
@@ -134,7 +134,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             if (lastBulletRadius) {
                 *lastBulletRadius = bulletRadius;
             }
-            bullet->Kill();
+            bullet->Kill("Enemyとの衝突");
             return true;
         }
     }

@@ -143,6 +143,7 @@
     <ClCompile Include="engine\Core\RuntimeModeController.cpp" />
     <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigProjectile.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp" />
@@ -186,6 +187,7 @@
     <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltController.cpp" />
@@ -195,6 +197,8 @@
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapterImGui.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp" />
@@ -387,6 +391,7 @@
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailFlightVisualTiltController.h" />
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h" />
+    <ClInclude Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h" />

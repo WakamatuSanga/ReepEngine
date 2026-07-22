@@ -237,6 +237,7 @@ void RailShooterCameraRig::ResetRuntimeV2PoseState(bool clearRuntime) {
 }
 
 void RailShooterCameraRig::ForceResyncRuntimeV2Pose() {
+    InvalidateProjectileRailContinuity();
     hasPreviousRailForward_ = false;
     hasSmoothedForward_ = false;
     if (mode_ == Mode::Rail && IsCameraRigActive()) UpdateRail(0.0f);

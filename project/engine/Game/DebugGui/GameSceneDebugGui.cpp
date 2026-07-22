@@ -39,6 +39,7 @@
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
@@ -234,6 +235,11 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->influenceFieldManager_) {
         scene_->influenceFieldManager_->DrawImGui();
+    }
+    if (scene_->projectileRailMotionAdapter_) {
+        scene_->projectileRailMotionAdapter_->DrawImGui(
+            scene_->playerBulletManager_ ? scene_->playerBulletManager_->GetActiveCount() : 0,
+            scene_->enemyBulletManager_ ? scene_->enemyBulletManager_->GetActiveCount() : 0);
     }
     if (scene_->playerBulletManager_) {
         scene_->playerBulletManager_->DrawImGui();

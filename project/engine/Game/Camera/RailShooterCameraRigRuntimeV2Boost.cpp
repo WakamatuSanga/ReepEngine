@@ -17,6 +17,7 @@ void RailShooterCameraRig::SetRuntimeContext(
     }
     if (gameModeActive == gameModeActive_) return;
 
+    InvalidateProjectileRailContinuity();
     gameModeActive_ = gameModeActive;
     ClearRuntimeV2ForceTests();
     ResetBoostRailSpeedState();

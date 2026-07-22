@@ -53,6 +53,22 @@ public:
         bool valid = false;
     };
 
+    struct ProjectileRailFrame {
+        Vector3 position{ 0.0f, 0.0f, 0.0f };
+        Vector3 right{ 1.0f, 0.0f, 0.0f };
+        Vector3 up{ 0.0f, 1.0f, 0.0f };
+        Vector3 forward{ 0.0f, 0.0f, 1.0f };
+        float railDistance = 0.0f;
+        uint64_t railRevision = 0;
+        uint64_t continuityRevision = 0;
+        int railIndex = -1;
+        bool railActive = false;
+        bool running = false;
+        bool runtimeV2Active = false;
+        bool gameModeActive = false;
+        bool valid = false;
+    };
+
     RailShooterCameraRig();
     ~RailShooterCameraRig();
 
@@ -65,6 +81,7 @@ public:
 
     bool IsCameraRigActive() const;
     RailFlightPoseSnapshot GetRailFlightPoseSnapshot(float lookAheadDistance) const;
+    ProjectileRailFrame GetProjectileRailFrame() const;
     bool IsControllingCamera() const { return IsCameraRigActive(); }
     bool StartRailByKey(const std::string& railKey, std::string& resultMessage);
     bool StartRailByKey(
@@ -117,6 +134,7 @@ private:
     bool BuildRuntimeV2VisualPose();
     void ResetRuntimeV2PoseState(bool clearRuntime);
     void ForceResyncRuntimeV2Pose();
+    void InvalidateProjectileRailContinuity();
     void UpdateBoostRailSpeed(float deltaTime, bool advancing);
     void ResetBoostRailSpeedState();
     void ClearRuntimeV2ForceTests();
@@ -139,6 +157,10 @@ private:
     Vector3 currentForward_{ 0.0f, 0.0f, 1.0f };
     Vector3 currentUp_{ 0.0f, 1.0f, 0.0f };
     Vector3 currentRight_{ 1.0f, 0.0f, 0.0f };
+    Vector3 projectileRailPosition_{ 0.0f, 0.0f, -10.0f };
+    Vector3 projectileRailForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 projectileRailUp_{ 0.0f, 1.0f, 0.0f };
+    Vector3 projectileRailRight_{ 1.0f, 0.0f, 0.0f };
     Vector3 savedCameraPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 savedCameraRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 blendStartPosition_{ 0.0f, 0.0f, -10.0f };
@@ -195,6 +217,7 @@ private:
     uint64_t gameModePoseSyncCount_ = 0;
     uint64_t initialCameraRailPoseOverwriteCount_ = 0;
     uint64_t boostMultiplierApplyCount_ = 0;
+    uint64_t projectileRailContinuityRevision_ = 0;
     bool enableCameraRig_ = false;
     bool useCameraRig_ = true;
     bool autoPlay_ = false;

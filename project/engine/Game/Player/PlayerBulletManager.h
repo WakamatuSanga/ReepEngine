@@ -11,6 +11,7 @@ class EnemyBullet;
 class GameViewport;
 class Object3dCommon;
 class Player;
+class ProjectileRailMotionAdapter;
 
 class PlayerBulletManager {
 public:
@@ -37,6 +38,7 @@ public:
     void SetGameViewInputActive(bool isActive);
     void SetGameViewport(GameViewport* gameViewport);
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
+    void SetProjectileRailMotionAdapter(ProjectileRailMotionAdapter* adapter) { projectileRailMotionAdapter_ = adapter; }
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity, int damage);
     void DeleteAllBullets();
     bool CheckHitAndKillFirstEllipsoid(
@@ -88,6 +90,7 @@ private:
     Camera* camera_ = nullptr;
     Player* player_ = nullptr;
     GameViewport* gameViewport_ = nullptr;
+    ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::vector<PlayerBulletInstance> bullets_;
     std::array<char, 260> modelPathBuffer_{};
     std::string modelPath_ = "resources/EnemyBullet/EnemyBullet.obj";

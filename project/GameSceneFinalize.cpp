@@ -39,6 +39,7 @@
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"

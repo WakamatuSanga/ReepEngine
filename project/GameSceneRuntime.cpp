@@ -44,6 +44,7 @@
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
@@ -241,6 +242,9 @@ void GameScene::UpdateSceneRuntime() {
     if (railShooterCameraRig_) {
         railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
         railShooterCameraRig_->Update(gameplayDeltaTime);
+    }
+    if (projectileRailMotionAdapter_) {
+        projectileRailMotionAdapter_->BeginFrame(!isDeathSequenceActive);
     }
     if (cameraShakeController_) {
         cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
