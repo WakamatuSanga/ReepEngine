@@ -33,6 +33,7 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
@@ -197,6 +198,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->player_) {
         scene_->player_->DrawImGui();
+    }
+    if (scene_->playerRailFlightVisualTiltController_) {
+        scene_->playerRailFlightVisualTiltController_->DrawImGui();
     }
     if (scene_->playerDamageFeedbackController_) {
         scene_->playerDamageFeedbackController_->DrawImGui();

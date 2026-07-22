@@ -39,6 +39,7 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
@@ -238,6 +239,7 @@ void GameScene::UpdateSceneRuntime() {
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     if (railShooterCameraRig_) {
+        railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
         railShooterCameraRig_->Update(gameplayDeltaTime);
     }
     if (cameraShakeController_) {
@@ -255,6 +257,16 @@ void GameScene::UpdateSceneRuntime() {
     camera_->Update();
     if (playerRailController_) {
         playerRailController_->Update(gameplayDeltaTime);
+    }
+    if (!playerRailFlightVisualTiltController_ && player_ && railShooterCameraRig_) {
+        playerRailFlightVisualTiltController_ =
+            std::make_unique<PlayerRailFlightVisualTiltController>();
+        playerRailFlightVisualTiltController_->Initialize(
+            player_.get(), railShooterCameraRig_.get());
+    }
+    if (playerRailFlightVisualTiltController_) {
+        playerRailFlightVisualTiltController_->Update(
+            unscaledDeltaTime, isGameMode, !isDeathSequenceActive);
     }
     if (playerBulletCancelEffectController_) {
         playerBulletCancelEffectController_->BeginFrame();
@@ -376,7 +388,6 @@ void GameScene::UpdateSceneRuntime() {
         eventActionDispatcher_->Update();
     }
     if (enemyWaveManager_) {
-        enemyWaveManager_->SetCurrentBoostPower(boostController_ ? boostController_->GetCurrentBoostPower() : 0.0f);
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
     if (enemyLaserTelegraphController_) {

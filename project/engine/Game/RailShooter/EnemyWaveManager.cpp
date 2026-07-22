@@ -129,10 +129,6 @@ void EnemyWaveManager::Finalize() {
     gameModeWasActive_ = false;
 }
 
-void EnemyWaveManager::SetCurrentBoostPower(float boostPower) {
-    currentBoostPower_ = std::isfinite(boostPower) ? std::clamp(boostPower, 0.0f, 1.0f) : 0.0f;
-}
-
 void EnemyWaveManager::SetGameModeActive(bool isGameMode) {
     if (!isGameMode && gameModeWasActive_) {
         StopAllWaves();
@@ -499,7 +495,7 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
             enemy->SetForward(direction);
         }
 
-        const float speed = (std::max)(0.0f, approachSpeed_ + currentBoostPower_ * boostApproachBonus_);
+        const float speed = (std::max)(0.0f, approachSpeed_);
         enemy->SetPosition(AddVector3(enemyPosition, ScaleVector3(direction, speed * safeDeltaTime)));
     }
 

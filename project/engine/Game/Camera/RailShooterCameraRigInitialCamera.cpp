@@ -20,6 +20,10 @@ void RailShooterCameraRig::ApplyInitialCameraFromLevel() {
         lastInitialCameraResult_ = "Camera is missing.";
         return;
     }
+    if (IsCameraRigActive()) {
+        lastInitialCameraResult_ = "Rail走行中のためInitial Camera適用を停止しました。";
+        return;
+    }
     if (!levelSceneRuntime_) {
         lastInitialCameraResult_ = "LevelSceneRuntime is missing.";
         return;

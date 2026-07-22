@@ -1,4 +1,5 @@
 #include "RailShooterCameraRig.h"
+#include "Engine/Game/RailShooter/RailPathRuntimeV2.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -121,6 +122,7 @@ RailShooterCameraRig::~RailShooterCameraRig() = default;
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
     camera_ = camera;
     railRuntime_ = railRuntime;
+    runtimeV2Trial_ = std::make_unique<RailPathRuntimeV2>();
     CaptureCameraPose();
 }
 
@@ -129,6 +131,12 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    ClearRuntimeV2ForceTests();
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(true);
+    runtimeV2Trial_.reset();
+    player_ = nullptr;
+    boostController_ = nullptr;
     camera_ = nullptr;
     railRuntime_ = nullptr;
     levelSceneRuntime_ = nullptr;
@@ -137,7 +145,7 @@ void RailShooterCameraRig::Finalize() {
 void RailShooterCameraRig::Update(float deltaTime) {
     railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
     if (autoApplyInitialCameraOnLoad_ && !hasAppliedInitialCameraOnce_ &&
-        levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
+        !IsCameraRigActive() && levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
         ApplyInitialCameraFromLevel();
         hasAppliedInitialCameraOnce_ = true;
     } else if (levelSceneRuntime_ && !levelSceneRuntime_->HasEngineCameraStart()) {
@@ -147,6 +155,11 @@ void RailShooterCameraRig::Update(float deltaTime) {
         currentEvaluationValid_ = false;
         if (wasCameraRigActive_ && restoreCameraOnDisable_) {
             RestoreDebugHomeCamera();
+        }
+        if (wasCameraRigActive_) {
+            ResetBoostRailSpeedState();
+            ResetRuntimeV2PoseState(false);
+            ClearRuntimeV2ForceTests();
         }
         wasCameraRigActive_ = false;
         return;
@@ -256,13 +269,16 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
         return;
     }
 
+    EnsureRuntimeV2Trial();
+    const float activeTotalLength = GetActiveRailTotalLength();
     const bool shouldLoop = debugLoop_ || selectedRailLoop_;
-    if (autoPlay_ && selectedRailTotalLength_ > kMinRailLength) {
-        railDistance_ += deltaTime * railSpeed_;
+    UpdateBoostRailSpeed(deltaTime, autoPlay_ && activeTotalLength > kMinRailLength);
+    if (autoPlay_ && activeTotalLength > kMinRailLength) {
+        railDistance_ += lastRailAdvance_;
         if (shouldLoop) {
-            railDistance_ = WrapDistance(railDistance_, selectedRailTotalLength_);
-        } else if (railDistance_ >= selectedRailTotalLength_) {
-            railDistance_ = selectedRailTotalLength_;
+            railDistance_ = WrapDistance(railDistance_, activeTotalLength);
+        } else if (railDistance_ >= activeTotalLength) {
+            railDistance_ = activeTotalLength;
             railT_ = 1.0f;
             const LevelRailEvaluation endEvaluation = railRuntime_->EvaluateByDistance(selectedRailId_, railDistance_, false);
             if (!endEvaluation.valid) {
@@ -271,8 +287,13 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
                 lastStartResult_ = "Rail end evaluation invalid; camera was not advanced.";
                 return;
             }
-            currentPosition_ = endEvaluation.position;
-            currentForward_ = SmoothCameraForward(endEvaluation.forward, deltaTime);
+            if (!ApplyRuntimeV2Pose(endEvaluation, deltaTime, false)) {
+                currentPosition_ = endEvaluation.position;
+                currentForward_ = SmoothCameraForward(endEvaluation.forward, deltaTime);
+                BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
+                ++legacyPoseApplyCount_;
+                activePoseSource_ = "Legacy Rail";
+            }
             currentSegmentIndex_ = endEvaluation.segmentIndex;
             currentEvaluationValid_ = true;
             railEndReached_ = true;
@@ -299,13 +320,13 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
             railDistance_ = 0.0f;
             autoPlay_ = false;
         }
-        railT_ = NormalizeT(railDistance_, selectedRailTotalLength_);
+        railT_ = NormalizeT(railDistance_, activeTotalLength);
     }
 
     railDistance_ = shouldLoop
-        ? WrapDistance(railDistance_, selectedRailTotalLength_)
-        : ClampDistance(railDistance_, selectedRailTotalLength_);
-    railT_ = NormalizeT(railDistance_, selectedRailTotalLength_);
+        ? WrapDistance(railDistance_, activeTotalLength)
+        : ClampDistance(railDistance_, activeTotalLength);
+    railT_ = NormalizeT(railDistance_, activeTotalLength);
 
     const LevelRailEvaluation evaluation = railRuntime_->EvaluateByDistance(selectedRailId_, railDistance_, shouldLoop);
     currentEvaluationValid_ = evaluation.valid;
@@ -315,12 +336,20 @@ void RailShooterCameraRig::UpdateRail(float deltaTime) {
         return;
     }
 
-    currentPosition_ = evaluation.position;
-    currentForward_ = SmoothCameraForward(evaluation.forward, deltaTime);
+    if (!ApplyRuntimeV2Pose(evaluation, deltaTime, shouldLoop)) {
+        currentPosition_ = evaluation.position;
+        currentForward_ = SmoothCameraForward(evaluation.forward, deltaTime);
+        railDistance_ = evaluation.distance;
+        railT_ = evaluation.t;
+        BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
+        ++legacyPoseApplyCount_;
+        activePoseSource_ = "Legacy Rail";
+        if (pendingGameModePoseSync_) {
+            ++gameModePoseSyncCount_;
+            pendingGameModePoseSync_ = false;
+        }
+    }
     currentSegmentIndex_ = evaluation.segmentIndex;
-    railDistance_ = evaluation.distance;
-    railT_ = evaluation.t;
-    BuildBasis(currentForward_, { 0.0f, 1.0f, 0.0f }, currentRight_, currentUp_);
     ApplyToCamera();
 }
 
@@ -377,7 +406,7 @@ void RailShooterCameraRig::ApplyToCamera() {
 
     visualCameraPosition_ = currentPosition_;
     visualCameraForward_ = currentForward_;
-    if (enableAngledPlayerCamera_) {
+    if (!BuildRuntimeV2VisualPose() && enableAngledPlayerCamera_) {
         visualCameraPosition_ = AddVector3(
             AddVector3(currentPosition_, ScaleVector3(currentUp_, cameraHeightOffset_)),
             ScaleVector3(currentRight_, cameraSideOffset_));
@@ -473,6 +502,9 @@ void RailShooterCameraRig::ResetCameraRig() {
     hasSmoothedForward_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(false);
+    ClearRuntimeV2ForceTests();
     CaptureCameraPose();
 }
 
@@ -490,6 +522,9 @@ void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
     hasSmoothedForward_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(false);
+    ClearRuntimeV2ForceTests();
     RestoreDebugHomeCamera();
     wasCameraRigActive_ = false;
 }
@@ -538,6 +573,9 @@ void RailShooterCameraRig::StopRail() {
     railEndReached_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(false);
+    ClearRuntimeV2ForceTests();
     if (restoreCameraOnStop_) {
         RestoreDebugHomeCamera();
     } else {

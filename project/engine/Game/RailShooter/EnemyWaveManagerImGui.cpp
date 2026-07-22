@@ -32,10 +32,15 @@ void EnemyWaveManager::DrawImGui() {
     ImGui::DragFloat("Spawn Width", &spawnWidth_, 0.1f, 1.0f, 100.0f);
     ImGui::DragFloat("Spawn Height", &spawnHeight_, 0.1f, 1.0f, 100.0f);
     ImGui::DragFloat("接近速度 (Approach Speed)", &approachSpeed_, 0.1f, 0.0f, 60.0f, "%.1f");
-    ImGui::DragFloat("Boost接近速度加算 (Boost Approach Bonus)", &boostApproachBonus_, 0.1f, 0.0f, 30.0f, "%.1f");
     ImGui::DragFloat("接近停止距離 (Approach Stop Distance)", &approachStopDistance_, 0.1f, 0.0f, 40.0f, "%.1f");
-    ImGui::Text("Current Boost Power: %.2f", currentBoostPower_);
-    ImGui::Text("Current Approach Speed: %.2f", approachSpeed_ + currentBoostPower_ * boostApproachBonus_);
+    const float enemyFinalApproachSpeed = (std::max)(0.0f, approachSpeed_);
+    ImGui::Text("Boostによる敵接近速度補正: 無効");
+    ImGui::Text("敵の基本接近速度: %.2f", enemyFinalApproachSpeed);
+    ImGui::Text("敵自身の最終接近速度: %.2f", enemyFinalApproachSpeed);
+    ImGui::Text("Boostによる加算値: 0.0");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Boost中の相対接近速度はCamera Rail Speedによって増加します。\n敵自身のApproach SpeedにはBoostを加算していません。");
+    }
     ImGui::SeparatorText("Wave 2 Enemy Debug");
     ImGui::Checkbox("Screen Anchor Enabled", &screenAnchorEnabled_);
     ImGui::DragFloat("Drop Duration", &screenAnchorDropDuration_, 0.02f, 0.05f, 3.0f, "%.2f");

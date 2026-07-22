@@ -279,6 +279,18 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2ImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Pose.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRailFlightVisual.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
@@ -390,6 +402,9 @@
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerTransform.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -430,6 +445,12 @@
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltControllerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp">
@@ -882,6 +903,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerRailFlightVisualTiltController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h">

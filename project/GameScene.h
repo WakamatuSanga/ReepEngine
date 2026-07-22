@@ -51,6 +51,7 @@ class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
 class PlayerSonicBoostRingController;
 class PlayerRailController;
+class PlayerRailFlightVisualTiltController;
 class PlayerEventTriggerBridge;
 class PlayerHudController;
 class PostEffectActionBridge;
@@ -135,6 +136,7 @@ private:
     std::unique_ptr<PostEffectActionBridge> postEffectActionBridge_;
     std::unique_ptr<EventActionDispatcher> eventActionDispatcher_;
     std::unique_ptr<RailShooterCameraRig> railShooterCameraRig_;
+    std::unique_ptr<PlayerRailFlightVisualTiltController> playerRailFlightVisualTiltController_;
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
     std::unique_ptr<ScreenSpaceFakeShadowPass> screenSpaceFakeShadowPass_;
     std::unique_ptr<StartupEnemySpawnController> startupEnemySpawnController_;

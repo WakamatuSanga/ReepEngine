@@ -56,7 +56,13 @@ public:
         return lastInputApplied_ ? Vector2{ lastRawMoveInput_.x, lastRawMoveInput_.y } : Vector2{};
     }
     const Vector3& GetBaseForward() const { return baseForward_; }
+    const Vector3& GetVisualBaseRotation() const { return visualBaseRotation_; }
     const Vector3& GetVisualModelRotation() const { return visualFinalRotation_; }
+    Vector3 GetVisualDisplayForward() const;
+    Vector3 GetActionVisualRotationOffset() const;
+    void SetRailFlightVisualBankRadians(float radians);
+    float GetRailFlightVisualBankRadians() const { return railFlightVisualBankRadians_; }
+    bool IsEnabled() const { return enablePlayer_; }
     float GetEventTriggerRadius() const { return eventTriggerRadius_; }
     float GetHitRadius() const { return hitRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
@@ -101,6 +107,7 @@ private:
     Vector3 visualBaseRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 visualFinalRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 currentVisualTilt_{ 0.0f, 0.0f, 0.0f };
+    float railFlightVisualBankRadians_ = 0.0f;
     ModelForwardAxis modelForwardAxis_ = ModelForwardAxis::PositiveZ;
     float localOffsetX_ = 0.0f;
     float localOffsetY_ = 0.0f;

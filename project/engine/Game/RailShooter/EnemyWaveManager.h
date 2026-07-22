@@ -28,7 +28,6 @@ public:
     void SetPlayer(const Player* player) { player_ = player; }
     void SetLaserTelegraphController(EnemyLaserTelegraphController* laserController) { laserController_ = laserController; }
     void SetWarningUIController(WarningUIController* warningUIController) { warningUIController_ = warningUIController; }
-    void SetCurrentBoostPower(float boostPower);
     void SetGameModeActive(bool isGameMode);
 
     bool HandleSpawnWaveAction(const FiredEventAction& action, std::string& resultMessage);
@@ -167,7 +166,6 @@ private:
     float spawnWidth_ = 20.0f;
     float spawnHeight_ = 12.0f;
     float approachSpeed_ = 3.0f;
-    float boostApproachBonus_ = 6.0f;
     float approachStopDistance_ = 6.0f;
     float screenAnchorDropDuration_ = 0.6f;
     float screenAnchorSpawnScreenY_ = 0.95f;
@@ -177,7 +175,6 @@ private:
     float leftFirstWarningDelay_ = 0.4f;
     float rightFirstWarningDelay_ = 0.55f;
     float laserCooldown_ = 1.45f;
-    float currentBoostPower_ = 0.0f;
     Vector3 lastLockedApproachDirection_{ 0.0f, 0.0f, -1.0f };
     size_t startedWaveCount_ = 0;
     size_t waveStartWarningCount_ = 0;

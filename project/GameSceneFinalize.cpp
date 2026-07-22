@@ -33,6 +33,7 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
@@ -100,6 +101,10 @@ void GameScene::FinalizeSceneResources() {
         railShooterEventActionBridge_->Finalize();
     }
     railShooterEventActionBridge_.reset();
+    if (playerRailFlightVisualTiltController_) {
+        playerRailFlightVisualTiltController_->Finalize();
+    }
+    playerRailFlightVisualTiltController_.reset();
     if (railShooterCameraRig_) {
         railShooterCameraRig_->Finalize();
     }
