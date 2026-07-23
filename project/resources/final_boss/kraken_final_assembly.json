@@ -1,0 +1,260 @@
+{
+  "description": "Final boss uses the finless octopus body once and reuses the four midboss tentacle variants twice.",
+  "coordinate_system": {
+    "up": "+Z",
+    "front": "-Y"
+  },
+  "head_gltf": "kraken_final_head.gltf",
+  "head_obj_fallback": "kraken_final_head.obj",
+  "runtime_note": "Create an independent joint-matrix palette for every tentacle instance.",
+  "tentacle_instances": [
+    {
+      "socket_bone": "TentacleSocket_01",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_01.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_01.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          1.0,
+          0.0,
+          -0.0,
+          0.0
+        ],
+        [
+          0.0,
+          -0.94677274,
+          0.32190273,
+          -2.1
+        ],
+        [
+          0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_02",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_02.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_02.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          0.70710678,
+          0.66946943,
+          -0.22761961,
+          1.65462987
+        ],
+        [
+          0.70710678,
+          -0.66946943,
+          0.22761961,
+          -1.56693434
+        ],
+        [
+          -0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_03",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_03.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_03.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          0.0,
+          0.94677274,
+          -0.32190273,
+          2.34
+        ],
+        [
+          1.0,
+          0.0,
+          0.0,
+          -0.28
+        ],
+        [
+          0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_04",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_04.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_04.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          -0.70710678,
+          0.66946943,
+          -0.22761961,
+          1.65462987
+        ],
+        [
+          0.70710678,
+          0.66946943,
+          -0.22761961,
+          1.00693434
+        ],
+        [
+          0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_05",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_01.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_01.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          -1.0,
+          0.0,
+          -0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.94677274,
+          -0.32190273,
+          1.54
+        ],
+        [
+          -0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_06",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_02.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_02.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          -0.70710678,
+          -0.66946943,
+          0.22761961,
+          -1.65462987
+        ],
+        [
+          -0.70710678,
+          0.66946943,
+          -0.22761961,
+          1.00693434
+        ],
+        [
+          0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_07",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_03.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_03.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          -0.0,
+          -0.94677274,
+          0.32190273,
+          -2.34
+        ],
+        [
+          -1.0,
+          0.0,
+          -0.0,
+          -0.28
+        ],
+        [
+          -0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    },
+    {
+      "socket_bone": "TentacleSocket_08",
+      "source_gltf": "../midboss/parts/kraken_tentacle_variant_04.gltf",
+      "source_obj_fallback": "../midboss/parts/kraken_tentacle_variant_04.obj",
+      "global_bind_matrix_obj_row_major": [
+        [
+          0.70710678,
+          -0.66946943,
+          0.22761961,
+          -1.65462987
+        ],
+        [
+          -0.70710678,
+          -0.66946943,
+          0.22761961,
+          -1.56693434
+        ],
+        [
+          0.0,
+          -0.32190273,
+          -0.94677274,
+          3.24
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ]
+    }
+  ]
+}

@@ -268,6 +268,36 @@ void ProjectileRailMotionAdapter::ApplyToProjectile(EnemyBullet& projectile, Pro
     ++frameDeltaApplyCount_;
 }
 
+bool ProjectileRailMotionAdapter::TransportDirectionForProjectile(
+    const EnemyBullet& projectile,
+    ProjectileKind kind,
+    const Vector3& direction,
+    Vector3& transportedDirection) const {
+    if (!initialized_ || frameSequence_ == 0 || !projectile.IsInitialized()
+        || !projectile.IsActive() || projectile.IsDead()
+        || projectile.GetProjectileSpawnSequence() == frameSequence_
+        || projectile.GetProjectileRailFrameSequence() != frameSequence_
+        || !IsTrackingActive(kind) || !frameDeltaReady_ || !IsFinite(direction)) {
+        return false;
+    }
+
+    const Vector3 localDirection = InverseTransformVector(
+        direction,
+        previousFrame_.right,
+        previousFrame_.up,
+        previousFrame_.forward);
+    const Vector3 result = TransformVector(
+        localDirection,
+        currentFrame_.right,
+        currentFrame_.up,
+        currentFrame_.forward);
+    if (!IsFinite(result)) {
+        return false;
+    }
+
+    transportedDirection = result;
+    return true;
+}
 bool ProjectileRailMotionAdapter::IsTrackingActive(ProjectileKind kind) const {
     if (!IsBaseTrackingActive() || forceDisableTracking_) {
         return false;

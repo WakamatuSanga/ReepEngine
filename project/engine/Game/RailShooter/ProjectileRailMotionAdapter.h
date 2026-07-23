@@ -22,6 +22,11 @@ public:
 
     void RegisterProjectile(EnemyBullet& projectile);
     void ApplyToProjectile(EnemyBullet& projectile, ProjectileKind kind);
+    bool TransportDirectionForProjectile(
+        const EnemyBullet& projectile,
+        ProjectileKind kind,
+        const Vector3& direction,
+        Vector3& transportedDirection) const;
     bool IsTrackingActive(ProjectileKind kind) const;
     bool ShouldSuppressCameraVelocityInheritance() const;
 

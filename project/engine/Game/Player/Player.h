@@ -58,6 +58,7 @@ public:
     const Vector3& GetBaseForward() const { return baseForward_; }
     const Vector3& GetVisualBaseRotation() const { return visualBaseRotation_; }
     const Vector3& GetVisualModelRotation() const { return visualFinalRotation_; }
+    Vector3 TransformVisualModelPointToWorld(const Vector3& modelLocalPoint) const;
     Vector3 GetVisualDisplayForward() const;
     Vector3 GetActionVisualRotationOffset() const;
     void SetRailFlightVisualBankRadians(float radians);

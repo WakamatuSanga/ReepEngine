@@ -1,0 +1,64 @@
+# Kraken shared material atlas
+
+newmtl KrakenSkin
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 48.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenEye
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 96.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenPupil
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 32.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenSucker
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 36.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenSuckerInner
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 24.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenBeak
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 72.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png
+
+newmtl KrakenMouth
+Ka 0.060000 0.060000 0.080000
+Kd 1.000000 1.000000 1.000000
+Ks 0.160000 0.180000 0.230000
+Ns 20.000000
+d 1.000000
+illum 2
+map_Kd ../../textures/kraken_albedo.png

@@ -187,6 +187,12 @@
     <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingShot.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileLaunch.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp" />
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp" />
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
@@ -387,6 +393,7 @@
     <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
+    <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailFlightVisualTiltController.h" />

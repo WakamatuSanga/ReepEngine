@@ -143,6 +143,9 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
+    if (playerBulletManager_) {
+        playerBulletManager_->ClearAimCorridorContext();
+    }
     if (aimCorridorTargetingController_) {
         aimCorridorTargetingController_->Finalize();
     }

@@ -1,10 +1,13 @@
 #include "PlayerBulletManager.h"
+#include "LockedWingMissileExhaustController.h"
 #include "MyGame.h"
 #include "Engine/Core/GameViewport.h"
+#include "Engine/Core/SrvManager.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Input/Input.h"
 #include <algorithm>
 #include <cmath>
@@ -27,10 +30,6 @@ namespace {
 
     Vector3 ScaleVector3(const Vector3& value, float scale) {
         return { value.x * scale, value.y * scale, value.z * scale };
-    }
-
-    float DotVector3(const Vector3& lhs, const Vector3& rhs) {
-        return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
     }
 
     float DistanceSquared(const Vector3& lhs, const Vector3& rhs) {
@@ -74,18 +73,6 @@ namespace {
 #endif
     }
 
-    const char* ToAimModeLabel(PlayerBulletManager::AimMode aimMode) {
-        switch (aimMode) {
-        case PlayerBulletManager::AimMode::CameraForward:
-            return "CameraForward";
-        case PlayerBulletManager::AimMode::MouseRay:
-            return "MouseRay";
-        case PlayerBulletManager::AimMode::MouseAimPlane:
-        default:
-            return "MouseAimPlane";
-        }
-    }
-
     const char* ToVisualDirectionSourceLabel(PlayerBulletManager::VisualDirectionSource source) {
         switch (source) {
         case PlayerBulletManager::VisualDirectionSource::AimDirection:
@@ -102,6 +89,7 @@ PlayerBulletManager::PlayerBulletManager() = default;
 PlayerBulletManager::~PlayerBulletManager() = default;
 
 void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player) {
+    ClearAimCorridorContext();
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     player_ = player;
@@ -112,10 +100,23 @@ void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* cam
         hasPreviousCameraPosition_ = true;
     }
     SyncModelPathBuffer();
+    lockedWingMissileExhaustController_ =
+        std::make_unique<LockedWingMissileExhaustController>();
+    if (object3dCommon_) {
+        lockedWingMissileExhaustController_->Initialize(
+            object3dCommon_->GetDxCommon(),
+            SrvManager::GetInstance(),
+            camera_);
+    }
 }
 
 void PlayerBulletManager::Finalize() {
     DeleteAllBullets();
+    ClearAimCorridorContext();
+    if (lockedWingMissileExhaustController_) {
+        lockedWingMissileExhaustController_->Finalize();
+    }
+    lockedWingMissileExhaustController_.reset();
     object3dCommon_ = nullptr;
     camera_ = nullptr;
     player_ = nullptr;
@@ -127,6 +128,7 @@ void PlayerBulletManager::Update(float deltaTime) {
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     UpdateCameraVelocity(safeDeltaTime);
     UpdateViewportDebugState();
+    UpdateLockedWingShotDiagnostics();
     fireTimer_ = (std::min)(fireInterval_, fireTimer_ + safeDeltaTime);
 
     inputBlockedReason_ = "None";
@@ -162,7 +164,9 @@ void PlayerBulletManager::Update(float deltaTime) {
                 projectileRailMotionAdapter_->ApplyToProjectile(
                     *instance.bullet, ProjectileRailMotionAdapter::ProjectileKind::Player);
             }
+            UpdateLockedWingShot(instance, safeDeltaTime);
             instance.bullet->Update(safeDeltaTime);
+            UpdateLockedWingMissileExhaust(instance);
             if (projectileRailMotionAdapter_ && instance.bullet->IsDead()) {
                 projectileRailMotionAdapter_->RecordDespawn(
                     ProjectileRailMotionAdapter::ProjectileKind::Player, instance.bullet->GetDeathReason());
@@ -170,6 +174,9 @@ void PlayerBulletManager::Update(float deltaTime) {
         }
     }
 
+    if (lockedWingMissileExhaustController_) {
+        lockedWingMissileExhaustController_->Update(safeDeltaTime);
+    }
     if (autoRemoveDeadBullets_) {
         RemoveDeadBullets();
     }
@@ -187,6 +194,9 @@ void PlayerBulletManager::Draw() {
                 instance.bullet->DrawRadius();
             }
         }
+    }
+    if (lockedWingMissileExhaustController_) {
+        lockedWingMissileExhaustController_->Draw();
     }
 }
 
@@ -214,27 +224,8 @@ void PlayerBulletManager::DrawImGui() {
     ImGui::DragFloat("Max Charge Time", &maxChargeTime_, 0.01f, 0.05f, 5.0f, "%.2f");
     ImGui::Text("Charge Time / Rate: %.2f / %.2f", chargeTime_, chargeRate_);
     ImGui::Text("Is Charge Max: %s", isChargeMax_ ? "true" : "false");
-    ImGui::SeparatorText("狙い設定 (Aim)");
-    int aimModeIndex = static_cast<int>(aimMode_);
-    const char* aimModeItems[] = { "CameraForward", "MouseRay", "MouseAimPlane" };
-    if (ImGui::Combo("Aim Mode", &aimModeIndex, aimModeItems, 3)) {
-        aimMode_ = static_cast<AimMode>(aimModeIndex);
-    }
-    ImGui::Text("Current Aim Mode: %s", ToAimModeLabel(aimMode_));
-    ImGui::Text("Mouse In Game View: %s", mouseInGameView_ ? "true" : "false");
-    ImGui::Text("Mouse NDC: %.3f, %.3f", mouseNdc_.x, mouseNdc_.y);
-    ImGui::Text("Mouse Normalized: %.3f, %.3f", mouseNormalized_.x, mouseNormalized_.y);
-    ImGui::DragFloat("Aim Distance", &aimDistance_, 0.5f, 0.1f, 1000.0f, "%.2f");
-    ImGui::DragFloat("Muzzle Offset", &muzzleOffset_, 0.01f, 0.0f, 10.0f, "%.2f");
-    ImGui::Checkbox("Inherit Camera Velocity", &inheritCameraVelocity_);
-    ImGui::DragFloat("Inherit Camera Velocity Factor", &inheritCameraVelocityFactor_, 0.01f, 0.0f, 5.0f, "%.2f");
-    ImGui::Text("Aim Point: %.2f, %.2f, %.2f", lastAimPoint_.x, lastAimPoint_.y, lastAimPoint_.z);
-    ImGui::Text("Aim Direction: %.3f, %.3f, %.3f", lastAimDirection_.x, lastAimDirection_.y, lastAimDirection_.z);
-    ImGui::Text("Muzzle Position: %.2f, %.2f, %.2f", lastMuzzlePosition_.x, lastMuzzlePosition_.y, lastMuzzlePosition_.z);
-    ImGui::Text("Camera Velocity: %.2f, %.2f, %.2f", cameraVelocity_.x, cameraVelocity_.y, cameraVelocity_.z);
-    ImGui::Text("Last Shot Direction: %.3f, %.3f, %.3f", lastFireDirection_.x, lastFireDirection_.y, lastFireDirection_.z);
-    ImGui::Text("Last Shot Velocity: %.2f, %.2f, %.2f", lastShotVelocity_.x, lastShotVelocity_.y, lastShotVelocity_.z);
-    ImGui::TextWrapped("Last Shot Fallback Reason: %s", lastShotFallbackReason_.c_str());
+    DrawAimImGui();
+    DrawLockedWingShotImGui();
     ImGui::SeparatorText("プレイヤー弾モデル向き補正 (Player Bullet Model Rotation Offset)");
     int visualSourceIndex = static_cast<int>(visualDirectionSource_);
     const char* visualSourceItems[] = { "Aim Direction", "Final Velocity" };
@@ -355,6 +346,9 @@ void PlayerBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisua
 }
 
 void PlayerBulletManager::DeleteAllBullets() {
+    if (lockedWingMissileExhaustController_) {
+        lockedWingMissileExhaustController_->Reset(false);
+    }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
             instance.bullet->Finalize();
@@ -380,7 +374,13 @@ size_t PlayerBulletManager::GetActiveCount() const {
 
 void PlayerBulletManager::FireFromPlayer() {
     if (!player_ || !camera_) {
-        inputBlockedReason_ = "Player or Camera is missing";
+        inputBlockedReason_ = "プレイヤーまたはカメラがありません";
+        return;
+    }
+
+    const LockedWingShotResult lockedWingResult = TrySpawnLockedWingShot();
+    if (lockedWingResult == LockedWingShotResult::Spawned
+        || lockedWingResult == LockedWingShotResult::SpawnFailed) {
         return;
     }
 
@@ -388,12 +388,16 @@ void PlayerBulletManager::FireFromPlayer() {
     const Vector3 initialDirection = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
     const Vector3 startPosition = AddVector3(
         player_->GetWorldPosition(), ScaleVector3(initialDirection, muzzleOffset_));
-    const Vector3 direction = Normalize(
-        SubtractVector3(lastAimPoint_, startPosition), initialDirection);
+    const Vector3 direction = ResolveFinalShotDirection(startPosition, initialDirection);
+    if (!lastShotSpawnDataValid_) {
+        inputBlockedReason_ = "発射口または目標が無効なため弾を生成しません";
+        return;
+    }
+
     Vector3 velocity = ScaleVector3(direction, bulletSpeed_);
-    if (inheritCameraVelocity_ &&
-        !(projectileRailMotionAdapter_ &&
-            projectileRailMotionAdapter_->ShouldSuppressCameraVelocityInheritance())) {
+    if (lastUsedAimMode_ != AimMode::AimCorridor && inheritCameraVelocity_
+        && !(projectileRailMotionAdapter_
+            && projectileRailMotionAdapter_->ShouldSuppressCameraVelocityInheritance())) {
         velocity = AddVector3(velocity, ScaleVector3(cameraVelocity_, inheritCameraVelocityFactor_));
     }
 
@@ -408,6 +412,7 @@ void PlayerBulletManager::FireFromPlayer() {
         AddVector3(MakeRotationFromForward(lastVisualDirection_), defaultRotation_),
         playerBulletModelRotationOffset_);
     if (EnemyBullet* bullet = SpawnBullet(startPosition, velocity, bulletDamage_)) {
+        RecordAimShot();
         if (projectileRailMotionAdapter_) {
             projectileRailMotionAdapter_->RecordShot(
                 ProjectileRailMotionAdapter::ProjectileKind::Player,
@@ -422,6 +427,11 @@ void PlayerBulletManager::FireFromPlayer() {
 }
 
 void PlayerBulletManager::RemoveDeadBullets() {
+    for (PlayerBulletInstance& instance : bullets_) {
+        if (!instance.bullet || instance.bullet->IsDead()) {
+            UpdateLockedWingMissileExhaust(instance);
+        }
+    }
     bullets_.erase(
         std::remove_if(
             bullets_.begin(),
@@ -492,57 +502,6 @@ void PlayerBulletManager::UpdateChargeState(float deltaTime, bool inputBlocked) 
     isChargeMax_ = chargeRate_ >= 1.0f;
 }
 
-Vector3 PlayerBulletManager::ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward) {
-    const Vector3 fallbackDirection = Normalize(cameraForward, { 0.0f, 0.0f, 1.0f });
-    lastShotFallbackReason_ = "None";
-    lastAimDirection_ = fallbackDirection;
-    lastAimPoint_ = AddVector3(muzzleBasePosition, ScaleVector3(fallbackDirection, aimDistance_));
-
-    if (aimMode_ == AimMode::CameraForward) {
-        lastShotFallbackReason_ = "CameraForward";
-        return fallbackDirection;
-    }
-
-    if (!gameViewport_) {
-        lastShotFallbackReason_ = "GameViewport missing. Fallback to CameraForward.";
-        return fallbackDirection;
-    }
-    if (!gameViewport_->IsMouseInGameViewport()) {
-        lastShotFallbackReason_ = "Mouse outside GameViewport. Fallback to CameraForward.";
-        return fallbackDirection;
-    }
-
-    const GameViewport::Ray mouseRay = gameViewport_->GetMouseRayFromCamera(*camera_);
-    if (!mouseRay.valid) {
-        lastShotFallbackReason_ = "Mouse ray invalid. Fallback to CameraForward.";
-        return fallbackDirection;
-    }
-
-    if (aimMode_ == AimMode::MouseRay) {
-        lastAimDirection_ = Normalize(mouseRay.direction, fallbackDirection);
-        lastAimPoint_ = AddVector3(mouseRay.origin, ScaleVector3(lastAimDirection_, aimDistance_));
-        return lastAimDirection_;
-    }
-
-    const Vector3 planeNormal = fallbackDirection;
-    const Vector3 planeCenter = AddVector3(camera_->GetTranslate(), ScaleVector3(planeNormal, aimDistance_));
-    const float denominator = DotVector3(mouseRay.direction, planeNormal);
-    if (std::fabs(denominator) <= kMinVectorLength) {
-        lastShotFallbackReason_ = "Mouse ray parallel to aim plane. Fallback to CameraForward.";
-        return fallbackDirection;
-    }
-
-    const float distanceOnRay = DotVector3(SubtractVector3(planeCenter, mouseRay.origin), planeNormal) / denominator;
-    if (distanceOnRay <= kMinVectorLength || !std::isfinite(distanceOnRay)) {
-        lastShotFallbackReason_ = "Aim plane intersection is behind camera. Fallback to CameraForward.";
-        return fallbackDirection;
-    }
-
-    lastAimPoint_ = AddVector3(mouseRay.origin, ScaleVector3(mouseRay.direction, distanceOnRay));
-    lastAimDirection_ = Normalize(SubtractVector3(lastAimPoint_, muzzleBasePosition), fallbackDirection);
-    return lastAimDirection_;
-}
-
 bool PlayerBulletManager::ShouldBlockFireInput() {
     if (!enablePlayerShot_) {
         inputBlockedReason_ = "Player shot disabled";
@@ -557,7 +516,7 @@ bool PlayerBulletManager::ShouldBlockFireInput() {
         inputBlockedReason_ = "ImGui text input is active";
         return true;
     }
-    if (aimMode_ != AimMode::CameraForward) {
+    if (aimMode_ == AimMode::MouseRay || aimMode_ == AimMode::MouseAimPlane) {
         if (!gameViewport_) {
             inputBlockedReason_ = "GameViewport is missing";
             return true;

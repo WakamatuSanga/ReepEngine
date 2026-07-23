@@ -1,0 +1,595 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "OpenAI Kraken Rig Generator v2",
+    "extras": {
+      "sourceCoordinateSystem": "+Z up, -Y front"
+    }
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "KrakenScene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "kraken_tentacle_variant_01_SkinnedMesh",
+      "mesh": 0,
+      "skin": 0
+    },
+    {
+      "name": "Tentacle_Root",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        -0.9989015454351419,
+        -0.04685832399142213,
+        0.0,
+        0.0,
+        0.0022242103298451624,
+        -0.047414566860348124,
+        -0.9988728206022298,
+        0.0,
+        0.04680550625400496,
+        -0.9977756041927266,
+        0.047466706881200554,
+        0.0,
+        0.0,
+        -0.35,
+        0.0,
+        1.0
+      ],
+      "children": [
+        2
+      ]
+    },
+    {
+      "name": "Tentacle_01",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9913783294954048,
+        -0.002847010878779218,
+        -0.1309996272359466,
+        0.0,
+        -0.00305519793041313,
+        0.9989898628534666,
+        -0.04483212778374382,
+        0.0,
+        0.13099493720181268,
+        0.044845829739988616,
+        0.9903682032367686,
+        0.0,
+        -0.06980241887738264,
+        -0.022388191322750918,
+        -1.284012370411899,
+        1.0
+      ],
+      "children": [
+        3
+      ]
+    },
+    {
+      "name": "Tentacle_02",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9962394246832372,
+        -0.0017758145888423654,
+        -0.08662479546503106,
+        0.0,
+        -0.0020632283079021077,
+        0.9990202000106647,
+        -0.044208404852484104,
+        0.0,
+        0.08661842642164469,
+        0.044220882546572075,
+        0.9952596453946279,
+        0.0,
+        -0.04696335709150616,
+        -0.02180966598095218,
+        -1.285638848904974,
+        1.0
+      ],
+      "children": [
+        4
+      ]
+    },
+    {
+      "name": "Tentacle_03",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9992404279421242,
+        -0.0005989754800223269,
+        -0.0389641937477838,
+        0.0,
+        -0.0007053444658378334,
+        0.9994400603691368,
+        -0.03345247701622689,
+        0.0,
+        0.038962413364998526,
+        0.03345455062784448,
+        0.9986804911417186,
+        0.0,
+        -0.02584854388724306,
+        -0.020803099762163865,
+        -1.2865408645952607,
+        1.0
+      ],
+      "children": [
+        5
+      ]
+    },
+    {
+      "name": "Tentacle_04",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9997920150184234,
+        -0.0003425246938453257,
+        -0.02039140461652895,
+        0.0,
+        -0.0006053778893008526,
+        0.9989199174068292,
+        -0.046461081837859686,
+        0.0,
+        0.020385294283184634,
+        0.04646376313609626,
+        0.9987119497093344,
+        0.0,
+        -0.01872000364183629,
+        -0.03393911798931981,
+        -1.2864833183948354,
+        1.0
+      ],
+      "children": [
+        6
+      ]
+    },
+    {
+      "name": "Tentacle_05",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9998926143256763,
+        0.0005075674566640073,
+        0.014645893357557213,
+        0.0,
+        0.00023636885145701512,
+        0.9987114375250272,
+        -0.05074848457303738,
+        0.0,
+        -0.014652779488208503,
+        0.05074649674579209,
+        0.9986040702507172,
+        0.0,
+        0.0062704398799409145,
+        -0.033980912552023734,
+        -1.2865754724468452,
+        1.0
+      ],
+      "children": [
+        7
+      ]
+    },
+    {
+      "name": "Tentacle_06",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.998658327810646,
+        0.0016469641718163865,
+        0.051757432349961004,
+        0.0,
+        0.0013477785229606214,
+        0.9983288356640676,
+        -0.057772998664433965,
+        0.0,
+        -0.05176608723379704,
+        0.057765243794555186,
+        0.9969871858864882,
+        0.0,
+        0.029229113848141308,
+        -0.03623203595891744,
+        -1.2860028332342326,
+        1.0
+      ],
+      "children": [
+        8
+      ]
+    },
+    {
+      "name": "Tentacle_07",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.99557514406624,
+        0.003364045415352289,
+        0.09390854974883012,
+        0.0,
+        0.003016137521190152,
+        0.9977000865526484,
+        -0.06771587854625263,
+        0.0,
+        -0.09392036750321166,
+        0.06769948663971541,
+        0.9932752609809532,
+        0.0,
+        0.05551386272798464,
+        -0.042138090581169685,
+        -1.2844777766953612,
+        1.0
+      ],
+      "children": [
+        9
+      ]
+    },
+    {
+      "name": "Tentacle_08",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9898949266485776,
+        0.005888213439027645,
+        0.14168049667439794,
+        0.0,
+        0.005483762066631187,
+        0.9968005446899544,
+        -0.07974084561506997,
+        0.0,
+        -0.14169672737577324,
+        0.07971200065426969,
+        0.9866955125076273,
+        0.0,
+        0.0915424802257947,
+        -0.05299973002405545,
+        -1.281090134785332,
+        1.0
+      ],
+      "children": [
+        10
+      ]
+    },
+    {
+      "name": "Tentacle_09",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        0.9819227323481112,
+        0.00870625007500078,
+        0.18908185769039534,
+        0.0,
+        0.008600261450261755,
+        0.9958578437689565,
+        -0.09051624443619019,
+        0.0,
+        -0.18908670815529713,
+        0.09050611147031198,
+        0.9777805789570159,
+        0.0,
+        0.13873491601841015,
+        -0.0675665414538229,
+        -1.2750419697042208,
+        1.0
+      ]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Kraken Reusable Tentacle Variant 01 - Rigged Root at Origin",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 6,
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 8,
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "skins": [
+    {
+      "name": "kraken_tentacle_variant_01_Skin",
+      "inverseBindMatrices": 5,
+      "joints": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "skeleton": 1
+    }
+  ],
+  "materials": [
+    {
+      "name": "KrakenSkin",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.68
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenSucker",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.58
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenSuckerInner",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.76
+      },
+      "doubleSided": false
+    }
+  ],
+  "textures": [
+    {
+      "name": "KrakenTexture",
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "images": [
+    {
+      "name": "KrakenAtlas",
+      "uri": "../../textures/kraken_albedo.png"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "kraken_tentacle_variant_01.bin",
+      "byteLength": 204816
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 34944,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 34944,
+      "byteLength": 34944,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 69888,
+      "byteLength": 23296,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 93184,
+      "byteLength": 11648,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 104832,
+      "byteLength": 46592,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 151424,
+      "byteLength": 640
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 152064,
+      "byteLength": 17760,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 169824,
+      "byteLength": 15552,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 185376,
+      "byteLength": 19440,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 2912,
+      "type": "VEC3",
+      "name": "POSITION",
+      "min": [
+        -0.9389674663543701,
+        -0.41194772720336914,
+        -0.9389404654502869
+      ],
+      "max": [
+        1.6862956285476685,
+        10.800716400146484,
+        1.9012938737869263
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 2912,
+      "type": "VEC3",
+      "name": "NORMAL"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 2912,
+      "type": "VEC2",
+      "name": "TEXCOORD_0"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5121,
+      "count": 2912,
+      "type": "VEC4",
+      "name": "JOINTS_0"
+    },
+    {
+      "bufferView": 4,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 2912,
+      "type": "VEC4",
+      "name": "WEIGHTS_0"
+    },
+    {
+      "bufferView": 5,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 10,
+      "type": "MAT4",
+      "name": "InverseBindMatrices"
+    },
+    {
+      "bufferView": 6,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 4440,
+      "type": "SCALAR",
+      "name": "Indices_KrakenSkin",
+      "min": [
+        0.0
+      ],
+      "max": [
+        778.0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 3888,
+      "type": "SCALAR",
+      "name": "Indices_KrakenSucker",
+      "min": [
+        779.0
+      ],
+      "max": [
+        2871.0
+      ]
+    },
+    {
+      "bufferView": 8,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 4860,
+      "type": "SCALAR",
+      "name": "Indices_KrakenSuckerInner",
+      "min": [
+        818.0
+      ],
+      "max": [
+        2911.0
+      ]
+    }
+  ]
+}

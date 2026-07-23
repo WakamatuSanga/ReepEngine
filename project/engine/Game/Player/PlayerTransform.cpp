@@ -148,6 +148,22 @@ void Player::SetRailFlightVisualBankRadians(float radians) {
     railFlightVisualBankRadians_ = std::isfinite(radians) ? radians : 0.0f;
 }
 
+Vector3 Player::TransformVisualModelPointToWorld(const Vector3& modelLocalPoint) const {
+    const Matrix4x4 world = MatrixMath::MakeAffine(
+        modelScale_, visualFinalRotation_, worldPosition_);
+    return {
+        modelLocalPoint.x * world.m[0][0]
+            + modelLocalPoint.y * world.m[1][0]
+            + modelLocalPoint.z * world.m[2][0] + world.m[3][0],
+        modelLocalPoint.x * world.m[0][1]
+            + modelLocalPoint.y * world.m[1][1]
+            + modelLocalPoint.z * world.m[2][1] + world.m[3][1],
+        modelLocalPoint.x * world.m[0][2]
+            + modelLocalPoint.y * world.m[1][2]
+            + modelLocalPoint.z * world.m[2][2] + world.m[3][2],
+    };
+}
+
 Vector3 Player::GetVisualDisplayForward() const {
     const Vector3 modelForward = GetModelForwardDirection(modelForwardAxis_);
     const Vector3 displayForward = TransformDirection(

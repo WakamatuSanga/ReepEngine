@@ -444,6 +444,24 @@
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingShot.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileLaunch.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -912,6 +930,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
