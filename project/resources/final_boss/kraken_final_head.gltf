@@ -1,0 +1,933 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "OpenAI Kraken Rig Generator v2",
+    "extras": {
+      "sourceCoordinateSystem": "+Z up, -Y front"
+    }
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "KrakenScene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "kraken_final_head_SkinnedMesh",
+      "mesh": 0,
+      "skin": 0
+    },
+    {
+      "name": "KrakenRoot",
+      "extras": {
+        "deform": false
+      },
+      "children": [
+        2
+      ]
+    },
+    {
+      "name": "HeadMain",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        5.1,
+        0.12,
+        1.0
+      ],
+      "children": [
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ]
+    },
+    {
+      "name": "MantleBase",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        2.25,
+        -0.26,
+        1.0
+      ],
+      "children": [
+        4,
+        11,
+        12
+      ]
+    },
+    {
+      "name": "MantleTip",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        2.3000000000000007,
+        -0.15999999999999998,
+        1.0
+      ]
+    },
+    {
+      "name": "Eye_L",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -2.4509,
+        0.3700000000000001,
+        2.2750999999999997,
+        1.0
+      ]
+    },
+    {
+      "name": "Eye_R",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        2.4509,
+        0.3700000000000001,
+        2.2750999999999997,
+        1.0
+      ]
+    },
+    {
+      "name": "EyeSocket_L",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -2.3706,
+        0.3700000000000001,
+        2.0278,
+        1.0
+      ]
+    },
+    {
+      "name": "EyeSocket_R",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        2.3706,
+        0.3700000000000001,
+        2.0278,
+        1.0
+      ]
+    },
+    {
+      "name": "UpperBeak",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -2.28,
+        0.92,
+        1.0
+      ]
+    },
+    {
+      "name": "LowerBeak",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        -2.53,
+        0.91,
+        1.0
+      ]
+    },
+    {
+      "name": "Fin_L",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        -1.3,
+        -4.33,
+        0.48000000000000004,
+        1.0
+      ]
+    },
+    {
+      "name": "Fin_R",
+      "extras": {
+        "deform": true
+      },
+      "matrix": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.3,
+        -4.33,
+        0.48000000000000004,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_01",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_01.gltf"
+      },
+      "matrix": [
+        1.0,
+        3.0814879110195767e-33,
+        -6.123233995736766e-17,
+        0.0,
+        -1.9710857594878058e-17,
+        -0.9467727448197129,
+        -0.3219027332387024,
+        0.0,
+        -5.797311057317076e-17,
+        0.3219027332387024,
+        -0.9467727448197129,
+        0.0,
+        1.4328367550024033e-16,
+        -1.8599999999999994,
+        1.98,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_02",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_02.gltf"
+      },
+      "matrix": [
+        0.7071067811865475,
+        -2.7755575615628907e-17,
+        -0.7071067811865476,
+        0.0,
+        -0.22761960555557073,
+        -0.9467727448197127,
+        -0.22761960555557068,
+        0.0,
+        -0.6694694281046197,
+        0.3219027332387024,
+        -0.6694694281046196,
+        0.0,
+        1.6546298679765212,
+        -1.8599999999999994,
+        1.4469343417595164,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_03",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_03.gltf"
+      },
+      "matrix": [
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        -0.3219027332387024,
+        -0.9467727448197129,
+        0.0,
+        0.0,
+        -0.9467727448197129,
+        0.3219027332387024,
+        0.0,
+        0.0,
+        2.34,
+        -1.8599999999999994,
+        0.16000000000000003,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_04",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_04.gltf"
+      },
+      "matrix": [
+        -0.7071067811865475,
+        2.7755575615628907e-17,
+        -0.7071067811865476,
+        0.0,
+        -0.22761960555557073,
+        -0.9467727448197127,
+        0.22761960555557068,
+        0.0,
+        -0.6694694281046197,
+        0.3219027332387024,
+        0.6694694281046196,
+        0.0,
+        1.6546298679765212,
+        -1.8599999999999994,
+        -1.1269343417595166,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_05",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_01.gltf"
+      },
+      "matrix": [
+        -1.0,
+        -3.0814879110195767e-33,
+        -6.123233995736766e-17,
+        0.0,
+        -1.9710857594878058e-17,
+        -0.9467727448197129,
+        0.3219027332387024,
+        0.0,
+        -5.797311057317076e-17,
+        0.3219027332387024,
+        0.9467727448197129,
+        0.0,
+        1.4328367550024033e-16,
+        -1.8599999999999994,
+        -1.6600000000000001,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_06",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_02.gltf"
+      },
+      "matrix": [
+        -0.7071067811865477,
+        2.7755575615628914e-17,
+        0.7071067811865476,
+        0.0,
+        0.22761960555557068,
+        -0.9467727448197127,
+        0.22761960555557073,
+        0.0,
+        0.6694694281046196,
+        0.3219027332387024,
+        0.6694694281046197,
+        0.0,
+        -1.654629867976521,
+        -1.8599999999999994,
+        -1.1269343417595166,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_07",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_03.gltf"
+      },
+      "matrix": [
+        -1.2246467991473532e-16,
+        -6.1629758220391534e-33,
+        1.0,
+        0.0,
+        0.3219027332387024,
+        -0.9467727448197129,
+        3.9421715189756116e-17,
+        0.0,
+        0.9467727448197129,
+        0.3219027332387024,
+        1.1594622114634151e-16,
+        0.0,
+        -2.34,
+        -1.8599999999999994,
+        0.1599999999999998,
+        1.0
+      ]
+    },
+    {
+      "name": "TentacleSocket_08",
+      "extras": {
+        "deform": false,
+        "socketSource": "../midboss/parts/kraken_tentacle_variant_04.gltf"
+      },
+      "matrix": [
+        0.7071067811865475,
+        0.0,
+        0.7071067811865477,
+        0.0,
+        0.22761960555557073,
+        -0.9467727448197127,
+        -0.22761960555557065,
+        0.0,
+        0.6694694281046197,
+        0.32190273323870233,
+        -0.6694694281046195,
+        0.0,
+        -1.6546298679765215,
+        -1.8599999999999994,
+        1.4469343417595164,
+        1.0
+      ]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Kraken Final Boss - Finless Octopus Body and Head",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 6,
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 7,
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 8,
+          "material": 2,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 9,
+          "material": 3,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2,
+            "JOINTS_0": 3,
+            "WEIGHTS_0": 4
+          },
+          "indices": 10,
+          "material": 4,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "skins": [
+    {
+      "name": "kraken_final_head_Skin",
+      "inverseBindMatrices": 5,
+      "joints": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "skeleton": 1
+    }
+  ],
+  "materials": [
+    {
+      "name": "KrakenSkin",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.68
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenEye",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.26
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenPupil",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.34
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenBeak",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.38
+      },
+      "doubleSided": false
+    },
+    {
+      "name": "KrakenMouth",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0,
+          "texCoord": 0
+        },
+        "baseColorFactor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.72
+      },
+      "doubleSided": false
+    }
+  ],
+  "textures": [
+    {
+      "name": "KrakenTexture",
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987,
+      "wrapS": 10497,
+      "wrapT": 10497
+    }
+  ],
+  "images": [
+    {
+      "name": "KrakenAtlas",
+      "uri": "../textures/kraken_albedo.png"
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "kraken_final_head.bin",
+      "byteLength": 600160
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 98304,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 98304,
+      "byteLength": 98304,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 196608,
+      "byteLength": 65536,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 262144,
+      "byteLength": 32768,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 294912,
+      "byteLength": 131072,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 425984,
+      "byteLength": 1280
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 427264,
+      "byteLength": 110592,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 537856,
+      "byteLength": 32256,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 570112,
+      "byteLength": 17472,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 587584,
+      "byteLength": 1152,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 588736,
+      "byteLength": 11424,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 8192,
+      "type": "VEC3",
+      "name": "POSITION",
+      "min": [
+        -3.666918992996216,
+        2.309999942779541,
+        -3.226726531982422
+      ],
+      "max": [
+        3.666918992996216,
+        11.100000381469727,
+        3.2603557109832764
+      ]
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 8192,
+      "type": "VEC3",
+      "name": "NORMAL"
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 8192,
+      "type": "VEC2",
+      "name": "TEXCOORD_0"
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5121,
+      "count": 8192,
+      "type": "VEC4",
+      "name": "JOINTS_0"
+    },
+    {
+      "bufferView": 4,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 8192,
+      "type": "VEC4",
+      "name": "WEIGHTS_0"
+    },
+    {
+      "bufferView": 5,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "count": 20,
+      "type": "MAT4",
+      "name": "InverseBindMatrices"
+    },
+    {
+      "bufferView": 6,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 27648,
+      "type": "SCALAR",
+      "name": "Indices_KrakenSkin",
+      "min": [
+        0.0
+      ],
+      "max": [
+        7542.0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 8064,
+      "type": "SCALAR",
+      "name": "Indices_KrakenEye",
+      "min": [
+        2553.0
+      ],
+      "max": [
+        5513.0
+      ]
+    },
+    {
+      "bufferView": 8,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 4368,
+      "type": "SCALAR",
+      "name": "Indices_KrakenPupil",
+      "min": [
+        3310.0
+      ],
+      "max": [
+        5946.0
+      ]
+    },
+    {
+      "bufferView": 9,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 288,
+      "type": "SCALAR",
+      "name": "Indices_KrakenBeak",
+      "min": [
+        8092.0
+      ],
+      "max": [
+        8191.0
+      ]
+    },
+    {
+      "bufferView": 10,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "count": 2856,
+      "type": "SCALAR",
+      "name": "Indices_KrakenMouth",
+      "min": [
+        7543.0
+      ],
+      "max": [
+        8091.0
+      ]
+    }
+  ]
+}

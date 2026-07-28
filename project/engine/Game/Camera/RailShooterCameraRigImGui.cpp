@@ -378,6 +378,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Text("Current Up: %.3f, %.3f, %.3f", currentUp_.x, currentUp_.y, currentUp_.z);
     ImGui::Text("Saved Position: %.3f, %.3f, %.3f", savedCameraPosition_.x, savedCameraPosition_.y, savedCameraPosition_.z);
     ImGui::Text("Saved Rotation: %.3f, %.3f, %.3f", savedCameraRotation_.x, savedCameraRotation_.y, savedCameraRotation_.z);
+    DrawRuntimeV2TrialImGui();
     ImGui::End();
 #endif
 }

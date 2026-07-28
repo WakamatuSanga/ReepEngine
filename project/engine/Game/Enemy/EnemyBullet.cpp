@@ -83,6 +83,9 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     currentTime_ = 0.0f;
     isActive_ = false;
     isDead_ = true;
+    deathReason_ = "初期化中";
+    projectileRailFrameSequence_ = 0;
+    projectileSpawnSequence_ = 0;
 
     if (!object3dCommon_ || !camera_) {
         loadStatus_ = "Initialize failed: Object3dCommon or Camera is null.";
@@ -118,6 +121,7 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     initialized_ = true;
     isActive_ = true;
     isDead_ = false;
+    deathReason_ = "生存中";
     UpdateObjectTransform();
     object_->Update();
     if (radiusObject_ && radiusObject_->IsValid()) {
@@ -133,6 +137,9 @@ void EnemyBullet::Finalize() {
     radiusModel_ = nullptr;
     object_.reset();
     model_ = nullptr;
+    deathReason_ = "終了済み";
+    projectileRailFrameSequence_ = 0;
+    projectileSpawnSequence_ = 0;
 }
 
 void EnemyBullet::Update(float deltaTime) {
@@ -143,7 +150,7 @@ void EnemyBullet::Update(float deltaTime) {
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     currentTime_ += safeDeltaTime;
     if (currentTime_ >= lifeTime_) {
-        Kill();
+        Kill("生存時間終了");
         return;
     }
 
@@ -313,9 +320,10 @@ void EnemyBullet::SetModelPath(const std::string& modelPath) {
     UpdateObjectTransform();
 }
 
-void EnemyBullet::Kill() {
+void EnemyBullet::Kill(const std::string& reason) {
     isDead_ = true;
     isActive_ = false;
+    deathReason_ = reason.empty() ? "外部処理" : reason;
 }
 
 void EnemyBullet::LoadModel() {

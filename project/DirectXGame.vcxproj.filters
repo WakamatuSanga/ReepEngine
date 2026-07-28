@@ -273,10 +273,25 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigProjectile.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2ImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Pose.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRailFlightVisual.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp">
@@ -390,6 +405,9 @@
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerTransform.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -426,10 +444,37 @@
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingShot.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileLaunch.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltController.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltControllerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp">
@@ -445,6 +490,12 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapterImGui.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp">
@@ -881,13 +932,22 @@
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerRailController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerRailFlightVisualTiltController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h">
+      <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.h">
       <Filter>ヘッダー ファイル\engine\Game\RailShooter</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h">

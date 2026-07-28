@@ -107,6 +107,22 @@ AimCorridorVisualController::AimCorridorVisualController() = default;
 
 AimCorridorVisualController::~AimCorridorVisualController() = default;
 
+bool AimCorridorVisualController::IsMainReticlePresentationValid() const {
+    const float presentationAlpha = currentAlpha_ * (forceFullAlpha_ ? 1.0f : mainReticleAppearance_.alpha);
+    const bool screenRectFinite = IsFinite(mainReticleScreenRect_.centerUV)
+        && IsFinite(mainReticleScreenRect_.halfSizeUV)
+        && IsFinite(mainReticleScreenRect_.minUV)
+        && IsFinite(mainReticleScreenRect_.maxUV);
+    const bool overlapsViewport = screenRectFinite
+        && mainReticleScreenRect_.maxUV.x >= 0.0f && mainReticleScreenRect_.minUV.x <= 1.0f
+        && mainReticleScreenRect_.maxUV.y >= 0.0f && mainReticleScreenRect_.minUV.y <= 1.0f;
+    return initialized_ && isVisible_ && displayMode_ == DisplayMode::MainReticleOnly
+        && worldPlacementValid_ && mainReticleProjectionValid_ && mainReticleSizeValid_
+        && mainReticleScreenRect_.valid && overlapsViewport && std::isfinite(presentationAlpha)
+        && presentationAlpha > 0.001f && renderer_ && renderer_->IsInitialized()
+        && renderer_->IsFarTextureLoaded() && camera_;
+}
+
 bool AimCorridorVisualController::Initialize(DirectXCommon* dxCommon, Player* player, Camera* camera) {
     Finalize();
     dxCommon_ = dxCommon;

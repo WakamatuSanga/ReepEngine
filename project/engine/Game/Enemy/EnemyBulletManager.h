@@ -7,6 +7,7 @@
 class Camera;
 class EnemyBullet;
 class Object3dCommon;
+class ProjectileRailMotionAdapter;
 
 class EnemyBulletManager {
 public:
@@ -20,6 +21,12 @@ public:
     void DrawImGui();
 
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity);
+    void SetProjectileRailMotionAdapter(ProjectileRailMotionAdapter* adapter) { projectileRailMotionAdapter_ = adapter; }
+    void RecordProjectileShot(
+        const Vector3& muzzle,
+        const Vector3& target,
+        const Vector3& direction,
+        const Vector3& relativeVelocity);
     void DeleteAllBullets();
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
     size_t ClearBulletsInRadius(const Vector3& center, float radius);
@@ -35,6 +42,7 @@ private:
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::vector<std::unique_ptr<EnemyBullet>> bullets_;
     int selectedBulletIndex_ = -1;
     bool autoRemoveDeadBullets_ = true;

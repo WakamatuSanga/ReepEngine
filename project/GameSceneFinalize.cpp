@@ -33,11 +33,13 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
@@ -100,6 +102,10 @@ void GameScene::FinalizeSceneResources() {
         railShooterEventActionBridge_->Finalize();
     }
     railShooterEventActionBridge_.reset();
+    if (playerRailFlightVisualTiltController_) {
+        playerRailFlightVisualTiltController_->Finalize();
+    }
+    playerRailFlightVisualTiltController_.reset();
     if (railShooterCameraRig_) {
         railShooterCameraRig_->Finalize();
     }
@@ -137,6 +143,9 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
+    if (playerBulletManager_) {
+        playerBulletManager_->ClearAimCorridorContext();
+    }
     if (aimCorridorTargetingController_) {
         aimCorridorTargetingController_->Finalize();
     }

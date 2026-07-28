@@ -1,5 +1,6 @@
 ﻿#include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Utility/Logger.h"
 #include <algorithm>
 #include <cmath>
@@ -38,12 +39,21 @@ void EnemyBulletManager::Finalize() {
     DeleteAllBullets();
     object3dCommon_ = nullptr;
     camera_ = nullptr;
+    projectileRailMotionAdapter_ = nullptr;
 }
 
 void EnemyBulletManager::Update(float deltaTime) {
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
+            if (projectileRailMotionAdapter_) {
+                projectileRailMotionAdapter_->ApplyToProjectile(
+                    *bullet, ProjectileRailMotionAdapter::ProjectileKind::Enemy);
+            }
             bullet->Update(deltaTime);
+            if (projectileRailMotionAdapter_ && bullet->IsDead()) {
+                projectileRailMotionAdapter_->RecordDespawn(
+                    ProjectileRailMotionAdapter::ProjectileKind::Enemy, bullet->GetDeathReason());
+            }
         }
     }
 
@@ -189,10 +199,25 @@ EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vect
     bullet->SetModelRotationOffset(defaultModelRotationOffset_);
     bullet->SetRadius(defaultRadius_);
     bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
+    if (projectileRailMotionAdapter_) {
+        projectileRailMotionAdapter_->RegisterProjectile(*bullet);
+    }
 
     EnemyBullet* bulletPtr = bullet.get();
     bullets_.push_back(std::move(bullet));
     return bulletPtr;
+}
+
+void EnemyBulletManager::RecordProjectileShot(
+    const Vector3& muzzle,
+    const Vector3& target,
+    const Vector3& direction,
+    const Vector3& relativeVelocity) {
+    if (projectileRailMotionAdapter_) {
+        projectileRailMotionAdapter_->RecordShot(
+            ProjectileRailMotionAdapter::ProjectileKind::Enemy,
+            muzzle, target, direction, relativeVelocity);
+    }
 }
 
 void EnemyBulletManager::DeleteAllBullets() {
@@ -243,7 +268,7 @@ size_t EnemyBulletManager::ClearBulletsInRadius(
             if (clearedPositions && clearedPositions->size() < maxRecordedPositions) {
                 clearedPositions->push_back(bullet->GetPosition());
             }
-            bullet->Kill();
+            bullet->Kill("範囲消去");
             ++clearedCount;
         }
     }
@@ -291,7 +316,7 @@ bool EnemyBulletManager::CheckHitAndKillFirstSphere(
             if (hitPosition) {
                 *hitPosition = bullet->GetPosition();
             }
-            bullet->Kill();
+            bullet->Kill("Playerとの衝突");
             return true;
         }
     }

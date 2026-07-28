@@ -33,11 +33,13 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
@@ -198,6 +200,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     if (scene_->player_) {
         scene_->player_->DrawImGui();
     }
+    if (scene_->playerRailFlightVisualTiltController_) {
+        scene_->playerRailFlightVisualTiltController_->DrawImGui();
+    }
     if (scene_->playerDamageFeedbackController_) {
         scene_->playerDamageFeedbackController_->DrawImGui();
     }
@@ -230,6 +235,11 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->influenceFieldManager_) {
         scene_->influenceFieldManager_->DrawImGui();
+    }
+    if (scene_->projectileRailMotionAdapter_) {
+        scene_->projectileRailMotionAdapter_->DrawImGui(
+            scene_->playerBulletManager_ ? scene_->playerBulletManager_->GetActiveCount() : 0,
+            scene_->enemyBulletManager_ ? scene_->enemyBulletManager_->GetActiveCount() : 0);
     }
     if (scene_->playerBulletManager_) {
         scene_->playerBulletManager_->DrawImGui();

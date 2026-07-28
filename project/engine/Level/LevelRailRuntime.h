@@ -61,6 +61,7 @@ public:
     bool GetRailInfo(size_t index, LevelRailRuntimeRailInfo& outInfo) const;
     bool CopyRailBuildInput(
         size_t index, std::vector<Vector3>& outPoints, LevelRailSampleTable& outSampleTable) const;
+    uint64_t GetRebuildCount() const { return rebuildCount_; }
 
 private:
     const LevelRailRuntimeRail* FindRailById(const std::string& railId) const;

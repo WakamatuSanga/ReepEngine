@@ -219,6 +219,7 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
         return failStart("Failed to evaluate rail: " + railKey);
     }
 
+    InvalidateProjectileRailContinuity();
     SaveDebugHomeCameraIfNeeded();
     selectedRailIndex_ = static_cast<int>(matchedIndex);
     selectedRailId_ = resolvedRailKey;
@@ -247,12 +248,16 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
     hasSmoothedForward_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(false);
+    EnsureRuntimeV2Trial();
+    const RailCameraPose startPose = BuildRailCameraPose(railDistance_, matchedInfo.loop, startEvaluation);
 
     if (actualStartMode == CameraRailStartMode::BlendFromCurrentCameraToRail) {
         blendStartPosition_ = startCameraPosition;
         blendStartForward_ = startCameraForward;
-        blendTargetPosition_ = startEvaluation.position;
-        blendTargetForward_ = startEvaluation.forward;
+        blendTargetPosition_ = startPose.valid ? startPose.position : startEvaluation.position;
+        blendTargetForward_ = startPose.valid ? startPose.forward : startEvaluation.forward;
         lastBlendStartCameraPosition_ = blendStartPosition_;
         lastBlendTargetRailPosition_ = blendTargetPosition_;
         lastBlendTargetDistance_ = railDistance_;
@@ -264,8 +269,12 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
         currentEvaluationValid_ = true;
     } else {
         railBlendActive_ = false;
-        currentPosition_ = startEvaluation.position;
-        currentForward_ = startEvaluation.forward;
+        if (!ApplyRuntimeV2Pose(startEvaluation, 0.0f, matchedInfo.loop)) {
+            currentPosition_ = startEvaluation.position;
+            currentForward_ = startEvaluation.forward;
+            ++legacyPoseApplyCount_;
+            activePoseSource_ = "Legacy Rail";
+        }
         currentSegmentIndex_ = startEvaluation.segmentIndex;
         currentEvaluationValid_ = true;
         ApplyToCamera();
@@ -292,12 +301,16 @@ bool RailShooterCameraRig::StartRailByKeyWithSource(
 }
 
 void RailShooterCameraRig::StopAndRestoreCamera() {
+    InvalidateProjectileRailContinuity();
     mode_ = Mode::Disabled;
     autoPlay_ = false;
     currentEvaluationValid_ = false;
     railEndReached_ = false;
     railBlendActive_ = false;
     railBlendElapsed_ = 0.0f;
+    ResetBoostRailSpeedState();
+    ResetRuntimeV2PoseState(false);
+    ClearRuntimeV2ForceTests();
     RestoreDebugHomeCamera();
     wasCameraRigActive_ = false;
 }

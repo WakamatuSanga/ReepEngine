@@ -55,6 +55,7 @@ public:
         return { estimatedMainReticlePixelWidth_, estimatedMainReticlePixelHeight_ };
     }
     const AimReticleScreenRect& GetMainReticleScreenRect() const { return mainReticleScreenRect_; }
+    bool IsMainReticlePresentationValid() const;
 
 private:
     enum class AxisMode : uint8_t {

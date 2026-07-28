@@ -39,10 +39,12 @@
 #include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
+#include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/RailShooter/EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/PlayerEventTriggerBridge.h"
+#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
@@ -238,7 +240,11 @@ void GameScene::UpdateSceneRuntime() {
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     if (railShooterCameraRig_) {
+        railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
         railShooterCameraRig_->Update(gameplayDeltaTime);
+    }
+    if (projectileRailMotionAdapter_) {
+        projectileRailMotionAdapter_->BeginFrame(!isDeathSequenceActive);
     }
     if (cameraShakeController_) {
         cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
@@ -255,6 +261,16 @@ void GameScene::UpdateSceneRuntime() {
     camera_->Update();
     if (playerRailController_) {
         playerRailController_->Update(gameplayDeltaTime);
+    }
+    if (!playerRailFlightVisualTiltController_ && player_ && railShooterCameraRig_) {
+        playerRailFlightVisualTiltController_ =
+            std::make_unique<PlayerRailFlightVisualTiltController>();
+        playerRailFlightVisualTiltController_->Initialize(
+            player_.get(), railShooterCameraRig_.get());
+    }
+    if (playerRailFlightVisualTiltController_) {
+        playerRailFlightVisualTiltController_->Update(
+            unscaledDeltaTime, isGameMode, !isDeathSequenceActive);
     }
     if (playerBulletCancelEffectController_) {
         playerBulletCancelEffectController_->BeginFrame();
@@ -288,6 +304,27 @@ void GameScene::UpdateSceneRuntime() {
         playerJetExhaustController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         playerJetExhaustController_->SetPlayerAlive(!(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()));
         playerJetExhaustController_->Update(effectDeltaTime);
+    }
+    const bool isPlayerAliveForAim =
+        !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished());
+    if (!aimCorridorVisualController_) {
+        aimCorridorVisualController_ = std::make_unique<AimCorridorVisualController>();
+        aimCorridorVisualController_->Initialize(dxCommon, player_.get(), camera_.get());
+    }
+    if (!aimCorridorTargetingController_ && aimCorridorVisualController_) {
+        aimCorridorTargetingController_ = std::make_unique<AimCorridorTargetingController>();
+        aimCorridorTargetingController_->Initialize(
+            dxCommon, enemyManager_.get(), camera_.get(), aimCorridorVisualController_.get());
+    }
+    if (aimCorridorVisualController_) {
+        aimCorridorVisualController_->SetGameModeActive(isGameMode);
+        aimCorridorVisualController_->SetPlayerAlive(isPlayerAliveForAim);
+        aimCorridorVisualController_->Update(unscaledDeltaTime);
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->SetAimRuntimeContext(
+            aimCorridorVisualController_.get(), aimCorridorTargetingController_.get(), enemyManager_.get(),
+            isGameMode, isPlayerAliveForAim);
     }
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
@@ -323,22 +360,6 @@ void GameScene::UpdateSceneRuntime() {
     if (playerHudController_) {
         playerHudController_->SetGameModeActive(isGameMode);
         playerHudController_->Update(unscaledDeltaTime);
-    }
-    const bool isPlayerAliveForAim =
-        !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished());
-    if (!aimCorridorVisualController_) {
-        aimCorridorVisualController_ = std::make_unique<AimCorridorVisualController>();
-        aimCorridorVisualController_->Initialize(dxCommon, player_.get(), camera_.get());
-    }
-    if (!aimCorridorTargetingController_ && aimCorridorVisualController_) {
-        aimCorridorTargetingController_ = std::make_unique<AimCorridorTargetingController>();
-        aimCorridorTargetingController_->Initialize(
-            dxCommon, enemyManager_.get(), camera_.get(), aimCorridorVisualController_.get());
-    }
-    if (aimCorridorVisualController_) {
-        aimCorridorVisualController_->SetGameModeActive(isGameMode);
-        aimCorridorVisualController_->SetPlayerAlive(isPlayerAliveForAim);
-        aimCorridorVisualController_->Update(unscaledDeltaTime);
     }
     if (aimCorridorTargetingController_) {
         aimCorridorTargetingController_->SetGameModeActive(isGameMode);
@@ -376,7 +397,6 @@ void GameScene::UpdateSceneRuntime() {
         eventActionDispatcher_->Update();
     }
     if (enemyWaveManager_) {
-        enemyWaveManager_->SetCurrentBoostPower(boostController_ ? boostController_->GetCurrentBoostPower() : 0.0f);
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
     if (enemyLaserTelegraphController_) {

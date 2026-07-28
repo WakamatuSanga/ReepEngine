@@ -87,10 +87,6 @@
       <TreatLinkerWarningAsErrors>true</TreatLinkerWarningAsErrors>
       <AdditionalOptions>/ignore:4049 %(AdditionalOptions)</AdditionalOptions>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -111,10 +107,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Development|x64'">
     <ClCompile>
@@ -138,10 +130,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <LinkTimeCodeGeneration />
     </Link>
-    <PostBuildEvent>
-      <Command>copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxcompiler.dll" "$(TargetDir)dxcompiler.dll"
-copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dxil.dll"</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="engine\Audio\Audio.cpp" />
@@ -155,8 +143,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Core\RuntimeModeController.cpp" />
     <ClCompile Include="engine\Game\Camera\CameraShakeController.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRig.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigProjectile.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigExternal.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigImGui.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2ImGui.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Pose.cpp" />
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRailFlightVisual.cpp" />
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigInitialCamera.cpp" />
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGui.cpp" />
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGuiSceneTools.cpp" />
@@ -181,6 +174,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\BoostController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerTransform.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp" />
@@ -193,13 +187,24 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingShot.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileLaunch.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp" />
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp" />
+    <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltController.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerRailFlightVisualTiltControllerImGui.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ArcLength.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Debug.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2ImGui.cpp" />
     <ClCompile Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.cpp" />
+    <ClCompile Include="engine\Game\RailShooter\ProjectileRailMotionAdapterImGui.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemySpawnActionBridge.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveLoader.cpp" />
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp" />
@@ -388,9 +393,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
+    <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
+    <ClInclude Include="engine\Game\Player\PlayerRailFlightVisualTiltController.h" />
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2Adapter.h" />
+    <ClInclude Include="engine\Game\RailShooter\ProjectileRailMotionAdapter.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemySpawnActionBridge.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveData.h" />
     <ClInclude Include="engine\Game\RailShooter\EnemyWaveLoader.h" />
@@ -647,6 +655,26 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CopyDxcRuntimeDlls"
+          AfterTargets="Build"
+          Condition="'$(Platform)' == 'x64'">
+    <PropertyGroup>
+      <DxcRuntimeDirectory>$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\</DxcRuntimeDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <DxcRuntimeDll Include="$(DxcRuntimeDirectory)dxcompiler.dll" />
+      <DxcRuntimeDll Include="$(DxcRuntimeDirectory)dxil.dll" />
+    </ItemGroup>
+    <Error Condition="!Exists('$(DxcRuntimeDirectory)dxcompiler.dll')"
+           Text="Windows SDK内にdxcompiler.dllが見つかりません: $(DxcRuntimeDirectory)dxcompiler.dll" />
+    <Error Condition="!Exists('$(DxcRuntimeDirectory)dxil.dll')"
+           Text="Windows SDK内にdxil.dllが見つかりません: $(DxcRuntimeDirectory)dxil.dll" />
+    <MakeDir Directories="$(TargetDir)"
+             Condition="!Exists('$(TargetDir)')" />
+    <Copy SourceFiles="@(DxcRuntimeDll)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
 </Project>

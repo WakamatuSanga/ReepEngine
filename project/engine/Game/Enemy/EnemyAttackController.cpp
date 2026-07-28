@@ -174,8 +174,11 @@ void EnemyAttackController::FireFromActiveEnemies() {
 
         const Vector3 enemyPosition = enemy->GetPosition();
         const Vector3 direction = Normalize(SubtractVector3(lastTargetPosition_, enemyPosition), { 0.0f, 0.0f, -1.0f });
+        const Vector3 velocity = ScaleVector3(direction, bulletSpeed_);
         lastFireDirection_ = direction;
-        if (bulletManager_->SpawnBullet(enemyPosition, ScaleVector3(direction, bulletSpeed_))) {
+        if (bulletManager_->SpawnBullet(enemyPosition, velocity)) {
+            bulletManager_->RecordProjectileShot(
+                enemyPosition, lastTargetPosition_, direction, velocity);
             ++firedBulletCount_;
             ++lastShooterCount_;
         }
