@@ -334,14 +334,8 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     if (scene_->blenderLiveSync_) {
         scene_->blenderLiveSync_->DrawImGui();
     }
-    if (scene_->simpleSkinSkinnedModel_) {
-        scene_->simpleSkinSkinnedModel_->UpdateSkinning();
-    }
-    if (scene_->walkSkinnedModel_) {
-        scene_->walkSkinnedModel_->UpdateSkinning();
-    }
-    if (scene_->sneakWalkSkinnedModel_) {
-        scene_->sneakWalkSkinnedModel_->UpdateSkinning();
+    if (scene_->skinningPreviewModel_) {
+        scene_->skinningPreviewModel_->UpdateSkinning();
     }
 
 

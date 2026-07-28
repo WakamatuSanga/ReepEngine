@@ -470,17 +470,9 @@ void GameScene::UpdateSceneRuntime() {
             object->SetRotate(activeSkinnedPreviewRotation);
         }
     };
-    applyActiveSkinnedPreviewTransform(simpleSkinSkinnedObject_.get(), simpleSkinSkeleton_.get());
-    applyActiveSkinnedPreviewTransform(walkSkinnedObject_.get(), walkSkeleton_.get());
-    applyActiveSkinnedPreviewTransform(sneakWalkSkinnedObject_.get(), sneakWalkSkeleton_.get());
-    if (simpleSkinSkinnedObject_) {
-        simpleSkinSkinnedObject_->Update();
-    }
-    if (walkSkinnedObject_) {
-        walkSkinnedObject_->Update();
-    }
-    if (sneakWalkSkinnedObject_) {
-        sneakWalkSkinnedObject_->Update();
+    applyActiveSkinnedPreviewTransform(skinningPreviewObject_.get(), skinningPreviewSkeleton_.get());
+    if (skinningPreviewObject_) {
+        skinningPreviewObject_->Update();
     }
     for (auto& primitivePreviewObject : primitivePreviewObjects_) {
         primitivePreviewObject->Update();
@@ -507,30 +499,12 @@ void GameScene::UpdateSceneRuntime() {
         gpuParticleSystem_->Update(camera_.get());
     }
     if (shouldDrawLevelDebug && skinningEditor_) {
-        if (previewSkeleton_) {
-            UpdateSkeletonWorldTransforms(*previewSkeleton_);
-        }
-        if (previewSkeletonSecondary_) {
-            UpdateSkeletonWorldTransforms(*previewSkeletonSecondary_);
-        }
-        if (simpleSkinSkeleton_) {
-            UpdateSkeletonWorldTransforms(*simpleSkinSkeleton_);
-        }
-        if (walkSkeleton_) {
-            UpdateSkeletonWorldTransforms(*walkSkeleton_);
-        }
-        if (sneakWalkSkeleton_) {
-            UpdateSkeletonWorldTransforms(*sneakWalkSkeleton_);
+        if (skinningPreviewSkeleton_) {
+            UpdateSkeletonWorldTransforms(*skinningPreviewSkeleton_);
         }
         skinningEditor_->Update();
-        if (simpleSkinSkinnedModel_) {
-            simpleSkinSkinnedModel_->UpdateSkinning();
-        }
-        if (walkSkinnedModel_) {
-            walkSkinnedModel_->UpdateSkinning();
-        }
-        if (sneakWalkSkinnedModel_) {
-            sneakWalkSkinnedModel_->UpdateSkinning();
+        if (skinningPreviewModel_) {
+            skinningPreviewModel_->UpdateSkinning();
         }
     }
 

@@ -82,6 +82,8 @@ private:
     friend class GameSceneDebugGui;
 
     void InitializeSceneResources();
+    void InitializeSkinningEditorPreview();
+    void FinalizeSkinningEditorPreview();
     void UpdateSceneRuntime();
     void DrawSceneRender();
     void FinalizeSceneResources();
@@ -142,17 +144,9 @@ private:
     std::unique_ptr<RailShooterEventActionBridge> railShooterEventActionBridge_;
     std::unique_ptr<ScreenSpaceFakeShadowPass> screenSpaceFakeShadowPass_;
     std::unique_ptr<StartupEnemySpawnController> startupEnemySpawnController_;
-    std::unique_ptr<Skeleton> previewSkeleton_;
-    std::unique_ptr<Skeleton> previewSkeletonSecondary_;
-    std::unique_ptr<Skeleton> simpleSkinSkeleton_;
-    std::unique_ptr<GltfSkinnedModel> simpleSkinSkinnedModel_;
-    std::unique_ptr<Object3d> simpleSkinSkinnedObject_;
-    std::unique_ptr<Skeleton> walkSkeleton_;
-    std::unique_ptr<GltfSkinnedModel> walkSkinnedModel_;
-    std::unique_ptr<Object3d> walkSkinnedObject_;
-    std::unique_ptr<Skeleton> sneakWalkSkeleton_;
-    std::unique_ptr<GltfSkinnedModel> sneakWalkSkinnedModel_;
-    std::unique_ptr<Object3d> sneakWalkSkinnedObject_;
+    std::unique_ptr<Skeleton> skinningPreviewSkeleton_;
+    std::unique_ptr<GltfSkinnedModel> skinningPreviewModel_;
+    std::unique_ptr<Object3d> skinningPreviewObject_;
     std::unique_ptr<GltfSkinnedModel> animatedCubeModel_;
     std::unique_ptr<Object3d> animatedCubeObject_;
     std::unique_ptr<Sprite> debugSprite_;

@@ -1,12 +1,10 @@
 #include "GameScene.h"
 #include "MyGame.h"
-#include "Engine/Animation/Skeleton.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Core/SrvManager.h"
 #include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
 #include "Engine/Editor/Camera/EditorCameraController.h"
-#include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
@@ -50,7 +48,6 @@
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include "Engine/Graphics/Model/GltfAnimationLoader.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
-#include "Engine/Graphics/Model/GltfSkeletonLoader.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -61,142 +58,9 @@
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Level/LevelSceneRuntime.h"
-#include "Engine/Utility/Logger.h"
-#include <array>
-#include <cmath>
-#include <filesystem>
-#include <numbers>
-#include <string>
+#include <utility>
 
 namespace {
-    constexpr bool kEnableSkinningPreviewTargets = false;
-    constexpr bool kEnableSimpleSkinSkinningTarget = false;
-
-    std::string FindResourcePathCandidate(const std::string& path) {
-        const std::array<std::filesystem::path, 6> basePaths = {
-            std::filesystem::path{},
-            std::filesystem::path{ "project" },
-            std::filesystem::path{ ".." } / "project",
-            std::filesystem::path{ ".." } / ".." / "project",
-            std::filesystem::path{ ".." } / ".." / ".." / "project",
-            std::filesystem::path{ ".." } / ".." / ".." / ".." / "project",
-        };
-
-        for (const std::filesystem::path& basePath : basePaths) {
-            const std::filesystem::path candidate = basePath.empty()
-                ? std::filesystem::path(path)
-                : basePath / path;
-            if (std::filesystem::exists(candidate)) {
-                return candidate.generic_string();
-            }
-        }
-
-        return {};
-    }
-
-    std::string ResolveResourcePath(const std::string& preferredPath, const std::string& fallbackPath = {}) {
-        if (std::string resolvedPath = FindResourcePathCandidate(preferredPath); !resolvedPath.empty()) {
-            Logger::Log("[GameScene] Resolved resource: " + preferredPath + " -> " + resolvedPath);
-            return resolvedPath;
-        }
-
-        if (!fallbackPath.empty()) {
-            if (std::string resolvedPath = FindResourcePathCandidate(fallbackPath); !resolvedPath.empty()) {
-                Logger::Log("[GameScene] Resolved resource fallback: " + preferredPath + " -> " + resolvedPath);
-                return resolvedPath;
-            }
-        }
-
-        Logger::Log(
-            "[GameScene] Resource missing: preferred=" + preferredPath +
-            " fallback=" + fallbackPath +
-            " cwd=" + std::filesystem::current_path().generic_string());
-        return preferredPath;
-    }
-
-    std::string MakeDisplayPath(const std::string& path) {
-        try {
-            return std::filesystem::absolute(std::filesystem::path(path)).lexically_normal().generic_string();
-        } catch (...) {
-            return path;
-        }
-    }
-
-    Vector3 ExtractMatrixScale(const Matrix4x4& matrix) {
-        return {
-            std::sqrt(
-                (matrix.m[0][0] * matrix.m[0][0]) +
-                (matrix.m[0][1] * matrix.m[0][1]) +
-                (matrix.m[0][2] * matrix.m[0][2])),
-            std::sqrt(
-                (matrix.m[1][0] * matrix.m[1][0]) +
-                (matrix.m[1][1] * matrix.m[1][1]) +
-                (matrix.m[1][2] * matrix.m[1][2])),
-            std::sqrt(
-                (matrix.m[2][0] * matrix.m[2][0]) +
-                (matrix.m[2][1] * matrix.m[2][1]) +
-                (matrix.m[2][2] * matrix.m[2][2]))
-        };
-    }
-
-    std::string FormatVector3(const Vector3& value) {
-        return
-            "(" + std::to_string(value.x) +
-            ", " + std::to_string(value.y) +
-            ", " + std::to_string(value.z) + ")";
-    }
-
-    Vector3 RadiansToDegrees(const Vector3& radians) {
-        constexpr float kRadToDeg = 180.0f / std::numbers::pi_v<float>;
-        return {
-            radians.x * kRadToDeg,
-            radians.y * kRadToDeg,
-            radians.z * kRadToDeg
-        };
-    }
-
-    SkinningEditor::BoundsInfo ToBoundsInfo(const GltfSkinnedModel::Bounds& bounds) {
-        SkinningEditor::BoundsInfo result{};
-        result.isValid = bounds.isValid;
-        result.min = bounds.min;
-        result.max = bounds.max;
-        result.size = bounds.size;
-        result.center = bounds.center;
-        return result;
-    }
-
-    SkinningEditor::TargetPreviewInfo BuildTargetPreviewInfo(
-        const Skeleton* skeleton,
-        const GltfSkinnedModel* skinnedModel,
-        float previewScale,
-        const Vector3& previewRotation) {
-        SkinningEditor::TargetPreviewInfo previewInfo{};
-        previewInfo.previewScale = previewScale;
-        previewInfo.previewRotation = previewRotation;
-        previewInfo.defaultPreviewRotation = previewRotation;
-        if (skinnedModel) {
-            previewInfo.sourceBounds = ToBoundsInfo(skinnedModel->GetSourceBounds());
-            previewInfo.skinnedBounds = ToBoundsInfo(skinnedModel->GetSkinnedBounds());
-            const GltfSkinnedModel::TextureDebugInfo& textureInfo = skinnedModel->GetTextureDebugInfo();
-            previewInfo.materialTexturePath = textureInfo.materialTexturePath;
-            previewInfo.resolvedTexturePath = textureInfo.resolvedTexturePath;
-            previewInfo.textureIndex = textureInfo.textureIndex;
-            previewInfo.usingWhiteFallback = textureInfo.usingWhiteFallback;
-            previewInfo.usingUvCheckerFallback = textureInfo.usingUvCheckerFallback;
-            previewInfo.missingTextureCount = textureInfo.missingTextureCount;
-        }
-        if (skeleton &&
-            skeleton->root >= 0 &&
-            skeleton->root < static_cast<int32_t>(skeleton->joints.size())) {
-            const Joint& rootJoint = skeleton->joints[static_cast<size_t>(skeleton->root)];
-            previewInfo.rootNodeScale = rootJoint.sourceNodeScale;
-            previewInfo.rootNodeTranslation = rootJoint.sourceNodeTranslation;
-            previewInfo.skeletonRootWorldScale = ExtractMatrixScale(rootJoint.worldMatrix);
-            previewInfo.skeletonRootWorldTranslation = rootJoint.worldTranslate;
-        }
-        return previewInfo;
-    }
-
     CloudVolume::Parameters MakeRecommendedCloudParameters() {
         CloudVolume::Parameters parameters{};
         parameters.center = { 0.0f, 4.5f, 8.0f };
@@ -219,11 +83,6 @@ namespace {
         return parameters;
     }
 
-}
-
-namespace GameSceneInitializeHelpers {
-    std::unique_ptr<Skeleton> MakeHumanoidPreviewSkeleton();
-    std::unique_ptr<Skeleton> MakeChainPreviewSkeleton();
 }
 
 void GameScene::InitializeSceneResources() {
@@ -366,14 +225,6 @@ void GameScene::InitializeSceneResources() {
 
     particleManager->SetTexture(particleTexturePath_);
 
-    const std::string walkGltfPath = ResolveResourcePath("resources/human/walk.gltf");
-    const std::string sneakWalkGltfPath = ResolveResourcePath("resources/human/sneakWalk.gltf");
-    const std::string walkGltfDisplayPath = MakeDisplayPath(walkGltfPath);
-    const std::string sneakWalkGltfDisplayPath = MakeDisplayPath(sneakWalkGltfPath);
-
-    previewSkeleton_ = GameSceneInitializeHelpers::MakeHumanoidPreviewSkeleton();
-    previewSkeletonSecondary_ = GameSceneInitializeHelpers::MakeChainPreviewSkeleton();
-    skinningEditor_ = std::make_unique<SkinningEditor>();
     runtimeModeController_ = std::make_unique<RuntimeModeController>();
     runtimeModeController_->Initialize(MyGame::GetInstance()->GetWinApp());
     gameViewport_ = std::make_unique<GameViewport>();
@@ -492,160 +343,5 @@ void GameScene::InitializeSceneResources() {
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
-    std::string skinningLoadStatus;
-    auto appendSkinningStatus = [&](const std::string& message) {
-        if (!skinningLoadStatus.empty()) {
-            skinningLoadStatus += "\n";
-        }
-        skinningLoadStatus += message;
-        Logger::Log("[Skinning] " + message);
-    };
-
-    auto appendTargetStatus = [](std::string& targetStatus, const std::string& message) {
-        if (!targetStatus.empty()) {
-            targetStatus += "\n";
-        }
-        targetStatus += message;
-    };
-
-    auto registerGltfTarget = [&](
-        const std::string& label,
-        const std::string& gltfPath,
-        const std::string& displayPath,
-        std::unique_ptr<Skeleton>& skeleton,
-        std::unique_ptr<GltfSkinnedModel>& skinnedModel,
-        std::unique_ptr<Object3d>& skinnedObject,
-        float initialPreviewScale,
-        const Vector3& initialPreviewRotation) {
-        std::string targetStatus;
-        appendTargetStatus(targetStatus, "resolved path: " + displayPath);
-        appendTargetStatus(
-            targetStatus,
-            std::filesystem::exists(std::filesystem::path(gltfPath))
-                ? "path exists: yes"
-                : "path exists: no");
-
-        skeleton = GltfSkeletonLoader::LoadFromFile(gltfPath);
-        if (skeleton) {
-            appendTargetStatus(targetStatus, "skeleton: loaded");
-            appendTargetStatus(targetStatus, "bones: " + std::to_string(skeleton->joints.size()));
-        } else {
-            appendTargetStatus(targetStatus, "skeleton: failed");
-        }
-
-        AnimationClip clip{};
-        bool hasClip = false;
-        if (skeleton) {
-            hasClip = GltfAnimationLoader::LoadFirstClipFromFile(gltfPath, *skeleton, clip);
-            appendTargetStatus(
-                targetStatus,
-                hasClip
-                    ? ("clip: " + clip.name)
-                    : "clip: failed or not found");
-            appendTargetStatus(targetStatus, std::string("clip count: ") + (hasClip ? "1" : "0"));
-        } else {
-            appendTargetStatus(targetStatus, "clip: skipped because skeleton failed");
-            appendTargetStatus(targetStatus, "clip count: 0");
-        }
-
-        bool skinnedMeshLoaded = false;
-        if (skeleton) {
-            skinnedModel = std::make_unique<GltfSkinnedModel>();
-            if (skinnedModel->Initialize(modelManager->GetModelCommon(), skeleton.get(), gltfPath)) {
-                skinnedObject = std::make_unique<Object3d>();
-                skinnedObject->Initialize(object3dCommon);
-                skinnedObject->SetModel(skinnedModel->GetModel());
-                skinnedObject->SetCamera(camera_.get());
-                skinnedObject->SetScale({ initialPreviewScale, initialPreviewScale, initialPreviewScale });
-                skinnedObject->SetRotate(initialPreviewRotation);
-                skinnedObject->SetEnvironmentMapEnabled(false);
-                skinnedMeshLoaded = true;
-                appendTargetStatus(targetStatus, "skinned mesh: loaded");
-            } else {
-                skinnedModel.reset();
-                skinnedObject.reset();
-                appendTargetStatus(targetStatus, "skinned mesh: failed");
-            }
-        } else {
-            skinnedModel.reset();
-            skinnedObject.reset();
-            appendTargetStatus(targetStatus, "skinned mesh: skipped because skeleton failed");
-        }
-
-        const SkinningEditor::TargetPreviewInfo previewInfo = BuildTargetPreviewInfo(
-            skeleton.get(),
-            skinnedModel.get(),
-            initialPreviewScale,
-            initialPreviewRotation);
-        if (previewInfo.sourceBounds.isValid) {
-            appendTargetStatus(targetStatus, "local min: " + FormatVector3(previewInfo.sourceBounds.min));
-            appendTargetStatus(targetStatus, "local max: " + FormatVector3(previewInfo.sourceBounds.max));
-            appendTargetStatus(targetStatus, "local size: " + FormatVector3(previewInfo.sourceBounds.size));
-            appendTargetStatus(targetStatus, "local center: " + FormatVector3(previewInfo.sourceBounds.center));
-        }
-        if (previewInfo.skinnedBounds.isValid) {
-            appendTargetStatus(targetStatus, "initial skinned size: " + FormatVector3(previewInfo.skinnedBounds.size));
-        }
-        appendTargetStatus(targetStatus, "root node scale: " + FormatVector3(previewInfo.rootNodeScale));
-        appendTargetStatus(targetStatus, "root node translation: " + FormatVector3(previewInfo.rootNodeTranslation));
-        appendTargetStatus(targetStatus, "skeleton root world scale: " + FormatVector3(previewInfo.skeletonRootWorldScale));
-        appendTargetStatus(targetStatus, "skeleton root world translation: " + FormatVector3(previewInfo.skeletonRootWorldTranslation));
-        appendTargetStatus(targetStatus, "final world scale: " + std::to_string(previewInfo.previewScale));
-        appendTargetStatus(targetStatus, "preview rotation degrees: " + FormatVector3(RadiansToDegrees(previewInfo.previewRotation)));
-
-        const bool isCriticalLoadOk = skeleton && skinnedMeshLoaded;
-        skinningEditor_->RegisterTarget(
-            label,
-            skeleton.get(),
-            hasClip ? &clip : nullptr,
-            isCriticalLoadOk ? "gltf" : "failed",
-            displayPath,
-            targetStatus,
-            skeleton ? static_cast<int>(skeleton->joints.size()) : 0,
-            skinnedMeshLoaded,
-            previewInfo);
-
-        appendSkinningStatus(label + "\n" + targetStatus);
-    };
-
-    registerGltfTarget(
-        "walk.gltf",
-        walkGltfPath,
-        walkGltfDisplayPath,
-        walkSkeleton_,
-        walkSkinnedModel_,
-        walkSkinnedObject_,
-        0.01f,
-        { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f });
-    registerGltfTarget(
-        "sneakWalk.gltf",
-        sneakWalkGltfPath,
-        sneakWalkGltfDisplayPath,
-        sneakWalkSkeleton_,
-        sneakWalkSkinnedModel_,
-        sneakWalkSkinnedObject_,
-        0.01f,
-        { std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f });
-
-    if (kEnableSimpleSkinSkinningTarget) {
-        const std::string simpleSkinGltfPath = ResolveResourcePath("resources/simpleSkin/simpleSkin.gltf");
-        const std::string simpleSkinDisplayPath = MakeDisplayPath(simpleSkinGltfPath);
-        registerGltfTarget(
-            "simpleSkin.gltf",
-            simpleSkinGltfPath,
-            simpleSkinDisplayPath,
-            simpleSkinSkeleton_,
-            simpleSkinSkinnedModel_,
-            simpleSkinSkinnedObject_,
-            1.0f,
-            { 0.0f, 0.0f, 0.0f });
-    }
-
-    if (kEnableSkinningPreviewTargets) {
-        skinningEditor_->RegisterTarget("InternalSphere (preview)", previewSkeleton_.get());
-        skinningEditor_->RegisterTarget("Fence (preview)", previewSkeletonSecondary_.get());
-    }
-
-    skinningEditor_->SelectTargetByLabel("walk.gltf");
-    skinningEditor_->SetStatusMessage(skinningLoadStatus);
+    InitializeSkinningEditorPreview();
 }
