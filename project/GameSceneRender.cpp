@@ -56,14 +56,8 @@ void GameScene::DrawSceneRender() {
     }
 
     ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
-    if (shouldDrawDebugVisuals && simpleSkinSkinnedModel_) {
-        simpleSkinSkinnedModel_->DispatchComputeSkinning(commandList);
-    }
-    if (shouldDrawDebugVisuals && walkSkinnedModel_) {
-        walkSkinnedModel_->DispatchComputeSkinning(commandList);
-    }
-    if (shouldDrawDebugVisuals && sneakWalkSkinnedModel_) {
-        sneakWalkSkinnedModel_->DispatchComputeSkinning(commandList);
+    if (shouldDrawDebugVisuals && skinningPreviewModel_) {
+        skinningPreviewModel_->DispatchComputeSkinning(commandList);
     }
 
     object3dCommon->CommonDrawSetting((Object3dCommon::BlendMode)currentBlendMode_);
@@ -78,14 +72,11 @@ void GameScene::DrawSceneRender() {
         animatedCubeObject_->Draw();
     }
     const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
-    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && simpleSkinSkinnedObject_ && activeSkinningTarget == simpleSkinSkeleton_.get()) {
-        simpleSkinSkinnedObject_->Draw();
-    }
-    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && walkSkinnedObject_ && activeSkinningTarget == walkSkeleton_.get()) {
-        walkSkinnedObject_->Draw();
-    }
-    if (shouldDrawDebugVisuals && isSkinnedModelVisible_ && sneakWalkSkinnedObject_ && activeSkinningTarget == sneakWalkSkeleton_.get()) {
-        sneakWalkSkinnedObject_->Draw();
+    if (shouldDrawDebugVisuals &&
+        isSkinnedModelVisible_ &&
+        skinningPreviewObject_ &&
+        activeSkinningTarget == skinningPreviewSkeleton_.get()) {
+        skinningPreviewObject_->Draw();
     }
     if (shouldDrawDebugVisuals && isPrimitivePreviewVisible_) {
         for (auto& primitivePreviewObject : primitivePreviewObjects_) {

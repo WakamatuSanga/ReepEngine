@@ -161,11 +161,11 @@ private:
     std::string BuildTargetStatusMessage(const TargetEntry& target) const;
 
     bool isOpen_ = true;
-    bool isTranslateGizmoEnabled_ = true;
+    bool isTranslateGizmoEnabled_ = false;
     bool isGizmoActive_ = false;
     bool isGizmoHovered_ = false;
-    bool showSkeletonDebugJoints_ = false;
-    bool showSkeletonDebugLines_ = false;
+    bool showSkeletonDebugJoints_ = true;
+    bool showSkeletonDebugLines_ = true;
     bool showJointLabels_ = false;
     bool showSelectedJointPanel_ = false;
     bool hasGameViewRect_ = false;

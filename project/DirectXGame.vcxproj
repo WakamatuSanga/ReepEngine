@@ -303,6 +303,7 @@
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
     <ClCompile Include="GameOverScene.cpp" />
     <ClCompile Include="GameSceneSkinningPreview.cpp" />
+    <ClCompile Include="GameSceneSkinningEditorInitialize.cpp" />
     <ClCompile Include="GameSceneInitialize.cpp" />
     <ClCompile Include="GameSceneRuntime.cpp" />
     <ClCompile Include="GameSceneRender.cpp" />

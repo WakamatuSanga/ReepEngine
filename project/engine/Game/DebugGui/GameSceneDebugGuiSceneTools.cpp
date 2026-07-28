@@ -514,18 +514,16 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     ImGui::Checkbox("Sphere", &scene_->isSphereVisible_);
     ImGui::Checkbox("AnimatedCube", &scene_->isAnimatedCubeVisible_);
     ImGui::Checkbox("Active Skinned Model", &scene_->isSkinnedModelVisible_);
+    if (ImGui::Button("\U00004E92\U000063DBPreview\U00003092\U0000518D\U00008AAD\U00008FBC")) {
+        scene_->InitializeSkinningEditorPreview();
+    }
     const Skeleton* visibleSkinningTarget = scene_->skinningEditor_ ? scene_->skinningEditor_->GetTargetSkeleton() : nullptr;
     GltfSkinnedModel* activeSkinnedModel = nullptr;
-    const char* activeSkinnedModelName = "None";
-    if (visibleSkinningTarget == scene_->simpleSkinSkeleton_.get()) {
-        activeSkinnedModel = scene_->simpleSkinSkinnedModel_.get();
-        activeSkinnedModelName = "simpleSkin";
-    } else if (visibleSkinningTarget == scene_->walkSkeleton_.get()) {
-        activeSkinnedModel = scene_->walkSkinnedModel_.get();
-        activeSkinnedModelName = "walk.gltf";
-    } else if (visibleSkinningTarget == scene_->sneakWalkSkeleton_.get()) {
-        activeSkinnedModel = scene_->sneakWalkSkinnedModel_.get();
-        activeSkinnedModelName = "sneakWalk.gltf";
+    const char* activeSkinnedModelName = "\U0000306A\U00003057";
+    if (scene_->skinningPreviewSkeleton_ &&
+        visibleSkinningTarget == scene_->skinningPreviewSkeleton_.get()) {
+        activeSkinnedModel = scene_->skinningPreviewModel_.get();
+        activeSkinnedModelName = "\U000030AF\U000030E9\U000030FC\U000030B1\U000030F3\U00004E2D\U000030DC\U000030B9\U000089E6\U0000624B";
     }
     ImGui::Checkbox("Primitive Preview", &scene_->isPrimitivePreviewVisible_);
     ImGui::SeparatorText("Particles / Effects");

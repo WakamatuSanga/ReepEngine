@@ -600,6 +600,9 @@
     <ClCompile Include="GameSceneSkinningPreview.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneSkinningEditorInitialize.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="GameSceneInitialize.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>

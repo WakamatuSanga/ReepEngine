@@ -63,9 +63,7 @@ GameScene::GameScene() = default;
 GameScene::~GameScene() = default;
 
 void GameScene::FinalizeSceneResources() {
-    if (skinningEditor_) {
-        skinningEditor_->ClearTargets();
-    }
+    FinalizeSkinningEditorPreview();
     debugGui_.reset();
     if (editorCameraController_) {
         editorCameraController_->Finalize();
