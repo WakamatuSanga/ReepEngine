@@ -32,6 +32,22 @@ public:
         int missingTextureCount = 0;
     };
 
+    struct SkinningDiagnostics {
+        std::vector<Matrix4x4> paletteMatrices;
+        uint32_t paletteCount = 0;
+        uint32_t nonFinitePaletteMatrixCount = 0;
+        uint32_t identityPaletteMatrixCount = 0;
+        uint32_t referencedJointCount = 0;
+        uint32_t vertexCount = 0;
+        uint32_t weightlessVertexCount = 0;
+        uint32_t invalidJointInfluenceCount = 0;
+        uint32_t nonFiniteWeightCount = 0;
+        uint32_t abnormalWeightSumVertexCount = 0;
+        uint32_t maxPositiveInfluenceCount = 0;
+        Bounds sourceBounds{};
+        Bounds skinnedBounds{};
+    };
+
     GltfSkinnedModel() = default;
     ~GltfSkinnedModel();
 
@@ -63,6 +79,7 @@ public:
     const Bounds& GetSourceBounds() const { return sourceBounds_; }
     const Bounds& GetSkinnedBounds() const { return skinnedBounds_; }
     const TextureDebugInfo& GetTextureDebugInfo() const { return textureDebugInfo_; }
+    SkinningDiagnostics GetSkinningDiagnostics() const;
 
 private:
     struct SkinningInformation {

@@ -502,9 +502,10 @@ void GameScene::UpdateSceneRuntime() {
         if (skinningPreviewSkeleton_) {
             UpdateSkeletonWorldTransforms(*skinningPreviewSkeleton_);
         }
-        skinningEditor_->Update();
+        skinningEditor_->Update(unscaledDeltaTime);
         if (skinningPreviewModel_) {
             skinningPreviewModel_->UpdateSkinning();
+            skinningEditor_->RefreshKrakenMotionPreviewDiagnostics();
         }
     }
 

@@ -276,6 +276,9 @@ void GameScene::InitializeSkinningEditorPreview() {
         skinnedMeshLoaded,
         previewInfo);
     skinningEditor_->SelectTargetByLabel(kMidbossTargetLabel);
+    skinningEditor_->SetKrakenMotionPreviewTarget(
+        skinningPreviewSkeleton_.get(),
+        skinningPreviewModel_.get());
     skinningEditor_->SetStatusMessage(targetStatus);
     Logger::Log(std::string("[Skinning] ") + kMidbossTargetLabel + "\n" + targetStatus);
 }

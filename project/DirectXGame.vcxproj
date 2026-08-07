@@ -318,6 +318,7 @@
     <ClCompile Include="engine\Graphics\Particle\GpuParticleSystem.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfAnimationLoader.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModel.cpp" />
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelDiagnostics.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfSkeletonLoader.cpp" />
     <ClCompile Include="engine\Core\ImGuiManager.cpp" />
     <ClCompile Include="engine\Input\Input.cpp" />
@@ -334,6 +335,9 @@
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="engine\Animation\Skeleton.cpp" />
     <ClCompile Include="engine\Editor\SkinningEditor.cpp" />
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenMotionPreview.cpp" />
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenMotionPreviewImGui.cpp" />
+    <ClCompile Include="engine\Editor\SkinningEditorSkinningDiagnostics.cpp" />
     <ClCompile Include="engine\Graphics\Skybox\Skybox.cpp" />
     <ClCompile Include="engine\Graphics\Skybox\SkyboxCommon.cpp" />
     <ClCompile Include="engine\Graphics\Sprite\Sprite.cpp" />
@@ -481,6 +485,7 @@
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="engine\Animation\Skeleton.h" />
     <ClInclude Include="engine\Editor\SkinningEditor.h" />
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenMotionPreview.h" />
     <ClInclude Include="engine\Graphics\Skybox\Skybox.h" />
     <ClInclude Include="engine\Graphics\Skybox\SkyboxCommon.h" />
     <ClInclude Include="engine\Graphics\Sprite\Sprite.h" />

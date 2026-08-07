@@ -50,6 +50,7 @@
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
+#include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include "Engine/Graphics/Shadow/ScreenSpaceFakeShadowPass.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -73,9 +74,10 @@ void GameSceneDebugGui::DrawImGui(DirectXCommon* dxCommon, bool showDebugUi, Vol
     }
 
     if (showDebugUi) {
-        DrawGameViewImGui(dxCommon);
         DrawManagerDebugWindows();
         DrawSceneToolWindows(dxCommon, volumetricCloudPass);
+        RefreshSkinningPreviewAfterEditorInput(true);
+        DrawGameViewImGui(dxCommon);
     } else {
         ClearGameViewDebugState();
     }
@@ -87,6 +89,32 @@ void GameSceneDebugGui::DrawImGui(DirectXCommon* dxCommon, bool showDebugUi, Vol
 }
 
 #ifdef USE_IMGUI
+void GameSceneDebugGui::RefreshSkinningPreviewAfterEditorInput(
+    bool refreshObjectTransform) {
+    if (!scene_ || !scene_->skinningEditor_) {
+        return;
+    }
+
+    if (refreshObjectTransform &&
+        scene_->skinningPreviewObject_ &&
+        scene_->skinningPreviewSkeleton_ &&
+        scene_->skinningEditor_->GetTargetSkeleton() ==
+            scene_->skinningPreviewSkeleton_.get()) {
+        const float previewScale =
+            scene_->skinningEditor_->GetActivePreviewScale();
+        scene_->skinningPreviewObject_->SetScale({
+            previewScale, previewScale, previewScale });
+        scene_->skinningPreviewObject_->SetRotate(
+            scene_->skinningEditor_->GetActivePreviewRotation());
+        scene_->skinningPreviewObject_->Update();
+    }
+
+    if (scene_->skinningPreviewModel_) {
+        scene_->skinningPreviewModel_->UpdateSkinning();
+        scene_->skinningEditor_->RefreshKrakenMotionPreviewDiagnostics();
+    }
+}
+
 void GameSceneDebugGui::ClearGameViewDebugState() {
     scene_->gameViewTopLeft_ = { 0.0f, 0.0f };
     scene_->gameViewSize_ = { 0.0f, 0.0f };
@@ -159,6 +187,9 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
             if (scene_->skinningEditor_) {
                 scene_->skinningEditor_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
                 scene_->skinningEditor_->DrawGizmo(scene_->camera_.get());
+                if (scene_->skinningEditor_->IsGizmoInteracting()) {
+                    RefreshSkinningPreviewAfterEditorInput(false);
+                }
                 scene_->skinningEditor_->DrawDebugOverlay(scene_->camera_.get());
             }
             if (scene_->levelSceneRuntime_) {
@@ -334,10 +365,5 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     if (scene_->blenderLiveSync_) {
         scene_->blenderLiveSync_->DrawImGui();
     }
-    if (scene_->skinningPreviewModel_) {
-        scene_->skinningPreviewModel_->UpdateSkinning();
-    }
-
-
 }
 #endif

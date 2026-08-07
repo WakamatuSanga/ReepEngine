@@ -1,4 +1,5 @@
 ﻿#include "SkinningEditor.h"
+#include "SkinningEditorKrakenMotionPreview.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Animation/AnimationClip.h"
@@ -174,7 +175,7 @@ SkinningEditor::SkinningEditor() {
     SetPathBufferText("resources/animation/NewClip.json");
 }
 
-void SkinningEditor::Update() {
+void SkinningEditor::Update(float unscaledDeltaTime) {
     if (!targets_.empty()) {
         currentTargetIndex_ = std::clamp(currentTargetIndex_, 0, static_cast<int>(targets_.size()) - 1);
         SyncTargetFromIndex();
@@ -215,6 +216,7 @@ void SkinningEditor::Update() {
         }
         ApplyCurrentClipAtCurrentTime();
     }
+    UpdateKrakenMotionPreview(unscaledDeltaTime);
 }
 
 void SkinningEditor::DrawImGui() {
@@ -429,6 +431,7 @@ void SkinningEditor::DrawImGui() {
 
     ImGui::Text("スケルトン (Skeleton): %s", targetSkeleton_->name.c_str());
     ImGui::Text("ボーン数 (Bone Count): %d", static_cast<int>(targetSkeleton_->joints.size()));
+    DrawKrakenMotionPreviewImGui();
     if (ImGui::InputText("クリップ名 (Clip Name)", clipNameBuffer_.data(), clipNameBuffer_.size())) {
         SyncClipNameFromBuffer();
     }
@@ -529,6 +532,7 @@ void SkinningEditor::DrawImGui() {
         ImGui::Text("表示位置 (Display Pos): %.2f, %.2f, %.2f", displayWorldPosition.x, displayWorldPosition.y, displayWorldPosition.z);
         ImGui::Separator();
 
+        BeginKrakenLegacyPoseEditingGuard();
         bool isJointEdited = false;
         if (ImGui::DragFloat3("ローカル移動 (Local Translate)", &joint.localTranslate.x, 0.05f)) {
             isJointEdited = true;
@@ -557,6 +561,7 @@ void SkinningEditor::DrawImGui() {
         if (isJointEdited) {
             UpdateSkeletonWorldTransforms(*targetSkeleton_);
         }
+        EndKrakenLegacyPoseEditingGuard();
     } else {
         ImGui::TextDisabled("階層からボーンを選択してください (Select a bone).");
     }
@@ -1549,7 +1554,8 @@ void SkinningEditor::MoveSelectedKeysByDelta(float deltaTime) {
 
 void SkinningEditor::DrawGizmo(const Camera* camera) {
 #ifdef USE_IMGUI
-    if (!isOpen_ || !isTranslateGizmoEnabled_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
+    if (IsKrakenMotionPreviewTarget() ||
+        !isOpen_ || !isTranslateGizmoEnabled_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
         isGizmoActive_ = false;
         isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
@@ -1866,6 +1872,7 @@ bool SkinningEditor::SelectTargetByLabel(const std::string& label) {
 }
 
 void SkinningEditor::ClearTarget() {
+    ClearKrakenMotionPreviewTarget();
     targetLabel_ = "None";
     targetSkeleton_ = nullptr;
     selectedJointIndex_ = -1;
