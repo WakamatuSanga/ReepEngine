@@ -11,6 +11,8 @@
 class Model;
 class ModelCommon;
 class DirectXCommon;
+struct GltfSkinnedPrimitiveDiagnostics;
+struct GltfSkinnedPrimitiveState;
 struct Skeleton;
 
 class GltfSkinnedModel {
@@ -48,7 +50,7 @@ public:
         Bounds skinnedBounds{};
     };
 
-    GltfSkinnedModel() = default;
+    GltfSkinnedModel();
     ~GltfSkinnedModel();
 
     GltfSkinnedModel(const GltfSkinnedModel&) = delete;
@@ -80,6 +82,7 @@ public:
     const Bounds& GetSkinnedBounds() const { return skinnedBounds_; }
     const TextureDebugInfo& GetTextureDebugInfo() const { return textureDebugInfo_; }
     SkinningDiagnostics GetSkinningDiagnostics() const;
+    const GltfSkinnedPrimitiveDiagnostics& GetPrimitiveDiagnostics() const;
 
 private:
     struct SkinningInformation {
@@ -105,11 +108,14 @@ private:
     bool CreateComputeRootSignature(DirectXCommon* dxCommon);
     bool CreateComputePipelineState(DirectXCommon* dxCommon);
     bool InitializeComputeSkinningResources(ModelCommon* modelCommon);
+    void ResetLoadedState();
+    bool FailPrimitiveLoad(const std::string& errorMessage);
 
 private:
     Skeleton* skeleton_ = nullptr;
     std::unique_ptr<Model> model_;
     std::vector<SourceVertex> sourceVertices_;
+    std::unique_ptr<GltfSkinnedPrimitiveState> primitiveState_;
     std::vector<Matrix4x4> inverseBindMatrices_;
     std::vector<Matrix4x4> jointPalette_;
     Bounds sourceBounds_{};

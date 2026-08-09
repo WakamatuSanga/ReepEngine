@@ -1,15 +1,17 @@
 ﻿#include "SkinningEditor.h"
-#include "SkinningEditorKrakenMotionPreview.h"
-#include "Engine/Graphics/Camera/Camera.h"
-#include "Engine/Core/FrameTimer.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/Skeleton.h"
+#include "Engine/Core/FrameTimer.h"
+#include "Engine/Graphics/Camera/Camera.h"
+#include "SkinningEditorGltfMatrixDiagnostics.h"
+#include "SkinningEditorKrakenMotionPreview.h"
+#include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
 #include <algorithm>
 #include <cctype>
-#include <cstdio>
 #include <cmath>
-#include <filesystem>
+#include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <numbers>
 
 #ifdef USE_IMGUI
@@ -422,6 +424,8 @@ void SkinningEditor::DrawImGui() {
         }
     }
     ImGui::TextWrapped("状態 (Status): %s", statusMessage_.empty() ? "準備完了 (Ready)." : statusMessage_.c_str());
+    DrawGltfNodeMatrixDiagnosticsImGui();
+    DrawSkinnedPrimitiveDiagnosticsImGui();
 
     if (!targetSkeleton_) {
         ImGui::TextDisabled("スキニング対象が未設定です (No skinning target).");
@@ -496,7 +500,7 @@ void SkinningEditor::DrawImGui() {
     ImGui::Checkbox("選択パネルを表示 (Show Selected Panel)", &showSelectedJointPanel_);
     ImGui::Separator();
 
-    ImGui::BeginChild("SkinningHierarchy", ImVec2(240.0f, 0.0f), true);
+    ImGui::BeginChild("SkinningHierarchy", ImVec2(240.0f, 360.0f), true);
     ImGui::TextUnformatted("ボーン階層 (Skinning Hierarchy)");
     ImGui::Separator();
     for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->joints.size()); ++jointIndex) {
@@ -509,7 +513,7 @@ void SkinningEditor::DrawImGui() {
 
     ImGui::SameLine();
 
-    ImGui::BeginChild("SkinningInspector", ImVec2(0.0f, 0.0f), true);
+    ImGui::BeginChild("SkinningInspector", ImVec2(0.0f, 360.0f), true);
     ImGui::TextUnformatted("ボーン詳細 (Skinning Inspector)");
     ImGui::Separator();
     if (selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->joints.size())) {

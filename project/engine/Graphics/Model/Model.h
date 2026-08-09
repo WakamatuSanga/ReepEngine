@@ -8,6 +8,12 @@
 
 class Model {
 public:
+    struct IndexDrawRange {
+        uint32_t firstIndex = 0;
+        uint32_t indexCount = 0;
+        int32_t baseVertexLocation = 0;
+    };
+
     struct VertexData {
         Vector4 position;
         Vector2 texcoord;
@@ -39,6 +45,7 @@ public:
     struct ModelData {
         std::vector<VertexData> vertices;
         std::vector<uint32_t> indices;
+        std::vector<IndexDrawRange> indexDrawRanges;
         MaterialData material;
     };
 
@@ -101,6 +108,8 @@ public:
     static ModelData CreateBoxData();
 
 private:
+    void DrawIndexRanges(ID3D12GraphicsCommandList* commandList) const;
+
     ModelCommon* modelCommon_ = nullptr;
     ModelData modelData_; // 読み込んだデータを保持
 

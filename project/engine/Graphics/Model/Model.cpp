@@ -282,7 +282,7 @@ void Model::Draw() {
     commandList->SetGraphicsRootDescriptorTable(11, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.metallicRoughnessTextureIndex));
     commandList->SetGraphicsRootDescriptorTable(12, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.specularF0TextureIndex));
 
-    commandList->DrawIndexedInstanced(static_cast<UINT>(modelData_.indices.size()), 1, 0, 0, 0);
+    DrawIndexRanges(commandList);
 }
 
 void Model::SetTextureIndex(uint32_t index) {

@@ -2,8 +2,12 @@
 #include "MyGame.h"
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/KrakenPreviewAssetMode.h"
+#include "Engine/Editor/SkinningEditorSkeletonComparison.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
+#include "Engine/Graphics/Model/GltfSkinnedModelPrimitiveData.h"
 #include "Engine/Graphics/Model/GltfSkeletonLoader.h"
+#include "Engine/Graphics/Model/GltfNodeMatrixDiagnostics.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Utility/Logger.h"
@@ -16,7 +20,9 @@
 namespace {
     constexpr const char* kMidbossTargetLabel =
         "\U000030AF\U000030E9\U000030FC\U000030B1\U000030F3\U00004E2D\U000030DC\U000030B9\U000089E6\U0000624B";
-    constexpr const char* kMidbossGltfPath =
+    constexpr const char* kOriginalMidbossGltfPath =
+        "resources/midboss/kraken_midboss_tentacles.gltf";
+    constexpr const char* kCompatibleMidbossGltfPath =
         "resources/midboss/editor_compat/kraken_midboss_tentacles_editor_compat.gltf";
     constexpr const char* kExpectedRootName = "Kraken_Tentacle_Rig_Root";
     constexpr std::size_t kExpectedJointCount = 41;
@@ -151,14 +157,34 @@ void GameScene::InitializeSkinningEditorPreview() {
 
     auto* modelManager = ModelManager::GetInstance();
     auto* object3dCommon = MyGame::GetInstance()->GetObject3dCommon();
-    const std::string gltfPath = ResolveResourcePath(kMidbossGltfPath);
+    const bool usesOriginalAsset =
+        skinningPreviewAssetMode_ ==
+        KrakenPreviewAssetMode::OriginalMatrix;
+    const char* requestedAssetPath = usesOriginalAsset
+        ? kOriginalMidbossGltfPath
+        : kCompatibleMidbossGltfPath;
+    const std::string gltfPath = ResolveResourcePath(requestedAssetPath);
     const std::string displayPath = MakeDisplayPath(gltfPath);
     std::string targetStatus;
 
-    AppendStatus(targetStatus, "\U00004E92\U000063DBPreview\U000030A2\U000030BB\U000030C3\U000030C8:");
-    AppendStatus(targetStatus, "\U00005143\U0000306E3 Material\U000030921 Material\U00003078\U00007D71\U00005408\U00003057\U00003066\U00003044\U0000307E\U00003059\U00003002");
-    AppendStatus(targetStatus, "Skeleton\U00003068Skin Weight\U0000306E\U000078BA\U00008A8D\U00007528\U00003067\U00003059\U00003002");
-    AppendStatus(targetStatus, "\U00006B63\U00005F0F\U0000306AMultiPrimitive / MultiMaterial\U00005BFE\U00005FDC\U0000306F\U0000672A\U00005B9F\U000088C5\U00003067\U00003059\U00003002");
+    AppendStatus(
+        targetStatus,
+        std::string("Preview\u30A2\u30BB\u30C3\u30C8: ") +
+            (usesOriginalAsset
+                ? "\u5143\u30A2\u30BB\u30C3\u30C8\uFF08matrix\u6B63\u5F0F\u5BFE\u5FDC\uFF09"
+                : "\u4E92\u63DBPreview\uFF08TRS\u6BD4\u8F03\uFF09"));
+    AppendStatus(
+        targetStatus,
+        usesOriginalAsset
+            ? "\u5143\u30a2\u30bb\u30c3\u30c8\u306e3 Primitive\u3092\u5171\u6709Skinning\u7d50\u679c\u3067\u5168\u63cf\u753b\u3057\u307e\u3059\u3002"
+            : "\u4e92\u63dbPreview\u306e1 Primitive\u3092\u5171\u6709Skinning\u7d4c\u8def\u3067\u63cf\u753b\u3057\u307e\u3059\u3002");
+    AppendStatus(targetStatus, "Skeleton\u3068Skin Weight\u306e\u78ba\u8a8d\u7528\u3067\u3059\u3002");
+    AppendStatus(
+        targetStatus,
+        "Skinned MultiPrimitive\u5bfe\u5fdc\u6e08\u307f\u3067\u3059\u3002\u5168Primitive\u3078\u5171\u901aPreview Material\u3092\u4f7f\u7528\u3057\u307e\u3059\u3002");
+    AppendStatus(
+        targetStatus,
+        "MultiMaterial / MultiMesh\u306f\u672a\u5bfe\u5fdc\u3067\u3059\u3002");
     AppendStatus(targetStatus, "\U00008AAD\U00008FBC\U000030A2\U000030BB\U000030C3\U000030C8: " + displayPath);
     AppendStatus(
         targetStatus,
@@ -166,7 +192,9 @@ void GameScene::InitializeSkinningEditorPreview() {
             ? "\U000030D1\U000030B9\U000078BA\U00008A8D: \U00005B58\U00005728\U00003057\U0000307E\U00003059"
             : "\U000030D1\U000030B9\U000078BA\U00008A8D: \U00005B58\U00005728\U00003057\U0000307E\U0000305B\U00003093");
 
-    skinningPreviewSkeleton_ = GltfSkeletonLoader::LoadFromFile(gltfPath);
+    GltfNodeMatrixDiagnostics nodeDiagnostics{};
+    skinningPreviewSkeleton_ =
+        GltfSkeletonLoader::LoadFromFile(gltfPath, &nodeDiagnostics);
     int loadedJointCount = 0;
     std::string loadedRootName;
     bool skeletonCompatible = false;
@@ -197,6 +225,10 @@ void GameScene::InitializeSkinningEditorPreview() {
         AppendStatus(targetStatus, "Skeleton: \U00008AAD\U00008FBC\U00005931\U00006557");
         AppendStatus(targetStatus, "Joint\U00006570: 0");
         AppendStatus(targetStatus, "Root Bone: \U000053D6\U00005F97\U00004E0D\U000053EF");
+        if (!nodeDiagnostics.errorMessage.empty()) {
+            AppendStatus(targetStatus, "Node\u5909\u63DB\u30A8\u30E9\u30FC: " +
+                nodeDiagnostics.errorMessage);
+        }
     }
 
     if (!skeletonCompatible) {
@@ -206,6 +238,9 @@ void GameScene::InitializeSkinningEditorPreview() {
     AppendStatus(targetStatus, "Animation: \U0000306A\U00003057\U0000FF08Bind Pose\U0000FF09");
     AppendStatus(targetStatus, "Animation\U00006570: 0");
 
+    GltfSkinnedPrimitiveDiagnostics primitiveDiagnostics{};
+    primitiveDiagnostics.sourcePath = gltfPath;
+    const GltfSkinnedModel* primitiveDiagnosticsModel = nullptr;
     bool skinnedMeshLoaded = false;
     if (skinningPreviewSkeleton_) {
         skinningPreviewModel_ = std::make_unique<GltfSkinnedModel>();
@@ -213,9 +248,13 @@ void GameScene::InitializeSkinningEditorPreview() {
             modelManager->GetModelCommon(),
             skinningPreviewSkeleton_.get(),
             gltfPath)) {
+            primitiveDiagnostics =
+                skinningPreviewModel_->GetPrimitiveDiagnostics();
+            primitiveDiagnosticsModel = skinningPreviewModel_.get();
             skinningPreviewObject_ = std::make_unique<Object3d>();
             skinningPreviewObject_->Initialize(object3dCommon);
-            skinningPreviewObject_->SetModel(skinningPreviewModel_->GetModel());
+            skinningPreviewObject_->SetModel(
+                skinningPreviewModel_->GetModel());
             skinningPreviewObject_->SetCamera(camera_.get());
             skinningPreviewObject_->SetScale({
                 kInitialPreviewScale,
@@ -224,14 +263,42 @@ void GameScene::InitializeSkinningEditorPreview() {
             skinningPreviewObject_->SetRotate(initialPreviewRotation);
             skinningPreviewObject_->SetEnvironmentMapEnabled(false);
             skinnedMeshLoaded = true;
-            AppendStatus(targetStatus, "Skin Mesh: \U00008AAD\U00008FBC\U00006210\U0000529F");
+            AppendStatus(targetStatus, "Skin Mesh: \u8aad\u8fbc\u6210\u529f");
+            AppendStatus(
+                targetStatus,
+                "Source Primitive\u6570: " +
+                    std::to_string(
+                        primitiveDiagnostics.sourcePrimitiveCount));
+            AppendStatus(
+                targetStatus,
+                "Total Index\u6570: " +
+                    std::to_string(
+                        primitiveDiagnostics.totalIndexCount));
+            AppendStatus(
+                targetStatus,
+                "Draw Call\u6570: " +
+                    std::to_string(
+                        primitiveDiagnostics.drawCallCount));
         } else {
+            primitiveDiagnostics =
+                skinningPreviewModel_->GetPrimitiveDiagnostics();
+            if (!primitiveDiagnostics.errorMessage.empty()) {
+                AppendStatus(
+                    targetStatus,
+                    "Primitive\u8aad\u8fbc\u30a8\u30e9\u30fc: " +
+                        primitiveDiagnostics.errorMessage);
+            }
             skinningPreviewModel_.reset();
             skinningPreviewObject_.reset();
-            AppendStatus(targetStatus, "Skin Mesh: \U00008AAD\U00008FBC\U00005931\U00006557");
+            skinningPreviewSkeleton_.reset();
+            AppendStatus(targetStatus, "Skin Mesh: \u8aad\u8fbc\u5931\u6557");
         }
     } else {
-        AppendStatus(targetStatus, "Skin Mesh: Skeleton\U00004E92\U000063DB\U00006027\U00005931\U00006557\U0000306E\U0000305F\U00003081\U0000672A\U00008AAD\U00008FBC");
+        primitiveDiagnostics.errorMessage =
+            "Skeleton\u8aad\u8fbc\u5931\u6557\u306e\u305f\u3081Primitive\u8a3a\u65ad\u3092\u5b9f\u884c\u3067\u304d\u307e\u305b\u3093\u3002";
+        AppendStatus(
+            targetStatus,
+            "Skin Mesh: Skeleton\u4e92\u63db\u6027\u5931\u6557\u306e\u305f\u3081\u672a\u8aad\u8fbc");
     }
 
     const SkinningEditor::TargetPreviewInfo previewInfo = BuildTargetPreviewInfo(
@@ -263,13 +330,19 @@ void GameScene::InitializeSkinningEditorPreview() {
     AppendStatus(targetStatus, "Bone\U00008868\U0000793A: \U000089AA\U00005B50\U00007DDAON / Joint ON / Bone\U0000540DOFF\U0000FF08\U000065E2\U00005B582D Overlay\U0000FF09");
 
     const bool loadSucceeded = skinningPreviewSkeleton_ && skinnedMeshLoaded;
+    const SkinningEditorSkeletonSnapshot comparisonSnapshot =
+        CaptureSkinningEditorSkeletonSnapshot(
+            skinningPreviewSkeleton_.get(),
+            skinningPreviewModel_.get());
     skinningEditor_->RegisterTarget(
         kMidbossTargetLabel,
         skinningPreviewSkeleton_.get(),
         nullptr,
         loadSucceeded
-            ? "\U00004E92\U000063DBPreview"
-            : "\U00004E92\U000063DBPreview\U0000FF08\U00008AAD\U00008FBC\U00005931\U00006557\U0000FF09",
+            ? (usesOriginalAsset
+                ? "\u5143\u30A2\u30BB\u30C3\u30C8\uFF08matrix\u6B63\u5F0F\u5BFE\u5FDC\uFF09"
+                : "\u4E92\u63DBPreview\uFF08TRS\u6BD4\u8F03\uFF09")
+            : "Preview\uFF08\u8AAD\u8FBC\u5931\u6557\uFF09",
         displayPath,
         targetStatus,
         loadedJointCount,
@@ -279,6 +352,13 @@ void GameScene::InitializeSkinningEditorPreview() {
     skinningEditor_->SetKrakenMotionPreviewTarget(
         skinningPreviewSkeleton_.get(),
         skinningPreviewModel_.get());
+    skinningEditor_->SetKrakenGltfPreviewLoadResult(
+        skinningPreviewAssetMode_,
+        nodeDiagnostics,
+        comparisonSnapshot);
+    skinningEditor_->SetKrakenSkinnedPrimitiveLoadResult(
+        primitiveDiagnostics,
+        primitiveDiagnosticsModel);
     skinningEditor_->SetStatusMessage(targetStatus);
     Logger::Log(std::string("[Skinning] ") + kMidbossTargetLabel + "\n" + targetStatus);
 }

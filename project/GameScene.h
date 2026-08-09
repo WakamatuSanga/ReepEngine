@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+enum class KrakenPreviewAssetMode : std::uint8_t;
 class GltfSkinnedModel;
 class AimCorridorTargetingController;
 class AimCorridorVisualController;
@@ -147,6 +148,7 @@ private:
     std::unique_ptr<Skeleton> skinningPreviewSkeleton_;
     std::unique_ptr<GltfSkinnedModel> skinningPreviewModel_;
     std::unique_ptr<Object3d> skinningPreviewObject_;
+    KrakenPreviewAssetMode skinningPreviewAssetMode_;
     std::unique_ptr<GltfSkinnedModel> animatedCubeModel_;
     std::unique_ptr<Object3d> animatedCubeObject_;
     std::unique_ptr<Sprite> debugSprite_;

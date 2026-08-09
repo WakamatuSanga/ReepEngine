@@ -6,9 +6,15 @@
 #include <string>
 #include <vector>
 
+enum class KrakenPreviewAssetMode : std::uint8_t;
 class Camera;
 class GltfSkinnedModel;
 class SkinningEditorKrakenMotionPreview;
+struct GltfNodeMatrixDiagnostics;
+struct GltfSkinnedPrimitiveDiagnostics;
+struct SkinningEditorGltfMatrixDiagnosticsState;
+struct SkinningEditorSkinnedPrimitiveDiagnosticsState;
+struct SkinningEditorSkeletonSnapshot;
 struct Skeleton;
 
 class SkinningEditor {
@@ -67,6 +73,16 @@ public:
     void ClearGameViewRect();
     void SetKrakenMotionPreviewTarget(Skeleton* skeleton, GltfSkinnedModel* model);
     void RefreshKrakenMotionPreviewDiagnostics();
+    void SetKrakenGltfPreviewLoadResult(
+        KrakenPreviewAssetMode assetMode,
+        const GltfNodeMatrixDiagnostics& diagnostics,
+        const SkinningEditorSkeletonSnapshot& snapshot);
+    void SetKrakenSkinnedPrimitiveLoadResult(
+        const GltfSkinnedPrimitiveDiagnostics& diagnostics,
+        const GltfSkinnedModel* activeModel);
+    bool ConsumeKrakenGltfPreviewLoadRequest(
+        KrakenPreviewAssetMode& assetMode);
+    KrakenPreviewAssetMode GetKrakenPreviewAssetMode() const;
 
     void SetOpen(bool isOpen) { isOpen_ = isOpen; }
     bool IsOpen() const { return isOpen_; }
@@ -168,6 +184,9 @@ private:
 
     void UpdateKrakenMotionPreview(float unscaledDeltaTime);
     void DrawKrakenMotionPreviewImGui();
+    void DrawGltfNodeMatrixDiagnosticsImGui();
+    void DrawSkinnedPrimitiveDiagnosticsImGui();
+    void RequestKrakenPreviewAssetLoad(KrakenPreviewAssetMode assetMode);
     void ClearKrakenMotionPreviewTarget();
     bool IsKrakenMotionPreviewTarget() const;
     void BeginKrakenLegacyPoseEditingGuard() const;
@@ -220,4 +239,8 @@ private:
     std::array<char, 260> jsonPathBuffer_{};
     std::string statusMessage_;
     std::unique_ptr<SkinningEditorKrakenMotionPreview> krakenMotionPreview_;
+    std::unique_ptr<SkinningEditorGltfMatrixDiagnosticsState>
+        gltfMatrixDiagnosticsState_;
+    std::unique_ptr<SkinningEditorSkinnedPrimitiveDiagnosticsState>
+        skinnedPrimitiveDiagnosticsState_;
 };

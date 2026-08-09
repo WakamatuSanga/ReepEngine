@@ -75,6 +75,14 @@ void GameSceneDebugGui::DrawImGui(DirectXCommon* dxCommon, bool showDebugUi, Vol
 
     if (showDebugUi) {
         DrawManagerDebugWindows();
+        if (scene_->skinningEditor_) {
+            KrakenPreviewAssetMode requestedAssetMode{};
+            if (scene_->skinningEditor_->ConsumeKrakenGltfPreviewLoadRequest(
+                requestedAssetMode)) {
+                scene_->skinningPreviewAssetMode_ = requestedAssetMode;
+                scene_->InitializeSkinningEditorPreview();
+            }
+        }
         DrawSceneToolWindows(dxCommon, volumetricCloudPass);
         RefreshSkinningPreviewAfterEditorInput(true);
         DrawGameViewImGui(dxCommon);
@@ -110,7 +118,6 @@ void GameSceneDebugGui::RefreshSkinningPreviewAfterEditorInput(
     }
 
     if (scene_->skinningPreviewModel_) {
-        scene_->skinningPreviewModel_->UpdateSkinning();
         scene_->skinningEditor_->RefreshKrakenMotionPreviewDiagnostics();
     }
 }

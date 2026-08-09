@@ -246,6 +246,15 @@
     <ClCompile Include="engine\Editor\SkinningEditorSkinningDiagnostics.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkinnedPrimitiveDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorGltfMatrixDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkeletonComparison.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Core\ImGuiManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -660,8 +669,20 @@
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelDiagnostics.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDraw.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkeletonLoader.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfNodeTransformParser.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Skybox\Skybox.cpp">
       <Filter>ソース ファイル</Filter>
@@ -1097,11 +1118,35 @@
     <ClInclude Include="engine\Graphics\Model\GltfSkinnedModel.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveData.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Editor\SkinningEditorKrakenMotionPreview.h">
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Model\GltfSkeletonLoader.h">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkinnedPrimitiveDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfNodeMatrixDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfNodeTransformParser.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\KrakenPreviewAssetMode.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorGltfMatrixDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkeletonComparison.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Skybox\Skybox.h">
       <Filter>ヘッダー ファイル</Filter>

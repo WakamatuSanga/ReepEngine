@@ -54,6 +54,7 @@ public:
     void Update(float unscaledDeltaTime, int selectedJointIndex);
     void DrawImGui(int selectedJointIndex);
     void RefreshDiagnosticsAndRecover();
+    void ReturnToBindPoseFromEditor();
 
     bool IsTarget(const Skeleton* skeleton) const;
     bool IsProceduralActive() const;

@@ -514,7 +514,7 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     ImGui::Checkbox("Sphere", &scene_->isSphereVisible_);
     ImGui::Checkbox("AnimatedCube", &scene_->isAnimatedCubeVisible_);
     ImGui::Checkbox("Active Skinned Model", &scene_->isSkinnedModelVisible_);
-    if (ImGui::Button("\U00004E92\U000063DBPreview\U00003092\U0000518D\U00008AAD\U00008FBC")) {
+    if (ImGui::Button("\u73FE\u5728\u306EPreview\u30A2\u30BB\u30C3\u30C8\u3092\u518D\u8AAD\u8FBC##ReloadCurrentPreviewAsset")) {
         scene_->InitializeSkinningEditorPreview();
     }
     const Skeleton* visibleSkinningTarget = scene_->skinningEditor_ ? scene_->skinningEditor_->GetTargetSkeleton() : nullptr;

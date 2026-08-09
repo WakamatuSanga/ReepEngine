@@ -1,4 +1,5 @@
 #include "GltfSkinnedModel.h"
+#include "GltfSkinnedModelPrimitiveLoader.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Utility/Logger.h"
 #include "Model.h"
@@ -81,7 +82,14 @@ namespace {
         int texcoordAccessor = -1;
         int jointsAccessor = -1;
         int weightsAccessor = -1;
+        int tangentAccessor = -1;
+        int colorAccessor = -1;
+        int texcoord1Accessor = -1;
+        int joints1Accessor = -1;
+        int weights1Accessor = -1;
         int indicesAccessor = -1;
+        int materialIndex = -1;
+        uint32_t mode = 4;
     };
 
     struct GltfMeshData {
@@ -110,12 +118,14 @@ namespace {
             std::vector<GltfAccessorData>& accessors,
             std::vector<GltfMeshData>& meshes,
             std::vector<GltfImageData>& images,
+            std::size_t& materialCount,
             std::vector<GltfSkinData>& skins) {
             buffers.clear();
             bufferViews.clear();
             accessors.clear();
             meshes.clear();
             images.clear();
+            materialCount = 0;
             skins.clear();
 
             SkipWhitespace();
@@ -148,6 +158,10 @@ namespace {
                     }
                 } else if (key == "meshes") {
                     if (!ParseMeshes(meshes)) {
+                        return false;
+                    }
+                } else if (key == "materials") {
+                    if (!ParseValueArrayCount(materialCount)) {
                         return false;
                     }
                 } else if (key == "images") {
@@ -512,6 +526,17 @@ namespace {
                     if (!ParseInt(primitive.indicesAccessor)) {
                         return false;
                     }
+                } else if (key == "material") {
+                    if (!ParseInt(primitive.materialIndex)) {
+                        return false;
+                    }
+                } else if (key == "mode") {
+                    std::size_t mode = 0;
+                    if (!ParseSize(mode) ||
+                        mode > (std::numeric_limits<std::uint32_t>::max)()) {
+                        return false;
+                    }
+                    primitive.mode = static_cast<std::uint32_t>(mode);
                 } else {
                     if (!SkipValue()) {
                         return false;
@@ -541,7 +566,8 @@ namespace {
 
                 std::string key;
                 int accessorIndex = -1;
-                if (!ParseString(key) || !Consume(':') || !ParseInt(accessorIndex)) {
+                if (!ParseString(key) || !Consume(':') ||
+                    !ParseInt(accessorIndex)) {
                     return false;
                 }
 
@@ -555,10 +581,46 @@ namespace {
                     primitive.jointsAccessor = accessorIndex;
                 } else if (key == "WEIGHTS_0") {
                     primitive.weightsAccessor = accessorIndex;
+                } else if (key == "TANGENT") {
+                    primitive.tangentAccessor = accessorIndex;
+                } else if (key == "COLOR_0") {
+                    primitive.colorAccessor = accessorIndex;
+                } else if (key == "TEXCOORD_1") {
+                    primitive.texcoord1Accessor = accessorIndex;
+                } else if (key == "JOINTS_1") {
+                    primitive.joints1Accessor = accessorIndex;
+                } else if (key == "WEIGHTS_1") {
+                    primitive.weights1Accessor = accessorIndex;
                 }
 
                 SkipWhitespace();
                 if (Consume('}')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return false;
+                }
+            }
+        }
+
+        bool ParseValueArrayCount(std::size_t& outCount) {
+            outCount = 0;
+            if (!Consume('[')) {
+                return false;
+            }
+
+            while (true) {
+                SkipWhitespace();
+                if (Consume(']')) {
+                    return true;
+                }
+                if (!SkipValue()) {
+                    return false;
+                }
+                ++outCount;
+
+                SkipWhitespace();
+                if (Consume(']')) {
                     return true;
                 }
                 if (!Consume(',')) {
@@ -593,7 +655,6 @@ namespace {
                 }
             }
         }
-
         bool ParseImage(GltfImageData& image) {
             if (!Consume('{')) {
                 return false;
@@ -1016,16 +1077,24 @@ namespace {
         if (componentCount == 0 || componentSize == 0) {
             return false;
         }
+        const size_t elementSize = componentCount * componentSize;
 
         size_t stride = bufferView.byteStride;
         if (stride == 0) {
-            stride = componentCount * componentSize;
+            stride = elementSize;
         }
 
-        size_t startOffset = bufferView.byteOffset + accessor.byteOffset;
-        if (startOffset >= binary.size()) {
+        if (!ValidateGltfAccessorByteRange(
+                binary.size(),
+                bufferView.byteOffset,
+                bufferView.byteLength,
+                accessor.byteOffset,
+                accessor.count,
+                stride,
+                elementSize)) {
             return false;
         }
+        const size_t startOffset = bufferView.byteOffset + accessor.byteOffset;
 
         outView.data = binary.data() + startOffset;
         outView.count = accessor.count;
@@ -1319,7 +1388,38 @@ namespace {
         }
         return true;
     }
+
+    GltfSkinnedPrimitiveSource MakeSkinnedPrimitiveSource(
+        const GltfPrimitiveData& primitive,
+        std::uint32_t sourcePrimitiveIndex,
+        const std::vector<GltfAccessorData>& accessors) {
+        GltfSkinnedPrimitiveSource source{};
+        source.sourcePrimitiveIndex = sourcePrimitiveIndex;
+        source.accessors.position = primitive.positionAccessor;
+        source.accessors.normal = primitive.normalAccessor;
+        source.accessors.texcoord0 = primitive.texcoordAccessor;
+        source.accessors.joints0 = primitive.jointsAccessor;
+        source.accessors.weights0 = primitive.weightsAccessor;
+        source.accessors.tangent = primitive.tangentAccessor;
+        source.accessors.color0 = primitive.colorAccessor;
+        source.accessors.texcoord1 = primitive.texcoord1Accessor;
+        source.accessors.joints1 = primitive.joints1Accessor;
+        source.accessors.weights1 = primitive.weights1Accessor;
+        source.indicesAccessor = primitive.indicesAccessor;
+        source.materialIndex = primitive.materialIndex;
+        source.mode = primitive.mode;
+        if (primitive.indicesAccessor >= 0 &&
+            static_cast<std::size_t>(primitive.indicesAccessor) <
+                accessors.size()) {
+            source.indexComponentType =
+                accessors[static_cast<std::size_t>(
+                    primitive.indicesAccessor)].componentType;
+        }
+        return source;
+    }
 }
+
+GltfSkinnedModel::GltfSkinnedModel() = default;
 
 GltfSkinnedModel::~GltfSkinnedModel() = default;
 
@@ -1339,9 +1439,10 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
     std::vector<GltfAccessorData> accessors;
     std::vector<GltfMeshData> meshes;
     std::vector<GltfImageData> images;
+    std::size_t materialCount = 0;
     std::vector<GltfSkinData> skins;
     JsonReader reader(gltfText);
-    if (!reader.Parse(buffers, bufferViews, accessors, meshes, images, skins) ||
+    if (!reader.Parse(buffers, bufferViews, accessors, meshes, images, materialCount, skins) ||
         buffers.empty() || meshes.empty() || meshes.front().primitives.empty()) {
         return false;
     }
@@ -1404,18 +1505,24 @@ bool GltfSkinnedModel::InitializeStatic(ModelCommon* modelCommon, const std::str
     return true;
 }
 
-bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, const std::string& gltfPath) {
+bool GltfSkinnedModel::Initialize(
+    ModelCommon* modelCommon,
+    Skeleton* skeleton,
+    const std::string& gltfPath) {
+    ResetLoadedState();
+    primitiveState_->diagnostics.sourcePath = gltfPath;
     if (!modelCommon || !skeleton) {
-        return false;
+        return FailPrimitiveLoad(
+            "\u521d\u671f\u5316\u306b\u5fc5\u8981\u306aModelCommon\u307e\u305f\u306fSkeleton\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
     }
-    textureDebugInfo_ = {};
     if (!InitializeComputeSkinningPipeline(modelCommon)) {
-        return false;
+        return FailPrimitiveLoad(
+            "Compute Skinning Pipeline\u306e\u521d\u671f\u5316\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
     }
 
     std::string gltfText;
     if (!LoadFileToString(gltfPath, gltfText)) {
-        return false;
+        return FailPrimitiveLoad("glTF\u30d5\u30a1\u30a4\u30eb\u306e\u8aad\u8fbc\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
     }
 
     std::vector<GltfBufferData> buffers;
@@ -1423,62 +1530,180 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
     std::vector<GltfAccessorData> accessors;
     std::vector<GltfMeshData> meshes;
     std::vector<GltfImageData> images;
+    std::size_t materialCount = 0;
     std::vector<GltfSkinData> skins;
     JsonReader reader(gltfText);
-    if (!reader.Parse(buffers, bufferViews, accessors, meshes, images, skins) ||
-        buffers.empty() || meshes.empty() || meshes.front().primitives.empty() || skins.empty()) {
-        return false;
+    if (!reader.Parse(
+        buffers,
+        bufferViews,
+        accessors,
+        meshes,
+        images,
+        materialCount,
+        skins)) {
+        return FailPrimitiveLoad("glTF JSON\u306e\u89e3\u6790\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
+    }
+    if (buffers.empty()) {
+        return FailPrimitiveLoad("glTF\u306bBuffer\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+    }
+    if (meshes.empty()) {
+        return FailPrimitiveLoad("glTF\u306bMesh\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
+    }
+    if (skins.empty()) {
+        return FailPrimitiveLoad("glTF\u306bSkin\u304c\u3042\u308a\u307e\u305b\u3093\u3002");
     }
 
-    std::vector<uint8_t> binary;
-    const std::string binaryPath = ResolveRelativePath(gltfPath, buffers.front().uri);
+    std::vector<std::uint8_t> binary;
+    const std::string binaryPath =
+        ResolveRelativePath(gltfPath, buffers.front().uri);
     if (!LoadBinaryFile(binaryPath, binary)) {
-        return false;
+        return FailPrimitiveLoad("glTF\u306eBIN\u30d5\u30a1\u30a4\u30eb\u8aad\u8fbc\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
     }
 
-    const GltfPrimitiveData& primitive = meshes.front().primitives.front();
+    const GltfMeshData& mesh = meshes.front();
+    std::size_t vertexCount = 0;
+    if (!mesh.primitives.empty()) {
+        const int positionAccessor =
+            mesh.primitives.front().positionAccessor;
+        if (positionAccessor >= 0 &&
+            static_cast<std::size_t>(positionAccessor) <
+                accessors.size()) {
+            vertexCount =
+                accessors[static_cast<std::size_t>(
+                    positionAccessor)].count;
+        }
+    }
+    if (mesh.primitives.size() >
+        static_cast<std::size_t>(
+            (std::numeric_limits<std::uint32_t>::max)())) {
+        return FailPrimitiveLoad(
+            "Primitive\u6570\u304cuint32_t\u306e\u7bc4\u56f2\u3092\u8d85\u3048\u3066\u3044\u307e\u3059\u3002");
+    }
 
+    GltfSkinnedPrimitiveBuildRequest primitiveRequest{};
+    primitiveRequest.sourcePath = gltfPath;
+    primitiveRequest.meshName = mesh.name;
+    primitiveRequest.sourceMeshCount = meshes.size();
+    primitiveRequest.sourceMeshIndex = 0;
+    primitiveRequest.vertexCount = vertexCount;
+    primitiveRequest.materialCount = materialCount;
+    primitiveRequest.commonPreviewMaterialIndex =
+        mesh.primitives.empty()
+        ? -1
+        : mesh.primitives.front().materialIndex;
+    primitiveRequest.primitives.reserve(mesh.primitives.size());
+    for (std::size_t primitiveIndex = 0;
+        primitiveIndex < mesh.primitives.size();
+        ++primitiveIndex) {
+        primitiveRequest.primitives.push_back(
+            MakeSkinnedPrimitiveSource(
+                mesh.primitives[primitiveIndex],
+                static_cast<std::uint32_t>(primitiveIndex),
+                accessors));
+    }
+
+    GltfSkinnedPrimitiveState primitiveState{};
+    if (!BuildGltfSkinnedModelPrimitiveState(
+        primitiveRequest,
+        [&](const GltfSkinnedPrimitiveSource& source,
+            std::vector<std::uint32_t>& decodedIndices) {
+            return ReadIndexAccessor(
+                binary,
+                bufferViews,
+                accessors,
+                source.indicesAccessor,
+                decodedIndices);
+        },
+        primitiveState)) {
+        primitiveState_ =
+            std::make_unique<GltfSkinnedPrimitiveState>(
+                std::move(primitiveState));
+        const std::string errorMessage =
+            primitiveState_->diagnostics.errorMessage;
+        return FailPrimitiveLoad(errorMessage);
+    }
+    primitiveState_ =
+        std::make_unique<GltfSkinnedPrimitiveState>(
+            std::move(primitiveState));
+
+    const GltfPrimitiveData& sharedPrimitive =
+        mesh.primitives.front();
     std::vector<Vector3> positions;
     std::vector<Vector3> normals;
     std::vector<Vector2> texcoords;
-    std::vector<std::array<uint32_t, 4>> joints;
+    std::vector<std::array<std::uint32_t, 4>> joints;
     std::vector<std::array<float, 4>> weights;
-    std::vector<uint32_t> indices;
     std::vector<Matrix4x4> inverseBindMatrices;
-
-    if (!ReadVector3Accessor(binary, bufferViews, accessors, primitive.positionAccessor, positions) ||
-        !ReadVector3Accessor(binary, bufferViews, accessors, primitive.normalAccessor, normals) ||
-        !ReadVector2Accessor(binary, bufferViews, accessors, primitive.texcoordAccessor, texcoords) ||
-        !ReadJointAccessor(binary, bufferViews, accessors, primitive.jointsAccessor, joints) ||
-        !ReadWeightAccessor(binary, bufferViews, accessors, primitive.weightsAccessor, weights) ||
-        !ReadIndexAccessor(binary, bufferViews, accessors, primitive.indicesAccessor, indices) ||
-        !ReadMatrixAccessor(binary, bufferViews, accessors, skins.front().inverseBindMatricesAccessor, inverseBindMatrices)) {
-        return false;
+    if (!ReadVector3Accessor(
+            binary,
+            bufferViews,
+            accessors,
+            sharedPrimitive.positionAccessor,
+            positions) ||
+        !ReadVector3Accessor(
+            binary,
+            bufferViews,
+            accessors,
+            sharedPrimitive.normalAccessor,
+            normals) ||
+        !ReadVector2Accessor(
+            binary,
+            bufferViews,
+            accessors,
+            sharedPrimitive.texcoordAccessor,
+            texcoords) ||
+        !ReadJointAccessor(
+            binary,
+            bufferViews,
+            accessors,
+            sharedPrimitive.jointsAccessor,
+            joints) ||
+        !ReadWeightAccessor(
+            binary,
+            bufferViews,
+            accessors,
+            sharedPrimitive.weightsAccessor,
+            weights) ||
+        !ReadMatrixAccessor(
+            binary,
+            bufferViews,
+            accessors,
+            skins.front().inverseBindMatricesAccessor,
+            inverseBindMatrices)) {
+        return FailPrimitiveLoad(
+            "\u5171\u6709Vertex Attribute\u307e\u305f\u306fInverse Bind Matrix\u306e\u8aad\u8fbc\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
     }
 
-    if (positions.size() != normals.size() ||
+    if (positions.size() != vertexCount ||
+        positions.size() != normals.size() ||
         positions.size() != texcoords.size() ||
         positions.size() != joints.size() ||
         positions.size() != weights.size() ||
         inverseBindMatrices.empty()) {
-        return false;
+        return FailPrimitiveLoad(
+            "\u5171\u6709Vertex Stream\u306e\u8981\u7d20\u6570\u304c\u4e00\u81f4\u3057\u307e\u305b\u3093\u3002");
     }
 
     sourceBounds_ = ComputeBounds(positions);
-
-    sourceVertices_.clear();
     sourceVertices_.reserve(positions.size());
 
     Model::ModelData modelData{};
     modelData.vertices.reserve(positions.size());
-    modelData.indices = indices;
-    for (uint32_t index : modelData.indices) {
-        if (index >= positions.size()) {
-            return false;
-        }
+    modelData.indices = primitiveState_->combinedIndices;
+    modelData.indexDrawRanges.reserve(
+        primitiveState_->ranges.size());
+    for (const SkinnedPrimitiveRange& range :
+        primitiveState_->ranges) {
+        modelData.indexDrawRanges.push_back({
+            range.firstIndex,
+            range.indexCount,
+            0,
+            });
     }
 
-    for (size_t vertexIndex = 0; vertexIndex < positions.size(); ++vertexIndex) {
+    for (std::size_t vertexIndex = 0;
+        vertexIndex < positions.size();
+        ++vertexIndex) {
         SourceVertex sourceVertex{};
         sourceVertex.position = positions[vertexIndex];
         sourceVertex.normal = normals[vertexIndex];
@@ -1488,9 +1713,14 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
         sourceVertices_.push_back(sourceVertex);
 
         modelData.vertices.push_back({
-            { sourceVertex.position.x, sourceVertex.position.y, sourceVertex.position.z, 1.0f },
+            {
+                sourceVertex.position.x,
+                sourceVertex.position.y,
+                sourceVertex.position.z,
+                1.0f,
+            },
             sourceVertex.texcoord,
-            sourceVertex.normal
+            sourceVertex.normal,
             });
     }
 
@@ -1501,19 +1731,30 @@ bool GltfSkinnedModel::Initialize(ModelCommon* modelCommon, Skeleton* skeleton, 
 
     model_ = std::make_unique<Model>();
     model_->Initialize(modelCommon, modelData);
+    if (model_->GetVertexCount() != sourceVertices_.size() ||
+        model_->GetIndexCount() !=
+            primitiveState_->combinedIndices.size()) {
+        return FailPrimitiveLoad(
+            "\u7d71\u5408Vertex / Index Buffer\u306e\u751f\u6210\u7d50\u679c\u304c\u4e00\u81f4\u3057\u307e\u305b\u3093\u3002");
+    }
 
     skeleton_ = skeleton;
     inverseBindMatrices_ = std::move(inverseBindMatrices);
-    jointPalette_.resize((std::max)(inverseBindMatrices_.size(), skeleton_->joints.size()), MatrixMath::MakeIdentity4x4());
+    jointPalette_.resize(
+        (std::max)(
+            inverseBindMatrices_.size(),
+            skeleton_->joints.size()),
+        MatrixMath::MakeIdentity4x4());
     if (!InitializeComputeSkinningResources(modelCommon)) {
-        return false;
+        return FailPrimitiveLoad(
+            "\u5171\u6709Compute Skinning Resource\u306e\u521d\u671f\u5316\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002");
     }
+
     UpdateSkinning();
     LogBounds(gltfPath + " source local bounds", sourceBounds_);
     LogBounds(gltfPath + " skinned bounds", skinnedBounds_);
     return true;
 }
-
 void GltfSkinnedModel::UpdateSkinning() {
     if (!model_ || !skeleton_ || sourceVertices_.empty()) {
         return;

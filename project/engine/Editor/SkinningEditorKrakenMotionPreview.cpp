@@ -1,5 +1,7 @@
 #include "SkinningEditorKrakenMotionPreview.h"
 #include "SkinningEditor.h"
+#include "SkinningEditorGltfMatrixDiagnostics.h"
+#include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
 #include "Engine/Animation/Skeleton.h"
 #include <algorithm>
 #include <cmath>
@@ -59,6 +61,7 @@ void SkinningEditor::ClearKrakenMotionPreviewTarget() {
     if (krakenMotionPreview_) {
         krakenMotionPreview_->ClearTarget();
     }
+    skinnedPrimitiveDiagnosticsState_.reset();
 }
 
 bool SkinningEditor::IsKrakenMotionPreviewTarget() const {
@@ -473,6 +476,13 @@ void SkinningEditorKrakenMotionPreview::StartIdleSway() {
     isPaused_ = false;
     motionTime_ = 0.0f;
     ApplyCurrentPose();
+}
+
+void SkinningEditorKrakenMotionPreview::ReturnToBindPoseFromEditor() {
+    if (!skeleton_) {
+        return;
+    }
+    ReturnToBindPose(true);
 }
 
 void SkinningEditorKrakenMotionPreview::ReturnToBindPose(

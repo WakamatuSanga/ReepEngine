@@ -5,6 +5,7 @@
 #include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
 #include "Engine/Editor/Camera/EditorCameraController.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/KrakenPreviewAssetMode.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
@@ -58,7 +59,8 @@
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 
-GameScene::GameScene() = default;
+GameScene::GameScene()
+    : skinningPreviewAssetMode_(KrakenPreviewAssetMode::OriginalMatrix) {}
 
 GameScene::~GameScene() = default;
 
