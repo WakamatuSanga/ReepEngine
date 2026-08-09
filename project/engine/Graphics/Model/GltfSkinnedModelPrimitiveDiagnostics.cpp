@@ -1,5 +1,6 @@
 #include "GltfSkinnedModel.h"
 
+#include "GltfSkinnedModelMaterialData.h"
 #include "GltfSkinnedModelPrimitiveData.h"
 #include "Model.h"
 
@@ -54,12 +55,15 @@ void GltfSkinnedModel::ResetLoadedState() {
     useComputeOutputVertices_ = false;
 
     primitiveState_ = std::make_unique<GltfSkinnedPrimitiveState>();
+    materialState_ = std::make_unique<GltfSkinnedMaterialState>();
 }
 
 bool GltfSkinnedModel::FailPrimitiveLoad(
     const std::string& errorMessage) {
     std::unique_ptr<GltfSkinnedPrimitiveState> failedState =
         std::move(primitiveState_);
+    std::unique_ptr<GltfSkinnedMaterialState> failedMaterialState =
+        std::move(materialState_);
     ResetLoadedState();
     if (failedState) {
         primitiveState_ = std::move(failedState);
@@ -83,6 +87,36 @@ bool GltfSkinnedModel::FailPrimitiveLoad(
     for (GltfSkinnedPrimitiveDiagnosticEntry& primitive :
         diagnostics.primitives) {
         primitive.valid = false;
+    }
+
+    if (failedMaterialState) {
+        materialState_->diagnostics =
+            std::move(failedMaterialState->diagnostics);
+    }
+    GltfSkinnedMaterialDiagnostics& materialDiagnostics =
+        materialState_->diagnostics;
+    materialState_->materials.clear();
+    materialState_->defaultMaterialRuntimeIndex = -1;
+    materialDiagnostics.validMaterialCount = 0;
+    materialDiagnostics.invalidMaterialCount =
+        materialDiagnostics.loadedMaterialCount > 0
+        ? materialDiagnostics.loadedMaterialCount
+        : materialDiagnostics.sourceMaterialCount;
+    materialDiagnostics.materialConstantBufferCount = 0;
+    materialDiagnostics.drawCallCount = 0;
+    materialDiagnostics.materialBindingCount = 0;
+    materialDiagnostics.baseColorTextureBindingCount = 0;
+    materialDiagnostics.bindings.clear();
+    materialDiagnostics.loadSucceeded = false;
+    if (materialDiagnostics.errorMessage.empty()) {
+        materialDiagnostics.errorMessage = errorMessage;
+    }
+    for (GltfSkinnedMaterialData& material :
+        materialDiagnostics.materials) {
+        material.materialConstantBufferGpuAddress = 0;
+        material.textureHandle = 0;
+        material.textureHandleValid = false;
+        material.valid = false;
     }
     return false;
 }

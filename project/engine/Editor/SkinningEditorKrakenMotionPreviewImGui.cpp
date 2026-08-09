@@ -1,5 +1,6 @@
 #include "SkinningEditorKrakenMotionPreview.h"
 #include "SkinningEditor.h"
+#include "SkinningEditorKrakenAttackMotion.h"
 #include "Engine/Animation/Skeleton.h"
 #include <algorithm>
 #include <cmath>
@@ -73,9 +74,18 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
     const char* modeName =
         mode_ == Mode::Manual
         ? "\u624B\u52D5\u30DD\u30FC\u30BA"
-        : "\u30A2\u30A4\u30C9\u30EB\u30B9\u30A6\u30A7\u30A4";
+        : (mode_ == Mode::IdleSway
+            ? "\u30A2\u30A4\u30C9\u30EB\u30B9\u30A6\u30A7\u30A4"
+            : "\u89E6\u624B\u653B\u6483\u30D7\u30EC\u30D3\u30E5\u30FC");
     const bool isPlaying =
-        mode_ == Mode::IdleSway && !isPaused_;
+        (mode_ == Mode::IdleSway && !isPaused_) ||
+        (mode_ == Mode::AttackSlamPreview &&
+            attackMotion_ && attackMotion_->IsPlaying() &&
+            !attackMotion_->IsPaused());
+    const float displayedMotionTime =
+        mode_ == Mode::AttackSlamPreview && attackMotion_
+        ? attackMotion_->GetElapsedTime()
+        : motionTime_;
     const bool manualOffsetActive = std::any_of(
         manualRotationDegrees_.begin(),
         manualRotationDegrees_.end(),
@@ -94,7 +104,7 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
     ImGui::Text("\u9078\u629E\u30DC\u30FC\u30F3: %s", selectedBoneName);
     ImGui::Text("\u73FE\u5728\u306E\u52D5\u4F5C\u30E2\u30FC\u30C9: %s", modeName);
     ImGui::Text("\u52D5\u4F5C\u518D\u751F\u4E2D: %s", YesNo(isPlaying));
-    ImGui::Text("\u52D5\u4F5C\u6642\u9593: %.3f \u79D2", motionTime_);
+    ImGui::Text("\u52D5\u4F5C\u6642\u9593: %.3f \u79D2", displayedMotionTime);
 
     if (hierarchyValid_ && !chains_.empty()) {
         for (std::size_t chainIndex = 0;
@@ -155,16 +165,19 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
+    ImGui::BeginDisabled(mode_ == Mode::AttackSlamPreview);
     if (ImGui::Button("\u6642\u9593\u30920\u3078\u623B\u3059##ResetMotionTime")) {
         motionTime_ = 0.0f;
         ApplyCurrentPose();
     }
+    ImGui::EndDisabled();
 
     if (ImGui::Button("\u30D0\u30A4\u30F3\u30C9\u30DD\u30FC\u30BA\u3078\u623B\u3059##ReturnBindPose")) {
         ReturnToBindPose(true);
     }
     DrawTooltip("\u5168\u624B\u52D5\u56DE\u8EE2\u3068\u81EA\u52D5\u52D5\u4F5C\u3092\u6D88\u53BB\u3057\u3001\u8AAD\u8FBC\u6642\u306E\u59FF\u52E2\u3078\u623B\u3057\u307E\u3059\u3002");
     ImGui::SameLine();
+    ImGui::BeginDisabled(mode_ != Mode::Manual);
     if (ImGui::Button("\u5168\u624B\u52D5\u56DE\u8EE2\u3092\u6D88\u53BB##ClearAllManual")) {
         std::fill(
             manualRotationDegrees_.begin(),
@@ -172,9 +185,11 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
             Vector3{});
         ApplyCurrentPose();
     }
+    ImGui::EndDisabled();
 
     ImGui::SeparatorText("\u624B\u52D5\u30DC\u30FC\u30F3\u56DE\u8EE2##ManualBoneRotation");
     bool allowRootRotation = rootRotationAllowed_;
+    ImGui::BeginDisabled(mode_ != Mode::Manual);
     if (ImGui::Checkbox(
         "\u30EB\u30FC\u30C8\u56DE\u8EE2\u3092\u8A31\u53EF##AllowRootRotation",
         &allowRootRotation)) {
@@ -187,6 +202,7 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
         }
         ApplyCurrentPose();
     }
+    ImGui::EndDisabled();
     DrawTooltip("\u65E2\u5B9A\u3067\u306F\u30EB\u30FC\u30C8\u3092\u56FA\u5B9A\u3057\u3001\u89E6\u624B\u90E8\u5206\u3060\u3051\u3092\u78BA\u8A8D\u3057\u307E\u3059\u3002");
 
     const bool hasSelectedBone =
@@ -319,6 +335,8 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
         ApplyCurrentPose();
     }
 
+    DrawAttackMotionImGui();
+
     ImGui::SeparatorText(
         "\u30B9\u30AD\u30CB\u30F3\u30B0\u8A3A\u65AD##SkinningDiagnostics");
     ImGui::Text("\u30B9\u30AD\u30CB\u30F3\u30B0\u66F4\u65B0\u6210\u529F: %s",
@@ -339,6 +357,8 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
         diagnostics_.weightReferencedJointCount);
     ImGui::Text("\u30B9\u30AD\u30CB\u30F3\u30B0\u5BFE\u8C61\u9802\u70B9\u6570: %u",
         diagnostics_.skinnedVertexCount);
+    ImGui::Text("\u975E\u6709\u9650\u30B9\u30AD\u30CB\u30F3\u30B0\u9802\u70B9\u6570: %u",
+        diagnostics_.nonFiniteSkinnedVertexCount);
     ImGui::Text("\u30A6\u30A7\u30A4\u30C8\u306A\u3057\u9802\u70B9\u6570: %u",
         diagnostics_.verticesWithoutWeights);
     ImGui::Text("\u7121\u52B9\u30B8\u30E7\u30A4\u30F3\u30C8\u53C2\u7167\u6570: %u",

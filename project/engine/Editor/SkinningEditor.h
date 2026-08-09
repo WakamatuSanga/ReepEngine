@@ -11,8 +11,10 @@ class Camera;
 class GltfSkinnedModel;
 class SkinningEditorKrakenMotionPreview;
 struct GltfNodeMatrixDiagnostics;
+struct GltfSkinnedMaterialDiagnostics;
 struct GltfSkinnedPrimitiveDiagnostics;
 struct SkinningEditorGltfMatrixDiagnosticsState;
+struct SkinningEditorSkinnedMaterialDiagnosticsState;
 struct SkinningEditorSkinnedPrimitiveDiagnosticsState;
 struct SkinningEditorSkeletonSnapshot;
 struct Skeleton;
@@ -79,6 +81,9 @@ public:
         const SkinningEditorSkeletonSnapshot& snapshot);
     void SetKrakenSkinnedPrimitiveLoadResult(
         const GltfSkinnedPrimitiveDiagnostics& diagnostics,
+        const GltfSkinnedModel* activeModel);
+    void SetKrakenSkinnedMaterialLoadResult(
+        const GltfSkinnedMaterialDiagnostics& diagnostics,
         const GltfSkinnedModel* activeModel);
     bool ConsumeKrakenGltfPreviewLoadRequest(
         KrakenPreviewAssetMode& assetMode);
@@ -186,6 +191,7 @@ private:
     void DrawKrakenMotionPreviewImGui();
     void DrawGltfNodeMatrixDiagnosticsImGui();
     void DrawSkinnedPrimitiveDiagnosticsImGui();
+    void DrawSkinnedMaterialDiagnosticsImGui();
     void RequestKrakenPreviewAssetLoad(KrakenPreviewAssetMode assetMode);
     void ClearKrakenMotionPreviewTarget();
     bool IsKrakenMotionPreviewTarget() const;
@@ -243,4 +249,6 @@ private:
         gltfMatrixDiagnosticsState_;
     std::unique_ptr<SkinningEditorSkinnedPrimitiveDiagnosticsState>
         skinnedPrimitiveDiagnosticsState_;
+    std::unique_ptr<SkinningEditorSkinnedMaterialDiagnosticsState>
+        skinnedMaterialDiagnosticsState_;
 };

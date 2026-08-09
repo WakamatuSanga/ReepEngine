@@ -3,10 +3,13 @@
 #include "Matrix4x4.h"
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
 class GltfSkinnedModel;
+class SkinningEditorKrakenAttackMotion;
+struct KrakenTentacleAttackPoseResult;
 struct Skeleton;
 
 class SkinningEditorKrakenMotionPreview {
@@ -14,6 +17,7 @@ public:
     enum class Mode {
         Manual,
         IdleSway,
+        AttackSlamPreview,
     };
 
     struct Chain {
@@ -34,6 +38,7 @@ public:
         uint32_t changedPaletteMatrixCount = 0;
         uint32_t weightReferencedJointCount = 0;
         uint32_t skinnedVertexCount = 0;
+        uint32_t nonFiniteSkinnedVertexCount = 0;
         uint32_t verticesWithoutWeights = 0;
         uint32_t invalidJointInfluenceCount = 0;
         uint32_t nonFiniteWeightCount = 0;
@@ -47,11 +52,17 @@ public:
         bool boneOverlaySynchronized = false;
         bool abnormalBoundsDetected = false;
         bool safetyRecoveryOccurred = false;
+        uint32_t safetyRecoveryCount = 0;
     };
+
+    ~SkinningEditorKrakenMotionPreview();
 
     void SetTarget(Skeleton* skeleton, GltfSkinnedModel* model);
     void ClearTarget();
-    void Update(float unscaledDeltaTime, int selectedJointIndex);
+    void Update(
+        float unscaledDeltaTime,
+        int selectedJointIndex,
+        const Matrix4x4& previewWorldMatrix);
     void DrawImGui(int selectedJointIndex);
     void RefreshDiagnosticsAndRecover();
     void ReturnToBindPoseFromEditor();
@@ -66,6 +77,16 @@ private:
         Vector3 scale{ 1.0f, 1.0f, 1.0f };
     };
 
+    struct AttackTipDiagnostics {
+        bool valid = false;
+        int jointIndex = -1;
+        Vector3 skeletonPosition{};
+        Vector3 worldPosition{};
+        Vector3 bindSkeletonPosition{};
+        Vector3 bindWorldPosition{};
+        float distanceFromBind = 0.0f;
+    };
+
     static constexpr const char* kExpectedRootName = "Kraken_Tentacle_Rig_Root";
     static constexpr std::size_t kExpectedJointCount = 41;
 
@@ -77,6 +98,11 @@ private:
     void ApplyCurrentPose();
     void ApplyManualPose();
     void ApplyIdleSwayPose();
+    void ApplyAttackPose();
+    void UpdateAttackMotion(float unscaledDeltaTime);
+    void DrawAttackMotionImGui();
+    void CaptureBindTipPositions();
+    void RefreshAttackTipDiagnostics();
     void ReturnToBindPose(bool clearError);
     void SwitchToManual();
     void StartIdleSway();
@@ -91,10 +117,15 @@ private:
     Skeleton* skeleton_ = nullptr;
     GltfSkinnedModel* model_ = nullptr;
     std::vector<BindLocalPose> bindPose_;
+    std::vector<Vector3> bindLocalEulerRadians_;
     std::vector<Vector3> manualRotationDegrees_;
     std::vector<Matrix4x4> bindPalette_;
+    std::vector<Vector3> bindChainTipSkeletonPositions_;
     std::vector<Chain> chains_;
+    std::unique_ptr<SkinningEditorKrakenAttackMotion> attackMotion_;
+    std::unique_ptr<KrakenTentacleAttackPoseResult> attackPoseResult_;
     Diagnostics diagnostics_{};
+    AttackTipDiagnostics attackTipDiagnostics_{};
     std::string hierarchyError_;
     std::string runtimeError_;
     Mode mode_ = Mode::Manual;
@@ -112,4 +143,5 @@ private:
     float secondaryAmplitudeDegrees_ = 6.0f;
     float chainPhaseRadians_ = 0.75f;
     float phaseAlongChainRadians_ = 0.55f;
+    Matrix4x4 previewWorldMatrix_ = MatrixMath::MakeIdentity4x4();
 };

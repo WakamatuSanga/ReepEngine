@@ -11,6 +11,8 @@
 class Model;
 class ModelCommon;
 class DirectXCommon;
+struct GltfSkinnedMaterialDiagnostics;
+struct GltfSkinnedMaterialState;
 struct GltfSkinnedPrimitiveDiagnostics;
 struct GltfSkinnedPrimitiveState;
 struct Skeleton;
@@ -41,6 +43,7 @@ public:
         uint32_t identityPaletteMatrixCount = 0;
         uint32_t referencedJointCount = 0;
         uint32_t vertexCount = 0;
+        uint32_t nonFiniteSkinnedVertexCount = 0;
         uint32_t weightlessVertexCount = 0;
         uint32_t invalidJointInfluenceCount = 0;
         uint32_t nonFiniteWeightCount = 0;
@@ -83,6 +86,7 @@ public:
     const TextureDebugInfo& GetTextureDebugInfo() const { return textureDebugInfo_; }
     SkinningDiagnostics GetSkinningDiagnostics() const;
     const GltfSkinnedPrimitiveDiagnostics& GetPrimitiveDiagnostics() const;
+    GltfSkinnedMaterialDiagnostics GetMaterialDiagnostics() const;
 
 private:
     struct SkinningInformation {
@@ -116,6 +120,7 @@ private:
     std::unique_ptr<Model> model_;
     std::vector<SourceVertex> sourceVertices_;
     std::unique_ptr<GltfSkinnedPrimitiveState> primitiveState_;
+    std::unique_ptr<GltfSkinnedMaterialState> materialState_;
     std::vector<Matrix4x4> inverseBindMatrices_;
     std::vector<Matrix4x4> jointPalette_;
     Bounds sourceBounds_{};

@@ -5,6 +5,7 @@
 #include "Engine/Graphics/Camera/Camera.h"
 #include "SkinningEditorGltfMatrixDiagnostics.h"
 #include "SkinningEditorKrakenMotionPreview.h"
+#include "SkinningEditorSkinnedMaterialDiagnostics.h"
 #include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
 #include <algorithm>
 #include <cctype>
@@ -426,6 +427,7 @@ void SkinningEditor::DrawImGui() {
     ImGui::TextWrapped("状態 (Status): %s", statusMessage_.empty() ? "準備完了 (Ready)." : statusMessage_.c_str());
     DrawGltfNodeMatrixDiagnosticsImGui();
     DrawSkinnedPrimitiveDiagnosticsImGui();
+    DrawSkinnedMaterialDiagnosticsImGui();
 
     if (!targetSkeleton_) {
         ImGui::TextDisabled("スキニング対象が未設定です (No skinning target).");

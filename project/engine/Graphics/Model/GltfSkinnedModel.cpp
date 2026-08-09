@@ -1,4 +1,5 @@
 #include "GltfSkinnedModel.h"
+#include "GltfSkinnedModelMaterialLoader.h"
 #include "GltfSkinnedModelPrimitiveLoader.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Utility/Logger.h"
@@ -965,7 +966,9 @@ namespace {
     }
 
     std::string ResolveRelativePath(const std::string& baseFilePath, const std::string& relativePath) {
-        return (std::filesystem::path(baseFilePath).parent_path() / std::filesystem::path(relativePath)).generic_string();
+        return ResolveGltfSkinnedRelativePath(
+            baseFilePath,
+            relativePath);
     }
 
     struct ResolvedGltfTexture {
@@ -1626,6 +1629,28 @@ bool GltfSkinnedModel::Initialize(
         std::make_unique<GltfSkinnedPrimitiveState>(
             std::move(primitiveState));
 
+    GltfSkinnedMaterialState materialState{};
+    const bool materialLoadSucceeded =
+        LoadGltfSkinnedModelMaterials(
+            gltfPath,
+            gltfText,
+            primitiveState_->ranges,
+            materialState);
+    materialState_ =
+        std::make_unique<GltfSkinnedMaterialState>(
+            std::move(materialState));
+    if (!materialLoadSucceeded) {
+        return FailPrimitiveLoad(
+            materialState_->diagnostics.errorMessage);
+    }
+    if (materialState_->diagnostics.sourceMaterialCount !=
+        materialCount) {
+        materialState_->diagnostics.errorMessage =
+            "Material数の解析結果が一致しません。";
+        return FailPrimitiveLoad(
+            materialState_->diagnostics.errorMessage);
+    }
+
     const GltfPrimitiveData& sharedPrimitive =
         mesh.primitives.front();
     std::vector<Vector3> positions;
@@ -1724,10 +1749,25 @@ bool GltfSkinnedModel::Initialize(
             });
     }
 
-    ApplyTextureToModelData(
-        modelData,
-        ResolveGltfBaseColorTexture(gltfPath, images),
-        textureDebugInfo_);
+    if (!ApplyPrimaryGltfSkinnedMaterial(
+        *materialState_,
+        modelData)) {
+        return FailPrimitiveLoad(
+            "既定のSkinned MaterialをModelへ適用できませんでした。");
+    }
+    const GltfSkinnedMaterialData& primaryMaterial =
+        materialState_->materials.front().data;
+    textureDebugInfo_.materialTexturePath =
+        primaryMaterial.baseColorTextureUri;
+    textureDebugInfo_.resolvedTexturePath =
+        primaryMaterial.resolvedTexturePath;
+    textureDebugInfo_.textureIndex = primaryMaterial.textureHandle;
+    textureDebugInfo_.usingWhiteFallback =
+        primaryMaterial.usingWhiteFallbackTexture;
+    textureDebugInfo_.usingUvCheckerFallback =
+        primaryMaterial.usingUvCheckerFallbackTexture;
+    textureDebugInfo_.missingTextureCount =
+        primaryMaterial.usingFallbackTexture ? 1 : 0;
 
     model_ = std::make_unique<Model>();
     model_->Initialize(modelCommon, modelData);
@@ -1737,6 +1777,16 @@ bool GltfSkinnedModel::Initialize(
         return FailPrimitiveLoad(
             "\u7d71\u5408Vertex / Index Buffer\u306e\u751f\u6210\u7d50\u679c\u304c\u4e00\u81f4\u3057\u307e\u305b\u3093\u3002");
     }
+    if (!InitializeGltfSkinnedMaterialBindings(
+        modelCommon,
+        *model_,
+        primitiveState_->ranges,
+        *materialState_)) {
+        return FailPrimitiveLoad(
+            materialState_->diagnostics.errorMessage);
+    }
+    primitiveState_->diagnostics.usesCommonPreviewMaterial = false;
+    primitiveState_->diagnostics.multiMaterialSupported = true;
 
     skeleton_ = skeleton;
     inverseBindMatrices_ = std::move(inverseBindMatrices);

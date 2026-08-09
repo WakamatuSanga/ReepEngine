@@ -135,7 +135,7 @@ void SkinningEditor::DrawGltfNodeMatrixDiagnosticsImGui() {
     ImGui::TextWrapped(
         "元アセットの3 Primitiveは、共有Skinning結果を使用してすべて描画します。");
     ImGui::TextDisabled(
-        "Skinned MultiPrimitive対応済み / 共通Preview Material使用 / MultiMaterial・MultiMesh未対応");
+        "複数プリミティブ・複数マテリアル対応済み / 元マテリアル使用 / 複数メッシュ未対応");
 
     if (!state.hasNodeDiagnostics) {
         ImGui::TextDisabled("Node変換診断は未実行です。");

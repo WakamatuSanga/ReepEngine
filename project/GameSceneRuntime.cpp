@@ -503,10 +503,11 @@ void GameScene::UpdateSceneRuntime() {
             UpdateSkeletonWorldTransforms(*skinningPreviewSkeleton_);
         }
         skinningEditor_->Update(unscaledDeltaTime);
+#ifndef USE_IMGUI
         if (skinningPreviewModel_) {
-            skinningPreviewModel_->UpdateSkinning();
             skinningEditor_->RefreshKrakenMotionPreviewDiagnostics();
         }
+#endif
     }
 
     if (runtimeModeController_) {

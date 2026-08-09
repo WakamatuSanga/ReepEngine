@@ -1,6 +1,8 @@
 #include "SkinningEditorKrakenMotionPreview.h"
 #include "SkinningEditor.h"
+#include "SkinningEditorKrakenAttackMotion.h"
 #include "SkinningEditorGltfMatrixDiagnostics.h"
+#include "SkinningEditorSkinnedMaterialDiagnostics.h"
 #include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
 #include "Engine/Animation/Skeleton.h"
 #include <algorithm>
@@ -31,6 +33,9 @@ namespace {
 
 SkinningEditor::~SkinningEditor() = default;
 
+SkinningEditorKrakenMotionPreview::~SkinningEditorKrakenMotionPreview() =
+    default;
+
 void SkinningEditor::SetKrakenMotionPreviewTarget(
     Skeleton* skeleton,
     GltfSkinnedModel* model) {
@@ -44,6 +49,7 @@ void SkinningEditor::SetKrakenMotionPreviewTarget(
 void SkinningEditor::RefreshKrakenMotionPreviewDiagnostics() {
     if (krakenMotionPreview_ &&
         krakenMotionPreview_->IsTarget(targetSkeleton_)) {
+        UpdateKrakenMotionPreview(0.0f);
         krakenMotionPreview_->RefreshDiagnosticsAndRecover();
     }
 }
@@ -53,7 +59,8 @@ void SkinningEditor::UpdateKrakenMotionPreview(float unscaledDeltaTime) {
         krakenMotionPreview_->IsTarget(targetSkeleton_)) {
         krakenMotionPreview_->Update(
             unscaledDeltaTime,
-            selectedJointIndex_);
+            selectedJointIndex_,
+            GetActivePreviewWorldMatrix());
     }
 }
 
@@ -62,6 +69,7 @@ void SkinningEditor::ClearKrakenMotionPreviewTarget() {
         krakenMotionPreview_->ClearTarget();
     }
     skinnedPrimitiveDiagnosticsState_.reset();
+    skinnedMaterialDiagnosticsState_.reset();
 }
 
 bool SkinningEditor::IsKrakenMotionPreviewTarget() const {
@@ -77,7 +85,9 @@ bool SkinningEditorKrakenMotionPreview::IsTarget(
 }
 
 bool SkinningEditorKrakenMotionPreview::IsProceduralActive() const {
-    return IsTarget(skeleton_) && mode_ == Mode::IdleSway;
+    return IsTarget(skeleton_) &&
+        (mode_ == Mode::IdleSway ||
+            mode_ == Mode::AttackSlamPreview);
 }
 
 void SkinningEditorKrakenMotionPreview::SetTarget(
@@ -105,10 +115,16 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
         return;
     }
 
+    attackMotion_ =
+        std::make_unique<SkinningEditorKrakenAttackMotion>();
+    attackPoseResult_ =
+        std::make_unique<KrakenTentacleAttackPoseResult>();
     CaptureBindPose();
     hierarchyValid_ = ValidateBindPose() && DetectChains();
     if (!hierarchyValid_ && hierarchyError_.empty()) {
         SetHierarchyError("\u89E6\u624B\u968E\u5C64\u3092\u691C\u8A3C\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002");
+    } else if (hierarchyValid_) {
+        attackMotion_->RevalidateSelectedChain(chains_.size());
     }
 
     mode_ = Mode::Manual;
@@ -120,8 +136,10 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
     ResetIdleSettings();
     RestoreBindLocals();
     UpdateSkeletonWorldTransforms(*skeleton_);
+    CaptureBindTipPositions();
     CaptureBindPalette();
     RefreshDiagnostics();
+    RefreshAttackTipDiagnostics();
 }
 
 void SkinningEditorKrakenMotionPreview::ClearTarget() {
@@ -130,15 +148,24 @@ void SkinningEditorKrakenMotionPreview::ClearTarget() {
         UpdateSkeletonWorldTransforms(*skeleton_);
     }
 
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
     skeleton_ = nullptr;
     model_ = nullptr;
     bindPose_.clear();
+    bindLocalEulerRadians_.clear();
     manualRotationDegrees_.clear();
     bindPalette_.clear();
+    bindChainTipSkeletonPositions_.clear();
     chains_.clear();
+    attackMotion_.reset();
+    attackPoseResult_.reset();
     diagnostics_ = {};
+    attackTipDiagnostics_ = {};
     hierarchyError_.clear();
     runtimeError_.clear();
+    previewWorldMatrix_ = MatrixMath::MakeIdentity4x4();
     mode_ = Mode::Manual;
     isPaused_ = true;
     rootRotationAllowed_ = false;
@@ -153,12 +180,14 @@ void SkinningEditorKrakenMotionPreview::ClearTarget() {
 
 void SkinningEditorKrakenMotionPreview::CaptureBindPose() {
     bindPose_.clear();
+    bindLocalEulerRadians_.clear();
     manualRotationDegrees_.clear();
     if (!skeleton_) {
         return;
     }
 
     bindPose_.reserve(skeleton_->joints.size());
+    bindLocalEulerRadians_.reserve(skeleton_->joints.size());
     manualRotationDegrees_.resize(skeleton_->joints.size());
     for (const Joint& joint : skeleton_->joints) {
         bindPose_.push_back({
@@ -166,6 +195,7 @@ void SkinningEditorKrakenMotionPreview::CaptureBindPose() {
             joint.localRotate,
             joint.localScale,
             });
+        bindLocalEulerRadians_.push_back(joint.localRotate);
     }
 }
 
@@ -284,6 +314,12 @@ void SkinningEditorKrakenMotionPreview::SetHierarchyError(
     hierarchyError_ = message;
     mode_ = Mode::Manual;
     isPaused_ = true;
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    if (attackPoseResult_) {
+        *attackPoseResult_ = {};
+    }
 }
 
 void SkinningEditorKrakenMotionPreview::RestoreBindLocals() {
@@ -380,10 +416,20 @@ void SkinningEditorKrakenMotionPreview::ApplyCurrentPose() {
     }
 
     RestoreBindLocals();
-    if (mode_ == Mode::Manual) {
+    switch (mode_) {
+    case Mode::Manual:
         ApplyManualPose();
-    } else if (hierarchyValid_) {
-        ApplyIdleSwayPose();
+        break;
+    case Mode::IdleSway:
+        if (hierarchyValid_) {
+            ApplyIdleSwayPose();
+        }
+        break;
+    case Mode::AttackSlamPreview:
+        if (hierarchyValid_) {
+            ApplyAttackPose();
+        }
+        break;
     }
 
     if (!ValidateCurrentPose()) {
@@ -417,12 +463,16 @@ bool SkinningEditorKrakenMotionPreview::ValidateCurrentPose() const {
 
 void SkinningEditorKrakenMotionPreview::Update(
     float unscaledDeltaTime,
-    int selectedJointIndex) {
+    int selectedJointIndex,
+    const Matrix4x4& previewWorldMatrix) {
     if (!IsTarget(skeleton_)) {
         return;
     }
 
-    UpdateSelectedChainFromJoint(selectedJointIndex);
+    previewWorldMatrix_ = previewWorldMatrix;
+    if (mode_ != Mode::AttackSlamPreview) {
+        UpdateSelectedChainFromJoint(selectedJointIndex);
+    }
     if (mode_ == Mode::IdleSway) {
         if (!hierarchyValid_) {
             SwitchToManual();
@@ -435,12 +485,22 @@ void SkinningEditorKrakenMotionPreview::Update(
                 0.1f);
             motionTime_ += safeDeltaTime;
         }
+    } else if (mode_ == Mode::AttackSlamPreview) {
+        if (!hierarchyValid_) {
+            SwitchToManual();
+        } else {
+            UpdateAttackMotion(unscaledDeltaTime);
+        }
     }
     ApplyCurrentPose();
+    RefreshAttackTipDiagnostics();
 }
 
 void SkinningEditorKrakenMotionPreview::UpdateSelectedChainFromJoint(
     int selectedJointIndex) {
+    if (mode_ == Mode::AttackSlamPreview) {
+        return;
+    }
     for (std::size_t chainIndex = 0;
         chainIndex < chains_.size();
         ++chainIndex) {
@@ -462,20 +522,24 @@ void SkinningEditorKrakenMotionPreview::UpdateSelectedChainFromJoint(
 }
 
 void SkinningEditorKrakenMotionPreview::SwitchToManual() {
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
     mode_ = Mode::Manual;
     isPaused_ = true;
     motionTime_ = 0.0f;
-    ApplyCurrentPose();
 }
 
 void SkinningEditorKrakenMotionPreview::StartIdleSway() {
     if (!hierarchyValid_) {
         return;
     }
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
     mode_ = Mode::IdleSway;
     isPaused_ = false;
     motionTime_ = 0.0f;
-    ApplyCurrentPose();
 }
 
 void SkinningEditorKrakenMotionPreview::ReturnToBindPoseFromEditor() {
@@ -487,6 +551,12 @@ void SkinningEditorKrakenMotionPreview::ReturnToBindPoseFromEditor() {
 
 void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
     bool clearError) {
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    if (attackPoseResult_) {
+        *attackPoseResult_ = {};
+    }
     std::fill(
         manualRotationDegrees_.begin(),
         manualRotationDegrees_.end(),
@@ -498,9 +568,13 @@ void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
     if (skeleton_) {
         UpdateSkeletonWorldTransforms(*skeleton_);
     }
+    RefreshAttackTipDiagnostics();
     if (clearError) {
         runtimeError_.clear();
         diagnostics_.safetyRecoveryOccurred = false;
+        if (attackMotion_) {
+            attackMotion_->ClearLastError();
+        }
     }
 }
 

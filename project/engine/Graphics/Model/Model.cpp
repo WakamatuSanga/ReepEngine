@@ -163,6 +163,7 @@ void Model::Initialize(ModelCommon* modelCommon, const std::string& directoryPat
 }
 
 void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
+    ClearIndexDrawMaterialBindings();
     assert(modelCommon);
     modelCommon_ = modelCommon;
     modelData_ = modelData;
@@ -240,8 +241,22 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     std::memcpy(indexData_, modelData_.indices.data(), sizeof(uint32_t) * modelData_.indices.size());
 
     // --- マテリアルリソース作成 ---
-    materialResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(sizeof(Material));
-    materialResource_->Map(0, nullptr, reinterpret_cast<void**>(&materialData_));
+    materialResource_ = modelCommon_->GetDxCommon()->CreateBufferResource(
+        (sizeof(Material) + 0xffu) &
+        ~static_cast<size_t>(0xffu));
+    materialData_ = nullptr;
+    if (!materialResource_) {
+        return;
+    }
+    const HRESULT materialMapResult = materialResource_->Map(
+        0,
+        nullptr,
+        reinterpret_cast<void**>(&materialData_));
+    if (FAILED(materialMapResult) || !materialData_) {
+        materialResource_.Reset();
+        materialData_ = nullptr;
+        return;
+    }
 
     materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     materialData_->enableLighting = 1;
@@ -259,6 +274,9 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
 void Model::Draw() {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
+    if (!commandList) {
+        return;
+    }
     if (materialData_) {
         const MaterialData& material = modelData_.material;
         materialData_->usePBR = (material.usePBR && !globalPbrLightingDisabled_) ? 1 : 0;
@@ -274,6 +292,13 @@ void Model::Draw() {
         vertexBufferViewOverride_ ? *vertexBufferViewOverride_ : vertexBufferView_;
     commandList->IASetVertexBuffers(0, 1, &activeVertexBufferView);
     commandList->IASetIndexBuffer(&indexBufferView_);
+
+    if (DrawIndexRangesWithMaterials(commandList)) {
+        return;
+    }
+    if (!materialResource_) {
+        return;
+    }
     commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
 
     // ★修正: 最新の textureIndex を使って描画する

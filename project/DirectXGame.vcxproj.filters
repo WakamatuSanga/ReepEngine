@@ -243,7 +243,22 @@
     <ClCompile Include="engine\Editor\SkinningEditorKrakenMotionPreviewImGui.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotion.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionPose.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Editor\SkinningEditorSkinningDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkinnedMaterialDiagnostics.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Editor\SkinningEditorSkinnedPrimitiveDiagnostics.cpp">
@@ -667,6 +682,15 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialBinding.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialLoader.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.cpp">
@@ -1118,6 +1142,12 @@
     <ClInclude Include="engine\Graphics\Model\GltfSkinnedModel.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelMaterialData.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelMaterialLoader.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveData.h">
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
@@ -1125,6 +1155,12 @@
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Editor\SkinningEditorKrakenMotionPreview.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenAttackMotion.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkinnedMaterialDiagnostics.h">
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Model\GltfSkeletonLoader.h">

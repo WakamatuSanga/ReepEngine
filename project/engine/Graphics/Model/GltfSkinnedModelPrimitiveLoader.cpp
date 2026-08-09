@@ -249,7 +249,7 @@ bool BuildGltfSkinnedModelPrimitiveState(
     if (!IsMaterialIndexValid(
         request.commonPreviewMaterialIndex,
         request.materialCount)) {
-        FailBuild(state, "共通プレビューMaterial indexが範囲外です。");
+        FailBuild(state, "先頭PrimitiveのMaterial Indexが範囲外です。");
         outState = std::move(state);
         return false;
     }

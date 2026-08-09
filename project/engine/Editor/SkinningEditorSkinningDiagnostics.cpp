@@ -96,18 +96,20 @@ bool SkinningEditorKrakenMotionPreview::IsBoundsAbnormal(
         std::fabs(skinned.min.x), std::fabs(skinned.min.y),
         std::fabs(skinned.min.z), std::fabs(skinned.max.x),
         std::fabs(skinned.max.y), std::fabs(skinned.max.z) });
-    return skinnedExtent > sourceExtent * kMaximumBoundsRatio ||
-        skinnedCoordinateExtent >
+    return skinnedExtent >= sourceExtent * kMaximumBoundsRatio ||
+        skinnedCoordinateExtent >=
             sourceCoordinateExtent * kMaximumBoundsRatio;
 }
 
 void SkinningEditorKrakenMotionPreview::RefreshDiagnostics() {
     const bool recovered =
         diagnostics_.safetyRecoveryOccurred;
+    const uint32_t recoveryCount =
+        diagnostics_.safetyRecoveryCount;
     diagnostics_ = {};
     diagnostics_.safetyRecoveryOccurred = recovered;
+    diagnostics_.safetyRecoveryCount = recoveryCount;
     diagnostics_.skeletonEnabled = skeleton_ != nullptr;
-    diagnostics_.boneOverlaySynchronized = ValidateCurrentPose();
     if (!model_) {
         return;
     }
@@ -124,6 +126,8 @@ void SkinningEditorKrakenMotionPreview::RefreshDiagnostics() {
     diagnostics_.weightReferencedJointCount =
         source.referencedJointCount;
     diagnostics_.skinnedVertexCount = source.vertexCount;
+    diagnostics_.nonFiniteSkinnedVertexCount =
+        source.nonFiniteSkinnedVertexCount;
     diagnostics_.verticesWithoutWeights =
         source.weightlessVertexCount;
     diagnostics_.invalidJointInfluenceCount =
@@ -149,10 +153,14 @@ void SkinningEditorKrakenMotionPreview::RefreshDiagnostics() {
     diagnostics_.skinningUpdateSucceeded =
         diagnostics_.paletteUpdateSucceeded &&
         !diagnostics_.abnormalBoundsDetected &&
+        diagnostics_.nonFiniteSkinnedVertexCount == 0 &&
         diagnostics_.verticesWithoutWeights == 0 &&
         diagnostics_.invalidJointInfluenceCount == 0 &&
         diagnostics_.nonFiniteWeightCount == 0 &&
         diagnostics_.invalidWeightSumVertexCount == 0;
+    diagnostics_.boneOverlaySynchronized =
+        diagnostics_.skinningUpdateSucceeded &&
+        ValidateCurrentPose();
 }
 
 void SkinningEditorKrakenMotionPreview::RefreshDiagnosticsAndRecover() {
@@ -160,9 +168,11 @@ void SkinningEditorKrakenMotionPreview::RefreshDiagnosticsAndRecover() {
         return;
     }
 
+    model_->UpdateSkinning();
     RefreshDiagnostics();
     const bool requiresRecovery =
         diagnostics_.nonFinitePaletteMatrixCount > 0 ||
+        diagnostics_.nonFiniteSkinnedVertexCount > 0 ||
         diagnostics_.abnormalBoundsDetected;
     if (!requiresRecovery || recovering_) {
         return;
@@ -170,6 +180,7 @@ void SkinningEditorKrakenMotionPreview::RefreshDiagnosticsAndRecover() {
 
     recovering_ = true;
     diagnostics_.safetyRecoveryOccurred = true;
+    ++diagnostics_.safetyRecoveryCount;
     runtimeError_ =
         "\u30B9\u30AD\u30CB\u30F3\u30B0\u7570\u5E38\u3092\u691C\u51FA\u3057\u305F\u305F\u3081\u3001\u30D0\u30A4\u30F3\u30C9\u30DD\u30FC\u30BA\u3078\u5B89\u5168\u5FA9\u5E30\u3057\u307E\u3057\u305F\u3002";
     ReturnToBindPose(false);

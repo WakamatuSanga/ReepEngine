@@ -169,7 +169,7 @@ void SkinningEditor::DrawSkinnedPrimitiveDiagnosticsImGui() {
     ImGui::TextWrapped(
         "1 Mesh内の全Primitiveは、共有した頂点・Skin Influence・Bone Palette・Skinning結果で描画します。");
     ImGui::TextDisabled(
-        "全Primitiveへ共通Preview Materialを使用します。MultiMaterial / MultiMeshは未対応です。");
+        "各プリミティブへ元アセットのマテリアルを割り当てます。複数マテリアル対応済み、複数メッシュは未対応です。");
 
     if (!state.hasDiagnostics) {
         ImGui::TextDisabled("Primitive診断は未実行です。");
@@ -240,19 +240,23 @@ void SkinningEditor::DrawSkinnedPrimitiveDiagnosticsImGui() {
         computeResourcesReady ? "準備完了" : "未準備");
     ImGui::Text("現在の描画頂点Buffer: %s", activeVertexBuffer);
     ImGui::Text(
-        "共通Preview Material: %s（元Material Index %d）",
-        diagnostics.usesCommonPreviewMaterial ? "使用中" : "未使用",
-        diagnostics.commonPreviewMaterialIndex);
+        "元アセットのマテリアル割当: %s",
+        YesNo(!diagnostics.usesCommonPreviewMaterial));
+    if (diagnostics.usesCommonPreviewMaterial) {
+        ImGui::Text(
+            "共通プレビューマテリアルの元番号: %d",
+            diagnostics.commonPreviewMaterialIndex);
+    }
     DrawTooltip(
-        "元のMaterial Indexは保持していますが、今回のStepでは全Primitiveへ共通Materialを使用します。");
+        "各プリミティブが保持する元マテリアル番号を使い、対応するマテリアルを描画時に選択します。");
     ImGui::Text(
-        "MultiPrimitive対応: %s",
+        "複数プリミティブ対応: %s",
         SupportedLabel(diagnostics.multiPrimitiveSupported));
     ImGui::Text(
-        "MultiMaterial対応: %s",
+        "複数マテリアル対応: %s",
         SupportedLabel(diagnostics.multiMaterialSupported));
     ImGui::Text(
-        "MultiMesh対応: %s",
+        "複数メッシュ対応: %s",
         SupportedLabel(diagnostics.multiMeshSupported));
 
     if (!diagnostics.errorMessage.empty()) {

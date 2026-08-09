@@ -5,6 +5,7 @@
 #include "Engine/Editor/KrakenPreviewAssetMode.h"
 #include "Engine/Editor/SkinningEditorSkeletonComparison.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
+#include "Engine/Graphics/Model/GltfSkinnedModelMaterialData.h"
 #include "Engine/Graphics/Model/GltfSkinnedModelPrimitiveData.h"
 #include "Engine/Graphics/Model/GltfSkeletonLoader.h"
 #include "Engine/Graphics/Model/GltfNodeMatrixDiagnostics.h"
@@ -181,10 +182,10 @@ void GameScene::InitializeSkinningEditorPreview() {
     AppendStatus(targetStatus, "Skeleton\u3068Skin Weight\u306e\u78ba\u8a8d\u7528\u3067\u3059\u3002");
     AppendStatus(
         targetStatus,
-        "Skinned MultiPrimitive\u5bfe\u5fdc\u6e08\u307f\u3067\u3059\u3002\u5168Primitive\u3078\u5171\u901aPreview Material\u3092\u4f7f\u7528\u3057\u307e\u3059\u3002");
+        "スキン付き複数プリミティブ・複数マテリアルへ対応済みです。各プリミティブへ元アセットのマテリアルを割り当てます。");
     AppendStatus(
         targetStatus,
-        "MultiMaterial / MultiMesh\u306f\u672a\u5bfe\u5fdc\u3067\u3059\u3002");
+        "複数メッシュは未対応です。");
     AppendStatus(targetStatus, "\U00008AAD\U00008FBC\U000030A2\U000030BB\U000030C3\U000030C8: " + displayPath);
     AppendStatus(
         targetStatus,
@@ -241,6 +242,9 @@ void GameScene::InitializeSkinningEditorPreview() {
     GltfSkinnedPrimitiveDiagnostics primitiveDiagnostics{};
     primitiveDiagnostics.sourcePath = gltfPath;
     const GltfSkinnedModel* primitiveDiagnosticsModel = nullptr;
+    GltfSkinnedMaterialDiagnostics materialDiagnostics{};
+    materialDiagnostics.sourcePath = gltfPath;
+    const GltfSkinnedModel* materialDiagnosticsModel = nullptr;
     bool skinnedMeshLoaded = false;
     if (skinningPreviewSkeleton_) {
         skinningPreviewModel_ = std::make_unique<GltfSkinnedModel>();
@@ -251,6 +255,9 @@ void GameScene::InitializeSkinningEditorPreview() {
             primitiveDiagnostics =
                 skinningPreviewModel_->GetPrimitiveDiagnostics();
             primitiveDiagnosticsModel = skinningPreviewModel_.get();
+            materialDiagnostics =
+                skinningPreviewModel_->GetMaterialDiagnostics();
+            materialDiagnosticsModel = skinningPreviewModel_.get();
             skinningPreviewObject_ = std::make_unique<Object3d>();
             skinningPreviewObject_->Initialize(object3dCommon);
             skinningPreviewObject_->SetModel(
@@ -279,14 +286,36 @@ void GameScene::InitializeSkinningEditorPreview() {
                 "Draw Call\u6570: " +
                     std::to_string(
                         primitiveDiagnostics.drawCallCount));
+            AppendStatus(
+                targetStatus,
+                "元マテリアル数: " +
+                    std::to_string(
+                        materialDiagnostics.sourceMaterialCount));
+            AppendStatus(
+                targetStatus,
+                "マテリアルバインド数: " +
+                    std::to_string(
+                        materialDiagnostics.materialBindingCount));
+            AppendStatus(
+                targetStatus,
+                "代替テクスチャ数: " +
+                    std::to_string(materialDiagnostics.fallbackTextureCount));
         } else {
             primitiveDiagnostics =
                 skinningPreviewModel_->GetPrimitiveDiagnostics();
+            materialDiagnostics =
+                skinningPreviewModel_->GetMaterialDiagnostics();
             if (!primitiveDiagnostics.errorMessage.empty()) {
                 AppendStatus(
                     targetStatus,
                     "Primitive\u8aad\u8fbc\u30a8\u30e9\u30fc: " +
                         primitiveDiagnostics.errorMessage);
+            }
+            if (!materialDiagnostics.errorMessage.empty()) {
+                AppendStatus(
+                    targetStatus,
+                    "マテリアル読込エラー: " +
+                        materialDiagnostics.errorMessage);
             }
             skinningPreviewModel_.reset();
             skinningPreviewObject_.reset();
@@ -294,6 +323,8 @@ void GameScene::InitializeSkinningEditorPreview() {
             AppendStatus(targetStatus, "Skin Mesh: \u8aad\u8fbc\u5931\u6557");
         }
     } else {
+        materialDiagnostics.errorMessage =
+            "スケルトン読込失敗のためマテリアル診断を実行できません。";
         primitiveDiagnostics.errorMessage =
             "Skeleton\u8aad\u8fbc\u5931\u6557\u306e\u305f\u3081Primitive\u8a3a\u65ad\u3092\u5b9f\u884c\u3067\u304d\u307e\u305b\u3093\u3002";
         AppendStatus(
@@ -359,6 +390,9 @@ void GameScene::InitializeSkinningEditorPreview() {
     skinningEditor_->SetKrakenSkinnedPrimitiveLoadResult(
         primitiveDiagnostics,
         primitiveDiagnosticsModel);
+    skinningEditor_->SetKrakenSkinnedMaterialLoadResult(
+        materialDiagnostics,
+        materialDiagnosticsModel);
     skinningEditor_->SetStatusMessage(targetStatus);
     Logger::Log(std::string("[Skinning] ") + kMidbossTargetLabel + "\n" + targetStatus);
 }

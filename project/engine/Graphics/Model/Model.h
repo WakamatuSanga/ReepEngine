@@ -64,6 +64,16 @@ public:
         int32_t hasSpecularF0Map;
     };
 
+    struct IndexDrawMaterialBinding {
+        D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress = 0;
+        Material* mappedMaterial = nullptr;
+        uint32_t baseColorTextureIndex = 0;
+        uint32_t normalTextureIndex = 0;
+        uint32_t metallicRoughnessTextureIndex = 0;
+        uint32_t specularF0TextureIndex = 0;
+        bool usePBR = false;
+    };
+
 public:
     void Initialize(ModelCommon* modelCommon, const std::string& directoryPath, const std::string& filename);
 
@@ -76,12 +86,23 @@ public:
     void ClearVertexBufferViewOverride();
 
     void SetTextureIndex(uint32_t index);
+    void SetIndexDrawMaterialBindings(
+        std::vector<IndexDrawMaterialBinding> bindings);
+    void ClearIndexDrawMaterialBindings();
     void DrawPbrMaterialImGui();
     size_t GetVertexCount() const { return modelData_.vertices.size(); }
     size_t GetIndexCount() const { return modelData_.indices.size(); }
     size_t GetMaterialCount() const { return 1; }
 
     Material* GetMaterialData() { return materialData_; }
+    D3D12_GPU_VIRTUAL_ADDRESS GetMaterialBufferAddress() const;
+    size_t GetLastMaterialBindingCount() const { return lastMaterialBindingCount_; }
+    size_t GetLastMaterialBindingFailureCount() const { return lastMaterialBindingFailureCount_; }
+    bool HasLastIndexDrawMaterialBindingResult() const {
+        return hasLastIndexDrawMaterialBindingResult_;
+    }
+    bool WasLastIndexDrawMaterialBindingSuccessful(
+        size_t bindingIndex) const;
 
     static MaterialData LoadMaterialTemplateFile(const std::string& directoryPath, const std::string& filename);
     static ModelData LoadObjFile(const std::string& directoryPath, const std::string& filename);
@@ -109,6 +130,8 @@ public:
 
 private:
     void DrawIndexRanges(ID3D12GraphicsCommandList* commandList) const;
+    bool DrawIndexRangesWithMaterials(
+        ID3D12GraphicsCommandList* commandList) const;
 
     ModelCommon* modelCommon_ = nullptr;
     ModelData modelData_; // 読み込んだデータを保持
@@ -124,6 +147,11 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
+    std::vector<IndexDrawMaterialBinding> indexDrawMaterialBindings_;
+    mutable std::vector<uint8_t> lastMaterialBindingSucceeded_;
+    mutable size_t lastMaterialBindingCount_ = 0;
+    mutable size_t lastMaterialBindingFailureCount_ = 0;
+    mutable bool hasLastIndexDrawMaterialBindingResult_ = false;
 
     static bool globalPbrLightingDisabled_;
 };
