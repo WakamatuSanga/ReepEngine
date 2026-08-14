@@ -305,7 +305,7 @@ void SkinningEditorKrakenMotionPreview::DrawAttackMotionImGui() {
         "打撃位置停止時間##AttackImpactHoldDuration",
         &settings.impactHoldDuration, 0.01f, 0.00f, 1.00f, "%.2f 秒");
     DrawTooltip(
-        "将来の攻撃判定時間を確認する停止フェーズです。今回は判定を追加しません。");
+        "選択中の攻撃コライダーが有効予定になる停止フェーズです。ゲームプレイには未登録です。");
     settingsChanged |= ImGui::DragFloat(
         "復帰時間##AttackRecoveryDuration",
         &settings.recoveryDuration, 0.01f, 0.10f, 2.00f, "%.2f 秒");

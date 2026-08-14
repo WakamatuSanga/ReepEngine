@@ -7,8 +7,11 @@
 #include <string>
 #include <vector>
 
+class Camera;
 class GltfSkinnedModel;
 class SkinningEditorKrakenAttackMotion;
+class SkinningEditorKrakenBoneColliderPhaseControl;
+class SkinningEditorKrakenBoneColliderPreviewCollection;
 struct KrakenTentacleAttackPoseResult;
 struct Skeleton;
 
@@ -66,6 +69,13 @@ public:
     void DrawImGui(int selectedJointIndex);
     void RefreshDiagnosticsAndRecover();
     void ReturnToBindPoseFromEditor();
+    bool ShouldDrawBoneColliderDebugOverlay() const;
+    void DrawBoneColliderDebugOverlay(
+        const Camera* camera,
+        float viewX,
+        float viewY,
+        float viewWidth,
+        float viewHeight) const;
 
     bool IsTarget(const Skeleton* skeleton) const;
     bool IsProceduralActive() const;
@@ -103,6 +113,13 @@ private:
     void DrawAttackMotionImGui();
     void CaptureBindTipPositions();
     void RefreshAttackTipDiagnostics();
+    void InitializeBoneColliderPreview();
+    void ClearBoneColliderPreview();
+    void RefreshBoneColliderPreview(bool forceRebuild = false);
+    void DrawBoneColliderPreviewImGui();
+    void DrawBoneColliderPhaseControlImGui();
+    std::size_t ResolveBoneColliderChainIndex() const;
+    void RefreshBoneColliderPhaseControl();
     void ReturnToBindPose(bool clearError);
     void SwitchToManual();
     void StartIdleSway();
@@ -124,6 +141,10 @@ private:
     std::vector<Chain> chains_;
     std::unique_ptr<SkinningEditorKrakenAttackMotion> attackMotion_;
     std::unique_ptr<KrakenTentacleAttackPoseResult> attackPoseResult_;
+    std::unique_ptr<SkinningEditorKrakenBoneColliderPreviewCollection>
+        boneColliderPreview_;
+    std::unique_ptr<SkinningEditorKrakenBoneColliderPhaseControl>
+        boneColliderPhaseControl_;
     Diagnostics diagnostics_{};
     AttackTipDiagnostics attackTipDiagnostics_{};
     std::string hierarchyError_;

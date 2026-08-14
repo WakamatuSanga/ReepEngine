@@ -1,6 +1,8 @@
 #include "SkinningEditorKrakenMotionPreview.h"
 #include "SkinningEditor.h"
 #include "SkinningEditorKrakenAttackMotion.h"
+#include "SkinningEditorKrakenBoneColliderPhaseControl.h"
+#include "SkinningEditorKrakenBoneColliderPreviewCollection.h"
 #include "SkinningEditorGltfMatrixDiagnostics.h"
 #include "SkinningEditorSkinnedMaterialDiagnostics.h"
 #include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
@@ -32,9 +34,6 @@ namespace {
 }
 
 SkinningEditor::~SkinningEditor() = default;
-
-SkinningEditorKrakenMotionPreview::~SkinningEditorKrakenMotionPreview() =
-    default;
 
 void SkinningEditor::SetKrakenMotionPreviewTarget(
     Skeleton* skeleton,
@@ -119,6 +118,7 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
         std::make_unique<SkinningEditorKrakenAttackMotion>();
     attackPoseResult_ =
         std::make_unique<KrakenTentacleAttackPoseResult>();
+    InitializeBoneColliderPreview();
     CaptureBindPose();
     hierarchyValid_ = ValidateBindPose() && DetectChains();
     if (!hierarchyValid_ && hierarchyError_.empty()) {
@@ -137,6 +137,7 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
     RestoreBindLocals();
     UpdateSkeletonWorldTransforms(*skeleton_);
     CaptureBindTipPositions();
+    RefreshBoneColliderPreview(true);
     CaptureBindPalette();
     RefreshDiagnostics();
     RefreshAttackTipDiagnostics();
@@ -161,6 +162,7 @@ void SkinningEditorKrakenMotionPreview::ClearTarget() {
     chains_.clear();
     attackMotion_.reset();
     attackPoseResult_.reset();
+    ClearBoneColliderPreview();
     diagnostics_ = {};
     attackTipDiagnostics_ = {};
     hierarchyError_.clear();
@@ -494,6 +496,7 @@ void SkinningEditorKrakenMotionPreview::Update(
     }
     ApplyCurrentPose();
     RefreshAttackTipDiagnostics();
+    RefreshBoneColliderPreview();
 }
 
 void SkinningEditorKrakenMotionPreview::UpdateSelectedChainFromJoint(
@@ -569,6 +572,7 @@ void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
         UpdateSkeletonWorldTransforms(*skeleton_);
     }
     RefreshAttackTipDiagnostics();
+    RefreshBoneColliderPreview();
     if (clearError) {
         runtimeError_.clear();
         diagnostics_.safetyRecoveryOccurred = false;

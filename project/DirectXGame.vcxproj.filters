@@ -246,6 +246,9 @@
     <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotion.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionReadOnly.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionPose.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
@@ -253,6 +256,30 @@
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreview.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewCollection.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewIntegration.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderDebugDraw.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControl.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControlImGui.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Editor\SkinningEditorSkinningDiagnostics.cpp">
@@ -1158,6 +1185,15 @@
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Editor\SkinningEditorKrakenAttackMotion.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPreview.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewCollection.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControl.h">
       <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Editor\SkinningEditorSkinnedMaterialDiagnostics.h">

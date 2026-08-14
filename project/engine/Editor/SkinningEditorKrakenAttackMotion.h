@@ -95,6 +95,10 @@ public:
     bool JumpToPhase(
         KrakenTentacleAttackPreviewPhase phase,
         std::size_t detectedChainCount);
+    bool SeekPhaseNormalizedTime(
+        KrakenTentacleAttackPreviewPhase phase,
+        float normalizedTime,
+        std::size_t detectedChainCount);
 
     void SetSettings(const KrakenTentacleAttackPreviewSettings& settings);
     void ResetRecommendedSettings();

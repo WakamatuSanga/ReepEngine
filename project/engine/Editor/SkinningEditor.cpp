@@ -1651,7 +1651,11 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
     if (!isOpen_ || !targetSkeleton_ || !camera || !hasGameViewRect_) {
         return;
     }
-    if (!showSkeletonDebugJoints_ && !showSkeletonDebugLines_ && !showJointLabels_ && !showSelectedJointPanel_) {
+    const bool showBoneColliders =
+        IsKrakenMotionPreviewTarget() && krakenMotionPreview_ &&
+        krakenMotionPreview_->ShouldDrawBoneColliderDebugOverlay();
+    if (!showSkeletonDebugJoints_ && !showSkeletonDebugLines_ &&
+        !showJointLabels_ && !showSelectedJointPanel_ && !showBoneColliders) {
         return;
     }
 
@@ -1756,6 +1760,15 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
             { selectedJointScreen.x - 10.0f, selectedJointScreen.y },
             isGizmoActive_ ? activeLineColor : selectedLineColor,
             2.0f);
+    }
+
+    if (showBoneColliders) {
+        krakenMotionPreview_->DrawBoneColliderDebugOverlay(
+            camera,
+            gameViewX_,
+            gameViewY_,
+            gameViewWidth_,
+            gameViewHeight_);
     }
 #endif
 }

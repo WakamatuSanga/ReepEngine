@@ -336,6 +336,7 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
     }
 
     DrawAttackMotionImGui();
+    DrawBoneColliderPreviewImGui();
 
     ImGui::SeparatorText(
         "\u30B9\u30AD\u30CB\u30F3\u30B0\u8A3A\u65AD##SkinningDiagnostics");
