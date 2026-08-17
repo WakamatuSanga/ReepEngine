@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
 #include "Matrix4x4.h"
 #include <cstddef>
 #include <cstdint>
@@ -23,9 +24,7 @@ public:
         AttackSlamPreview,
     };
 
-    struct Chain {
-        std::vector<int> joints;
-    };
+    using Chain = KrakenTentacleChain;
 
     struct BoundsSnapshot {
         bool isValid = false;
@@ -136,6 +135,7 @@ private:
     std::vector<BindLocalPose> bindPose_;
     std::vector<Vector3> bindLocalEulerRadians_;
     std::vector<Vector3> manualRotationDegrees_;
+    KrakenTentacleIdlePoseResult idlePoseResult_{};
     std::vector<Matrix4x4> bindPalette_;
     std::vector<Vector3> bindChainTipSkeletonPositions_;
     std::vector<Chain> chains_;

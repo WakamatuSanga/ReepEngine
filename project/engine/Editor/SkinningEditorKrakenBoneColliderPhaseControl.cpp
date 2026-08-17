@@ -3,39 +3,12 @@
 #include "SkinningEditorKrakenAttackMotion.h"
 #include "SkinningEditorKrakenBoneColliderPreviewCollection.h"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
 
 namespace {
-
-constexpr float kDefaultAttackActiveStartRatio = 0.65f;
-constexpr float kMinimumValidSlamDuration = 0.001f;
 constexpr std::uint64_t kNoTransitionFrame =
     std::numeric_limits<std::uint64_t>::max();
-
-struct PhaseEvaluationResult {
-    bool active = false;
-    KrakenColliderPhaseReason reason =
-        KrakenColliderPhaseReason::MotionStateInvalid;
-};
-
-struct PhaseEvaluationContext {
-    const KrakenColliderPhaseMotionSnapshot& snapshot;
-    std::size_t chainCount = 0;
-    float attackActiveStartRatio = kDefaultAttackActiveStartRatio;
-    float slamProgress = 0.0f;
-    bool impactHoldActive = true;
-    bool snapshotScalarsFinite = false;
-    bool motionModeKnown = false;
-    bool phaseKnown = false;
-    bool selectedChainValid = false;
-    bool slamDurationValid = false;
-};
-
-float Clamp01(float value) {
-    return std::clamp(value, 0.0f, 1.0f);
-}
 
 bool IsKnownMotionMode(KrakenColliderPhaseMotionMode mode) {
     switch (mode) {
@@ -48,104 +21,23 @@ bool IsKnownMotionMode(KrakenColliderPhaseMotionMode mode) {
     }
 }
 
-bool IsKnownAttackPhase(KrakenTentacleAttackPreviewPhase phase) {
+KrakenTentacleColliderAttackPhase ToColliderAttackPhase(
+    KrakenTentacleAttackPreviewPhase phase) {
     switch (phase) {
     case KrakenTentacleAttackPreviewPhase::Windup:
+        return KrakenTentacleColliderAttackPhase::Windup;
     case KrakenTentacleAttackPreviewPhase::WindupHold:
+        return KrakenTentacleColliderAttackPhase::WindupHold;
     case KrakenTentacleAttackPreviewPhase::Slam:
+        return KrakenTentacleColliderAttackPhase::Slam;
     case KrakenTentacleAttackPreviewPhase::ImpactHold:
+        return KrakenTentacleColliderAttackPhase::ImpactHold;
     case KrakenTentacleAttackPreviewPhase::Recovery:
+        return KrakenTentacleColliderAttackPhase::Recovery;
     case KrakenTentacleAttackPreviewPhase::Completed:
-        return true;
+        return KrakenTentacleColliderAttackPhase::Completed;
     default:
-        return false;
-    }
-}
-
-bool AreSnapshotScalarsFinite(
-    const KrakenColliderPhaseMotionSnapshot& snapshot) {
-    return std::isfinite(snapshot.motionElapsedTime) &&
-        std::isfinite(snapshot.phaseElapsedTime) &&
-        std::isfinite(snapshot.phaseDuration) &&
-        std::isfinite(snapshot.phaseNormalizedTime);
-}
-
-PhaseEvaluationResult EvaluatePhaseState(
-    KrakenColliderPreviewRole role,
-    bool enabled,
-    bool valid,
-    std::size_t colliderChainIndex,
-    const PhaseEvaluationContext& context) {
-    if (!enabled) {
-        return { false, KrakenColliderPhaseReason::ColliderDisabled };
-    }
-    if (!valid) {
-        return { false, KrakenColliderPhaseReason::ColliderInvalid };
-    }
-    if (!context.snapshot.connected) {
-        return { false, KrakenColliderPhaseReason::PreviewDisconnected };
-    }
-    if (role == KrakenColliderPreviewRole::Damage) {
-        return { true, KrakenColliderPhaseReason::DamageAlwaysActive };
-    }
-    if (role == KrakenColliderPreviewRole::WeakPoint) {
-        return { true, KrakenColliderPhaseReason::WeakPointAlwaysActive };
-    }
-    if (role != KrakenColliderPreviewRole::Attack) {
-        return { false, KrakenColliderPhaseReason::UnknownRole };
-    }
-    if (context.snapshot.safetyRecovery) {
-        return { false, KrakenColliderPhaseReason::SafetyRecovery };
-    }
-
-    if (!context.snapshot.valid || !context.snapshotScalarsFinite ||
-        !context.motionModeKnown) {
-        return { false, KrakenColliderPhaseReason::MotionStateInvalid };
-    }
-    if (context.snapshot.motionMode !=
-        KrakenColliderPhaseMotionMode::AttackSlamPreview) {
-        return { false, KrakenColliderPhaseReason::NotAttackMotionMode };
-    }
-    if (context.snapshot.waitingForLoop) {
-        return { false, KrakenColliderPhaseReason::LoopWaitInactive };
-    }
-    if (!context.selectedChainValid) {
-        return { false, KrakenColliderPhaseReason::AttackChainOutOfRange };
-    }
-    if (colliderChainIndex != context.snapshot.selectedChainIndex) {
-        return { false, KrakenColliderPhaseReason::DifferentAttackChain };
-    }
-    if (!context.slamDurationValid) {
-        return { false, KrakenColliderPhaseReason::InvalidSlamDuration };
-    }
-    if (!context.phaseKnown) {
-        return { false, KrakenColliderPhaseReason::UnknownPhase };
-    }
-
-    switch (context.snapshot.phase) {
-    case KrakenTentacleAttackPreviewPhase::Windup:
-        return { false, KrakenColliderPhaseReason::WindupInactive };
-    case KrakenTentacleAttackPreviewPhase::WindupHold:
-        return { false, KrakenColliderPhaseReason::WindupHoldInactive };
-    case KrakenTentacleAttackPreviewPhase::Slam:
-        if (context.slamProgress >= context.attackActiveStartRatio) {
-            return { true, KrakenColliderPhaseReason::AttackSlamLateActive };
-        }
-        return { false, KrakenColliderPhaseReason::SlamBeforeThreshold };
-    case KrakenTentacleAttackPreviewPhase::ImpactHold:
-        if (context.impactHoldActive) {
-            return {
-                true,
-                KrakenColliderPhaseReason::AttackImpactHoldActive,
-            };
-        }
-        return { false, KrakenColliderPhaseReason::ImpactHoldDisabled };
-    case KrakenTentacleAttackPreviewPhase::Recovery:
-        return { false, KrakenColliderPhaseReason::RecoveryInactive };
-    case KrakenTentacleAttackPreviewPhase::Completed:
-        return { false, KrakenColliderPhaseReason::CompletedInactive };
-    default:
-        return { false, KrakenColliderPhaseReason::UnknownPhase };
+        return KrakenTentacleColliderAttackPhase::Invalid;
     }
 }
 
@@ -242,7 +134,7 @@ void RecordRoleEvaluation(
 template <typename Collider>
 void ApplyPhaseEvaluation(
     Collider& collider,
-    const PhaseEvaluationResult& result,
+    const KrakenTentacleColliderPhaseEvaluation& result,
     const KrakenColliderPhaseMotionSnapshot& snapshot,
     std::uint64_t frameIndex,
     KrakenBoneColliderPhaseDiagnostics& diagnostics) {
@@ -314,34 +206,34 @@ void SkinningEditorKrakenBoneColliderPhaseControl::Evaluate(
     diagnostics_.snapshot = snapshot;
     diagnostics_.lastWarning.clear();
 
-    if (!std::isfinite(settings_.attackActiveStartRatio)) {
-        settings_.attackActiveStartRatio =
-            kDefaultAttackActiveStartRatio;
+    const bool invalidActiveStartRatio =
+        !std::isfinite(settings_.attackActiveStartRatio);
+    settings_ = SanitizeKrakenTentacleColliderPhaseSettings(settings_);
+    if (invalidActiveStartRatio) {
         diagnostics_.lastWarning =
             "振り下ろし有効開始進行率が不正なため推奨値へ戻しました。";
     }
-    settings_.attackActiveStartRatio =
-        Clamp01(settings_.attackActiveStartRatio);
 
-    PhaseEvaluationContext context{
-        snapshot,
-        collection.GetChainCount(),
-        settings_.attackActiveStartRatio,
-        0.0f,
-        settings_.impactHoldActive,
-        AreSnapshotScalarsFinite(snapshot),
-        IsKnownMotionMode(snapshot.motionMode),
-        IsKnownAttackPhase(snapshot.phase),
-        snapshot.selectedChainIndex < collection.GetChainCount(),
-        std::isfinite(snapshot.slamDuration) &&
-            snapshot.slamDuration > kMinimumValidSlamDuration,
-    };
-    if (context.slamDurationValid &&
-        std::isfinite(snapshot.phaseElapsedTime)) {
-        context.slamProgress = Clamp01(
-            snapshot.phaseElapsedTime /
-            (std::max)(snapshot.slamDuration, kMinimumValidSlamDuration));
-    }
+    KrakenTentacleColliderPhaseState phaseState{};
+    phaseState.phase = ToColliderAttackPhase(snapshot.phase);
+    phaseState.chainCount = collection.GetChainCount();
+    phaseState.selectedChainIndex = snapshot.selectedChainIndex;
+    phaseState.motionElapsedTime = snapshot.motionElapsedTime;
+    phaseState.phaseElapsedTime = snapshot.phaseElapsedTime;
+    phaseState.phaseDuration = snapshot.phaseDuration;
+    phaseState.phaseNormalizedTime = snapshot.phaseNormalizedTime;
+    phaseState.slamDuration = snapshot.slamDuration;
+    phaseState.connected = snapshot.connected;
+    phaseState.safetyRecovery = snapshot.safetyRecovery;
+    phaseState.motionStateValid =
+        snapshot.valid && IsKnownMotionMode(snapshot.motionMode);
+    phaseState.attackMotionActive = snapshot.motionMode ==
+        KrakenColliderPhaseMotionMode::AttackSlamPreview;
+    phaseState.waitingForLoop = snapshot.waitingForLoop;
+    const KrakenTentacleColliderPhaseContext context =
+        BuildKrakenTentacleColliderPhaseContext(
+            phaseState,
+            settings_);
     diagnostics_.slamProgress = context.slamProgress;
 
     if (!snapshot.connected) {
@@ -352,25 +244,22 @@ void SkinningEditorKrakenBoneColliderPhaseControl::Evaluate(
         ++diagnostics_.safetyRecoveryCount;
         diagnostics_.lastWarning =
             "スキニング安全復帰中のため攻撃コライダーを無効予定にしました。";
-    } else if (!snapshot.valid || !context.snapshotScalarsFinite ||
-        !context.motionModeKnown) {
+    } else if (!phaseState.motionStateValid ||
+        !context.snapshotScalarsFinite) {
         ++diagnostics_.invalidMotionSnapshotCount;
         diagnostics_.lastWarning =
             "動作状態が不正なため攻撃コライダーを無効予定にしました。";
-    } else if (snapshot.motionMode ==
-            KrakenColliderPhaseMotionMode::AttackSlamPreview &&
+    } else if (phaseState.attackMotionActive &&
         !context.selectedChainValid) {
         ++diagnostics_.outOfRangeChainCount;
         diagnostics_.lastWarning =
             "攻撃対象チェーンが範囲外のため全攻撃コライダーを無効予定にしました。";
-    } else if (snapshot.motionMode ==
-            KrakenColliderPhaseMotionMode::AttackSlamPreview &&
+    } else if (phaseState.attackMotionActive &&
         !context.phaseKnown) {
         ++diagnostics_.invalidPhaseCount;
         diagnostics_.lastWarning =
             "攻撃フェーズが不正なため全攻撃コライダーを無効予定にしました。";
-    } else if (snapshot.motionMode ==
-            KrakenColliderPhaseMotionMode::AttackSlamPreview &&
+    } else if (phaseState.attackMotionActive &&
         !context.slamDurationValid) {
         ++diagnostics_.invalidSlamDurationCount;
         diagnostics_.lastWarning =
@@ -387,7 +276,8 @@ void SkinningEditorKrakenBoneColliderPhaseControl::Evaluate(
             collider.chainIndex,
             localIndex,
             tipSphere);
-        const PhaseEvaluationResult result = EvaluatePhaseState(
+        const KrakenTentacleColliderPhaseEvaluation result =
+            EvaluateKrakenTentacleColliderPhase(
             collider.role,
             collider.enabled,
             collider.valid,
@@ -459,13 +349,7 @@ void SkinningEditorKrakenBoneColliderPhaseControl::ResetRecommendedSettings() {
 
 void SkinningEditorKrakenBoneColliderPhaseControl::SetSettings(
     const KrakenBoneColliderPhaseControlSettings& settings) {
-    settings_ = settings;
-    if (!std::isfinite(settings_.attackActiveStartRatio)) {
-        settings_.attackActiveStartRatio =
-            kDefaultAttackActiveStartRatio;
-    }
-    settings_.attackActiveStartRatio =
-        Clamp01(settings_.attackActiveStartRatio);
+    settings_ = SanitizeKrakenTentacleColliderPhaseSettings(settings);
 }
 
 void SkinningEditorKrakenBoneColliderPhaseControl::ResetDiagnostics() {

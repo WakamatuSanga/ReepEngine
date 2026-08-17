@@ -199,6 +199,7 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
                 }
                 scene_->skinningEditor_->DrawDebugOverlay(scene_->camera_.get());
             }
+            scene_->DrawKrakenTentacleMidbossDebug();
             if (scene_->levelSceneRuntime_) {
                 scene_->levelSceneRuntime_->SetGameViewRect(imageTopLeft.x, imageTopLeft.y, imageSize.x, imageSize.y);
             }
@@ -226,6 +227,7 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
 }
 
 void GameSceneDebugGui::DrawManagerDebugWindows() {
+    scene_->DrawKrakenTentacleMidbossImGui();
     if (scene_->skinningEditor_) {
         scene_->skinningEditor_->DrawImGui();
     }

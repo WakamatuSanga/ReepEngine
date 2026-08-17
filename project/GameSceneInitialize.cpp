@@ -343,5 +343,6 @@ void GameScene::InitializeSceneResources() {
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
+    InitializeKrakenTentacleMidboss();
     InitializeSkinningEditorPreview();
 }

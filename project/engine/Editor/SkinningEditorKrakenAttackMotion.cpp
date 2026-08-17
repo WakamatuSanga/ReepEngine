@@ -4,129 +4,8 @@
 #include <cmath>
 
 namespace {
-    constexpr float kMinimumWindupDuration = 0.10f;
-    constexpr float kMinimumSlamDuration = 0.05f;
-    constexpr float kMinimumRecoveryDuration = 0.10f;
-    constexpr float kMaximumLongPhaseDuration = 2.00f;
-    constexpr float kMaximumShortPhaseDuration = 1.00f;
-    constexpr float kMaximumLoopInterval = 2.00f;
     constexpr float kMaximumDeltaTime = 0.10f;
-    constexpr float kMinimumTipBias = 0.10f;
-    constexpr float kMaximumTipBias = 8.00f;
     constexpr float kTimeEpsilon = 0.000001f;
-
-    float ClampFinite(float value, float minimum, float maximum, float fallback) {
-        if (!std::isfinite(value)) {
-            return fallback;
-        }
-        return std::clamp(value, minimum, maximum);
-    }
-
-    float NormalizeSign(float value) {
-        if (!std::isfinite(value) || value == 0.0f) {
-            return 1.0f;
-        }
-        return value < 0.0f ? -1.0f : 1.0f;
-    }
-
-    KrakenTentacleAttackLocalAxis SanitizeAxis(
-        KrakenTentacleAttackLocalAxis axis,
-        KrakenTentacleAttackLocalAxis fallback) {
-        switch (axis) {
-        case KrakenTentacleAttackLocalAxis::X:
-        case KrakenTentacleAttackLocalAxis::Y:
-        case KrakenTentacleAttackLocalAxis::Z:
-            return axis;
-        default:
-            return fallback;
-        }
-    }
-
-    KrakenTentacleAttackPreviewSettings SanitizeSettings(
-        const KrakenTentacleAttackPreviewSettings& source) {
-        const KrakenTentacleAttackPreviewSettings defaults{};
-        KrakenTentacleAttackPreviewSettings result = source;
-        result.windupDuration = ClampFinite(
-            source.windupDuration,
-            kMinimumWindupDuration,
-            kMaximumLongPhaseDuration,
-            defaults.windupDuration);
-        result.windupHoldDuration = ClampFinite(
-            source.windupHoldDuration,
-            0.0f,
-            kMaximumShortPhaseDuration,
-            defaults.windupHoldDuration);
-        result.slamDuration = ClampFinite(
-            source.slamDuration,
-            kMinimumSlamDuration,
-            kMaximumShortPhaseDuration,
-            defaults.slamDuration);
-        result.impactHoldDuration = ClampFinite(
-            source.impactHoldDuration,
-            0.0f,
-            kMaximumShortPhaseDuration,
-            defaults.impactHoldDuration);
-        result.recoveryDuration = ClampFinite(
-            source.recoveryDuration,
-            kMinimumRecoveryDuration,
-            kMaximumLongPhaseDuration,
-            defaults.recoveryDuration);
-        result.loopInterval = ClampFinite(
-            source.loopInterval,
-            0.0f,
-            kMaximumLoopInterval,
-            defaults.loopInterval);
-
-        result.windupPrimaryTotalDegrees = ClampFinite(
-            source.windupPrimaryTotalDegrees,
-            -120.0f,
-            120.0f,
-            defaults.windupPrimaryTotalDegrees);
-        result.slamPrimaryTotalDegrees = ClampFinite(
-            source.slamPrimaryTotalDegrees,
-            -120.0f,
-            120.0f,
-            defaults.slamPrimaryTotalDegrees);
-        result.windupSecondaryTotalDegrees = ClampFinite(
-            source.windupSecondaryTotalDegrees,
-            -60.0f,
-            60.0f,
-            defaults.windupSecondaryTotalDegrees);
-        result.slamSecondaryTotalDegrees = ClampFinite(
-            source.slamSecondaryTotalDegrees,
-            -60.0f,
-            60.0f,
-            defaults.slamSecondaryTotalDegrees);
-        result.tipBias = ClampFinite(
-            source.tipBias,
-            kMinimumTipBias,
-            kMaximumTipBias,
-            defaults.tipBias);
-        result.fixedLeadingBoneCount =
-            (std::min)(source.fixedLeadingBoneCount, std::uint32_t{ 1024 });
-        result.primaryAxis = SanitizeAxis(
-            source.primaryAxis,
-            KrakenTentacleAttackLocalAxis::X);
-        result.secondaryAxis = SanitizeAxis(
-            source.secondaryAxis,
-            KrakenTentacleAttackLocalAxis::Z);
-        result.primarySign = NormalizeSign(source.primarySign);
-        result.secondarySign = NormalizeSign(source.secondarySign);
-        return result;
-    }
-
-    float Clamp01(float value) {
-        return std::clamp(value, 0.0f, 1.0f);
-    }
-
-    float Lerp(float start, float end, float t) {
-        return start + ((end - start) * t);
-    }
-
-    float SmoothStep(float t) {
-        const float safeT = Clamp01(t);
-        return safeT * safeT * (3.0f - (2.0f * safeT));
-    }
 }
 
 SkinningEditorKrakenAttackMotion::SkinningEditorKrakenAttackMotion() {
@@ -291,7 +170,7 @@ bool SkinningEditorKrakenAttackMotion::JumpToPhase(
 
 void SkinningEditorKrakenAttackMotion::SetSettings(
     const KrakenTentacleAttackPreviewSettings& settings) {
-    settings_ = SanitizeSettings(settings);
+    settings_ = SanitizeKrakenTentacleAttackSettings(settings);
     const float phaseDuration = GetPhaseDuration(phase_);
     phaseElapsedTime_ = std::clamp(
         std::isfinite(phaseElapsedTime_) ? phaseElapsedTime_ : 0.0f,
@@ -307,51 +186,17 @@ void SkinningEditorKrakenAttackMotion::ResetRecommendedSettings() {
 }
 
 float SkinningEditorKrakenAttackMotion::GetMotionDuration() const {
-    return settings_.windupDuration +
-        settings_.windupHoldDuration +
-        settings_.slamDuration +
-        settings_.impactHoldDuration +
-        settings_.recoveryDuration;
+    return GetKrakenTentacleAttackMotionDuration(settings_);
 }
 
 float SkinningEditorKrakenAttackMotion::GetPhaseDuration(
     KrakenTentacleAttackPreviewPhase phase) const {
-    switch (phase) {
-    case KrakenTentacleAttackPreviewPhase::Windup:
-        return settings_.windupDuration;
-    case KrakenTentacleAttackPreviewPhase::WindupHold:
-        return settings_.windupHoldDuration;
-    case KrakenTentacleAttackPreviewPhase::Slam:
-        return settings_.slamDuration;
-    case KrakenTentacleAttackPreviewPhase::ImpactHold:
-        return settings_.impactHoldDuration;
-    case KrakenTentacleAttackPreviewPhase::Recovery:
-        return settings_.recoveryDuration;
-    case KrakenTentacleAttackPreviewPhase::Completed:
-    default:
-        return 0.0f;
-    }
+    return GetKrakenTentacleAttackPhaseDuration(settings_, phase);
 }
 
 float SkinningEditorKrakenAttackMotion::GetPhaseStartTime(
     KrakenTentacleAttackPreviewPhase phase) const {
-    switch (phase) {
-    case KrakenTentacleAttackPreviewPhase::Windup:
-        return 0.0f;
-    case KrakenTentacleAttackPreviewPhase::WindupHold:
-        return settings_.windupDuration;
-    case KrakenTentacleAttackPreviewPhase::Slam:
-        return settings_.windupDuration + settings_.windupHoldDuration;
-    case KrakenTentacleAttackPreviewPhase::ImpactHold:
-        return settings_.windupDuration + settings_.windupHoldDuration +
-            settings_.slamDuration;
-    case KrakenTentacleAttackPreviewPhase::Recovery:
-        return settings_.windupDuration + settings_.windupHoldDuration +
-            settings_.slamDuration + settings_.impactHoldDuration;
-    case KrakenTentacleAttackPreviewPhase::Completed:
-    default:
-        return GetMotionDuration();
-    }
+    return GetKrakenTentacleAttackPhaseStartTime(settings_, phase);
 }
 
 void SkinningEditorKrakenAttackMotion::Update(
@@ -470,67 +315,10 @@ void SkinningEditorKrakenAttackMotion::CompleteCycle() {
 
 KrakenTentacleAttackPoseTotals
 SkinningEditorKrakenAttackMotion::EvaluatePoseTotals() const {
-    KrakenTentacleAttackPoseTotals result{};
-    const float duration = GetPhaseDuration(phase_);
-    const float t = duration > kTimeEpsilon
-        ? std::clamp(phaseElapsedTime_ / duration, 0.0f, 1.0f)
-        : 1.0f;
-    switch (phase_) {
-    case KrakenTentacleAttackPreviewPhase::Windup: {
-        const float smoothT = SmoothStep(t);
-        result.primaryDegrees = Lerp(
-            0.0f,
-            settings_.windupPrimaryTotalDegrees,
-            smoothT);
-        result.secondaryDegrees = Lerp(
-            0.0f,
-            settings_.windupSecondaryTotalDegrees,
-            smoothT);
-        break;
-    }
-    case KrakenTentacleAttackPreviewPhase::WindupHold:
-        result.primaryDegrees = settings_.windupPrimaryTotalDegrees;
-        result.secondaryDegrees = settings_.windupSecondaryTotalDegrees;
-        break;
-    case KrakenTentacleAttackPreviewPhase::Slam: {
-        const float cubicT = t * t * t;
-        result.primaryDegrees = Lerp(
-            settings_.windupPrimaryTotalDegrees,
-            settings_.slamPrimaryTotalDegrees,
-            cubicT);
-        result.secondaryDegrees = Lerp(
-            settings_.windupSecondaryTotalDegrees,
-            settings_.slamSecondaryTotalDegrees,
-            cubicT);
-        break;
-    }
-    case KrakenTentacleAttackPreviewPhase::ImpactHold:
-        result.primaryDegrees = settings_.slamPrimaryTotalDegrees;
-        result.secondaryDegrees = settings_.slamSecondaryTotalDegrees;
-        break;
-    case KrakenTentacleAttackPreviewPhase::Recovery: {
-        const float smoothT = SmoothStep(t);
-        result.primaryDegrees = Lerp(
-            settings_.slamPrimaryTotalDegrees,
-            0.0f,
-            smoothT);
-        result.secondaryDegrees = Lerp(
-            settings_.slamSecondaryTotalDegrees,
-            0.0f,
-            smoothT);
-        break;
-    }
-    case KrakenTentacleAttackPreviewPhase::Completed:
-    default:
-        break;
-    }
-    result.finite = std::isfinite(result.primaryDegrees) &&
-        std::isfinite(result.secondaryDegrees);
-    if (!result.finite) {
-        result.primaryDegrees = 0.0f;
-        result.secondaryDegrees = 0.0f;
-    }
-    return result;
+    return EvaluateKrakenTentacleAttackPoseTotals(
+        settings_,
+        phase_,
+        phaseElapsedTime_);
 }
 
 const char* GetKrakenTentacleAttackPhaseJapaneseLabel(

@@ -151,3 +151,25 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
     return false;
 }
 
+std::vector<PlayerBulletManager::PlayerBulletCollisionSnapshot>
+PlayerBulletManager::GetActiveCollisionSnapshots() const {
+    std::vector<PlayerBulletCollisionSnapshot> snapshots;
+    snapshots.reserve(GetActiveCount());
+
+    for (const PlayerBulletInstance& instance : bullets_) {
+        if (!instance.bullet || !instance.bullet->IsActive() || instance.bullet->IsDead()) {
+            continue;
+        }
+
+        snapshots.push_back({
+            instance.runtimeId,
+            instance.bullet->GetPosition(),
+            instance.bullet->GetRadius(),
+            instance.damage,
+            instance.projectileType,
+        });
+    }
+
+    return snapshots;
+}
+

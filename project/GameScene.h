@@ -21,6 +21,7 @@ class DirectXCommon;
 class EditorCameraController;
 class CombatEffectController;
 class ImpactDistortionController;
+class KrakenTentacleMidbossController;
 class CombatSlowMotionController;
 class EnemyAttackController;
 class EnemyDefeatEffectController;
@@ -84,7 +85,13 @@ private:
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();
+    void InitializeKrakenTentacleMidboss();
     void FinalizeSkinningEditorPreview();
+    void FinalizeKrakenTentacleMidboss();
+    void UpdateKrakenTentacleMidboss(float scaledDeltaTime);
+    void DrawKrakenTentacleMidboss();
+    void DrawKrakenTentacleMidbossDebug();
+    void DrawKrakenTentacleMidbossImGui();
     void UpdateSceneRuntime();
     void DrawSceneRender();
     void FinalizeSceneResources();
@@ -120,6 +127,7 @@ private:
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;
     std::unique_ptr<ImpactDistortionController> impactDistortionController_;
+    std::unique_ptr<KrakenTentacleMidbossController> krakenTentacleMidboss_;
     std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;

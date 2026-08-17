@@ -1,42 +1,18 @@
 #pragma once
 
+#include "Engine/Game/Boss/Kraken/KrakenTentacleColliderEvaluator.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
 
-enum class KrakenTentacleAttackPreviewPhase : std::uint8_t;
-
 class SkinningEditorKrakenBoneColliderPreviewCollection;
+enum class KrakenTentacleAttackPreviewPhase : std::uint8_t;
 
 enum class KrakenColliderPhaseMotionMode : std::uint8_t {
     Manual,
     IdleSway,
     AttackSlamPreview,
-};
-
-enum class KrakenColliderPhaseReason : std::uint8_t {
-    DamageAlwaysActive,
-    WeakPointAlwaysActive,
-    AttackSlamLateActive,
-    AttackImpactHoldActive,
-    ColliderDisabled,
-    ColliderInvalid,
-    MotionStateInvalid,
-    PreviewDisconnected,
-    SafetyRecovery,
-    NotAttackMotionMode,
-    AttackChainOutOfRange,
-    DifferentAttackChain,
-    WindupInactive,
-    WindupHoldInactive,
-    SlamBeforeThreshold,
-    InvalidSlamDuration,
-    ImpactHoldDisabled,
-    LoopWaitInactive,
-    RecoveryInactive,
-    CompletedInactive,
-    UnknownPhase,
-    UnknownRole,
 };
 
 struct KrakenColliderPhaseMotionSnapshot {
@@ -59,10 +35,8 @@ struct KrakenColliderPhaseMotionSnapshot {
     bool valid = false;
 };
 
-struct KrakenBoneColliderPhaseControlSettings {
-    float attackActiveStartRatio = 0.65f;
-    bool impactHoldActive = true;
-};
+using KrakenBoneColliderPhaseControlSettings =
+    KrakenTentacleColliderPhaseSettings;
 
 struct KrakenBoneColliderPhaseDiagnostics {
     std::uint64_t evaluationPassCount = 0;

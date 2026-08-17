@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Engine/Game/Boss/Kraken/KrakenTentacleColliderEvaluator.h"
 #include "Matrix4x4.h"
-#include "SkinningEditorKrakenBoneColliderPhaseControl.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -9,12 +9,6 @@
 #include <vector>
 
 struct Skeleton;
-
-enum class KrakenColliderPreviewRole : std::uint8_t {
-    Attack,
-    Damage,
-    WeakPoint,
-};
 
 struct KrakenBoneColliderPreviewSettings {
     bool showPreview = true;

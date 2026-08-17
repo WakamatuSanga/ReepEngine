@@ -7,6 +7,7 @@
 #include "SkinningEditorSkinnedMaterialDiagnostics.h"
 #include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
 #include "Engine/Animation/Skeleton.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -119,6 +120,7 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
     attackPoseResult_ =
         std::make_unique<KrakenTentacleAttackPoseResult>();
     InitializeBoneColliderPreview();
+    idlePoseResult_ = {};
     CaptureBindPose();
     hierarchyValid_ = ValidateBindPose() && DetectChains();
     if (!hierarchyValid_ && hierarchyError_.empty()) {
@@ -159,6 +161,7 @@ void SkinningEditorKrakenMotionPreview::ClearTarget() {
     manualRotationDegrees_.clear();
     bindPalette_.clear();
     bindChainTipSkeletonPositions_.clear();
+    idlePoseResult_ = {};
     chains_.clear();
     attackMotion_.reset();
     attackPoseResult_.reset();
@@ -216,98 +219,17 @@ bool SkinningEditorKrakenMotionPreview::ValidateBindPose() const {
 }
 
 bool SkinningEditorKrakenMotionPreview::DetectChains() {
-    chains_.clear();
-    hierarchyError_.clear();
-    if (!skeleton_ ||
-        skeleton_->root < 0 ||
-        skeleton_->root >= static_cast<int32_t>(skeleton_->joints.size())) {
+    if (!skeleton_) {
         SetHierarchyError("\u30EB\u30FC\u30C8\u30B8\u30E7\u30A4\u30F3\u30C8\u304C\u4E0D\u6B63\u3067\u3059\u3002");
         return false;
     }
-
-    const int jointCount = static_cast<int>(skeleton_->joints.size());
-    const int rootIndex = skeleton_->root;
-    std::vector<int> incoming(static_cast<std::size_t>(jointCount), 0);
-    for (int parentIndex = 0; parentIndex < jointCount; ++parentIndex) {
-        const Joint& parent =
-            skeleton_->joints[static_cast<std::size_t>(parentIndex)];
-        for (int childIndex : parent.children) {
-            if (childIndex < 0 || childIndex >= jointCount) {
-                SetHierarchyError("\u7BC4\u56F2\u5916\u306E\u5B50\u30B8\u30E7\u30A4\u30F3\u30C8\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-                return false;
-            }
-            ++incoming[static_cast<std::size_t>(childIndex)];
-            if (skeleton_->joints[
-                static_cast<std::size_t>(childIndex)].parentIndex !=
-                parentIndex) {
-                SetHierarchyError("\u89AA\u5B50\u30B8\u30E7\u30A4\u30F3\u30C8\u306E\u5BFE\u5FDC\u304C\u4E00\u81F4\u3057\u307E\u305B\u3093\u3002");
-                return false;
-            }
-        }
-    }
-
-    for (int jointIndex = 0; jointIndex < jointCount; ++jointIndex) {
-        const int expectedIncoming = jointIndex == rootIndex ? 0 : 1;
-        if (incoming[static_cast<std::size_t>(jointIndex)] !=
-            expectedIncoming) {
-            SetHierarchyError(
-                jointIndex == rootIndex
-                ? "\u30EB\u30FC\u30C8\u306B\u89AA\u53C2\u7167\u304C\u3042\u308A\u307E\u3059\u3002"
-                : "\u8907\u6570\u306E\u89AA\u307E\u305F\u306F\u89AA\u306A\u3057\u30B8\u30E7\u30A4\u30F3\u30C8\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-            return false;
-        }
-    }
-
-    const Joint& root =
-        skeleton_->joints[static_cast<std::size_t>(rootIndex)];
-    if (root.children.empty()) {
-        SetHierarchyError("\u89E6\u624B\u30C1\u30A7\u30FC\u30F3\u304C0\u672C\u3067\u3059\u3002");
+    std::string errorMessage;
+    if (!DetectKrakenTentacleChains(*skeleton_, chains_, errorMessage)) {
+        SetHierarchyError(errorMessage);
         return false;
     }
-
-    std::vector<bool> visited(
-        static_cast<std::size_t>(jointCount),
-        false);
-    visited[static_cast<std::size_t>(rootIndex)] = true;
-    for (int startIndex : root.children) {
-        Chain chain{};
-        int jointIndex = startIndex;
-        while (true) {
-            if (jointIndex < 0 ||
-                jointIndex >= jointCount ||
-                visited[static_cast<std::size_t>(jointIndex)]) {
-                SetHierarchyError("\u5FAA\u74B0\u307E\u305F\u306F\u91CD\u8907\u30B8\u30E7\u30A4\u30F3\u30C8\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-                return false;
-            }
-
-            visited[static_cast<std::size_t>(jointIndex)] = true;
-            chain.joints.push_back(jointIndex);
-            const Joint& joint =
-                skeleton_->joints[static_cast<std::size_t>(jointIndex)];
-            if (joint.children.empty()) {
-                break;
-            }
-            if (joint.children.size() != 1) {
-                SetHierarchyError("\u89E6\u624B\u30C1\u30A7\u30FC\u30F3\u9014\u4E2D\u306E\u5206\u5C90\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-                return false;
-            }
-            jointIndex = joint.children.front();
-        }
-        if (chain.joints.empty()) {
-            SetHierarchyError("\u7A7A\u306E\u89E6\u624B\u30C1\u30A7\u30FC\u30F3\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-            return false;
-        }
-        chains_.push_back(std::move(chain));
-    }
-
-    if (!std::all_of(
-        visited.begin(),
-        visited.end(),
-        [](bool value) { return value; })) {
-        SetHierarchyError("\u30EB\u30FC\u30C8\u914D\u4E0B\u3067\u306A\u3044\u30B8\u30E7\u30A4\u30F3\u30C8\u3092\u691C\u51FA\u3057\u307E\u3057\u305F\u3002");
-        return false;
-    }
-    return !chains_.empty();
+    hierarchyError_.clear();
+    return true;
 }
 
 void SkinningEditorKrakenMotionPreview::SetHierarchyError(
@@ -360,55 +282,40 @@ void SkinningEditorKrakenMotionPreview::ApplyManualPose() {
 }
 
 void SkinningEditorKrakenMotionPreview::ApplyIdleSwayPose() {
-    if (!skeleton_ || !hierarchyValid_ || chains_.empty()) {
+    if (!skeleton_ || !hierarchyValid_) {
         return;
     }
 
-    const float angularSpeed =
-        2.0f * std::numbers::pi_v<float> * frequencyHz_;
-    constexpr float kBlendInSeconds = 0.25f;
-    const float startupBlend = std::clamp(
-        motionTime_ / kBlendInSeconds, 0.0f, 1.0f);
-    for (std::size_t chainIndex = 0;
-        chainIndex < chains_.size();
-        ++chainIndex) {
-        if (!applyAllChains_ &&
-            static_cast<int>(chainIndex) != selectedChainIndex_) {
-            continue;
-        }
+    KrakenTentacleIdlePoseSettings settings{};
+    settings.frequencyHz = frequencyHz_;
+    settings.rootAmplitudeDegrees = rootAmplitudeDegrees_;
+    settings.tipAmplitudeDegrees = tipAmplitudeDegrees_;
+    settings.secondaryAmplitudeDegrees = secondaryAmplitudeDegrees_;
+    settings.chainPhaseRadians = chainPhaseRadians_;
+    settings.phaseAlongChainRadians = phaseAlongChainRadians_;
+    const bool built = BuildKrakenTentacleIdlePose(
+        settings,
+        motionTime_,
+        chains_,
+        applyAllChains_,
+        static_cast<std::size_t>(selectedChainIndex_),
+        skeleton_->joints.size(),
+        skeleton_->root,
+        idlePoseResult_);
+    if (!built || !idlePoseResult_.valid) {
+        runtimeError_ = idlePoseResult_.errorMessage.empty()
+            ? "Idle Pose\u3092\u751F\u6210\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002"
+            : idlePoseResult_.errorMessage;
+        return;
+    }
 
-        const Chain& chain = chains_[chainIndex];
-        const int denominator =
-            (std::max)(static_cast<int>(chain.joints.size()) - 1, 1);
-        const float chainPhase =
-            static_cast<float>(chainIndex) * chainPhaseRadians_;
-        for (std::size_t boneIndex = 0;
-            boneIndex < chain.joints.size();
-            ++boneIndex) {
-            const float chainT =
-                static_cast<float>(boneIndex) /
-                static_cast<float>(denominator);
-            const float amplitudeDegrees =
-                rootAmplitudeDegrees_ +
-                (tipAmplitudeDegrees_ - rootAmplitudeDegrees_) * chainT;
-            const float angleA =
-                std::sin(
-                    motionTime_ * angularSpeed +
-                    chainPhase +
-                    chainT * phaseAlongChainRadians_) *
-                amplitudeDegrees * startupBlend;
-            const float angleB =
-                std::cos(
-                    motionTime_ * angularSpeed * 0.73f +
-                    chainPhase) *
-                secondaryAmplitudeDegrees_ *
-                chainT * startupBlend;
-
-            Joint& joint = skeleton_->joints[
-                static_cast<std::size_t>(chain.joints[boneIndex])];
-            joint.localRotate.x += angleA * kDegreesToRadians;
-            joint.localRotate.z += angleB * kDegreesToRadians;
-        }
+    for (const KrakenTentacleIdleJointPose& pose :
+        idlePoseResult_.joints) {
+        Joint& joint = skeleton_->joints[
+            static_cast<std::size_t>(pose.jointIndex)];
+        joint.localRotate.x += pose.localEulerOffsetRadians.x;
+        joint.localRotate.y += pose.localEulerOffsetRadians.y;
+        joint.localRotate.z += pose.localEulerOffsetRadians.z;
     }
 }
 
@@ -583,10 +490,11 @@ void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
 }
 
 void SkinningEditorKrakenMotionPreview::ResetIdleSettings() {
-    frequencyHz_ = 0.35f;
-    rootAmplitudeDegrees_ = 3.0f;
-    tipAmplitudeDegrees_ = 15.0f;
-    secondaryAmplitudeDegrees_ = 6.0f;
-    chainPhaseRadians_ = 0.75f;
-    phaseAlongChainRadians_ = 0.55f;
+    const KrakenTentacleIdlePoseSettings defaults{};
+    frequencyHz_ = defaults.frequencyHz;
+    rootAmplitudeDegrees_ = defaults.rootAmplitudeDegrees;
+    tipAmplitudeDegrees_ = defaults.tipAmplitudeDegrees;
+    secondaryAmplitudeDegrees_ = defaults.secondaryAmplitudeDegrees;
+    chainPhaseRadians_ = defaults.chainPhaseRadians;
+    phaseAlongChainRadians_ = defaults.phaseAlongChainRadians;
 }

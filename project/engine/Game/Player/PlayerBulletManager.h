@@ -37,6 +37,14 @@ public:
         LockedWingShot,
     };
 
+    struct PlayerBulletCollisionSnapshot {
+        uint64_t runtimeId = 0;
+        Vector3 worldPosition{};
+        float radius = 0.0f;
+        int damage = 1;
+        PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
+    };
+
     enum class WingSide : uint8_t {
         Left,
         Right,
@@ -88,6 +96,7 @@ public:
         float* lastDistance,
         float* lastRadiusSum,
         float* lastBulletRadius);
+    std::vector<PlayerBulletCollisionSnapshot> GetActiveCollisionSnapshots() const;
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
     float GetChargeTime() const { return chargeTime_; }
@@ -143,11 +152,13 @@ private:
     struct PlayerBulletInstance {
         std::unique_ptr<EnemyBullet> bullet;
         std::unique_ptr<LockedWingLaunchState> lockedWingLaunch;
+        uint64_t runtimeId = 0;
         int damage = 1;
         PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
     };
 
     void FireFromPlayer();
+    uint64_t AllocateBulletRuntimeId();
     LockedWingShotResult TrySpawnLockedWingShot();
     LockedWingShotResult SpawnLockedWingShot(
         WingSide wing, const std::string& targetId, bool forcedTest);
@@ -244,6 +255,7 @@ private:
     bool lastAimFallbackUsed_ = false;
     bool lastShotSpawnDataValid_ = false;
     size_t firedBulletCount_ = 0;
+    uint64_t nextBulletRuntimeId_ = 1;
     size_t cursorAimVisualUseCount_ = 0;
     size_t cursorAimStandardShotCount_ = 0;
     size_t aimCorridorShotCount_ = 0;

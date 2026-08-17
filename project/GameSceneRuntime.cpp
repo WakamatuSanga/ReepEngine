@@ -341,6 +341,7 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyManager_) {
         enemyManager_->Update(gameplayDeltaTime);
     }
+    UpdateKrakenTentacleMidboss(gameplayDeltaTime);
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         influenceFieldManager_->Update(gameplayDeltaTime);
