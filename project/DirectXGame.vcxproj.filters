@@ -351,6 +351,9 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigEncounterSpeed.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2ImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
@@ -576,6 +579,12 @@
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerExternalObjective.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerExternalObjectiveImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
@@ -583,6 +592,12 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerProgression.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerWaveInfo.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerWaveValidation.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp">
@@ -675,6 +690,12 @@
     <ClCompile Include="GameSceneKrakenTentacleMidboss.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneKrakenWaveFoundation.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneKrakenTentacleWaveEncounter.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleChainUtility.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
@@ -688,6 +709,24 @@
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterState.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterAttack.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterCompletion.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossState.cpp">
@@ -1323,6 +1362,12 @@
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterConfig.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.h">
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossControllerInternal.h">

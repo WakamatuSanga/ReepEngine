@@ -3,6 +3,7 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleAttackDamage.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossProjectileDamage.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -17,6 +18,7 @@ class Player;
 class PlayerBulletManager;
 class PlayerDamageFeedbackController;
 class PlayerDeathSequenceController;
+struct Vector3;
 
 enum class KrakenTentacleMidbossState : std::uint8_t {
     Hidden,
@@ -87,6 +89,20 @@ public:
     bool IsVisible() const;
     KrakenTentacleMidbossState GetState() const;
     KrakenTentacleMidbossState GetRuntimeState() const;
+    bool ResetForWaveEncounter();
+    bool PlaceInFrontOfCameraForWaveEncounter();
+    bool ShowForWaveEncounter();
+    void HideForWaveEncounter();
+    bool SetSelectedAttackChainForWaveEncounter(std::size_t chainIndex);
+    bool TryStartAttackForWaveEncounter();
+    std::size_t GetDetectedChainCount() const;
+    std::size_t GetSelectedAttackChain() const;
+    Vector3 GetWorldPosition() const;
+    float GetCameraForwardOffset() const;
+    float GetCameraRightOffset() const;
+    float GetCameraUpOffset() const;
+    void SetWaveEncounterControlActive(bool active);
+    bool IsWaveEncounterControlActive() const;
 
 private:
     struct Impl;

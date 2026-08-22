@@ -98,6 +98,7 @@ bool EnemyWaveManager::StartWaveNow(size_t waveIndex, std::string& resultMessage
     activeWave.elapsedTime = -std::max(0.0f, wave.delay);
     activeWave.spawned.assign(wave.enemies.size(), false);
     activeWaves_.push_back(std::move(activeWave));
+    PublishCurrentWaveStart(waveIndex);
 
     ++startedWaveCount_;
     resultMessage = "Started wave " + wave.waveId + " enemies=" + std::to_string(wave.enemies.size());
@@ -149,6 +150,9 @@ void EnemyWaveManager::UpdateWaveProgression(float deltaTime) {
 
         const EnemyWaveDefinition& wave = waves_[activeWave.waveIndex];
         if (activeWave.spawnedCount < wave.enemies.size() || activeWave.endedCount < wave.enemies.size()) {
+            continue;
+        }
+        if (!PassExternalObjectiveCompletionGate(wave.waveId)) {
             continue;
         }
 

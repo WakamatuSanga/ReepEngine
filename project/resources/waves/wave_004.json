@@ -1,0 +1,10 @@
+{
+  "waveId": "wave_004",
+  "name": "Kraken Tentacle Midboss",
+  "delay": 0.0,
+  "clearCondition": "AllDead",
+  "nextWaveId": "wave_005",
+  "clearDelayAfterAllDead": 0.0,
+  "clearDelayAfterAllEscaped": 0.0,
+  "enemies": []
+}

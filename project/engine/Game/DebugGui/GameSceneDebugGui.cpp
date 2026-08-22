@@ -228,6 +228,7 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
 
 void GameSceneDebugGui::DrawManagerDebugWindows() {
     scene_->DrawKrakenTentacleMidbossImGui();
+    scene_->DrawKrakenTentacleWaveEncounterImGui();
     if (scene_->skinningEditor_) {
         scene_->skinningEditor_->DrawImGui();
     }

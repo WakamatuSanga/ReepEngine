@@ -97,6 +97,7 @@ EnemyWaveManager::EnemyWaveManager() = default;
 EnemyWaveManager::~EnemyWaveManager() = default;
 
 void EnemyWaveManager::Initialize(EnemyManager* enemyManager, const Camera* camera) {
+    InitializeWaveFoundationState();
     enemyManager_ = enemyManager;
     camera_ = camera;
     ResetManualWaveBuffer();
@@ -112,9 +113,12 @@ void EnemyWaveManager::Initialize(EnemyManager* enemyManager, const Camera* came
     } else {
         AddLog("Optional wave_002 not loaded yet: " + result);
     }
+    LoadStep9AWaves();
+    initialized_ = true;
 }
 
 void EnemyWaveManager::Finalize() {
+    finalizing_ = true;
     enemyManager_ = nullptr;
     camera_ = nullptr;
     player_ = nullptr;
@@ -127,6 +131,7 @@ void EnemyWaveManager::Finalize() {
     ClearPendingStartWarning();
     ClearPendingNextWave();
     gameModeWasActive_ = false;
+    FinalizeWaveFoundationState();
 }
 
 void EnemyWaveManager::SetGameModeActive(bool isGameMode) {
@@ -211,11 +216,13 @@ void EnemyWaveManager::Update(float deltaTime) {
     }
 
     UpdateWaveEnemyMovement(deltaTime);
+    RefreshCurrentWaveDiagnostics();
     UpdateWaveProgression(deltaTime);
 
     activeWaves_.erase(
         std::remove_if(activeWaves_.begin(), activeWaves_.end(), [](const ActiveWave& wave) { return wave.stopped; }),
         activeWaves_.end());
+    RefreshCurrentWaveDiagnostics();
 }
 
 bool EnemyWaveManager::HandleSpawnWaveAction(const FiredEventAction& action, std::string& resultMessage) {
@@ -293,6 +300,7 @@ void EnemyWaveManager::StopAllWaves() {
     if (warningUIController_) {
         warningUIController_->HideWarning();
     }
+    ResetWaveFoundationForRestart();
     AddLog("Stopped all active waves and tracked wave enemies.");
 }
 
@@ -320,6 +328,7 @@ bool EnemyWaveManager::LoadWaveFile(const std::string& filePath, std::string& re
 
     const auto existing = waveIndexById_.find(wave.waveId);
     if (existing != waveIndexById_.end() && existing->second < waves_.size()) {
+        ++waveDuplicateIdCount_;
         waves_[existing->second] = std::move(wave);
     } else {
         waveIndexById_[wave.waveId] = waves_.size();

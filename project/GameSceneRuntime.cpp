@@ -239,6 +239,7 @@ void GameScene::UpdateSceneRuntime() {
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
+    PreUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
     if (railShooterCameraRig_) {
         railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
         railShooterCameraRig_->Update(gameplayDeltaTime);
@@ -342,6 +343,7 @@ void GameScene::UpdateSceneRuntime() {
         enemyManager_->Update(gameplayDeltaTime);
     }
     UpdateKrakenTentacleMidboss(gameplayDeltaTime);
+    PostKrakenUpdateKrakenTentacleWaveEncounter();
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         influenceFieldManager_->Update(gameplayDeltaTime);
@@ -400,6 +402,7 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyWaveManager_) {
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
+    PostWaveUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
     if (enemyLaserTelegraphController_) {
         enemyLaserTelegraphController_->Update(gameplayDeltaTime);
     }

@@ -326,6 +326,7 @@ void GameScene::InitializeSceneResources() {
     enemyWaveManager_->SetPlayer(player_.get());
     enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
     enemyWaveManager_->SetWarningUIController(warningUIController_.get());
+    InitializeKrakenWaveFoundation();
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -344,5 +345,6 @@ void GameScene::InitializeSceneResources() {
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
     InitializeKrakenTentacleMidboss();
+    InitializeKrakenTentacleWaveEncounter();
     InitializeSkinningEditorPreview();
 }

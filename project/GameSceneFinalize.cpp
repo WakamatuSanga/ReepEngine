@@ -11,6 +11,7 @@
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterController.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -66,6 +67,7 @@ GameScene::GameScene()
 GameScene::~GameScene() = default;
 
 void GameScene::FinalizeSceneResources() {
+    FinalizeKrakenTentacleWaveEncounter();
     FinalizeKrakenTentacleMidboss();
     FinalizeSkinningEditorPreview();
     debugGui_.reset();
@@ -84,6 +86,7 @@ void GameScene::FinalizeSceneResources() {
         startupEnemySpawnController_->Finalize();
     }
     startupEnemySpawnController_.reset();
+    FinalizeKrakenWaveFoundation();
     if (enemyWaveManager_) {
         enemyWaveManager_->Finalize();
     }

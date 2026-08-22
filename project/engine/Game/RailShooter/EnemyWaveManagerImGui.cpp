@@ -29,6 +29,7 @@ void EnemyWaveManager::DrawImGui() {
     ImGui::Checkbox("GameMode開始時にWave 1を再生 (Auto Start Wave On GameMode)", &autoStartWaveOnGameMode_);
     ImGui::Checkbox("Auto Progress Enabled", &autoProgressEnabled_);
     ImGui::TextWrapped("Auto Start Wave ID: %s", autoStartWaveId_.c_str());
+    DrawProgressionObjectiveImGui();
     ImGui::DragFloat("Spawn Width", &spawnWidth_, 0.1f, 1.0f, 100.0f);
     ImGui::DragFloat("Spawn Height", &spawnHeight_, 0.1f, 1.0f, 100.0f);
     ImGui::DragFloat("接近速度 (Approach Speed)", &approachSpeed_, 0.1f, 0.0f, 60.0f, "%.1f");

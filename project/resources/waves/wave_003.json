@@ -1,0 +1,20 @@
+{
+  "waveId": "wave_003",
+  "name": "Progression Check Wave 3",
+  "delay": 0.0,
+  "clearCondition": "AllDead",
+  "nextWaveId": "wave_004",
+  "clearDelayAfterAllDead": 3.5,
+  "clearDelayAfterAllEscaped": 0.0,
+  "enemies": [
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 0.0,
+      "screenX": 0.0,
+      "screenY": 0.16,
+      "depth": 62.0,
+      "movePattern": "StraightApproach",
+      "attackPattern": "SingleShot"
+    }
+  ]
+}

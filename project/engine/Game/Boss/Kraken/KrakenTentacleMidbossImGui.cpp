@@ -148,6 +148,12 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         return;
     }
 
+    if (waveEncounterControlActive) {
+        ImGui::TextColored(
+            ImVec4(1.0f, 0.75f, 0.20f, 1.0f),
+            "ウェーブ4交戦が中ボスを自動制御中です。");
+    }
+
     if (ImGui::CollapsingHeader(
             "実行時状態##RuntimeStatus",
             ImGuiTreeNodeFlags_DefaultOpen)) {

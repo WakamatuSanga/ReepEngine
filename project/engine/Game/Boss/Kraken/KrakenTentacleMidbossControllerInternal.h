@@ -503,6 +503,7 @@ struct KrakenTentacleMidbossController::Impl {
     bool collisionQueryEnabled = true;
     bool attackDamageEnabled = false;
     bool projectileDamageEnabled = false;
+    bool waveEncounterControlActive = false;
     bool projectileKillInProgress = false;
     bool projectileDamageFinalizing = false;
     bool defeatStarted = false;
