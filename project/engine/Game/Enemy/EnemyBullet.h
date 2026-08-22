@@ -48,6 +48,8 @@ public:
     void SetProjectileSpawnSequence(uint64_t sequence) { projectileSpawnSequence_ = sequence; }
     bool HasVisualForwardOverride() const { return hasVisualForwardOverride_; }
     float GetRadius() const { return radius_; }
+    float GetLifeTime() const { return lifeTime_; }
+    float GetElapsedTime() const { return currentTime_; }
 
 private:
     void LoadModel();

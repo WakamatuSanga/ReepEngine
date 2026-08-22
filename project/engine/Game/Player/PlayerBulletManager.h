@@ -37,12 +37,26 @@ public:
         LockedWingShot,
     };
 
+    enum class PlayerProjectileKillReason : uint8_t {
+        KrakenBodyHit,
+        KrakenWeakPointHit,
+    };
+
     struct PlayerBulletCollisionSnapshot {
         uint64_t runtimeId = 0;
         Vector3 worldPosition{};
+        Vector3 velocity{};
         float radius = 0.0f;
+        float lifeTime = 0.0f;
+        float elapsedTime = 0.0f;
         int damage = 1;
         PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
+        std::string lockedTargetId;
+        uint8_t launchPhase = 0;
+        bool active = false;
+        bool killed = false;
+        bool homingReady = false;
+        bool exhaustEnabled = false;
     };
 
     enum class WingSide : uint8_t {
@@ -97,6 +111,9 @@ public:
         float* lastRadiusSum,
         float* lastBulletRadius);
     std::vector<PlayerBulletCollisionSnapshot> GetActiveCollisionSnapshots() const;
+    bool TryKillProjectileByRuntimeId(
+        std::uint64_t runtimeId,
+        PlayerProjectileKillReason reason);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
     float GetChargeTime() const { return chargeTime_; }

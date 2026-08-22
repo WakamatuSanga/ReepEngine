@@ -102,7 +102,19 @@ bool KrakenTentacleMidbossController::Impl::RestoreBindPose() {
 }
 
 bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
-    if (!skeleton || !RestoreBindPose()) {
+    if (!skeleton) {
+        lastError = "スケルトンがないため現在姿勢を生成できませんでした。";
+        return false;
+    }
+    if (state == KrakenTentacleMidbossState::Defeated ||
+        state == KrakenTentacleMidbossState::Retreating) {
+        if (!ApplyDefeatFrozenPose()) {
+            lastError = "撃破時の固定姿勢を現在姿勢へ適用できませんでした。";
+            return false;
+        }
+        return true;
+    }
+    if (!RestoreBindPose()) {
         lastError = "Bind PoseをCurrent Poseへ復元できませんでした。";
         return false;
     }

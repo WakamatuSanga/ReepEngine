@@ -534,6 +534,9 @@
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerRuntimeIdKill.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -711,7 +714,49 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionQuery.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamageImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossHealth.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamageRuntime.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamageImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeat.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeatRuntime.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeatImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
     <ClCompile Include="GameSceneInitialize.cpp">
@@ -1251,6 +1296,24 @@
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleCollisionQuery.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionDiagnostics.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossHealth.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamage.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeat.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.h">

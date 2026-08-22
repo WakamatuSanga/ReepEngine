@@ -2,6 +2,7 @@
 
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleCollisionQuery.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossCollisionDiagnostics.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 
@@ -74,6 +75,18 @@ namespace {
         return found != pairs.end() && IsPairEqual(*found, pair);
     }
 
+    bool ContainsExitEvent(
+        const std::vector<KrakenTentacleCollisionEventSnapshot>& events,
+        const KrakenTentacleCollisionPairSnapshot& pair) {
+        return std::any_of(
+            events.begin(), events.end(),
+            [&pair](const KrakenTentacleCollisionEventSnapshot& event) {
+                return event.transition ==
+                    KrakenTentacleCollisionTransition::Exit &&
+                    IsPairEqual(event.pair, pair);
+            });
+    }
+
     void AddIntersectingPair(
         std::vector<KrakenTentacleCollisionPairSnapshot>& pairs,
         KrakenColliderPreviewRole role,
@@ -81,6 +94,8 @@ namespace {
         std::uint32_t chainIndex,
         std::uint32_t colliderIndex,
         std::uint64_t targetRuntimeId,
+        KrakenTentacleCollisionProjectileType projectileType,
+        float projectileDamage,
         const Vector3& targetWorldPosition,
         const KrakenTentacleCollisionQueryResult& result) {
         if (!result.valid || !result.intersecting || targetRuntimeId == 0) {
@@ -92,6 +107,8 @@ namespace {
         pair.key.chainIndex = chainIndex;
         pair.key.colliderIndex = colliderIndex;
         pair.key.targetRuntimeId = targetRuntimeId;
+        pair.projectileType = projectileType;
+        pair.projectileDamage = projectileDamage;
         pair.colliderClosestPosition = result.closestPoint;
         pair.targetWorldPosition = targetWorldPosition;
         pair.centerDistance = result.centerDistance;
@@ -188,6 +205,9 @@ namespace {
         role->lastTargetRuntimeId = pair.key.targetRuntimeId;
         role->lastIntersectionFrameIndex = frameIndex;
         role->lastIntersectionRuntimeTime = runtimeTime;
+        role->lastPenetrationDepth = (std::max)(
+            pair.radiusSum - pair.centerDistance, 0.0f);
+        role->lastProjectileType = pair.projectileType;
         role->hasLastIntersection = true;
         if (transition == KrakenTentacleCollisionTransition::Enter) {
             ++role->frameEnterCount;
@@ -212,13 +232,15 @@ namespace {
 
 void KrakenTentacleMidbossController::Impl::SetCollisionQueryContext(
     const Player* playerValue,
-    const PlayerBulletManager* playerBulletManagerValue) {
+    const PlayerBulletManager* playerBulletManagerValue,
+    bool playerAliveValue) {
     if (collisionPlayer != playerValue ||
         collisionPlayerBulletManager != playerBulletManagerValue) {
         ResetCollisionQueryState(false);
     }
     collisionPlayer = playerValue;
     collisionPlayerBulletManager = playerBulletManagerValue;
+    collisionPlayerAlive = playerAliveValue;
     diagnostics.collisionQueryContextConnected =
         collisionPlayer && collisionPlayerBulletManager;
     if (!collisionPlayer || !collisionPlayerBulletManager) {
@@ -231,14 +253,15 @@ void KrakenTentacleMidbossController::Impl::SetCollisionQueryContext(
 
 void KrakenTentacleMidbossController::Impl::RefreshCollisionRegistrationState() {
     diagnostics.gameplayRegisteredCount = 0;
-    diagnostics.collisionRegistrationRequestedCount = 0;
-    diagnostics.collisionRegistrationFailureCount = 0;
-    diagnostics.registeredAttackColliderCount = 0;
-    diagnostics.registeredDamageColliderCount = 0;
-    diagnostics.registeredWeakPointCount = 0;
+    diagnostics.gameplayRegistrationObserved = false;
+    diagnostics.collisionQueryTargetCount = 0;
+    diagnostics.queryTargetAttackColliderCount = 0;
+    diagnostics.queryTargetDamageColliderCount = 0;
+    diagnostics.queryTargetWeakPointCount = 0;
     diagnostics.collisionQueryContextConnected =
         collisionPlayer && collisionPlayerBulletManager;
-    if (collisionQueryEnabled &&
+    if ((collisionQueryEnabled || attackDamageEnabled ||
+            projectileDamageEnabled) &&
         !diagnostics.collisionQueryContextConnected) {
         lastCollisionQueryWarning =
             "プレイヤーまたはプレイヤー弾の診断参照が未接続です。";
@@ -246,44 +269,33 @@ void KrakenTentacleMidbossController::Impl::RefreshCollisionRegistrationState() 
         lastCollisionQueryWarning.clear();
     }
 
-    const bool runtimeReady = collisionQueryEnabled && initialized &&
-        IsVisible() && !safetyStopped;
+    const bool runtimeReady = initialized && IsVisible() && !safetyStopped &&
+        !IsDefeatState();
     for (KrakenTentacleMidbossCapsuleSnapshot& snapshot :
         capsuleSnapshots) {
         snapshot.lastRegisteredFrame = 0;
         snapshot.registrationGeneration =
             collisionRegistrationGeneration;
-        snapshot.requestedRegistration = false;
+        snapshot.queryTarget = false;
         snapshot.gameplayRegistered = false;
         snapshot.registrationFailed = false;
         const bool shapeValid = snapshot.valid && !snapshot.zeroLength &&
             IsValidSphere(snapshot.worldStart, snapshot.worldRadius) &&
             IsFinite(snapshot.worldEnd);
-        snapshot.requestedRegistration = runtimeReady &&
-            snapshot.enabled && snapshot.phaseActive && shapeValid;
-        if (!snapshot.requestedRegistration) {
-            continue;
-        }
-        ++diagnostics.collisionRegistrationRequestedCount;
-        const bool targetConnected =
+        const bool roleQueryEnabled =
             snapshot.role == KrakenColliderPreviewRole::Attack
-            ? collisionPlayer != nullptr
-            : snapshot.role == KrakenColliderPreviewRole::Damage
-                ? collisionPlayerBulletManager != nullptr
-                : false;
-        snapshot.gameplayRegistered = targetConnected;
-        snapshot.registrationFailed = !snapshot.gameplayRegistered;
-        if (!snapshot.gameplayRegistered) {
-            ++diagnostics.collisionRegistrationFailureCount;
+            ? collisionQueryEnabled || attackDamageEnabled
+            : collisionQueryEnabled || projectileDamageEnabled;
+        snapshot.queryTarget = runtimeReady && roleQueryEnabled &&
+            snapshot.enabled && snapshot.phaseActive && shapeValid;
+        if (!snapshot.queryTarget) {
             continue;
         }
-        snapshot.lastRegisteredFrame =
-            diagnostics.lastCollisionQueryFrameIndex;
-        ++diagnostics.gameplayRegisteredCount;
+        ++diagnostics.collisionQueryTargetCount;
         if (snapshot.role == KrakenColliderPreviewRole::Attack) {
-            ++diagnostics.registeredAttackColliderCount;
+            ++diagnostics.queryTargetAttackColliderCount;
         } else {
-            ++diagnostics.registeredDamageColliderCount;
+            ++diagnostics.queryTargetDamageColliderCount;
         }
     }
 
@@ -291,91 +303,19 @@ void KrakenTentacleMidbossController::Impl::RefreshCollisionRegistrationState() 
         snapshot.lastRegisteredFrame = 0;
         snapshot.registrationGeneration =
             collisionRegistrationGeneration;
-        snapshot.requestedRegistration = false;
+        snapshot.queryTarget = false;
         snapshot.gameplayRegistered = false;
         snapshot.registrationFailed = false;
         const bool shapeValid = snapshot.valid &&
             IsValidSphere(snapshot.worldPosition, snapshot.worldRadius);
-        snapshot.requestedRegistration = runtimeReady &&
+        snapshot.queryTarget = runtimeReady &&
+            (collisionQueryEnabled || projectileDamageEnabled) &&
             snapshot.enabled && snapshot.phaseActive && shapeValid;
-        if (!snapshot.requestedRegistration) {
+        if (!snapshot.queryTarget) {
             continue;
         }
-        ++diagnostics.collisionRegistrationRequestedCount;
-        snapshot.gameplayRegistered =
-            collisionPlayerBulletManager != nullptr;
-        snapshot.registrationFailed = !snapshot.gameplayRegistered;
-        if (!snapshot.gameplayRegistered) {
-            ++diagnostics.collisionRegistrationFailureCount;
-            continue;
-        }
-        snapshot.lastRegisteredFrame =
-            diagnostics.lastCollisionQueryFrameIndex;
-        ++diagnostics.gameplayRegisteredCount;
-        ++diagnostics.registeredWeakPointCount;
-    }
-}
-
-void KrakenTentacleMidbossController::Impl::ResetCollisionQueryState(
-    bool resetCumulativeDiagnostics) {
-    ++collisionRegistrationGeneration;
-    if (collisionRegistrationGeneration == 0) {
-        collisionRegistrationGeneration = 1;
-    }
-    previousCollisionPairs.clear();
-    currentCollisionPairs.clear();
-    collisionFrameEvents.clear();
-    for (KrakenTentacleMidbossCapsuleSnapshot& snapshot : capsuleSnapshots) {
-        snapshot.lastRegisteredFrame = 0;
-        snapshot.registrationGeneration =
-            collisionRegistrationGeneration;
-        snapshot.requestedRegistration = false;
-        snapshot.gameplayRegistered = false;
-        snapshot.registrationFailed = false;
-    }
-    for (KrakenTentacleMidbossTipSnapshot& snapshot : tipSnapshots) {
-        snapshot.lastRegisteredFrame = 0;
-        snapshot.registrationGeneration =
-            collisionRegistrationGeneration;
-        snapshot.requestedRegistration = false;
-        snapshot.gameplayRegistered = false;
-        snapshot.registrationFailed = false;
-    }
-    diagnostics.gameplayRegisteredCount = 0;
-    diagnostics.playerCollisionSnapshotCount = 0;
-    diagnostics.playerBulletCollisionSnapshotCount = 0;
-    diagnostics.collisionRegistrationRequestedCount = 0;
-    diagnostics.collisionRegistrationFailureCount = 0;
-    diagnostics.registeredAttackColliderCount = 0;
-    diagnostics.registeredDamageColliderCount = 0;
-    diagnostics.registeredWeakPointCount = 0;
-    diagnostics.collisionQueryTestCount = 0;
-    diagnostics.invalidCollisionQueryCount = 0;
-    diagnostics.currentCollisionPairCount = 0;
-    diagnostics.currentAttackPlayerPairCount = 0;
-    diagnostics.currentDamageBulletPairCount = 0;
-    diagnostics.currentWeakPointBulletPairCount = 0;
-    diagnostics.collisionEnterCount = 0;
-    diagnostics.collisionStayCount = 0;
-    diagnostics.collisionExitCount = 0;
-    diagnostics.bodyAndWeakPointSameBulletCount = 0;
-    diagnostics.playerCollisionSnapshotValid = false;
-    diagnostics.lastCollisionQueryFrameIndex = ~std::uint64_t{ 0 };
-    ResetRoleFrameDiagnostics(diagnostics.attackPlayerCollision);
-    ResetRoleFrameDiagnostics(diagnostics.damageBulletCollision);
-    ResetRoleFrameDiagnostics(diagnostics.weakPointBulletCollision);
-    if (resetCumulativeDiagnostics) {
-        diagnostics.collisionQueryFrameCount = 0;
-        diagnostics.totalCollisionQueryTestCount = 0;
-        diagnostics.totalCollisionEnterCount = 0;
-        diagnostics.totalCollisionStayCount = 0;
-        diagnostics.totalCollisionExitCount = 0;
-        diagnostics.totalBodyAndWeakPointSameBulletCount = 0;
-        diagnostics.duplicateCollisionQueryCount = 0;
-        diagnostics.attackPlayerCollision = {};
-        diagnostics.damageBulletCollision = {};
-        diagnostics.weakPointBulletCollision = {};
-        lastCollisionQueryWarning.clear();
+        ++diagnostics.collisionQueryTargetCount;
+        ++diagnostics.queryTargetWeakPointCount;
     }
 }
 
@@ -392,6 +332,14 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
 
     diagnostics.playerCollisionSnapshotCount = 0;
     diagnostics.playerBulletCollisionSnapshotCount = 0;
+    diagnostics.playerBulletSnapshotValidCount = 0;
+    diagnostics.playerBulletSnapshotInvalidCount = 0;
+    diagnostics.normalShotSnapshotCount = 0;
+    diagnostics.lockedWingShotSnapshotCount = 0;
+    diagnostics.invalidBulletDamageSnapshotCount = 0;
+    diagnostics.stableRuntimeIdDuplicateCount = 0;
+    diagnostics.lastPlayerBulletRuntimeId = 0;
+    diagnostics.collisionQueryCandidatePairCount = 0;
     diagnostics.collisionQueryTestCount = 0;
     diagnostics.invalidCollisionQueryCount = 0;
     diagnostics.currentAttackPlayerPairCount = 0;
@@ -401,7 +349,17 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
     diagnostics.collisionStayCount = 0;
     diagnostics.collisionExitCount = 0;
     diagnostics.bodyAndWeakPointSameBulletCount = 0;
+    diagnostics.duplicateCollisionPairCount = 0;
+    diagnostics.staleCollisionPairCount = 0;
+    diagnostics.invalidPlayerSnapshotCount = 0;
+    diagnostics.invalidBulletSnapshotCount = 0;
+    diagnostics.nonFiniteSphereCount = 0;
     diagnostics.playerCollisionSnapshotValid = false;
+    diagnostics.playerAlive = false;
+    diagnostics.playerCollisionEnabled = false;
+    diagnostics.playerCollisionCenter = {};
+    diagnostics.playerCollisionRadius = 0.0f;
+    diagnostics.bulletSnapshotUnchanged = true;
     ResetRoleFrameDiagnostics(diagnostics.attackPlayerCollision);
     ResetRoleFrameDiagnostics(diagnostics.damageBulletCollision);
     ResetRoleFrameDiagnostics(diagnostics.weakPointBulletCollision);
@@ -409,12 +367,22 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
     collisionFrameEvents.clear();
 
     PlayerCollisionSnapshot playerSnapshot{};
-    if (collisionQueryEnabled && collisionPlayer) {
+    if ((collisionQueryEnabled || attackDamageEnabled) && collisionPlayer) {
+        diagnostics.playerAlive = collisionPlayerAlive;
         playerSnapshot.enabled = collisionPlayer->IsEnabled();
         playerSnapshot.worldPosition = collisionPlayer->GetWorldPosition();
         playerSnapshot.radius = collisionPlayer->GetHitRadius();
-        playerSnapshot.valid = playerSnapshot.enabled && IsValidSphere(
+        diagnostics.playerCollisionEnabled = playerSnapshot.enabled;
+        diagnostics.playerCollisionCenter = playerSnapshot.worldPosition;
+        diagnostics.playerCollisionRadius = playerSnapshot.radius;
+        const bool shapeValid = IsValidSphere(
             playerSnapshot.worldPosition, playerSnapshot.radius);
+        playerSnapshot.valid = collisionPlayerAlive &&
+            playerSnapshot.enabled && shapeValid;
+        diagnostics.invalidPlayerSnapshotCount = shapeValid ? 0 : 1;
+        diagnostics.nonFiniteSphereCount +=
+            (!IsFinite(playerSnapshot.worldPosition) ||
+                !std::isfinite(playerSnapshot.radius)) ? 1 : 0;
         diagnostics.playerCollisionSnapshotValid = playerSnapshot.valid;
         diagnostics.playerCollisionSnapshotCount =
             diagnostics.playerCollisionSnapshotValid ? 1 : 0;
@@ -422,16 +390,19 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
 
     std::vector<PlayerBulletManager::PlayerBulletCollisionSnapshot>
         bulletSnapshots;
-    if (collisionQueryEnabled && collisionPlayerBulletManager) {
+    if ((collisionQueryEnabled || projectileDamageEnabled) &&
+        collisionPlayerBulletManager) {
         bulletSnapshots =
             collisionPlayerBulletManager->GetActiveCollisionSnapshots();
-        diagnostics.playerBulletCollisionSnapshotCount =
-            bulletSnapshots.size();
+        RefreshKrakenBulletSnapshotDiagnostics(
+            diagnostics, bulletSnapshots);
+        diagnostics.invalidBulletSnapshotCount =
+            diagnostics.playerBulletSnapshotInvalidCount;
     }
 
     for (const KrakenTentacleMidbossCapsuleSnapshot& collider :
         capsuleSnapshots) {
-        if (!collider.gameplayRegistered) {
+        if (!collider.queryTarget) {
             continue;
         }
         if (collider.role == KrakenColliderPreviewRole::Attack) {
@@ -454,6 +425,8 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
                 collider.chainIndex,
                 collider.colliderIndex,
                 kPlayerRuntimeId,
+                KrakenTentacleCollisionProjectileType::None,
+                0.0f,
                 playerSnapshot.worldPosition,
                 result);
             continue;
@@ -478,13 +451,15 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
                 collider.chainIndex,
                 collider.colliderIndex,
                 bullet.runtimeId,
+                ToKrakenProjectileType(bullet.projectileType),
+                static_cast<float>(bullet.damage),
                 bullet.worldPosition,
                 result);
         }
     }
 
     for (const KrakenTentacleMidbossTipSnapshot& collider : tipSnapshots) {
-        if (!collider.gameplayRegistered) {
+        if (!collider.queryTarget) {
             continue;
         }
         for (const auto& bullet : bulletSnapshots) {
@@ -503,11 +478,15 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
                 collider.chainIndex,
                 kTipColliderIndex,
                 bullet.runtimeId,
+                ToKrakenProjectileType(bullet.projectileType),
+                static_cast<float>(bullet.damage),
                 bullet.worldPosition,
                 result);
         }
     }
 
+    const std::size_t pairCountBeforeDeduplication =
+        currentCollisionPairs.size();
     std::sort(
         currentCollisionPairs.begin(),
         currentCollisionPairs.end(),
@@ -518,6 +497,8 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
             currentCollisionPairs.end(),
             IsPairEqual),
         currentCollisionPairs.end());
+    diagnostics.duplicateCollisionPairCount =
+        pairCountBeforeDeduplication - currentCollisionPairs.size();
 
     for (const KrakenTentacleCollisionPairSnapshot& pair :
         currentCollisionPairs) {
@@ -554,8 +535,17 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
         ++diagnostics.collisionExitCount;
         RecordRoleExit(diagnostics, pair.key.role);
     }
+    for (const KrakenTentacleCollisionPairSnapshot& pair :
+        previousCollisionPairs) {
+        if (!ContainsPair(currentCollisionPairs, pair) &&
+            !ContainsExitEvent(collisionFrameEvents, pair)) {
+            ++diagnostics.staleCollisionPairCount;
+        }
+    }
 
     diagnostics.currentCollisionPairCount = currentCollisionPairs.size();
+    diagnostics.collisionQueryCandidatePairCount =
+        diagnostics.collisionQueryTestCount;
     diagnostics.bodyAndWeakPointSameBulletCount =
         CountBodyAndWeakPointSameBullets(currentCollisionPairs);
     diagnostics.totalCollisionQueryTestCount +=
@@ -572,6 +562,16 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
         if (role->frameIntersectionCount > 0) {
             ++role->cumulativeIntersectionFrameCount;
         }
+    }
+    if ((collisionQueryEnabled || projectileDamageEnabled) &&
+        collisionPlayerBulletManager) {
+        const auto bulletSnapshotsAfter =
+            collisionPlayerBulletManager->GetActiveCollisionSnapshots();
+        diagnostics.bulletSnapshotUnchanged =
+            AreKrakenBulletSnapshotsEquivalent(
+                bulletSnapshots, bulletSnapshotsAfter);
+        diagnostics.bulletSnapshotMutationCount +=
+            diagnostics.bulletSnapshotUnchanged ? 0 : 1;
     }
     previousCollisionPairs = currentCollisionPairs;
 }

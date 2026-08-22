@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace {
 float DistanceSquaredLocal(const Vector3& a, const Vector3& b) {
@@ -161,15 +162,29 @@ PlayerBulletManager::GetActiveCollisionSnapshots() const {
             continue;
         }
 
-        snapshots.push_back({
-            instance.runtimeId,
-            instance.bullet->GetPosition(),
-            instance.bullet->GetRadius(),
-            instance.damage,
-            instance.projectileType,
-        });
+        PlayerBulletCollisionSnapshot snapshot{};
+        snapshot.runtimeId = instance.runtimeId;
+        snapshot.worldPosition = instance.bullet->GetPosition();
+        snapshot.velocity = instance.bullet->GetVelocity();
+        snapshot.radius = instance.bullet->GetRadius();
+        snapshot.lifeTime = instance.bullet->GetLifeTime();
+        snapshot.elapsedTime = instance.bullet->GetElapsedTime();
+        snapshot.damage = instance.damage;
+        snapshot.projectileType = instance.projectileType;
+        snapshot.active = instance.bullet->IsActive();
+        snapshot.killed = instance.bullet->IsDead();
+        if (instance.lockedWingLaunch) {
+            snapshot.lockedTargetId =
+                instance.lockedWingLaunch->lockedTargetId;
+            snapshot.launchPhase = static_cast<uint8_t>(
+                instance.lockedWingLaunch->phase);
+            snapshot.homingReady =
+                instance.lockedWingLaunch->homingReady;
+            snapshot.exhaustEnabled =
+                instance.lockedWingLaunch->exhaustEnabled;
+        }
+        snapshots.push_back(std::move(snapshot));
     }
 
     return snapshots;
 }
-

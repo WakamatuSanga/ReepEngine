@@ -30,6 +30,12 @@ namespace {
             return "衝撃保持";
         case KrakenTentacleMidbossState::Recovery:
             return "復帰";
+        case KrakenTentacleMidbossState::Defeated:
+            return "撃破直後停止";
+        case KrakenTentacleMidbossState::Retreating:
+            return "下方退避中";
+        case KrakenTentacleMidbossState::RetreatCompleted:
+            return "撃破退避完了";
         default:
             return "不明";
         }
@@ -49,6 +55,9 @@ namespace {
             return "復帰";
         case KrakenTentacleMidbossState::Hidden:
         case KrakenTentacleMidbossState::Idle:
+        case KrakenTentacleMidbossState::Defeated:
+        case KrakenTentacleMidbossState::Retreating:
+        case KrakenTentacleMidbossState::RetreatCompleted:
         default:
             return "なし";
         }
@@ -71,7 +80,7 @@ namespace {
         case KrakenColliderPhaseReason::MotionStateInvalid:
             return "モーション状態不正";
         case KrakenColliderPhaseReason::PreviewDisconnected:
-            return "Runtime非表示";
+            return "実行時非表示";
         case KrakenColliderPhaseReason::SafetyRecovery:
             return "安全停止中";
         case KrakenColliderPhaseReason::NotAttackMotionMode:
@@ -133,14 +142,14 @@ namespace {
 void KrakenTentacleMidbossController::Impl::DrawImGui() {
 #ifdef USE_IMGUI
     if (!ImGui::Begin(
-            "クラーケン触手中ボスRuntimeデバッグ"
+            "クラーケン触手中ボス実行時デバッグ"
             "###KrakenTentacleMidbossRuntimeDebug")) {
         ImGui::End();
         return;
     }
 
     if (ImGui::CollapsingHeader(
-            "Runtime状態##RuntimeStatus",
+            "実行時状態##RuntimeStatus",
             ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("初期化成功: %s", BoolLabel(initialized));
         ImGui::Text("モデル読込成功: %s", BoolLabel(modelLoaded));
@@ -338,7 +347,7 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
                 KrakenTentacleMidbossPendingCommand::ResetState;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Runtime全体をリセット##ResetRuntime")) {
+        if (ImGui::Button("実行時全体をリセット##ResetRuntime")) {
             pendingCommand =
                 KrakenTentacleMidbossPendingCommand::ResetRuntime;
         }
@@ -376,8 +385,8 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         ImGui::Text("弱点数: %zu", diagnostics.weakPointCount);
         ImGui::Text("フェーズ有効数: %zu", diagnostics.phaseActiveCount);
         ImGui::Text(
-            "診断照会登録数: %zu",
-            diagnostics.gameplayRegisteredCount);
+            "診断対象数: %zu",
+            diagnostics.collisionQueryTargetCount);
         ImGui::Text(
             "無効ジョイント数: %zu",
             diagnostics.invalidColliderJointCount);
@@ -391,6 +400,10 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
     }
 
     DrawCollisionQueryImGui();
+    DrawAttackDamageImGui();
+    DrawProjectileDamageImGui();
+    DrawDefeatImGui();
+    DrawEffectImGui();
 
     if (ImGui::CollapsingHeader("安全診断##SafetyDiagnostics")) {
         ImGui::Text(

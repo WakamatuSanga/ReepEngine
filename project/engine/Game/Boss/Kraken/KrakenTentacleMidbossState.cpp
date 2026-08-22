@@ -46,7 +46,8 @@ namespace {
 
 bool KrakenTentacleMidbossController::Impl::IsVisible() const {
     return initialized && modelLoaded && skeletonValid && object && model &&
-        skeleton && state != KrakenTentacleMidbossState::Hidden;
+        skeleton && state != KrakenTentacleMidbossState::Hidden &&
+        state != KrakenTentacleMidbossState::RetreatCompleted;
 }
 
 bool KrakenTentacleMidbossController::Impl::IsAttackState() const {
@@ -59,6 +60,9 @@ bool KrakenTentacleMidbossController::Impl::IsAttackState() const {
         return true;
     case KrakenTentacleMidbossState::Hidden:
     case KrakenTentacleMidbossState::Idle:
+    case KrakenTentacleMidbossState::Defeated:
+    case KrakenTentacleMidbossState::Retreating:
+    case KrakenTentacleMidbossState::RetreatCompleted:
     default:
         return false;
     }
@@ -79,6 +83,9 @@ KrakenTentacleMidbossController::Impl::GetAttackPhase() const {
         return KrakenTentacleAttackPreviewPhase::Recovery;
     case KrakenTentacleMidbossState::Hidden:
     case KrakenTentacleMidbossState::Idle:
+    case KrakenTentacleMidbossState::Defeated:
+    case KrakenTentacleMidbossState::Retreating:
+    case KrakenTentacleMidbossState::RetreatCompleted:
     default:
         return KrakenTentacleAttackPreviewPhase::Completed;
     }
@@ -100,6 +107,9 @@ KrakenTentacleMidbossController::Impl::GetColliderAttackPhase() const {
     case KrakenTentacleMidbossState::Idle:
         return KrakenTentacleColliderAttackPhase::Completed;
     case KrakenTentacleMidbossState::Hidden:
+    case KrakenTentacleMidbossState::Defeated:
+    case KrakenTentacleMidbossState::Retreating:
+    case KrakenTentacleMidbossState::RetreatCompleted:
     default:
         return KrakenTentacleColliderAttackPhase::Invalid;
     }
@@ -139,7 +149,9 @@ void KrakenTentacleMidbossController::Impl::EnterState(
 void KrakenTentacleMidbossController::Impl::EnterHidden(
     const std::string& errorMessage,
     bool safetyRecovery) {
+    AbortDefeatForHide();
     state = KrakenTentacleMidbossState::Hidden;
+    InvalidateAttackDamageSequence();
     stateElapsedTime = 0.0f;
     idleTime = 0.0f;
     attackElapsedTime = 0.0f;
@@ -163,6 +175,10 @@ void KrakenTentacleMidbossController::Impl::EnterHidden(
 }
 
 bool KrakenTentacleMidbossController::Impl::Show() {
+    if (health.IsDefeatPending() || defeatStarted || defeatCompleted) {
+        lastWarning = "撃破状態を解除して全回復してください。";
+        return false;
+    }
     if (!initialized || !modelLoaded || !skeletonValid || !camera) {
         lastError = !camera
             ? "Gameplay Cameraが無効なため中ボスを表示できません。"
@@ -186,6 +202,12 @@ void KrakenTentacleMidbossController::Impl::Hide() {
 }
 
 bool KrakenTentacleMidbossController::Impl::StartAttack() {
+    if (health.IsDefeatPending()) {
+        ++diagnostics.attackStartRejectedCount;
+        lastWarning =
+            "撃破待ちのため、新しい攻撃を開始できません。";
+        return false;
+    }
     if (!IsVisible() || state != KrakenTentacleMidbossState::Idle ||
         selectedAttackChainIndex >= chains.size()) {
         ++diagnostics.attackStartRejectedCount;
@@ -202,6 +224,7 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
     lastWarning.clear();
     idleSwayEnabled = true;
     EnterState(KrakenTentacleMidbossState::Windup);
+    BeginAttackDamageSequence();
     return true;
 }
 
@@ -209,23 +232,34 @@ void KrakenTentacleMidbossController::Impl::StopAttack() {
     if (!IsAttackState()) {
         return;
     }
+    InvalidateAttackDamageSequence();
     EnterState(KrakenTentacleMidbossState::Idle);
 }
 
 void KrakenTentacleMidbossController::Impl::ReturnToIdle() {
+    if (health.IsDefeatPending() || IsDefeatState()) {
+        lastWarning = "撃破状態を解除して全回復してください。";
+        return;
+    }
     if (state == KrakenTentacleMidbossState::Hidden) {
         Show();
         return;
     }
     idleSwayEnabled = true;
+    InvalidateAttackDamageSequence();
     EnterState(KrakenTentacleMidbossState::Idle);
 }
 
 void KrakenTentacleMidbossController::Impl::ReturnToBindPose() {
+    if (health.IsDefeatPending() || IsDefeatState()) {
+        lastWarning = "撃破状態ではBind Poseへ変更できません。";
+        return;
+    }
     idleSwayEnabled = false;
     stateElapsedTime = 0.0f;
     idleTime = 0.0f;
     attackElapsedTime = 0.0f;
+    InvalidateAttackDamageSequence();
     if (IsVisible()) {
         state = KrakenTentacleMidbossState::Idle;
     }
@@ -233,6 +267,7 @@ void KrakenTentacleMidbossController::Impl::ReturnToBindPose() {
 
 void KrakenTentacleMidbossController::Impl::ResetStateOnly() {
     ResetCollisionQueryState(true);
+    ResetAttackDamageState(true, false);
     selectedAttackChainIndex = 0;
     totalActiveTime = 0.0f;
     safetyStopped = false;
@@ -268,6 +303,24 @@ void KrakenTentacleMidbossController::Impl::ProcessPendingCommand() {
         break;
     case KrakenTentacleMidbossPendingCommand::ResetRuntime:
         Reset();
+        break;
+    case KrakenTentacleMidbossPendingCommand::ForceDefeat:
+        ForceDefeatForDebug();
+        break;
+    case KrakenTentacleMidbossPendingCommand::RecoverDefeat:
+        RecoverFromDefeat();
+        break;
+    case KrakenTentacleMidbossPendingCommand::RestoreDefeatPosition:
+        RestoreDefeatStartPosition();
+        break;
+    case KrakenTentacleMidbossPendingCommand::TestBodyHitEffect:
+        ProcessDefeatEffectTest(false, false);
+        break;
+    case KrakenTentacleMidbossPendingCommand::TestWeakPointHitEffect:
+        ProcessDefeatEffectTest(true, false);
+        break;
+    case KrakenTentacleMidbossPendingCommand::TestDefeatEffect:
+        ProcessDefeatEffectTest(false, true);
         break;
     case KrakenTentacleMidbossPendingCommand::None:
     default:
@@ -374,6 +427,7 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
 
 void KrakenTentacleMidbossController::Impl::Update(float scaledDeltaTime) {
     diagnostics.cpuSkinningUpdateCount = 0;
+    defeatBeganThisUpdate = false;
     if (!initialized) {
         lastScaledDeltaTime = 0.0f;
         return;
@@ -404,6 +458,19 @@ void KrakenTentacleMidbossController::Impl::Update(float scaledDeltaTime) {
     }
 
     totalActiveTime += lastScaledDeltaTime;
+    if (IsDefeatState()) {
+        UpdateDefeatMotion(lastScaledDeltaTime);
+        if (!IsVisible()) {
+            return;
+        }
+        if (!std::isfinite(stateElapsedTime) ||
+            !std::isfinite(totalActiveTime)) {
+            EnterHidden("撃破状態の時間が有限値ではありません。", true);
+            return;
+        }
+        UpdateCurrentPoseAndSkinning();
+        return;
+    }
     AdvanceState(lastScaledDeltaTime);
     if (!IsVisible()) {
         return;

@@ -21,6 +21,14 @@ public:
 
     void PlayPlayerBulletHitEnemy(const Vector3& position);
     void PlayPlayerBulletHitEnemy(const Vector3& position, bool lethalHit);
+    void PlayPlayerBulletHitEnemy(
+        const Vector3& position,
+        bool lethalHit,
+        float runtimeScale);
+    bool TryPlayPlayerBulletHitEnemy(
+        const Vector3& position,
+        bool lethalHit,
+        float runtimeScale);
     void PlayEnemyBulletHitPlayer(const Vector3& position);
     void PlayPlayerDeathExplosion(const Vector3& position);
     void PlayEnemyDeathExplosion(const Vector3& position);
@@ -28,7 +36,7 @@ public:
     bool IsEnabled() const { return enableCombatEffects_; }
 
 private:
-    void PlayHitRing(
+    bool PlayHitRing(
         const Vector3& position,
         const char* effectType,
         float ringScale,

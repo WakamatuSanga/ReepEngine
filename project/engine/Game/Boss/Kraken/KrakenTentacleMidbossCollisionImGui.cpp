@@ -66,6 +66,19 @@ namespace {
         }
     }
 
+    const char* GetProjectileTypeLabel(
+        KrakenTentacleCollisionProjectileType type) {
+        switch (type) {
+        case KrakenTentacleCollisionProjectileType::NormalShot:
+            return "通常弾";
+        case KrakenTentacleCollisionProjectileType::LockedWingShot:
+            return "ロックドウィング弾";
+        case KrakenTentacleCollisionProjectileType::None:
+        default:
+            return "該当なし";
+        }
+    }
+
     std::uint32_t GetStableColliderId(
         const KrakenTentacleCollisionPairKey& key) {
         return key.chainIndex * 5 + key.colliderIndex + 1;
@@ -83,6 +96,9 @@ namespace {
         diagnostics.lastColliderId = 0;
         diagnostics.lastChainIndex = 0;
         diagnostics.lastIntersectionRuntimeTime = 0.0f;
+        diagnostics.lastPenetrationDepth = 0.0f;
+        diagnostics.lastProjectileType =
+            KrakenTentacleCollisionProjectileType::None;
         diagnostics.hasLastIntersection = false;
     }
 
@@ -125,6 +141,16 @@ namespace {
                 " / " +
                 FormatFloat(diagnostics.lastIntersectionRuntimeTime) +
                 " 秒");
+            DrawText(
+                std::string("めり込み深度: ") +
+                FormatFloat(diagnostics.lastPenetrationDepth));
+            if (diagnostics.lastProjectileType !=
+                KrakenTentacleCollisionProjectileType::None) {
+                DrawText(
+                    std::string("弾種: ") +
+                    GetProjectileTypeLabel(
+                        diagnostics.lastProjectileType));
+            }
         } else {
             ImGui::TextDisabled("交差履歴はありません。");
         }
@@ -163,66 +189,56 @@ void KrakenTentacleMidbossController::Impl::DrawCollisionQueryImGui() {
         ClearRoleCollisionHistory(diagnostics.damageBulletCollision);
         ClearRoleCollisionHistory(diagnostics.weakPointBulletCollision);
     }
-    // 診断状態
-    DrawText(
-        std::string("診断参照の接続: ") +
+    ImGui::SeparatorText("プレイヤー形状");
+    DrawText(std::string("有効: ") +
+        BoolLabel(diagnostics.playerCollisionSnapshotValid));
+    DrawText(std::string("生存: ") + BoolLabel(diagnostics.playerAlive));
+    DrawText(std::string("衝突有効: ") +
+        BoolLabel(diagnostics.playerCollisionEnabled));
+    ImGui::Text("中心: %.3f, %.3f, %.3f",
+        diagnostics.playerCollisionCenter.x,
+        diagnostics.playerCollisionCenter.y,
+        diagnostics.playerCollisionCenter.z);
+    ImGui::Text("半径: %.3f", diagnostics.playerCollisionRadius);
+    ImGui::TextUnformatted("形状: 球");
+
+    ImGui::SeparatorText("プレイヤー弾形状");
+    DrawText(std::string("稼働数 / 有効数 / 無効数: ") +
+        std::to_string(diagnostics.playerBulletCollisionSnapshotCount) +
+        " / " +
+        std::to_string(diagnostics.playerBulletSnapshotValidCount) +
+        " / " +
+        std::to_string(diagnostics.playerBulletSnapshotInvalidCount));
+    DrawText(std::string("通常弾 / ロックドウィング弾: ") +
+        std::to_string(diagnostics.normalShotSnapshotCount) + " / " +
+        std::to_string(diagnostics.lockedWingShotSnapshotCount));
+    DrawText(std::string("識別子重複数: ") +
+        std::to_string(diagnostics.stableRuntimeIdDuplicateCount));
+    DrawText(std::string("最後の実行時識別子: ") +
+        std::to_string(diagnostics.lastPlayerBulletRuntimeId));
+    DrawText(std::string("最大同時形状数: ") +
+        std::to_string(
+            diagnostics.maximumConcurrentBulletSnapshotCount));
+    DrawText(std::string("収集前後の状態一致: ") +
+        BoolLabel(diagnostics.bulletSnapshotUnchanged) +
+        "（不一致回数: " +
+        std::to_string(diagnostics.bulletSnapshotMutationCount) + "）");
+
+    ImGui::SeparatorText("交差診断");
+    DrawText(std::string("診断参照の接続: ") +
         BoolLabel(diagnostics.collisionQueryContextConnected));
-    DrawText(
-        std::string("プレイヤー形状取得数: ") +
-        std::to_string(diagnostics.playerCollisionSnapshotCount) +
-        "（有効: " +
-        BoolLabel(diagnostics.playerCollisionSnapshotValid) + "）");
-    DrawText(
-        std::string("プレイヤー弾形状取得数: ") +
-        std::to_string(diagnostics.playerBulletCollisionSnapshotCount));
-    DrawText(
-        std::string("登録要求 / 成功 / 失敗: ") +
-        std::to_string(diagnostics.collisionRegistrationRequestedCount) +
-        " / " + std::to_string(diagnostics.gameplayRegisteredCount) +
+    DrawText(std::string("対象コライダー数: ") +
+        std::to_string(diagnostics.collisionQueryTargetCount));
+    DrawText(std::string("対象内訳 攻撃 / 胴体 / 弱点: ") +
+        std::to_string(diagnostics.queryTargetAttackColliderCount) +
         " / " +
-        std::to_string(diagnostics.collisionRegistrationFailureCount));
-    DrawText(
-        std::string("登録内訳 攻撃 / 胴体 / 弱点: ") +
-        std::to_string(diagnostics.registeredAttackColliderCount) +
+        std::to_string(diagnostics.queryTargetDamageColliderCount) +
         " / " +
-        std::to_string(diagnostics.registeredDamageColliderCount) +
-        " / " + std::to_string(diagnostics.registeredWeakPointCount));
-    std::uint64_t latestRegisteredFrame = 0;
-    for (const auto& collider : capsuleSnapshots) {
-        latestRegisteredFrame = (std::max)(
-            latestRegisteredFrame, collider.lastRegisteredFrame);
-    }
-    for (const auto& collider : tipSnapshots) {
-        latestRegisteredFrame = (std::max)(
-            latestRegisteredFrame, collider.lastRegisteredFrame);
-    }
-    DrawText(
-        std::string("登録世代 / 最終登録フレーム: ") +
-        std::to_string(collisionRegistrationGeneration) + " / " +
-        std::to_string(latestRegisteredFrame));
-    if (diagnostics.collisionRegistrationFailureCount > 0 &&
-        ImGui::TreeNode("登録失敗詳細##CollisionRegistrationFailures")) {
-        for (const auto& collider : capsuleSnapshots) {
-            if (collider.registrationFailed) {
-                DrawText(
-                    std::string("コライダー") +
-                    std::to_string(collider.colliderId) + " / " +
-                    GetRoleLabel(collider.role));
-            }
-        }
-        for (const auto& collider : tipSnapshots) {
-            if (collider.registrationFailed) {
-                DrawText(
-                    std::string("コライダー") +
-                    std::to_string(collider.colliderId) + " / 弱点");
-            }
-        }
-        ImGui::TreePop();
-    }
-    DrawText(
-        std::string("今フレームの判定数 / 無効数: ") +
-        std::to_string(diagnostics.collisionQueryTestCount) + " / " +
-        std::to_string(diagnostics.invalidCollisionQueryCount));
+        std::to_string(diagnostics.queryTargetWeakPointCount));
+    DrawText(std::string("候補ペア数 / 実行判定数 / 無効数: ") +
+        std::to_string(diagnostics.collisionQueryCandidatePairCount) +
+        " / " + std::to_string(diagnostics.collisionQueryTestCount) +
+        " / " + std::to_string(diagnostics.invalidCollisionQueryCount));
     DrawText(
         std::string("現在交差 攻撃→プレイヤー / 胴体→弾 / 弱点→弾: ") +
         std::to_string(diagnostics.currentAttackPlayerPairCount) +
@@ -253,6 +269,36 @@ void KrakenTentacleMidbossController::Impl::DrawCollisionQueryImGui() {
         std::string("診断更新フレーム数 / 二重呼出し検出: ") +
         std::to_string(diagnostics.collisionQueryFrameCount) + " / " +
         std::to_string(diagnostics.duplicateCollisionQueryCount));
+
+    ImGui::SeparatorText("副作用監視");
+    DrawText(std::string("プレイヤー耐久値変更回数: ") +
+        std::to_string(diagnostics.playerHpChangeRequestCount));
+    DrawText(std::string("プレイヤー無敵開始回数: ") +
+        std::to_string(diagnostics.playerInvincibilityRequestCount));
+    DrawText(std::string("弾消滅要求回数: ") +
+        std::to_string(diagnostics.bulletKillRequestCount));
+    DrawText(std::string("弾の寿命変更回数: ") +
+        std::to_string(diagnostics.bulletLifetimeChangeRequestCount));
+    DrawText(std::string("中ボス耐久値変更回数: ") +
+        std::to_string(diagnostics.midbossHpChangeRequestCount));
+    DrawText(std::string("ゲームプレイ登録: ") +
+        BoolLabel(diagnostics.gameplayRegistrationObserved));
+
+    ImGui::SeparatorText("安全性");
+    DrawText(std::string("実行時識別子重複数: ") +
+        std::to_string(diagnostics.stableRuntimeIdDuplicateCount));
+    DrawText(std::string("同一ペア二重追加数: ") +
+        std::to_string(diagnostics.duplicateCollisionPairCount));
+    DrawText(std::string("古いペア残存数: ") +
+        std::to_string(diagnostics.staleCollisionPairCount));
+    DrawText(std::string("非有限コライダー数 / 非有限球数: ") +
+        std::to_string(diagnostics.nonFiniteColliderCount) + " / " +
+        std::to_string(diagnostics.nonFiniteSphereCount));
+    DrawText(std::string("ゼロ長カプセル数: ") +
+        std::to_string(diagnostics.zeroLengthColliderCount));
+    DrawText(std::string("不正プレイヤー形状数 / 不正弾形状数: ") +
+        std::to_string(diagnostics.invalidPlayerSnapshotCount) + " / " +
+        std::to_string(diagnostics.invalidBulletSnapshotCount));
     if (!lastCollisionQueryWarning.empty()) {
         DrawText(
             std::string("診断警告: ") + lastCollisionQueryWarning);

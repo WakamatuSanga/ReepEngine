@@ -66,6 +66,12 @@ bool KrakenTentacleMidbossController::Impl::FailInitialization(
     boneSnapshots.clear();
     capsuleSnapshots.clear();
     tipSnapshots.clear();
+    consumedProjectileIds.clear();
+    aggregatedProjectileEventsThisFrame.clear();
+    defeatFrozenPose.clear();
+    effectController.Finalize();
+    defeatDiagnostics = {};
+    health.Finalize();
     return false;
 }
 
@@ -127,6 +133,9 @@ bool KrakenTentacleMidbossController::Impl::Initialize(
     skeletonValid = true;
     state = KrakenTentacleMidbossState::Hidden;
     safetyStopped = false;
+    health.Initialize();
+    ResetProjectileDamageState(true);
+    ResetDefeatState(true, false);
     lastError.clear();
     lastWarning.clear();
     UpdateObjectTransform();
@@ -149,7 +158,10 @@ void KrakenTentacleMidbossController::Impl::SetCamera(Camera* value) {
 }
 
 void KrakenTentacleMidbossController::Impl::Reset() {
+    const Vector3 resetWorldPosition = defeatStartWorldPositionValid
+        ? defeatStartWorldPosition : Vector3{};
     ResetCollisionQueryState(true);
+    ResetDefeatState(true, false);
     state = KrakenTentacleMidbossState::Hidden;
     selectedAttackChainIndex = 0;
     stateElapsedTime = 0.0f;
@@ -157,7 +169,7 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     idleTime = 0.0f;
     attackElapsedTime = 0.0f;
     lastScaledDeltaTime = 0.0f;
-    worldPosition = {};
+    worldPosition = resetWorldPosition;
     worldRotation = {};
     worldScale = { 0.5f, 0.5f, 0.5f };
     cameraForwardOffset = 35.0f;
@@ -185,6 +197,8 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     const std::size_t loadFailures = diagnostics.modelLoadFailureCount;
     diagnostics = {};
     diagnostics.modelLoadFailureCount = loadFailures;
+    ResetAttackDamageState(true, false);
+    ResetProjectileDamageState(true);
     RestoreBindPose();
     if (skeleton) {
         UpdateSkeletonWorldTransforms(*skeleton);
@@ -196,6 +210,8 @@ void KrakenTentacleMidbossController::Impl::Reset() {
 }
 
 void KrakenTentacleMidbossController::Impl::Finalize() {
+    projectileDamageFinalizing = true;
+    defeatFinalizing = true;
     ResetCollisionQueryState(true);
     state = KrakenTentacleMidbossState::Hidden;
     if (skeleton && bindPose.size() == skeleton->joints.size()) {
@@ -216,7 +232,26 @@ void KrakenTentacleMidbossController::Impl::Finalize() {
     camera = nullptr;
     collisionPlayer = nullptr;
     collisionPlayerBulletManager = nullptr;
+    projectileDamageBulletManager = nullptr;
+    collisionPlayerAlive = false;
+    damageFeedbackController = nullptr;
+    deathSequenceController = nullptr;
+    attackDamageEffectController = nullptr;
+    effectController.Finalize();
+    defeatFrozenPose.clear();
+    defeatSettings = {};
+    defeatDiagnostics = {};
+    defeatStartWorldPosition = {};
+    defeatSequenceId = 0;
+    defeatStarted = false;
+    defeatCompleted = false;
+    defeatFrozenPoseValid = false;
+    defeatStartWorldPositionValid = false;
+    defeatBeganThisUpdate = false;
     diagnostics = {};
+    ResetAttackDamageState(true, true);
+    ResetProjectileDamageState(true);
+    health.Finalize();
     requestedAssetPath = kOriginalAssetPath;
     resolvedAssetPath.clear();
     rootName.clear();
@@ -235,6 +270,8 @@ void KrakenTentacleMidbossController::Impl::Finalize() {
     attackElapsedTime = 0.0f;
     lastScaledDeltaTime = 0.0f;
     collisionRegistrationGeneration = 1;
+    projectileDamageFinalizing = false;
+    defeatFinalizing = false;
 }
 
 KrakenTentacleMidbossController::KrakenTentacleMidbossController()
@@ -256,9 +293,23 @@ void KrakenTentacleMidbossController::SetCamera(Camera* camera) {
 
 void KrakenTentacleMidbossController::SetCollisionQueryContext(
     const Player* player,
-    const PlayerBulletManager* playerBulletManager) {
+    const PlayerBulletManager* playerBulletManager,
+    bool playerAlive) {
     if (impl_) {
-        impl_->SetCollisionQueryContext(player, playerBulletManager);
+        impl_->SetCollisionQueryContext(
+            player, playerBulletManager, playerAlive);
+    }
+}
+
+void KrakenTentacleMidbossController::SetEffectContext(
+    CombatEffectController* combatEffectController,
+    EnemyDefeatEffectController* defeatEffectController,
+    ImpactDistortionController* impactDistortionController) {
+    if (impl_) {
+        impl_->SetEffectContext(
+            combatEffectController,
+            defeatEffectController,
+            impactDistortionController);
     }
 }
 
@@ -266,6 +317,8 @@ void KrakenTentacleMidbossController::Update(float scaledDeltaTime) {
     if (impl_) {
         impl_->Update(scaledDeltaTime);
         impl_->UpdateCollisionQuery();
+        impl_->UpdateProjectileDamage();
+        impl_->UpdateAttackDamage();
     }
 }
 
@@ -314,4 +367,21 @@ bool KrakenTentacleMidbossController::IsVisible() const {
 KrakenTentacleMidbossState
 KrakenTentacleMidbossController::GetState() const {
     return impl_ ? impl_->state : KrakenTentacleMidbossState::Hidden;
+}
+
+bool KrakenTentacleMidbossController::IsDefeatStarted() const {
+    return impl_ && impl_->defeatStarted;
+}
+
+bool KrakenTentacleMidbossController::IsDefeatCompleted() const {
+    return impl_ && impl_->defeatCompleted;
+}
+
+std::uint64_t KrakenTentacleMidbossController::GetDefeatSequenceId() const {
+    return impl_ ? impl_->defeatSequenceId : 0;
+}
+
+KrakenTentacleMidbossState
+KrakenTentacleMidbossController::GetRuntimeState() const {
+    return GetState();
 }

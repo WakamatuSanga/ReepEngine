@@ -2,6 +2,7 @@
 
 #include "MyGame.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
+#include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 
 void GameScene::InitializeKrakenTentacleMidboss() {
@@ -19,8 +20,20 @@ void GameScene::InitializeKrakenTentacleMidboss() {
         modelManager->GetModelCommon(),
         game->GetObject3dCommon());
     krakenTentacleMidboss_->SetCamera(camera_.get());
+    const bool playerAlive = !(playerDeathSequenceController_ &&
+        playerDeathSequenceController_->IsActiveOrFinished());
     krakenTentacleMidboss_->SetCollisionQueryContext(
-        player_.get(), playerBulletManager_.get());
+        player_.get(), playerBulletManager_.get(), playerAlive);
+    krakenTentacleMidboss_->SetProjectileDamageContext(
+        playerBulletManager_.get());
+    krakenTentacleMidboss_->SetAttackDamageContext(
+        playerDamageFeedbackController_.get(),
+        playerDeathSequenceController_.get(),
+        combatEffectController_.get());
+    krakenTentacleMidboss_->SetEffectContext(
+        combatEffectController_.get(),
+        enemyDefeatEffectController_.get(),
+        impactDistortionController_.get());
 }
 
 void GameScene::UpdateKrakenTentacleMidboss(float scaledDeltaTime) {
@@ -28,6 +41,20 @@ void GameScene::UpdateKrakenTentacleMidboss(float scaledDeltaTime) {
         return;
     }
     krakenTentacleMidboss_->SetCamera(camera_.get());
+    const bool playerAlive = !(playerDeathSequenceController_ &&
+        playerDeathSequenceController_->IsActiveOrFinished());
+    krakenTentacleMidboss_->SetCollisionQueryContext(
+        player_.get(), playerBulletManager_.get(), playerAlive);
+    krakenTentacleMidboss_->SetProjectileDamageContext(
+        playerBulletManager_.get());
+    krakenTentacleMidboss_->SetAttackDamageContext(
+        playerDamageFeedbackController_.get(),
+        playerDeathSequenceController_.get(),
+        combatEffectController_.get());
+    krakenTentacleMidboss_->SetEffectContext(
+        combatEffectController_.get(),
+        enemyDefeatEffectController_.get(),
+        impactDistortionController_.get());
     krakenTentacleMidboss_->Update(scaledDeltaTime);
 }
 

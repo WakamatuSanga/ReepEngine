@@ -1,7 +1,12 @@
 #pragma once
 
 #include "Engine/Game/Boss/Kraken/KrakenTentacleColliderEvaluator.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleAttackDamage.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossHealth.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossDefeat.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossEffectController.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossProjectileDamage.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
 #include "Matrix4x4.h"
 
@@ -12,12 +17,17 @@
 #include <vector>
 
 class Camera;
+class CombatEffectController;
+class EnemyDefeatEffectController;
 class GltfSkinnedModel;
 class ModelCommon;
 class Object3d;
 class Object3dCommon;
+class ImpactDistortionController;
 class Player;
 class PlayerBulletManager;
+class PlayerDamageFeedbackController;
+class PlayerDeathSequenceController;
 struct Skeleton;
 
 struct KrakenTentacleMidbossBindLocalPose {
@@ -53,7 +63,7 @@ struct KrakenTentacleMidbossCapsuleSnapshot {
     bool valid = false;
     bool zeroLength = false;
     bool phaseActive = false;
-    bool requestedRegistration = false;
+    bool queryTarget = false;
     bool gameplayRegistered = false;
     bool registrationFailed = false;
     KrakenColliderPhaseReason phaseReason =
@@ -74,7 +84,7 @@ struct KrakenTentacleMidbossTipSnapshot {
     bool enabled = true;
     bool valid = false;
     bool phaseActive = false;
-    bool requestedRegistration = false;
+    bool queryTarget = false;
     bool gameplayRegistered = false;
     bool registrationFailed = false;
     KrakenColliderPhaseReason phaseReason =
@@ -100,6 +110,12 @@ enum class KrakenTentacleCollisionTransition : std::uint8_t {
     Exit,
 };
 
+enum class KrakenTentacleCollisionProjectileType : std::uint8_t {
+    None,
+    NormalShot,
+    LockedWingShot,
+};
+
 struct KrakenTentacleCollisionPairKey {
     KrakenColliderPreviewRole role = KrakenColliderPreviewRole::Damage;
     KrakenTentacleCollisionTargetKind targetKind =
@@ -111,6 +127,9 @@ struct KrakenTentacleCollisionPairKey {
 
 struct KrakenTentacleCollisionPairSnapshot {
     KrakenTentacleCollisionPairKey key{};
+    KrakenTentacleCollisionProjectileType projectileType =
+        KrakenTentacleCollisionProjectileType::None;
+    float projectileDamage = 0.0f;
     Vector3 colliderClosestPosition{};
     Vector3 targetWorldPosition{};
     float centerDistance = 0.0f;
@@ -121,6 +140,42 @@ struct KrakenTentacleCollisionEventSnapshot {
     KrakenTentacleCollisionPairSnapshot pair{};
     KrakenTentacleCollisionTransition transition =
         KrakenTentacleCollisionTransition::Enter;
+};
+
+struct KrakenTentacleAttackDamageDiagnostics {
+    KrakenAttackDamageResult lastResult = KrakenAttackDamageResult::None;
+    std::uint64_t attackStartCount = 0;
+    std::uint64_t damageAttemptCount = 0;
+    std::uint64_t damageAppliedCount = 0;
+    std::uint64_t invincibilityRejectionCount = 0;
+    std::uint64_t barrelRollRejectionCount = 0;
+    std::uint64_t damageInvincibilityRejectionCount = 0;
+    std::uint64_t playerDeathRejectionCount = 0;
+    std::uint64_t contextUnavailableCount = 0;
+    std::uint64_t damageApiRejectionCount = 0;
+    std::uint64_t sameAttackHitSuppressionCount = 0;
+    std::uint64_t stayDamageSuppressionCount = 0;
+    std::uint64_t exitDamageSuppressionCount = 0;
+    std::uint64_t reenterDamageSuppressionCount = 0;
+    std::uint64_t sameFrameSuppressionCount = 0;
+    std::uint64_t oldEventRejectionCount = 0;
+    std::uint64_t chainMismatchRejectionCount = 0;
+    std::uint64_t phaseMismatchRejectionCount = 0;
+    std::uint64_t lastEnterFrame = 0;
+    std::uint64_t lastColliderId = 0;
+    std::uint32_t maximumDamageCountPerAttack = 0;
+    std::uint32_t currentDamageCount = 0;
+    float lastPenetrationDepth = 0.0f;
+    Vector3 lastClosestPoint{};
+    int hpBefore = -1;
+    int hpAfter = -1;
+    bool playerConnected = false;
+    bool playerAlive = false;
+    bool damageAcceptable = false;
+    bool damageInvincible = false;
+    bool barrelRollInvincible = false;
+    bool respawnInvincible = false;
+    bool attackPhaseActive = false;
 };
 
 struct KrakenTentacleCollisionRoleDiagnostics {
@@ -139,6 +194,9 @@ struct KrakenTentacleCollisionRoleDiagnostics {
     std::uint32_t lastColliderId = 0;
     std::uint32_t lastChainIndex = 0;
     float lastIntersectionRuntimeTime = 0.0f;
+    float lastPenetrationDepth = 0.0f;
+    KrakenTentacleCollisionProjectileType lastProjectileType =
+        KrakenTentacleCollisionProjectileType::None;
     bool hasLastIntersection = false;
 };
 
@@ -170,11 +228,24 @@ struct KrakenTentacleMidbossDiagnostics {
     std::size_t nonFiniteColliderCount = 0;
     std::size_t playerCollisionSnapshotCount = 0;
     std::size_t playerBulletCollisionSnapshotCount = 0;
-    std::size_t collisionRegistrationRequestedCount = 0;
-    std::size_t collisionRegistrationFailureCount = 0;
-    std::size_t registeredAttackColliderCount = 0;
-    std::size_t registeredDamageColliderCount = 0;
-    std::size_t registeredWeakPointCount = 0;
+    std::size_t collisionQueryTargetCount = 0;
+    std::size_t queryTargetAttackColliderCount = 0;
+    std::size_t queryTargetDamageColliderCount = 0;
+    std::size_t queryTargetWeakPointCount = 0;
+    std::size_t playerBulletSnapshotValidCount = 0;
+    std::size_t playerBulletSnapshotInvalidCount = 0;
+    std::size_t normalShotSnapshotCount = 0;
+    std::size_t lockedWingShotSnapshotCount = 0;
+    std::size_t invalidBulletDamageSnapshotCount = 0;
+    std::size_t stableRuntimeIdDuplicateCount = 0;
+    std::size_t maximumConcurrentBulletSnapshotCount = 0;
+    std::size_t collisionQueryCandidatePairCount = 0;
+    std::size_t duplicateCollisionPairCount = 0;
+    std::size_t staleCollisionPairCount = 0;
+    std::size_t invalidPlayerSnapshotCount = 0;
+    std::size_t invalidBulletSnapshotCount = 0;
+    std::size_t nonFiniteSphereCount = 0;
+    std::size_t bulletSnapshotMutationCount = 0;
     std::size_t collisionQueryTestCount = 0;
     std::size_t invalidCollisionQueryCount = 0;
     std::size_t currentCollisionPairCount = 0;
@@ -192,6 +263,12 @@ struct KrakenTentacleMidbossDiagnostics {
     std::uint64_t totalCollisionExitCount = 0;
     std::uint64_t totalBodyAndWeakPointSameBulletCount = 0;
     std::uint64_t duplicateCollisionQueryCount = 0;
+    std::uint64_t lastPlayerBulletRuntimeId = 0;
+    std::uint64_t playerHpChangeRequestCount = 0;
+    std::uint64_t playerInvincibilityRequestCount = 0;
+    std::uint64_t bulletKillRequestCount = 0;
+    std::uint64_t bulletLifetimeChangeRequestCount = 0;
+    std::uint64_t midbossHpChangeRequestCount = 0;
     std::uint64_t lastCollisionQueryFrameIndex = ~std::uint64_t{ 0 };
     KrakenTentacleCollisionRoleDiagnostics attackPlayerCollision{};
     KrakenTentacleCollisionRoleDiagnostics damageBulletCollision{};
@@ -207,6 +284,12 @@ struct KrakenTentacleMidbossDiagnostics {
     bool boundsAbnormal = false;
     bool collisionQueryContextConnected = false;
     bool playerCollisionSnapshotValid = false;
+    bool playerAlive = false;
+    bool playerCollisionEnabled = false;
+    bool bulletSnapshotUnchanged = true;
+    bool gameplayRegistrationObserved = false;
+    Vector3 playerCollisionCenter{};
+    float playerCollisionRadius = 0.0f;
 };
 
 enum class KrakenTentacleMidbossPendingCommand : std::uint8_t {
@@ -219,6 +302,12 @@ enum class KrakenTentacleMidbossPendingCommand : std::uint8_t {
     ReturnToBindPose,
     ResetState,
     ResetRuntime,
+    ForceDefeat,
+    RecoverDefeat,
+    RestoreDefeatPosition,
+    TestBodyHitEffect,
+    TestWeakPointHitEffect,
+    TestDefeatEffect,
 };
 
 struct KrakenTentacleMidbossController::Impl {
@@ -230,9 +319,22 @@ struct KrakenTentacleMidbossController::Impl {
     void SetCamera(Camera* camera);
     void SetCollisionQueryContext(
         const Player* playerValue,
-        const PlayerBulletManager* playerBulletManagerValue);
+        const PlayerBulletManager* playerBulletManagerValue,
+        bool playerAliveValue);
+    void SetAttackDamageContext(
+        PlayerDamageFeedbackController* damageFeedbackControllerValue,
+        PlayerDeathSequenceController* deathSequenceControllerValue,
+        CombatEffectController* combatEffectControllerValue);
+    void SetProjectileDamageContext(
+        PlayerBulletManager* playerBulletManagerValue);
+    void SetEffectContext(
+        CombatEffectController* combatEffectControllerValue,
+        EnemyDefeatEffectController* defeatEffectControllerValue,
+        ImpactDistortionController* impactDistortionControllerValue);
     void Update(float scaledDeltaTime);
     void UpdateCollisionQuery();
+    void UpdateProjectileDamage();
+    void UpdateAttackDamage();
     void Draw();
     void DrawDebug(float viewX, float viewY, float viewWidth, float viewHeight) const;
     void DrawImGui();
@@ -252,6 +354,34 @@ struct KrakenTentacleMidbossController::Impl {
     void RefreshCollisionRegistrationState();
     void ResetCollisionQueryState(bool resetCumulativeDiagnostics);
     void DrawCollisionQueryImGui();
+    void DrawAttackDamageImGui();
+    void DrawProjectileDamageImGui();
+    void DrawDefeatImGui();
+    void DrawEffectImGui();
+    std::vector<KrakenProjectileEnterEvent>
+        GetProjectileEnterEventsThisFrame() const;
+    void ResetProjectileDamageState(bool resetSettings);
+    void HealProjectileDamageHealth();
+    bool BeginDefeat();
+    bool CaptureDefeatFrozenPose();
+    bool ApplyDefeatFrozenPose();
+    bool UpdateDefeatMotion(float deltaTime);
+    void ResetDefeatState(bool resetSettings, bool restoreWorldPosition);
+    void RecoverFromDefeat();
+    void AbortDefeatForHide();
+    void ForceDefeatForDebug();
+    void RestoreDefeatStartPosition();
+    void ProcessDefeatEffectTest(bool weakPoint, bool defeatEffect);
+    KrakenTentacleEffectPositionCandidates BuildHitEffectPositionCandidates(
+        const KrakenProjectileEnterEvent& event) const;
+    KrakenTentacleEffectPositionCandidates
+        BuildDefeatEffectPositionCandidates() const;
+    std::vector<KrakenAttackPlayerEnterEvent>
+        GetAttackPlayerEnterEventsThisFrame() const;
+    void BeginAttackDamageSequence();
+    void InvalidateAttackDamageSequence();
+    void ResetAttackDamageState(bool resetSettings, bool resetSequenceCounter);
+    bool IsAttackDamagePhaseActive() const;
     void RefreshSkinningDiagnostics();
     void RefreshDrawDiagnostics();
     void ProcessPendingCommand();
@@ -272,6 +402,7 @@ struct KrakenTentacleMidbossController::Impl {
     float GetCurrentStateDuration() const;
     float GetSlamProgress() const;
     bool IsAttackState() const;
+    bool IsDefeatState() const;
     bool IsVisible() const;
 
     // Ownership order is intentional. Reverse destruction releases Object,
@@ -284,6 +415,11 @@ struct KrakenTentacleMidbossController::Impl {
     Camera* camera = nullptr;
     const Player* collisionPlayer = nullptr;
     const PlayerBulletManager* collisionPlayerBulletManager = nullptr;
+    PlayerBulletManager* projectileDamageBulletManager = nullptr;
+    PlayerDamageFeedbackController* damageFeedbackController = nullptr;
+    PlayerDeathSequenceController* deathSequenceController = nullptr;
+    CombatEffectController* attackDamageEffectController = nullptr;
+    bool collisionPlayerAlive = false;
 
     std::vector<KrakenTentacleMidbossBindLocalPose> bindPose;
     std::vector<Vector3> bindLocalEulerRadians;
@@ -303,6 +439,12 @@ struct KrakenTentacleMidbossController::Impl {
     KrakenTentacleAttackSettings attackSettings{};
     KrakenTentacleColliderPhaseSettings colliderPhaseSettings{};
     KrakenTentacleMidbossDiagnostics diagnostics{};
+    KrakenTentacleAttackDamageDiagnostics attackDamageDiagnostics{};
+    KrakenTentacleMidbossHealth health{};
+    KrakenProjectileDamageDiagnostics projectileDamageDiagnostics{};
+    KrakenTentacleDefeatSettings defeatSettings{};
+    KrakenTentacleDefeatDiagnostics defeatDiagnostics{};
+    KrakenTentacleMidbossEffectController effectController{};
     KrakenTentacleMidbossPendingCommand pendingCommand =
         KrakenTentacleMidbossPendingCommand::None;
 
@@ -324,6 +466,12 @@ struct KrakenTentacleMidbossController::Impl {
     float colliderRadiusScale = 1.0f;
     float colliderGlobalRadiusScale = 1.0f;
     std::uint64_t collisionRegistrationGeneration = 1;
+    KrakenAttackSequenceId attackSequenceCounter = 0;
+    KrakenAttackSequenceId currentAttackSequenceId = 0;
+    std::uint64_t lastProcessedAttackDamageQueryFrame = 0;
+    std::uint64_t lastProcessedProjectileDamageFrame =
+        ~std::uint64_t{ 0 };
+    int attackDamage = 1;
 
     std::string requestedAssetPath;
     std::string resolvedAssetPath;
@@ -331,6 +479,14 @@ struct KrakenTentacleMidbossController::Impl {
     std::string lastError;
     std::string lastWarning;
     std::string lastCollisionQueryWarning;
+
+    std::vector<std::uint64_t> consumedProjectileIds;
+    std::vector<KrakenProjectileEnterEvent>
+        aggregatedProjectileEventsThisFrame;
+    std::vector<KrakenTentacleMidbossBindLocalPose> defeatFrozenPose;
+
+    Vector3 defeatStartWorldPosition{};
+    std::uint64_t defeatSequenceId = 0;
 
     bool initialized = false;
     bool modelLoaded = false;
@@ -345,4 +501,18 @@ struct KrakenTentacleMidbossController::Impl {
     bool showWeakPoints = true;
     bool showSelectedChainOnly = false;
     bool collisionQueryEnabled = true;
+    bool attackDamageEnabled = false;
+    bool projectileDamageEnabled = false;
+    bool projectileKillInProgress = false;
+    bool projectileDamageFinalizing = false;
+    bool defeatStarted = false;
+    bool defeatCompleted = false;
+    bool defeatFrozenPoseValid = false;
+    bool defeatStartWorldPositionValid = false;
+    bool defeatBeganThisUpdate = false;
+    bool defeatFinalizing = false;
+    bool hitAttemptConsumedThisAttack = false;
+    bool damageAppliedThisAttack = false;
+    bool damageBlockedThisAttack = false;
+    bool exitObservedAfterHitAttempt = false;
 };

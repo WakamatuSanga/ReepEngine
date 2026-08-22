@@ -122,11 +122,10 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
     diagnostics.weakPointCount = 0;
     diagnostics.phaseActiveCount = 0;
     diagnostics.gameplayRegisteredCount = 0;
-    diagnostics.collisionRegistrationRequestedCount = 0;
-    diagnostics.collisionRegistrationFailureCount = 0;
-    diagnostics.registeredAttackColliderCount = 0;
-    diagnostics.registeredDamageColliderCount = 0;
-    diagnostics.registeredWeakPointCount = 0;
+    diagnostics.collisionQueryTargetCount = 0;
+    diagnostics.queryTargetAttackColliderCount = 0;
+    diagnostics.queryTargetDamageColliderCount = 0;
+    diagnostics.queryTargetWeakPointCount = 0;
     diagnostics.invalidColliderJointCount = 0;
     diagnostics.zeroLengthColliderCount = 0;
     diagnostics.nonFiniteColliderCount = 0;
@@ -147,9 +146,9 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         : 0.0f;
     phaseState.slamDuration = GetKrakenTentacleAttackPhaseDuration(
         attackSettings, KrakenTentacleAttackPreviewPhase::Slam);
-    phaseState.connected = IsVisible();
+    phaseState.connected = IsVisible() && !IsDefeatState();
     phaseState.safetyRecovery = safetyStopped;
-    phaseState.motionStateValid = IsVisible();
+    phaseState.motionStateValid = IsVisible() && !IsDefeatState();
     phaseState.attackMotionActive = IsAttackState();
     phaseState.waitingForLoop = false;
     const KrakenTentacleColliderPhaseContext phaseContext =
