@@ -2,6 +2,7 @@
 
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterConfig.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -29,11 +30,13 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("Encounter Rail Holdを有効化できませんでした。");
         return false;
     }
+    ++railHoldStartCount_;
     if (!kraken_->ResetForWaveEncounter()) {
         ++spawnFailureCount_;
         EnterError("中ボスRuntimeをEncounter用にResetできませんでした。");
         return false;
     }
+    ++bossResetCount_;
     constexpr float kExpectedWave4Hp = 20.0f;
     if (std::fabs(kraken_->GetMaxHp() - kExpectedWave4Hp) > 0.0001f ||
         std::fabs(kraken_->GetCurrentHp() - kExpectedWave4Hp) > 0.0001f) {
@@ -56,6 +59,7 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("中ボスDamageを有効化できませんでした。");
         return false;
     }
+    ++damageEnableCount_;
     if (!kraken_->SetSelectedAttackChainForWaveEncounter(0)) {
         ++zeroChainCount_;
         EnterError("Attack Chain 0を選択できませんでした。");
@@ -76,6 +80,7 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("中ボスをカメラ前方へ配置できませんでした。");
         return false;
     }
+    ++bossPlacementCount_;
     spawnWorldPosition_ = kraken_->GetWorldPosition();
     if (!IsFinite(spawnWorldPosition_)) {
         ++spawnFailureCount_;
@@ -87,6 +92,7 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("中ボスを表示できませんでした。");
         return false;
     }
+    ++bossShowCount_;
     kraken_->SetWaveEncounterControlActive(true);
 
     attackTimer_ = 0.0f;
@@ -103,6 +109,168 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
     return true;
 }
 
+bool KrakenTentacleWaveEncounterController::RearmForNewWave4Revision() {
+    const auto failRearm = [this](const std::string& message) {
+        ++rearmFailureCount_;
+        lastRearmSucceeded_ = false;
+        lastRearmFailureReason_ = message;
+        EnterError(message);
+        lastReentryStateAfter_ = state_;
+        return false;
+    };
+
+    const float railMultiplierBefore =
+        railRig_->GetExternalEncounterRailSpeedMultiplier();
+    if (!SetRailHold(false)) {
+        return failRearm(
+            "ウェーブ4再入場時にレール倍率を1.0へ再同期できませんでした。");
+    }
+    ++railRearmResyncCount_;
+    if (!std::isfinite(railMultiplierBefore) ||
+        std::fabs(railMultiplierBefore - 1.0f) > 0.0001f) {
+        lastWarning_ =
+            "ウェーブ4再入場前のレール倍率を1.0へ再同期しました。";
+    }
+
+    DisableDamage();
+    if (kraken_->IsAttackDamageEnabled() ||
+        kraken_->IsProjectileDamageEnabled()) {
+        return failRearm(
+            "ウェーブ4再入場準備時に中ボスダメージを無効化できませんでした。");
+    }
+    schedulerEnabled_ = false;
+    attackTimer_ = 0.0f;
+    currentAttackDelay_ = firstAttackDelay_;
+    nextAttackChain_ = 0;
+    detectedChainCount_ = 0;
+    firstAttackPending_ = true;
+    waitingForWave5Timer_ = 0.0f;
+    completionPublished_ = false;
+    publishedDefeatSequenceId_ = 0;
+
+    objectiveIncompleteResyncAttempted_ = true;
+    if (!waveManager_->SetExternalWaveObjectiveCompleted(false) ||
+        waveManager_->IsExternalWaveObjectiveCompleted()) {
+        ++objectiveIncompleteResyncFailureCount_;
+        lastObjectiveIncompleteResyncSucceeded_ = false;
+        return failRearm(
+            "ウェーブ4再入場時に外部目標を未完了へ再同期できませんでした。");
+    }
+    ++objectiveIncompleteResyncSuccessCount_;
+    lastObjectiveIncompleteResyncSucceeded_ = true;
+
+    handledWaveId_.clear();
+    handledWaveRevision_ = 0;
+    targetWaveRevision_ = 0;
+    nextWaveRevision_ = 0;
+    encounterStartedForRevision_ = false;
+    railStopSucceeded_ = false;
+    state_ = KrakenTentacleWaveEncounterState::WaitingForWave4;
+    ++rearmSuccessCount_;
+    lastRearmSucceeded_ = true;
+    lastRearmFailureReason_ = "なし";
+    lastReentryStateAfter_ = state_;
+    return true;
+}
+
+bool KrakenTentacleWaveEncounterController::PrepareWave4Reentry(
+    bool& rearmedThisUpdate) {
+    rearmedThisUpdate = false;
+    if (!waveManager_) {
+        return true;
+    }
+
+    const std::string currentWaveId = waveManager_->GetCurrentWaveId();
+    const std::uint64_t currentRevision =
+        waveManager_->GetCurrentWaveRevision();
+    const bool observationChanged = currentWaveId != observedWaveId_ ||
+        currentRevision != observedWaveRevision_;
+    const std::string oldWaveId = observedWaveId_;
+    const std::uint64_t oldRevision = observedWaveRevision_;
+    observedWaveId_ = currentWaveId;
+    observedWaveRevision_ = currentRevision;
+    if (!observationChanged ||
+        currentWaveId != KrakenTentacleWaveEncounterConfig::kTargetWaveId) {
+        return true;
+    }
+
+    const auto recordReentry = [this, &oldWaveId, oldRevision,
+                                &currentWaveId, currentRevision]() {
+        lastReentryOldWaveId_ = oldWaveId.empty() ? "なし" : oldWaveId;
+        lastReentryNewWaveId_ = currentWaveId;
+        lastReentryOldWaveRevision_ = oldRevision;
+        lastReentryNewWaveRevision_ = currentRevision;
+        lastReentryStateBefore_ = state_;
+        lastReentryStateAfter_ = state_;
+    };
+
+    if (state_ == KrakenTentacleWaveEncounterState::Completed) {
+        recordReentry();
+        lastRearmAttempted_ = false;
+        lastRearmSucceeded_ = false;
+        objectiveIncompleteResyncAttempted_ = false;
+        lastObjectiveIncompleteResyncSucceeded_ = false;
+        if (currentRevision == 0) {
+            lastRearmAttempted_ = true;
+            ++invalidRevisionCount_;
+            ++rearmFailureCount_;
+            lastRearmFailureReason_ =
+                "ウェーブ4再入場時の改訂番号が無効です。";
+            EnterError(lastRearmFailureReason_);
+            lastReentryStateAfter_ = state_;
+            return false;
+        }
+        if (handledWaveRevision_ == currentRevision) {
+            ++sameRevisionReentrySuppressionCount_;
+            lastRearmFailureReason_ =
+                "同一改訂番号のウェーブ4再入場は抑制しました。";
+            return false;
+        }
+
+        ++newRevisionWave4ReentryDetectionCount_;
+        lastRearmAttempted_ = true;
+        if (!ValidateContexts()) {
+            ++rearmFailureCount_;
+            lastRearmFailureReason_ =
+                "ウェーブ4再入場に必要な接続情報が不足しています。";
+            EnterError(lastRearmFailureReason_);
+            lastReentryStateAfter_ = state_;
+            return false;
+        }
+        if (!ValidateObjective()) {
+            ++rearmFailureCount_;
+            lastRearmFailureReason_ =
+                "ウェーブ4再入場用の外部目標設定が無効です。";
+            EnterError(lastRearmFailureReason_);
+            lastReentryStateAfter_ = state_;
+            return false;
+        }
+        if (!RearmForNewWave4Revision()) {
+            return false;
+        }
+        rearmedThisUpdate = true;
+        return true;
+    }
+
+    if (state_ == KrakenTentacleWaveEncounterState::WaitingForWave4) {
+        return true;
+    }
+
+    recordReentry();
+    ++invalidStateReentryRejectionCount_;
+    lastRearmAttempted_ = false;
+    lastRearmSucceeded_ = false;
+    lastRearmFailureReason_ =
+        "完了状態以外でのウェーブ4再入場は自動処理しません。";
+    if (state_ == KrakenTentacleWaveEncounterState::Error) {
+        lastWarning_ = lastRearmFailureReason_;
+        return false;
+    }
+    EnterError(lastRearmFailureReason_);
+    lastReentryStateAfter_ = state_;
+    return false;
+}
+
 void KrakenTentacleWaveEncounterController::PreRailUpdate(
     float gameplayDeltaTime) {
     if (!initialized_) {
@@ -113,6 +281,10 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
         return;
     }
     if (ProcessPendingDebugCommand()) {
+        return;
+    }
+    bool rearmedThisUpdate = false;
+    if (!PrepareWave4Reentry(rearmedThisUpdate)) {
         return;
     }
     if (!ValidateContexts()) {
@@ -162,7 +334,17 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
             KrakenTentacleWaveEncounterConfig::kTargetWaveId);
         handledWaveRevision_ = revision;
         targetWaveRevision_ = revision;
-        BeginEncounter();
+        const bool started = BeginEncounter();
+        if (rearmedThisUpdate) {
+            if (started) {
+                ++rearmStartingSuccessCount_;
+                lastRearmFailureReason_ = "なし";
+            } else {
+                ++rearmStartingFailureCount_;
+                lastRearmFailureReason_ = lastError_;
+            }
+            lastReentryStateAfter_ = state_;
+        }
         return;
     }
 

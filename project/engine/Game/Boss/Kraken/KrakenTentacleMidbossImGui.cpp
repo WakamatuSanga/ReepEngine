@@ -199,7 +199,7 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
             "CPUスキニング更新数: %zu",
             diagnostics.cpuSkinningUpdateCount);
         ImGui::Text(
-            "Computeスキニング実行数: %zu",
+            "コンピュートスキニング実行数: %zu",
             diagnostics.computeDispatchCount);
         ImGui::Separator();
         ImGui::Text("プリミティブ0 → KrakenSkin");
@@ -344,7 +344,7 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
                 KrakenTentacleMidbossPendingCommand::StopAttack;
         }
         ImGui::SameLine();
-        if (ImGui::Button("Bind Poseへ戻す##ReturnToBindPose")) {
+        if (ImGui::Button("バインドポーズへ戻す##ReturnToBindPose")) {
             pendingCommand =
                 KrakenTentacleMidbossPendingCommand::ReturnToBindPose;
         }

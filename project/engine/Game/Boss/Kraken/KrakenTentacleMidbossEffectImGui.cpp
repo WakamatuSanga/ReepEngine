@@ -1,4 +1,5 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossControllerInternal.h"
+#include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 
 #include <algorithm>
 
@@ -10,6 +11,27 @@ namespace {
 #ifdef USE_IMGUI
 const char* BoolLabel(bool value) {
     return value ? "はい" : "いいえ";
+}
+
+const char* DefeatEffectSpawnResultLabel(
+    EnemyDefeatEffectSpawnResult result) {
+    switch (result) {
+    case EnemyDefeatEffectSpawnResult::Spawned:
+        return "生成成功";
+    case EnemyDefeatEffectSpawnResult::Disabled:
+        return "エフェクト機能が無効です";
+    case EnemyDefeatEffectSpawnResult::NotInitialized:
+        return "エフェクト管理が未初期化です";
+    case EnemyDefeatEffectSpawnResult::InvalidRequest:
+        return "生成要求が不正です";
+    case EnemyDefeatEffectSpawnResult::FrameLimitReached:
+        return "1フレームの生成上限へ到達しました";
+    case EnemyDefeatEffectSpawnResult::PoolExhausted:
+        return "エフェクト枠に空きがありません";
+    case EnemyDefeatEffectSpawnResult::UnknownFailure:
+    default:
+        return "不明な生成失敗です";
+    }
 }
 
 const char* PositionSourceLabel(
@@ -135,7 +157,7 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         ImGui::TextDisabled("命中エフェクト履歴はありません。");
     } else {
         ImGui::Text(
-            "投射物実行時ID: %llu",
+            "投射物実行時識別子: %llu",
             static_cast<unsigned long long>(
                 lastHit.event.projectileRuntimeId));
         ImGui::Text(
@@ -154,7 +176,7 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
             "イベントフレーム: %llu",
             static_cast<unsigned long long>(lastHit.event.frameNumber));
         ImGui::Text(
-            "コライダーID: %llu",
+            "コライダー識別子: %llu",
             static_cast<unsigned long long>(
                 lastHit.event.krakenColliderId));
         ImGui::Text("チェーン番号: %u", lastHit.event.chainIndex);
@@ -167,20 +189,33 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         "撃破連番: %llu",
         static_cast<unsigned long long>(lastDefeat.defeatSequenceId));
     ImGui::Text(
-        "撃破エフェクト生成済み: %s",
-        BoolLabel(lastDefeat.spawned));
-    if (lastDefeat.valid) {
+        "生成要求済み: %s",
+        BoolLabel(lastDefeat.requestHandled));
+    ImGui::Text(
+        "実際の生成成功: %s",
+        BoolLabel(lastDefeat.spawnSucceeded));
+    ImGui::Text(
+        "最後の生成結果: %s",
+        lastDefeat.requestHandled
+            ? DefeatEffectSpawnResultLabel(lastDefeat.spawnResult)
+            : "生成要求なし");
+    ImGui::Text(
+        "最後の拒否理由: %s",
+        !lastDefeat.requestHandled || lastDefeat.spawnSucceeded
+            ? "なし"
+            : DefeatEffectSpawnResultLabel(lastDefeat.spawnResult));
+    if (lastDefeat.requestHandled) {
+        ImGui::Text(
+            "生成失敗: %s", BoolLabel(lastDefeat.spawnFailed));
+        ImGui::Text(
+            "生成時状態: %s", StateLabel(lastDefeat.stateAtSpawn));
+    }
+    if (lastDefeat.valid && lastDefeat.requestHandled) {
         DrawPosition("エフェクト位置", lastDefeat.worldPosition);
         ImGui::Text(
             "位置取得元: %s",
             PositionSourceLabel(lastDefeat.positionSource));
         ImGui::Text("実行時倍率: %.2f", lastDefeat.runtimeScale);
-        ImGui::Text(
-            "生成要求成功: %s", BoolLabel(lastDefeat.spawnSucceeded));
-        ImGui::Text(
-            "生成要求失敗: %s", BoolLabel(lastDefeat.spawnFailed));
-        ImGui::Text(
-            "生成時状態: %s", StateLabel(lastDefeat.stateAtSpawn));
     }
     ImGui::Text("退避中に追従: いいえ");
     ImGui::Text("ウェーブ通知: 0");
@@ -209,9 +244,33 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         static_cast<unsigned long long>(
             effectDiagnostics.weakPointHitSpawnCount));
     ImGui::Text(
+        "撃破エフェクト生成要求数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectRequestCount));
+    ImGui::Text(
         "撃破エフェクト生成数: %llu",
         static_cast<unsigned long long>(
             effectDiagnostics.defeatSpawnCount));
+    ImGui::Text(
+        "撃破エフェクト生成失敗数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatSpawnFailureCount));
+    ImGui::Text(
+        "機能無効拒否数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectDisabledCount));
+    ImGui::Text(
+        "未初期化拒否数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectNotInitializedCount));
+    ImGui::Text(
+        "不正要求拒否数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectInvalidRequestCount));
+    ImGui::Text(
+        "1フレーム生成上限拒否数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectFrameLimitCount));
     ImGui::Text(
         "重複命中抑制数: %llu",
         static_cast<unsigned long long>(
@@ -233,13 +292,17 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         static_cast<unsigned long long>(
             effectDiagnostics.effectManagerMissingCount));
     ImGui::Text(
-        "クラーケン側で検出したエフェクト枠不足数: %llu",
+        "エフェクト枠不足数: %llu",
         static_cast<unsigned long long>(
             effectDiagnostics.effectPoolShortageCount));
     ImGui::TextWrapped(
         "共有撃破エフェクトの枠不足は、共有管理側の既存診断でも確認します。");
     ImGui::Text(
-        "エフェクト生成失敗数: %llu",
+        "不明な生成失敗数: %llu",
+        static_cast<unsigned long long>(
+            effectDiagnostics.defeatEffectUnknownFailureCount));
+    ImGui::Text(
+        "全エフェクト生成失敗数: %llu",
         static_cast<unsigned long long>(
             effectDiagnostics.spawnFailureCount));
     ImGui::Text(
@@ -247,7 +310,7 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         static_cast<unsigned long long>(
             effectDiagnostics.damageWithoutEffectSuppressionCount));
     ImGui::Text(
-        "HP 0後命中生成抑制数: %llu",
+        "体力0後命中生成抑制数: %llu",
         static_cast<unsigned long long>(
             effectDiagnostics.hpZeroHitEffectSuppressionCount));
     ImGui::TextWrapped(

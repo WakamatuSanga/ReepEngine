@@ -192,14 +192,27 @@ void EnemyDefeatEffectController::DrawAfterCloud() {
 }
 
 void EnemyDefeatEffectController::SpawnDefeatEffect(const Vector3& position, float scale) {
-    if (!initialized_ || !enableDefeatEffect_) {
-        return;
+    static_cast<void>(TrySpawnDefeatEffect(position, scale));
+}
+
+EnemyDefeatEffectSpawnResult
+EnemyDefeatEffectController::TrySpawnDefeatEffect(
+    const Vector3& position, float scale) {
+    if (!initialized_) {
+        return EnemyDefeatEffectSpawnResult::NotInitialized;
+    }
+    if (!enableDefeatEffect_) {
+        return EnemyDefeatEffectSpawnResult::Disabled;
+    }
+    if (!std::isfinite(position.x) || !std::isfinite(position.y) ||
+        !std::isfinite(position.z) || !std::isfinite(scale)) {
+        return EnemyDefeatEffectSpawnResult::InvalidRequest;
     }
     ClampSettings();
     EnsureEffectSlots();
     if (spawnedThisFrame_ >= maxSpawnPerFrame_) {
         ++droppedEffectCount_;
-        return;
+        return EnemyDefeatEffectSpawnResult::FrameLimitReached;
     }
 
     DefeatEffect* slot = nullptr;
@@ -211,7 +224,7 @@ void EnemyDefeatEffectController::SpawnDefeatEffect(const Vector3& position, flo
     }
     if (!slot) {
         ++droppedEffectCount_;
-        return;
+        return EnemyDefeatEffectSpawnResult::PoolExhausted;
     }
 
     slot->center = position;
@@ -223,6 +236,7 @@ void EnemyDefeatEffectController::SpawnDefeatEffect(const Vector3& position, flo
     ++spawnedThisFrame_;
     activeEffectCount_ = CountActiveEffects();
     lastEffectPosition_ = position;
+    return EnemyDefeatEffectSpawnResult::Spawned;
 }
 
 void EnemyDefeatEffectController::DrawLayer(bool afterCloudLayer) {

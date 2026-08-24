@@ -12,6 +12,7 @@
 class CombatEffectController;
 class EnemyDefeatEffectController;
 class ImpactDistortionController;
+enum class EnemyDefeatEffectSpawnResult : std::uint8_t;
 enum class KrakenTentacleMidbossState : std::uint8_t;
 
 enum class KrakenTentacleEffectPositionSource : std::uint8_t {
@@ -64,7 +65,8 @@ struct KrakenTentacleLastDefeatEffectDiagnostics {
         KrakenTentacleEffectPositionSource::None;
     std::uint8_t stateAtSpawn = 0;
     float runtimeScale = 1.5f;
-    bool spawned = false;
+    EnemyDefeatEffectSpawnResult spawnResult{};
+    bool requestHandled = false;
     bool spawnSucceeded = false;
     bool spawnFailed = false;
     bool valid = false;
@@ -75,7 +77,14 @@ struct KrakenTentacleEffectDiagnostics {
     KrakenTentacleLastDefeatEffectDiagnostics lastDefeat{};
     std::uint64_t bodyHitSpawnCount = 0;
     std::uint64_t weakPointHitSpawnCount = 0;
+    std::uint64_t defeatEffectRequestCount = 0;
     std::uint64_t defeatSpawnCount = 0;
+    std::uint64_t defeatSpawnFailureCount = 0;
+    std::uint64_t defeatEffectDisabledCount = 0;
+    std::uint64_t defeatEffectNotInitializedCount = 0;
+    std::uint64_t defeatEffectInvalidRequestCount = 0;
+    std::uint64_t defeatEffectFrameLimitCount = 0;
+    std::uint64_t defeatEffectUnknownFailureCount = 0;
     std::uint64_t duplicateHitSuppressionCount = 0;
     std::uint64_t duplicateDefeatSuppressionCount = 0;
     std::uint64_t nonFinitePositionRejectionCount = 0;

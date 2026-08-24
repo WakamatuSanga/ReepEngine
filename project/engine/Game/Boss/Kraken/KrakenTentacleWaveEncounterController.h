@@ -58,6 +58,8 @@ private:
     bool ValidateContexts();
     bool ValidateObjective();
     bool BeginEncounter();
+    bool PrepareWave4Reentry(bool& rearmedThisUpdate);
+    bool RearmForNewWave4Revision();
     void UpdateAttackScheduler(float gameplayDeltaTime);
     bool PublishCompletion();
     void CompleteWave5Transition();
@@ -68,6 +70,8 @@ private:
     void ClearRuntimeDiagnostics();
     bool IsTargetWaveCurrent() const;
     bool IsNextWaveCurrent() const;
+    bool IsNewRevisionWave4() const;
+    bool IsRearmRequired() const;
     bool ProcessPendingDebugCommand();
 
     EnemyWaveManager* waveManager_ = nullptr;
@@ -78,6 +82,10 @@ private:
     KrakenTentacleWaveEncounterState state_ =
         KrakenTentacleWaveEncounterState::WaitingForWave4;
     std::string handledWaveId_;
+    std::string observedWaveId_;
+    std::string lastReentryOldWaveId_ = "なし";
+    std::string lastReentryNewWaveId_ = "なし";
+    std::string lastRearmFailureReason_ = "なし";
     std::string lastError_ = "なし";
     std::string lastWarning_ = "なし";
 
@@ -86,9 +94,12 @@ private:
     Vector3 spawnCameraForward_{ 0.0f, 0.0f, 1.0f };
 
     std::uint64_t handledWaveRevision_ = 0;
+    std::uint64_t observedWaveRevision_ = 0;
     std::uint64_t targetWaveRevision_ = 0;
     std::uint64_t nextWaveRevision_ = 0;
     std::uint64_t publishedDefeatSequenceId_ = 0;
+    std::uint64_t lastReentryOldWaveRevision_ = 0;
+    std::uint64_t lastReentryNewWaveRevision_ = 0;
     std::uint64_t wave4StartCount_ = 0;
     std::uint64_t wave5TransitionCount_ = 0;
     std::uint64_t attackStartCount_ = 0;
@@ -113,6 +124,21 @@ private:
     std::uint64_t duplicateStartSuppressionCount_ = 0;
     std::uint64_t duplicateSpawnSuppressionCount_ = 0;
     std::uint64_t unexpectedWaveChangeCount_ = 0;
+    std::uint64_t newRevisionWave4ReentryDetectionCount_ = 0;
+    std::uint64_t rearmSuccessCount_ = 0;
+    std::uint64_t rearmFailureCount_ = 0;
+    std::uint64_t sameRevisionReentrySuppressionCount_ = 0;
+    std::uint64_t invalidStateReentryRejectionCount_ = 0;
+    std::uint64_t objectiveIncompleteResyncSuccessCount_ = 0;
+    std::uint64_t objectiveIncompleteResyncFailureCount_ = 0;
+    std::uint64_t rearmStartingSuccessCount_ = 0;
+    std::uint64_t rearmStartingFailureCount_ = 0;
+    std::uint64_t bossResetCount_ = 0;
+    std::uint64_t bossShowCount_ = 0;
+    std::uint64_t bossPlacementCount_ = 0;
+    std::uint64_t damageEnableCount_ = 0;
+    std::uint64_t railRearmResyncCount_ = 0;
+    std::uint64_t railHoldStartCount_ = 0;
 
     std::size_t nextAttackChain_ = 0;
     std::size_t detectedChainCount_ = 0;
@@ -133,5 +159,13 @@ private:
     bool railStopSucceeded_ = false;
     bool railResumeSucceeded_ = false;
     bool errorRailResumeSucceeded_ = false;
+    bool lastRearmAttempted_ = false;
+    bool lastRearmSucceeded_ = false;
+    bool objectiveIncompleteResyncAttempted_ = false;
+    bool lastObjectiveIncompleteResyncSucceeded_ = false;
+    KrakenTentacleWaveEncounterState lastReentryStateBefore_ =
+        KrakenTentacleWaveEncounterState::WaitingForWave4;
+    KrakenTentacleWaveEncounterState lastReentryStateAfter_ =
+        KrakenTentacleWaveEncounterState::WaitingForWave4;
     PendingDebugCommand pendingDebugCommand_ = PendingDebugCommand::None;
 };

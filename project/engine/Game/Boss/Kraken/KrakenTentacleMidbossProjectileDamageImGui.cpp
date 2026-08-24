@@ -41,7 +41,7 @@ void KrakenTentacleMidbossController::Impl::
 DrawProjectileDamageImGui() {
 #ifdef USE_IMGUI
     if (!ImGui::CollapsingHeader(
-            "中ボスHP・プレイヤー弾ダメージ##ProjectileDamage",
+            "中ボス体力・プレイヤー弾ダメージ##ProjectileDamage",
             ImGuiTreeNodeFlags_DefaultOpen)) {
         return;
     }
@@ -56,18 +56,18 @@ DrawProjectileDamageImGui() {
             !IsDefeatState();
         if (damageEnabled && !projectileDamageEnabled) {
             projectileDamageDiagnostics.lastWarning =
-                "撃破待ちまたはHP不正のため有効化できません。";
+                "撃破待ちまたは体力不正のため有効化できません。";
         }
     }
     float maxHp = health.GetMaxHp();
     if (ImGui::DragFloat(
-            "最大HP##MaxHp", &maxHp, 1.0f, 1.0f, 9999.0f, "%.1f")) {
+            "最大体力##MaxHp", &maxHp, 1.0f, 1.0f, 9999.0f, "%.1f")) {
         if (!health.SetMaxHp(maxHp, false)) {
             ++projectileDamageDiagnostics.nonFiniteHpCount;
         }
     }
-    ImGui::Text("現在HP: %.1f", health.GetCurrentHp());
-    ImGui::Text("HP割合: %.1f%%", health.GetHpRatio() * 100.0f);
+    ImGui::Text("現在体力: %.1f", health.GetCurrentHp());
+    ImGui::Text("体力割合: %.1f%%", health.GetHpRatio() * 100.0f);
     float multiplier = health.GetWeakPointMultiplier();
     if (ImGui::DragFloat(
             "弱点倍率##WeakPointMultiplier",
@@ -84,13 +84,13 @@ DrawProjectileDamageImGui() {
     ImGui::Text("撃破待ち: %s", BoolLabel(health.IsDefeatPending()));
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
-            "HPが0になると現在姿勢を固定し、\n"
+            "体力が0になると現在姿勢を固定し、\n"
             "下方へ退避して撃破完了を保持します。");
     }
     ImGui::Text("撃破演出実装済み: はい");
     ImGui::Text("ウェーブ未接続: はい");
-    ImGui::Text("HP初期値の根拠: 既存基準なしの確認用暫定値");
-    ImGui::Text("暫定HP: %.1f", KrakenTentacleMidbossHealth::kProvisionalMaxHp);
+    ImGui::Text("体力初期値の根拠: 既存基準なしの確認用暫定値");
+    ImGui::Text("暫定体力: %.1f", KrakenTentacleMidbossHealth::kProvisionalMaxHp);
 
     ImGui::SeparatorText("投射物スナップショット");
     ImGui::Text(
@@ -103,7 +103,7 @@ DrawProjectileDamageImGui() {
     ImGui::Text(
         "ロック翼弾数: %zu", diagnostics.lockedWingShotSnapshotCount);
     ImGui::Text(
-        "安定ID重複数: %zu", diagnostics.stableRuntimeIdDuplicateCount);
+        "安定識別子重複数: %zu", diagnostics.stableRuntimeIdDuplicateCount);
     ImGui::Text(
         "ダメージ値不正数: %zu",
         diagnostics.invalidBulletDamageSnapshotCount);
@@ -138,7 +138,7 @@ DrawProjectileDamageImGui() {
         ImGui::TextDisabled("命中履歴はありません。");
     } else {
         ImGui::Text(
-            "投射物実行時ID: %llu",
+            "投射物実行時識別子: %llu",
             static_cast<unsigned long long>(
                 lastHit.event.projectileRuntimeId));
         ImGui::Text(
@@ -147,13 +147,13 @@ DrawProjectileDamageImGui() {
         ImGui::Text("命中役割: %s", HitRoleLabel(lastHit.event.role));
         ImGui::Text("チェーン番号: %u", lastHit.event.chainIndex);
         ImGui::Text(
-            "コライダーID: %llu",
+            "コライダー識別子: %llu",
             static_cast<unsigned long long>(lastHit.event.krakenColliderId));
         ImGui::Text("基礎ダメージ: %.2f", lastHit.event.projectileDamage);
         ImGui::Text("弱点倍率: %.2f", lastHit.weakPointMultiplier);
         ImGui::Text("最終ダメージ: %.2f", lastHit.finalDamage);
-        ImGui::Text("適用前HP: %.2f", lastHit.hpBefore);
-        ImGui::Text("適用後HP: %.2f", lastHit.hpAfter);
+        ImGui::Text("適用前体力: %.2f", lastHit.hpBefore);
+        ImGui::Text("適用後体力: %.2f", lastHit.hpAfter);
         ImGui::Text(
             "最近接点: %.2f, %.2f, %.2f",
             lastHit.event.closestPoint.x,
@@ -216,7 +216,7 @@ DrawProjectileDamageImGui() {
         static_cast<unsigned long long>(
             damageDiagnostics.projectileDamageDisabledRejectionCount));
     ImGui::Text(
-        "HP0到達回数: %llu",
+        "体力0到達回数: %llu",
         static_cast<unsigned long long>(
             damageDiagnostics.hpZeroReachedCount));
     ImGui::Text(
@@ -229,15 +229,15 @@ DrawProjectileDamageImGui() {
             damageDiagnostics.smallEnemyInstantKillUseCount));
 
     ImGui::SeparatorText("安全診断");
-    ImGui::Text("非有限HP数: %llu",
+    ImGui::Text("非有限体力数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.nonFiniteHpCount));
     ImGui::Text("非有限ダメージ数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.nonFiniteDamageCount));
     ImGui::Text("非有限倍率数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.nonFiniteMultiplierCount));
-    ImGui::Text("実行時ID 0数: %llu",
+    ImGui::Text("実行時識別子0数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.runtimeIdZeroCount));
-    ImGui::Text("ID重複数: %llu",
+    ImGui::Text("識別子重複数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.duplicateRuntimeIdCount));
     ImGui::Text("弾管理未接続数: %llu",
         static_cast<unsigned long long>(damageDiagnostics.playerBulletManagerMissingCount));
@@ -265,21 +265,21 @@ DrawProjectileDamageImGui() {
     if (ImGui::Button("ダメージを無効化##DisableDamageAction")) {
         projectileDamageEnabled = false;
     }
-    if (ImGui::Button("HPを全回復##HealFull")) {
+    if (ImGui::Button("体力を全回復##HealFull")) {
         HealProjectileDamageHealth();
     }
     ImGui::SameLine();
-    if (ImGui::Button("HPを最大値へリセット##ResetHpToMaximum")) {
+    if (ImGui::Button("体力を最大値へリセット##ResetHpToMaximum")) {
         HealProjectileDamageHealth();
     }
-    if (ImGui::Button("最大HPを現在HPへ反映##ApplyMaximumHp")) {
+    if (ImGui::Button("最大体力を現在体力へ反映##ApplyMaximumHp")) {
         HealProjectileDamageHealth();
     }
     if (ImGui::Button("弱点倍率を推奨値へ戻す##ResetWeakMultiplier")) {
         health.SetWeakPointMultiplier(
             KrakenTentacleMidbossHealth::kRecommendedWeakPointMultiplier);
     }
-    if (ImGui::Button("ダメージ診断をリセット##ResetDamageDiagnostics")) {
+    if (ImGui::Button("ダメージ診断をリセット##ResetProjectileDamageDiagnostics")) {
         projectileDamageDiagnostics = {};
         aggregatedProjectileEventsThisFrame.clear();
     }

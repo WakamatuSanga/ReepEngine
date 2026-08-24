@@ -137,6 +137,8 @@ bool KrakenTentacleMidbossEffectController::PlayDefeatEffectInternal(
     last.stateAtSpawn = static_cast<std::uint8_t>(stateAtSpawn);
     last.runtimeScale = std::clamp(
         settings_.defeatEffectScale, 0.25f, 4.0f);
+    last.requestHandled = true;
+    ++diagnostics_.defeatEffectRequestCount;
     const KrakenTentacleResolvedEffectPosition resolved =
         ResolveKrakenTentacleEffectPosition(candidates);
     diagnostics_.nonFinitePositionRejectionCount +=
@@ -147,11 +149,21 @@ bool KrakenTentacleMidbossEffectController::PlayDefeatEffectInternal(
     last.valid = resolved.valid;
 
     if (!settings_.defeatEffectEnabled) {
+        last.spawnResult = EnemyDefeatEffectSpawnResult::Disabled;
+        last.spawnFailed = true;
+        ++diagnostics_.defeatSpawnFailureCount;
+        ++diagnostics_.defeatEffectDisabledCount;
+        ++diagnostics_.spawnFailureCount;
+        diagnostics_.lastWarning =
+            "撃破エフェクト機能が無効なため生成を抑制しました。";
         diagnostics_.lastDefeat = last;
         return false;
     }
     if (!resolved.valid) {
+        last.spawnResult = EnemyDefeatEffectSpawnResult::InvalidRequest;
         last.spawnFailed = true;
+        ++diagnostics_.defeatSpawnFailureCount;
+        ++diagnostics_.defeatEffectInvalidRequestCount;
         ++diagnostics_.spawnFailureCount;
         diagnostics_.lastError =
             "撃破エフェクト位置を有限値で取得できませんでした。";
@@ -159,7 +171,10 @@ bool KrakenTentacleMidbossEffectController::PlayDefeatEffectInternal(
         return false;
     }
     if (!defeatEffectController_) {
+        last.spawnResult = EnemyDefeatEffectSpawnResult::UnknownFailure;
         last.spawnFailed = true;
+        ++diagnostics_.defeatSpawnFailureCount;
+        ++diagnostics_.defeatEffectUnknownFailureCount;
         ++diagnostics_.effectManagerMissingCount;
         ++diagnostics_.spawnFailureCount;
         diagnostics_.lastError =
@@ -168,18 +183,56 @@ bool KrakenTentacleMidbossEffectController::PlayDefeatEffectInternal(
         return false;
     }
 
-    defeatEffectController_->SpawnDefeatEffect(
+    last.spawnResult = defeatEffectController_->TrySpawnDefeatEffect(
         resolved.worldPosition, last.runtimeScale);
     if (settings_.useImpactDistortion && impactDistortionController_) {
         impactDistortionController_->TriggerEnemyDefeat(
             resolved.worldPosition);
     }
-    last.spawned = true;
-    last.spawnSucceeded = true;
-    ++diagnostics_.defeatSpawnCount;
-    diagnostics_.lastError.clear();
+    if (last.spawnResult == EnemyDefeatEffectSpawnResult::Spawned) {
+        last.spawnSucceeded = true;
+        ++diagnostics_.defeatSpawnCount;
+        diagnostics_.lastError.clear();
+    } else {
+        last.spawnFailed = true;
+        ++diagnostics_.defeatSpawnFailureCount;
+        ++diagnostics_.spawnFailureCount;
+        switch (last.spawnResult) {
+        case EnemyDefeatEffectSpawnResult::Disabled:
+            ++diagnostics_.defeatEffectDisabledCount;
+            diagnostics_.lastWarning =
+                "共有撃破エフェクトが無効なため生成されませんでした。";
+            break;
+        case EnemyDefeatEffectSpawnResult::NotInitialized:
+            ++diagnostics_.defeatEffectNotInitializedCount;
+            diagnostics_.lastError =
+                "共有撃破エフェクトが未初期化のため生成されませんでした。";
+            break;
+        case EnemyDefeatEffectSpawnResult::InvalidRequest:
+            ++diagnostics_.defeatEffectInvalidRequestCount;
+            diagnostics_.lastError =
+                "共有撃破エフェクトの生成要求が不正です。";
+            break;
+        case EnemyDefeatEffectSpawnResult::FrameLimitReached:
+            ++diagnostics_.defeatEffectFrameLimitCount;
+            diagnostics_.lastWarning =
+                "1フレームの撃破エフェクト生成上限へ到達しました。";
+            break;
+        case EnemyDefeatEffectSpawnResult::PoolExhausted:
+            ++diagnostics_.effectPoolShortageCount;
+            diagnostics_.lastWarning =
+                "撃破エフェクト枠に空きがありません。";
+            break;
+        case EnemyDefeatEffectSpawnResult::UnknownFailure:
+        default:
+            ++diagnostics_.defeatEffectUnknownFailureCount;
+            diagnostics_.lastError =
+                "撃破エフェクトの生成が不明な理由で失敗しました。";
+            break;
+        }
+    }
     diagnostics_.lastDefeat = last;
-    return true;
+    return last.spawnSucceeded;
 }
 
 bool KrakenTentacleMidbossEffectController::PlayTestHitEffect(

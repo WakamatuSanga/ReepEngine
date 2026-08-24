@@ -47,7 +47,9 @@ void KrakenTentacleWaveEncounterController::Reset() {
 
     state_ = KrakenTentacleWaveEncounterState::WaitingForWave4;
     handledWaveId_.clear();
+    observedWaveId_.clear();
     handledWaveRevision_ = 0;
+    observedWaveRevision_ = 0;
     targetWaveRevision_ = 0;
     nextWaveRevision_ = 0;
     encounterStartedForRevision_ = false;
@@ -164,9 +166,10 @@ void KrakenTentacleWaveEncounterController::EnterError(
         kraken_->SetWaveEncounterControlActive(false);
     }
     HideKraken();
-    if (!completionPublished_ && waveManager_ &&
+    if (waveManager_ &&
         waveManager_->IsExternalWaveObjectiveConfigured() &&
-        waveManager_->IsExternalWaveObjectiveCompleted()) {
+        waveManager_->IsExternalWaveObjectiveCompleted() &&
+        (!completionPublished_ || IsTargetWaveCurrent())) {
         waveManager_->SetExternalWaveObjectiveCompleted(false);
     }
     state_ = KrakenTentacleWaveEncounterState::Error;
@@ -198,9 +201,37 @@ void KrakenTentacleWaveEncounterController::ClearRuntimeDiagnostics() {
     duplicateStartSuppressionCount_ = 0;
     duplicateSpawnSuppressionCount_ = 0;
     unexpectedWaveChangeCount_ = 0;
+    newRevisionWave4ReentryDetectionCount_ = 0;
+    rearmSuccessCount_ = 0;
+    rearmFailureCount_ = 0;
+    sameRevisionReentrySuppressionCount_ = 0;
+    invalidStateReentryRejectionCount_ = 0;
+    objectiveIncompleteResyncSuccessCount_ = 0;
+    objectiveIncompleteResyncFailureCount_ = 0;
+    rearmStartingSuccessCount_ = 0;
+    rearmStartingFailureCount_ = 0;
+    bossResetCount_ = 0;
+    bossShowCount_ = 0;
+    bossPlacementCount_ = 0;
+    damageEnableCount_ = 0;
+    railRearmResyncCount_ = 0;
+    railHoldStartCount_ = 0;
     railStopSucceeded_ = false;
     railResumeSucceeded_ = false;
     errorRailResumeSucceeded_ = false;
+    lastRearmAttempted_ = false;
+    lastRearmSucceeded_ = false;
+    objectiveIncompleteResyncAttempted_ = false;
+    lastObjectiveIncompleteResyncSucceeded_ = false;
+    lastReentryOldWaveId_ = "なし";
+    lastReentryNewWaveId_ = "なし";
+    lastReentryOldWaveRevision_ = 0;
+    lastReentryNewWaveRevision_ = 0;
+    lastReentryStateBefore_ =
+        KrakenTentacleWaveEncounterState::WaitingForWave4;
+    lastReentryStateAfter_ =
+        KrakenTentacleWaveEncounterState::WaitingForWave4;
+    lastRearmFailureReason_ = "なし";
     lastError_ = "なし";
     lastWarning_ = "なし";
 }
@@ -213,6 +244,19 @@ bool KrakenTentacleWaveEncounterController::IsTargetWaveCurrent() const {
 bool KrakenTentacleWaveEncounterController::IsNextWaveCurrent() const {
     return waveManager_ && waveManager_->IsCurrentWave(
         KrakenTentacleWaveEncounterConfig::kNextWaveId);
+}
+
+bool KrakenTentacleWaveEncounterController::IsNewRevisionWave4() const {
+    if (!IsTargetWaveCurrent() || !waveManager_) {
+        return false;
+    }
+    const std::uint64_t revision = waveManager_->GetCurrentWaveRevision();
+    return revision != 0 && handledWaveRevision_ != revision;
+}
+
+bool KrakenTentacleWaveEncounterController::IsRearmRequired() const {
+    return state_ == KrakenTentacleWaveEncounterState::Completed &&
+        IsNewRevisionWave4();
 }
 
 bool KrakenTentacleWaveEncounterController::IsControllingKraken() const {

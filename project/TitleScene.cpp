@@ -21,14 +21,7 @@ void TitleScene::Update() {
 #endif
 
     Input* input = MyGame::GetInstance()->GetInput();
-#ifdef USE_IMGUI
-    const ImGuiIO& io = ImGui::GetIO();
-    const bool isImGuiCapturingMouse = io.WantCaptureMouse || ImGui::IsAnyItemActive();
-#else
-    const bool isImGuiCapturingMouse = false;
-#endif
-
-    if (input && input->MouseTrigger(Input::MouseLeft) && !isImGuiCapturingMouse) {
+    if (input && input->MouseTrigger(Input::MouseLeft)) {
         SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
     }
 }

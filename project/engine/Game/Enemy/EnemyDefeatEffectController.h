@@ -10,6 +10,16 @@ class Camera;
 class DirectXCommon;
 class PlayerJetExhaustBeamRenderer;
 
+enum class EnemyDefeatEffectSpawnResult : std::uint8_t {
+    UnknownFailure,
+    Spawned,
+    Disabled,
+    NotInitialized,
+    InvalidRequest,
+    FrameLimitReached,
+    PoolExhausted,
+};
+
 class EnemyDefeatEffectController {
 public:
     EnemyDefeatEffectController();
@@ -23,6 +33,8 @@ public:
     void DrawAfterCloud();
     void DrawImGui();
 
+    EnemyDefeatEffectSpawnResult TrySpawnDefeatEffect(
+        const Vector3& position, float scale = 1.0f);
     void SpawnDefeatEffect(const Vector3& position, float scale = 1.0f);
 
 private:

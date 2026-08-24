@@ -56,7 +56,7 @@ void KrakenTentacleMidbossController::Impl::DrawDefeatImGui() {
     }
 
     ImGui::SeparatorText("状態");
-    ImGui::Text("HP 0: %s", BoolLabel(health.GetCurrentHp() <= 0.0f));
+    ImGui::Text("体力0: %s", BoolLabel(health.GetCurrentHp() <= 0.0f));
     ImGui::Text("撃破待ち: %s", BoolLabel(health.IsDefeatPending()));
     ImGui::Text("撃破開始済み: %s", BoolLabel(defeatStarted));
     ImGui::Text("撃破完了: %s", BoolLabel(defeatCompleted));
@@ -169,7 +169,7 @@ void KrakenTentacleMidbossController::Impl::DrawDefeatImGui() {
         static_cast<unsigned long long>(
             defeatDiagnostics.additionalDamageRejectionCount));
     ImGui::Text(
-        "HP 0後の弾停止要求数: %llu",
+        "体力0後の弾停止要求数: %llu",
         static_cast<unsigned long long>(
             defeatDiagnostics.postHpZeroBulletKillRequestCount));
     ImGui::Text(

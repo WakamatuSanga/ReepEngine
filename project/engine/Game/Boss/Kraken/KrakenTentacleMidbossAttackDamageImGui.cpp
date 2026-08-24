@@ -250,7 +250,7 @@ void KrakenTentacleMidbossController::Impl::DrawAttackDamageImGui() {
     if (ImGui::Button("攻撃ダメージを無効化##DisableAttackDamage")) {
         attackDamageEnabled = false;
     }
-    if (ImGui::Button("ダメージ診断をリセット##ResetDamageDiagnostics")) {
+    if (ImGui::Button("ダメージ診断をリセット##ResetAttackDamageDiagnostics")) {
         attackDamageDiagnostics = {};
     }
     if (ImGui::Button("現在攻撃のヒット履歴をリセット##ResetCurrentHit")) {
