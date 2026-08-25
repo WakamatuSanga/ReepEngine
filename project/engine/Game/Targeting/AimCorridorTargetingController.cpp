@@ -1,6 +1,7 @@
 #include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 
 #include <algorithm>
@@ -11,15 +12,15 @@ AimCorridorTargetingController::~AimCorridorTargetingController() = default;
 
 bool AimCorridorTargetingController::Initialize(
     DirectXCommon* dxCommon,
-    EnemyManager* enemyManager,
+    const PlayerLockOnTargetProvider* targetProvider,
     Camera* camera,
     AimCorridorVisualController* visualController) {
     Finalize();
     dxCommon_ = dxCommon;
-    enemyManager_ = enemyManager;
+    targetProvider_ = targetProvider;
     camera_ = camera;
     visualController_ = visualController;
-    initialized_ = dxCommon_ && enemyManager_ && camera_ && visualController_;
+    initialized_ = dxCommon_ && targetProvider_ && camera_ && visualController_;
     if (!initialized_) {
         return false;
     }
@@ -35,10 +36,11 @@ void AimCorridorTargetingController::Finalize() {
         markerRenderer_->Finalize();
     }
     markerRenderer_.reset();
+    targetSnapshots_.clear();
     projectedTargets_.clear();
     visualController_ = nullptr;
     camera_ = nullptr;
-    enemyManager_ = nullptr;
+    targetProvider_ = nullptr;
     dxCommon_ = nullptr;
     initialized_ = false;
 }
@@ -63,6 +65,7 @@ void AimCorridorTargetingController::Reset() {
     lockBreakCount_ = 0;
     visibleRect_ = {};
     softRect_ = {};
+    targetSnapshots_.clear();
     projectedTargets_.clear();
     lastSwitchReason_ = "状態をリセット";
     debugForcedState_ = -1;
@@ -99,7 +102,7 @@ void AimCorridorTargetingController::Update(float scaledDeltaTime, float unscale
     ClampParameters();
 
     const bool canTarget = initialized_ && enabled_ && gameModeActive_ && playerAlive_
-        && enemyManager_ && camera_ && visualController_
+        && targetProvider_ && camera_ && visualController_
         && visualController_->IsVisible() && visualController_->IsGameModeActive();
     if (!canTarget) {
         if (HasCandidate() || HasLockedTarget()) {
@@ -121,6 +124,15 @@ void AimCorridorTargetingController::Update(float scaledDeltaTime, float unscale
         UpdateSelection(safeScaledDeltaTime);
     }
     PublishVisualState(safeUnscaledDeltaTime);
+}
+
+bool AimCorridorTargetingController::TryGetLockedTargetSnapshot(
+    PlayerLockOnTargetSnapshot& outSnapshot) const {
+    outSnapshot = {};
+    if (!targetProvider_ || !HasLockedTarget()) {
+        return false;
+    }
+    return targetProvider_->TryGetTargetSnapshot(lockedTargetId_, outSnapshot);
 }
 
 void AimCorridorTargetingController::Draw() {

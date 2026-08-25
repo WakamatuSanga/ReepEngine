@@ -68,6 +68,17 @@ void KrakenTentacleMidbossController::Impl::DrawDefeatImGui() {
     ImGui::Text(
         "落下進行率: %.1f%%",
         defeatDiagnostics.retreatProgress * 100.0f);
+    ImGui::Text(
+        "現在落下距離: %.2f",
+        defeatDiagnostics.currentFallDistance);
+    ImGui::Text(
+        "退避中表示更新数: %llu",
+        static_cast<unsigned long long>(
+            defeatDiagnostics.retreatVisibleUpdateCount));
+    ImGui::Text(
+        "瞬間非表示検出数: %llu",
+        static_cast<unsigned long long>(
+            defeatDiagnostics.instantHideDetectionCount));
     ImGui::Text("固定姿勢有効: %s", BoolLabel(defeatFrozenPoseValid));
     ImGui::Text("モデル表示: %s", BoolLabel(IsVisible()));
     ImGui::Text(
@@ -118,7 +129,13 @@ void KrakenTentacleMidbossController::Impl::DrawDefeatImGui() {
         pendingCommand = KrakenTentacleMidbossPendingCommand::ResetRuntime;
     }
     if (ImGui::Button("カメラ前方へ再配置##DefeatPlaceInFront")) {
-        PlaceInFrontOfCamera();
+        pendingCommand =
+            KrakenTentacleMidbossPendingCommand::PlaceInFrontOfCamera;
+    }
+    if (ImGui::Button(
+            "撃破落下診断をリセット##ResetDefeatVisibilityDiagnostics")) {
+        pendingCommand = KrakenTentacleMidbossPendingCommand::
+            ResetDefeatVisibilityDiagnostics;
     }
 
     ImGui::SeparatorText("診断");

@@ -325,11 +325,16 @@ bool KrakenTentacleMidbossController::Impl::UpdateDefeatMotion(
     stateElapsedTime = advance.stateElapsedTime;
     defeatDiagnostics.retreatProgress = advance.motion.normalizedTime;
     defeatDiagnostics.easedRetreatProgress = advance.motion.easedTime;
+    defeatDiagnostics.currentFallDistance =
+        (std::max)(0.0f, defeatStartWorldPosition.y - worldPosition.y);
     if (advance.beganRetreat) {
         state = KrakenTentacleMidbossState::Retreating;
         ++defeatDiagnostics.retreatBeginCount;
     }
     if (!advance.completedNow) {
+        if (state == KrakenTentacleMidbossState::Retreating) {
+            ++defeatDiagnostics.retreatVisibleUpdateCount;
+        }
         return true;
     }
 
@@ -337,6 +342,9 @@ bool KrakenTentacleMidbossController::Impl::UpdateDefeatMotion(
     stateElapsedTime = 0.0f;
     defeatCompleted = true;
     ++defeatDiagnostics.retreatCompleteCount;
+    if (defeatDiagnostics.retreatVisibleUpdateCount <= 1) {
+        ++defeatDiagnostics.instantHideDetectionCount;
+    }
     attackDamageEnabled = false;
     projectileDamageEnabled = false;
     ResetCollisionQueryState(false);

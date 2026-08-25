@@ -226,25 +226,141 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
                 rotationDegrees.z * std::numbers::pi_v<float> / 180.0f,
             };
         }
-        ImGui::DragFloat3(
-            "ワールド拡縮##WorldScale",
-            &worldScale.x, 0.01f, 0.01f, 100.0f, "%.3f");
+        if (ImGui::DragFloat(
+                "均一ワールド拡縮##UniformWorldScale",
+                &placementSettings.uniformScale,
+                0.01f, 0.01f, 100.0f, "%.3f")) {
+            worldScale = {
+                placementSettings.uniformScale,
+                placementSettings.uniformScale,
+                placementSettings.uniformScale };
+        }
         ImGui::DragFloat(
             "カメラ前方距離##CameraForwardOffset",
-            &cameraForwardOffset, 0.1f, -1000.0f, 1000.0f, "%.2f");
+            &placementSettings.forwardOffset,
+            0.1f, -1000.0f, 1000.0f, "%.2f");
         ImGui::DragFloat(
             "カメラ右方向距離##CameraRightOffset",
-            &cameraRightOffset, 0.1f, -1000.0f, 1000.0f, "%.2f");
+            &placementSettings.rightOffset,
+            0.1f, -1000.0f, 1000.0f, "%.2f");
         ImGui::DragFloat(
             "カメラ上方向距離##CameraUpOffset",
-            &cameraUpOffset, 0.1f, -1000.0f, 1000.0f, "%.2f");
+            &placementSettings.upOffset,
+            0.1f, -1000.0f, 1000.0f, "%.2f");
+        float facingOffsetDegrees =
+            placementSettings.modelFacingYawOffset * 180.0f /
+            std::numbers::pi_v<float>;
+        if (ImGui::DragFloat(
+                "モデル正面Yaw補正（度）##ModelFacingYawOffset",
+                &facingOffsetDegrees, 0.5f, -180.0f, 180.0f, "%.2f")) {
+            placementSettings.modelFacingYawOffset =
+                facingOffsetDegrees * std::numbers::pi_v<float> / 180.0f;
+        }
+        if (ImGui::Button("推奨配置値へ戻す##RecommendedPlacement")) {
+            pendingCommand =
+                KrakenTentacleMidbossPendingCommand::ApplyRecommendedPlacement;
+        }
+        if (ImGui::Button("プレイヤー方向へ向け直す##FacePlayer")) {
+            pendingCommand = KrakenTentacleMidbossPendingCommand::FacePlayer;
+        }
+        ImGui::SameLine();
         if (ImGui::Button(
                 "現在カメラ前方へ配置##PlaceInFrontOfCamera")) {
-            PlaceInFrontOfCamera();
+            pendingCommand =
+                KrakenTentacleMidbossPendingCommand::PlaceInFrontOfCamera;
         }
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip(
                 "現在位置を一度だけ設定します。カメラへ継続追従しません。");
+        }
+    }
+
+    if (ImGui::CollapsingHeader(
+            "配置・画面・攻撃到達診断##PlacementDiagnostics",
+            ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("モデル正面軸: ローカル +Z");
+        ImGui::Text(
+            "最後のFacing Yaw: %.2f 度",
+            placementDiagnostics.lastFacingYaw * 180.0f /
+                std::numbers::pi_v<float>);
+        ImGui::Text(
+            "Player方向設定回数: %llu",
+            static_cast<unsigned long long>(
+                placementDiagnostics.facingApplyCount));
+        DrawVector3Text(
+            "モデル前方", placementDiagnostics.modelForward);
+        DrawVector3Text(
+            "Boss→Player方向",
+            placementDiagnostics.bossToPlayerDirection);
+        DrawVector3Text(
+            "カメラ前方", placementDiagnostics.cameraForward);
+        ImGui::Text(
+            "前方内積: %.4f", placementDiagnostics.forwardDot);
+        ImGui::Text(
+            "Boss／Player距離: %.3f",
+            placementDiagnostics.bossPlayerDistance);
+        ImGui::Text(
+            "Boss／Camera距離: %.3f",
+            placementDiagnostics.bossCameraDistance);
+        DrawBounds("ワールド境界", placementDiagnostics.worldBounds);
+        ImGui::Text(
+            "画面境界: %s",
+            placementDiagnostics.screenBoundsValid ? "有効" : "無効");
+        if (placementDiagnostics.screenBoundsValid) {
+            DrawVector3Text(
+                "画面最小", placementDiagnostics.screenBoundsMinimum);
+            DrawVector3Text(
+                "画面最大", placementDiagnostics.screenBoundsMaximum);
+            ImGui::Text(
+                "画面高占有率: %.1f%%",
+                placementDiagnostics.screenHeightOccupancy * 100.0f);
+            ImGui::Text(
+                "Root側画面Y: %.1f",
+                placementDiagnostics.rootSideScreenY);
+            ImGui::Text(
+                "Root側が画面下へ隠れる: %s",
+                BoolLabel(placementDiagnostics.rootSideHidden));
+        }
+        ImGui::Text(
+            "Near Planeまでの距離: %.3f",
+            placementDiagnostics.nearPlaneDistance);
+        if (placementDiagnostics.nearPlaneWarning) {
+            ImGui::TextColored(
+                ImVec4(1.0f, 0.35f, 0.20f, 1.0f),
+                "警告: Near Planeへ接近しています。");
+        }
+        ImGui::SeparatorText("攻撃到達");
+        ImGui::Text("選択チェーン: %zu", selectedAttackChainIndex);
+        ImGui::Text("攻撃フェーズ: %s", GetPhaseLabel(state));
+        ImGui::Text("叩きつけ進行率: %.3f", GetSlamProgress());
+        DrawVector3Text(
+            "攻撃カプセル始点",
+            placementDiagnostics.attackCapsuleStart);
+        DrawVector3Text(
+            "攻撃カプセル終点",
+            placementDiagnostics.attackCapsuleEnd);
+        ImGui::Text(
+            "攻撃カプセル半径: %.3f",
+            placementDiagnostics.attackCapsuleRadius);
+        DrawVector3Text(
+            "プレイヤーSphere中心",
+            placementDiagnostics.playerSphereCenter);
+        ImGui::Text(
+            "プレイヤーSphere半径: %.3f",
+            placementDiagnostics.playerSphereRadius);
+        ImGui::Text(
+            "最短距離／半径合計: %.3f／%.3f",
+            placementDiagnostics.attackClosestDistance,
+            placementDiagnostics.attackCombinedRadius);
+        ImGui::Text(
+            "交差中: %s", BoolLabel(placementDiagnostics.attackOverlap));
+        ImGui::Text(
+            "到達済みチェーンBits: 0x%X",
+            placementDiagnostics.attackReachChainMask);
+        if (ImGui::Button(
+                "攻撃到達診断をリセット##ResetAttackReachDiagnostics")) {
+            pendingCommand = KrakenTentacleMidbossPendingCommand::
+                ResetAttackReachDiagnostics;
         }
     }
 

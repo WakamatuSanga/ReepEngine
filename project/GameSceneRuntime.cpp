@@ -315,7 +315,7 @@ void GameScene::UpdateSceneRuntime() {
     if (!aimCorridorTargetingController_ && aimCorridorVisualController_) {
         aimCorridorTargetingController_ = std::make_unique<AimCorridorTargetingController>();
         aimCorridorTargetingController_->Initialize(
-            dxCommon, enemyManager_.get(), camera_.get(), aimCorridorVisualController_.get());
+            dxCommon, playerLockOnTargetProvider_.get(), camera_.get(), aimCorridorVisualController_.get());
     }
     if (aimCorridorVisualController_) {
         aimCorridorVisualController_->SetGameModeActive(isGameMode);
@@ -324,7 +324,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerBulletManager_) {
         playerBulletManager_->SetAimRuntimeContext(
-            aimCorridorVisualController_.get(), aimCorridorTargetingController_.get(), enemyManager_.get(),
+            aimCorridorVisualController_.get(), aimCorridorTargetingController_.get(), playerLockOnTargetProvider_.get(),
             isGameMode, isPlayerAliveForAim);
     }
     if (playerBulletManager_) {

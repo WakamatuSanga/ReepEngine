@@ -390,6 +390,9 @@
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\PlayerLockOnTargetProvider.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\UI\AimCorridorVisualController.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -523,6 +526,12 @@
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHoming.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp">
@@ -709,6 +718,9 @@
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp">
@@ -1052,6 +1064,9 @@
     <ClInclude Include="engine\Game\Targeting\AimCorridorTargetingController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Targeting\PlayerLockOnTargetProvider.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\UI\AimCorridorVisualController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -1152,6 +1167,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h">
@@ -1362,6 +1380,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\KrakenTentacleWeakPointAnchorSnapshot.h">
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterConfig.h">

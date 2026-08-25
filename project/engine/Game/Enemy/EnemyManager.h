@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class Camera;
@@ -15,6 +16,13 @@ struct EnemyTargetView {
     std::string enemyType;
     Vector3 worldPosition{};
     float worldRadius = 0.0f;
+};
+
+struct EnemyTargetSnapshot {
+    Vector3 worldPosition{};
+    bool active = false;
+    bool alive = false;
+    bool valid = false;
 };
 
 class EnemyManager {
@@ -39,6 +47,9 @@ public:
     std::vector<Vector3> GetActiveEnemyPositions() const;
     std::vector<Enemy*> GetActiveEnemies() const;
     void CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const;
+    bool TryGetEnemyTargetSnapshot(
+        std::string_view enemyId,
+        EnemyTargetSnapshot& outSnapshot) const;
     void SetDefaultHitRadius(float hitRadius);
     void SetDefaultHitScale(const Vector3& hitScale);
     void SetUseEllipsoidHitShape(bool enabled);

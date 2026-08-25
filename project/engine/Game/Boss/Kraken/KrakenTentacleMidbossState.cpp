@@ -322,6 +322,22 @@ void KrakenTentacleMidbossController::Impl::ProcessPendingCommand() {
     case KrakenTentacleMidbossPendingCommand::TestDefeatEffect:
         ProcessDefeatEffectTest(false, true);
         break;
+    case KrakenTentacleMidbossPendingCommand::ApplyRecommendedPlacement:
+        ApplyRecommendedPlacementSettings();
+        PlaceInFrontOfCamera();
+        break;
+    case KrakenTentacleMidbossPendingCommand::FacePlayer:
+        FacePlayer();
+        break;
+    case KrakenTentacleMidbossPendingCommand::PlaceInFrontOfCamera:
+        PlaceInFrontOfCamera();
+        break;
+    case KrakenTentacleMidbossPendingCommand::ResetAttackReachDiagnostics:
+        ResetAttackReachDiagnostics();
+        break;
+    case KrakenTentacleMidbossPendingCommand::ResetDefeatVisibilityDiagnostics:
+        ResetDefeatVisibilityDiagnostics();
+        break;
     case KrakenTentacleMidbossPendingCommand::None:
     default:
         break;
@@ -395,9 +411,9 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
         cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] };
     if (!IsFinite(cameraPosition) || !IsFinite(cameraRight) ||
         !IsFinite(cameraUp) || !IsFinite(cameraForward) ||
-        !std::isfinite(cameraForwardOffset) ||
-        !std::isfinite(cameraRightOffset) ||
-        !std::isfinite(cameraUpOffset)) {
+        !std::isfinite(placementSettings.forwardOffset) ||
+        !std::isfinite(placementSettings.rightOffset) ||
+        !std::isfinite(placementSettings.upOffset)) {
         lastError = "Gameplay Cameraの行列または配置距離が無効です。";
         return false;
     }
@@ -412,14 +428,16 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
         { 0.0f, 0.0f, 1.0f });
     worldPosition = Add(
         Add(
-            Add(cameraPosition, Scale(right, cameraRightOffset)),
-            Scale(up, cameraUpOffset)),
-        Scale(forward, cameraForwardOffset));
+            Add(cameraPosition, Scale(right, placementSettings.rightOffset)),
+            Scale(up, placementSettings.upOffset)),
+        Scale(forward, placementSettings.forwardOffset));
     if (!IsFinite(worldPosition)) {
         lastError = "カメラ前方の配置座標が有限値ではありません。";
         return false;
     }
-    lastError.clear();
+    if (!FacePlayer()) {
+        return false;
+    }
     // ImGui操作中にはSnapshotを更新せず、次回のRuntime Updateで
     // 描画・Debug Draw・Collision Queryへ同時に反映する。
     return true;

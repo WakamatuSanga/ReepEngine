@@ -11,7 +11,9 @@ class AimCorridorTargetMarkerRenderer;
 class AimCorridorVisualController;
 class Camera;
 class DirectXCommon;
-class EnemyManager;
+class PlayerLockOnTargetProvider;
+enum class PlayerLockOnTargetKind : uint8_t;
+struct PlayerLockOnTargetSnapshot;
 
 class AimCorridorTargetingController {
 public:
@@ -27,7 +29,7 @@ public:
 
     bool Initialize(
         DirectXCommon* dxCommon,
-        EnemyManager* enemyManager,
+        const PlayerLockOnTargetProvider* targetProvider,
         Camera* camera,
         AimCorridorVisualController* visualController);
     void Finalize();
@@ -46,6 +48,11 @@ public:
     AimLockState GetLockState() const { return lockState_; }
     const Vector3& GetLockedTargetWorldPosition() const { return lockedTargetWorldPosition_; }
     const Vector3& GetLockedTargetAimPosition() const { return lockedTargetAimPosition_; }
+    bool TryGetLockedTargetSnapshot(PlayerLockOnTargetSnapshot& outSnapshot) const;
+    bool IsUsingTargetProvider(
+        const PlayerLockOnTargetProvider* provider) const {
+        return provider != nullptr && targetProvider_ == provider;
+    }
 
 private:
     struct ScreenRect {
@@ -58,7 +65,6 @@ private:
 
     struct ProjectedTarget {
         std::string runtimeId;
-        std::string enemyType;
         Vector3 worldPosition{};
         Vector2 screenUv{};
         Vector2 screenRadius{};
@@ -67,6 +73,8 @@ private:
         float clipW = 0.0f;
         float cameraDepth = 0.0f;
         float score = 0.0f;
+        PlayerLockOnTargetKind targetKind{};
+        uint32_t subTargetIndex = 0;
         bool overlapsVisibleRect = false;
         bool overlapsSoftRect = false;
         bool projectionValid = false;
@@ -91,11 +99,12 @@ private:
         const Vector2& rhsMaximum);
 
     DirectXCommon* dxCommon_ = nullptr;
-    EnemyManager* enemyManager_ = nullptr;
+    const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     Camera* camera_ = nullptr;
     AimCorridorVisualController* visualController_ = nullptr;
     std::unique_ptr<AimCorridorTargetMarkerRenderer> markerRenderer_;
 
+    std::vector<PlayerLockOnTargetSnapshot> targetSnapshots_;
     std::vector<ProjectedTarget> projectedTargets_;
     ScreenRect visibleRect_{};
     ScreenRect softRect_{};

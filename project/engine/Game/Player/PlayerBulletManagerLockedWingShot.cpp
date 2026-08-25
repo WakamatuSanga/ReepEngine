@@ -1,17 +1,15 @@
 #include "PlayerBulletManager.h"
 #include "LockedWingMissileExhaustController.h"
 
-#include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
-#include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -117,29 +115,19 @@ PlayerBulletManager::ValidateLockedTarget() const {
     validation.targetId = aimCorridorTargetingController_->GetLockedTargetId();
     validation.targetIdValid = !validation.targetId.empty();
     if (!validation.lockStateLocked || !validation.targetIdValid
-        || !aimCorridorTargetingController_->HasLockedTarget()
-        || !enemyManager_) {
+        || !aimCorridorTargetingController_->HasLockedTarget()) {
         return validation;
     }
 
-    for (Enemy* enemy : enemyManager_->GetActiveEnemies()) {
-        if (enemy && enemy->GetEnemyId() == validation.targetId) {
-            validation.alive = true;
-            break;
-        }
+    PlayerLockOnTargetSnapshot targetSnapshot{};
+    if (!aimCorridorTargetingController_->TryGetLockedTargetSnapshot(
+            targetSnapshot)
+        || targetSnapshot.id != validation.targetId) {
+        return validation;
     }
-
-    Vector3 targetPosition{};
-    std::vector<EnemyTargetView> targets;
-    enemyManager_->CollectTargetableEnemies(targets);
-    for (const EnemyTargetView& target : targets) {
-        if (target.runtimeId == validation.targetId) {
-            validation.targetable = true;
-            validation.alive = true;
-            targetPosition = target.worldPosition;
-            break;
-        }
-    }
+    validation.alive = targetSnapshot.alive;
+    validation.targetable = targetSnapshot.targetable;
+    const Vector3 targetPosition = targetSnapshot.worldPosition;
 
     if (validation.targetable && camera_) {
         const Matrix4x4& cameraWorld = camera_->GetWorldMatrix();
@@ -160,6 +148,7 @@ PlayerBulletManager::ValidateLockedTarget() const {
         && validation.targetIdValid
         && validation.alive
         && validation.targetable
+        && targetSnapshot.valid
         && validation.cameraFront;
     return validation;
 }
@@ -378,6 +367,7 @@ PlayerBulletManager::SpawnLockedWingShot(
 }
 
 void PlayerBulletManager::ResetLockedWingShotState(bool resetStatistics) {
+    ResetLockedWingHomingDiagnostics(resetStatistics);
     nextLockedShotWing_ = WingSide::Left;
     lastLockedShotWing_ = WingSide::Left;
     forcedLockedShotWing_ = WingSide::Left;
@@ -454,7 +444,7 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
         ToJapaneseBool(aimCorridorTargetingController_ != nullptr));
     ImGui::Text("現在のロック状態: %s", ToJapaneseLockState(lockState));
     ImGui::TextWrapped(
-        "ロック対象のTarget ID: %s",
+        "ロック対象の識別子: %s",
         lockedTargetId.empty() ? "なし" : lockedTargetId.c_str());
     ImGui::Text(
         "ロック対象が有効: %s",
@@ -508,7 +498,7 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
 
     DrawLockedWingMissileLaunchImGui();
     ImGui::TextWrapped(
-        "最後に保存したTarget ID: %s",
+        "最後に保存した対象識別子: %s",
         lastLockedWingTargetId_.empty()
             ? "なし"
             : lastLockedWingTargetId_.c_str());

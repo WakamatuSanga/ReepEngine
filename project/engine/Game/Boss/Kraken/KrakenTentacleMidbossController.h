@@ -18,6 +18,7 @@ class Player;
 class PlayerBulletManager;
 class PlayerDamageFeedbackController;
 class PlayerDeathSequenceController;
+struct KrakenTentacleWeakPointAnchorSnapshot;
 struct Vector3;
 
 enum class KrakenTentacleMidbossState : std::uint8_t {
@@ -96,6 +97,9 @@ public:
     bool SetSelectedAttackChainForWaveEncounter(std::size_t chainIndex);
     bool TryStartAttackForWaveEncounter();
     std::size_t GetDetectedChainCount() const;
+    bool TryGetWeakPointLockOnAnchorSnapshot(
+        std::size_t chainIndex,
+        KrakenTentacleWeakPointAnchorSnapshot& outSnapshot) const;
     std::size_t GetSelectedAttackChain() const;
     Vector3 GetWorldPosition() const;
     float GetCameraForwardOffset() const;

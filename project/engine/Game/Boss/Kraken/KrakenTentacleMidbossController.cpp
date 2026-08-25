@@ -39,6 +39,7 @@ namespace {
 
 KrakenTentacleMidbossController::Impl::Impl() {
     requestedAssetPath = kOriginalAssetPath;
+    ApplyRecommendedPlacementSettings();
     worldMatrix = MatrixMath::MakeAffine(
         worldScale, worldRotation, worldPosition);
 }
@@ -171,10 +172,8 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     lastScaledDeltaTime = 0.0f;
     worldPosition = resetWorldPosition;
     worldRotation = {};
-    worldScale = { 0.5f, 0.5f, 0.5f };
-    cameraForwardOffset = 35.0f;
-    cameraRightOffset = 0.0f;
-    cameraUpOffset = -2.0f;
+    ApplyRecommendedPlacementSettings();
+    placementDiagnostics = {};
     colliderRadiusScale = 1.0f;
     colliderGlobalRadiusScale = 1.0f;
     idleSettings = {};

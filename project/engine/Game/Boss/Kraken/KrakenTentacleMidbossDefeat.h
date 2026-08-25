@@ -52,8 +52,11 @@ struct KrakenTentacleDefeatDiagnostics {
     std::uint64_t additionalDamageRejectionCount = 0;
     std::uint64_t postHpZeroBulletKillRequestCount = 0;
     std::uint64_t waveNotificationCount = 0;
+    std::uint64_t retreatVisibleUpdateCount = 0;
+    std::uint64_t instantHideDetectionCount = 0;
     float retreatProgress = 0.0f;
     float easedRetreatProgress = 0.0f;
+    float currentFallDistance = 0.0f;
     std::string lastError;
     std::string lastWarning;
 };

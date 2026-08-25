@@ -46,6 +46,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/PlayerHudController.h"
@@ -67,6 +68,16 @@ GameScene::GameScene()
 GameScene::~GameScene() = default;
 
 void GameScene::FinalizeSceneResources() {
+    if (aimCorridorTargetingController_) {
+        aimCorridorTargetingController_->Finalize();
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->ClearAimCorridorContext();
+    }
+    if (playerLockOnTargetProvider_) {
+        playerLockOnTargetProvider_->Finalize();
+    }
+    playerLockOnTargetProvider_.reset();
     FinalizeKrakenTentacleWaveEncounter();
     FinalizeKrakenTentacleMidboss();
     FinalizeSkinningEditorPreview();
@@ -148,12 +159,6 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
-    if (playerBulletManager_) {
-        playerBulletManager_->ClearAimCorridorContext();
-    }
-    if (aimCorridorTargetingController_) {
-        aimCorridorTargetingController_->Finalize();
-    }
     aimCorridorTargetingController_.reset();
     if (aimCorridorVisualController_) {
         aimCorridorVisualController_->Finalize();

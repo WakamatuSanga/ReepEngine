@@ -1,6 +1,6 @@
 #include "AimCorridorTargetingController.h"
 
-#include "Engine/Game/Enemy/EnemyManager.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -84,7 +84,7 @@ void AimCorridorTargetingController::ProjectTargets() {
     bestCandidateId_.clear();
     bestCandidateScore_ = 0.0f;
     currentTargetValid_ = false;
-    if (!enemyManager_ || !camera_ || !visualController_) {
+    if (!targetProvider_ || !camera_ || !visualController_) {
         return;
     }
 
@@ -125,18 +125,24 @@ void AimCorridorTargetingController::ProjectTargets() {
         { cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] },
         { 0.0f, 0.0f, 1.0f });
 
-    std::vector<EnemyTargetView> targetViews;
-    enemyManager_->CollectTargetableEnemies(targetViews);
-    projectedTargets_.reserve((std::min)(targetViews.size(), static_cast<size_t>(maximumCandidateCount_)));
+    targetProvider_->CollectTargetableTargets(targetSnapshots_);
+    projectedTargets_.reserve((std::min)(targetSnapshots_.size(), static_cast<size_t>(maximumCandidateCount_)));
     float bestScore = (std::numeric_limits<float>::max)();
-    for (const EnemyTargetView& targetView : targetViews) {
+    for (const PlayerLockOnTargetSnapshot& targetView : targetSnapshots_) {
         if (projectedTargets_.size() >= static_cast<size_t>(maximumCandidateCount_)) {
             break;
         }
+        if (!targetView.valid || !targetView.alive || !targetView.targetable
+            || targetView.id.empty() || !std::isfinite(targetView.worldPosition.x)
+            || !std::isfinite(targetView.worldPosition.y)
+            || !std::isfinite(targetView.worldPosition.z)) {
+            continue;
+        }
         ProjectedTarget target{};
-        target.runtimeId = targetView.runtimeId;
-        target.enemyType = targetView.enemyType;
+        target.runtimeId = targetView.id;
         target.worldPosition = targetView.worldPosition;
+        target.targetKind = targetView.kind;
+        target.subTargetIndex = targetView.subTargetIndex;
         target.cameraDepth = Dot(Subtract(target.worldPosition, camera_->GetTranslate()), cameraForward);
         if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
             || target.cameraDepth > maximumTargetDepth_) {

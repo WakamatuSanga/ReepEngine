@@ -3,6 +3,7 @@
 
 void PlayerBulletManager::DrawLockedWingMissileLaunchImGui() {
     DrawLockedWingMissileIgnitionImGui();
+    DrawLockedWingHomingImGui();
     if (lockedWingMissileExhaustController_) {
         lockedWingMissileExhaustController_->DrawImGui();
     }

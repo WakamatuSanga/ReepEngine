@@ -52,6 +52,7 @@ class PlayerChargeFeedbackController;
 class PlayerChargeGatherEffectController;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
+class PlayerLockOnTargetProvider;
 class PlayerSonicBoostRingController;
 class PlayerRailController;
 class PlayerRailFlightVisualTiltController;
@@ -138,6 +139,7 @@ private:
     std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;
     std::unique_ptr<ImpactDistortionController> impactDistortionController_;
     std::unique_ptr<KrakenTentacleMidbossController> krakenTentacleMidboss_;
+    std::unique_ptr<PlayerLockOnTargetProvider> playerLockOnTargetProvider_;
     std::unique_ptr<KrakenTentacleWaveEncounterController> krakenTentacleWaveEncounter_;
     std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;

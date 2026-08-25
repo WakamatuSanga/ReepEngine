@@ -1,6 +1,7 @@
 #include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -17,6 +18,16 @@ namespace {
         case AimCorridorTargetingController::AimLockState::None:
         default:
             return "対象なし";
+        }
+    }
+
+    const char* GetTargetKindName(PlayerLockOnTargetKind kind) {
+        switch (kind) {
+        case PlayerLockOnTargetKind::KrakenWeakPoint:
+            return "クラーケン触手の弱点";
+        case PlayerLockOnTargetKind::NormalEnemy:
+        default:
+            return "通常敵";
         }
     }
 }
@@ -36,7 +47,7 @@ void AimCorridorTargetingController::DrawImGui() {
         ImGui::Checkbox("照準・ロック機能を有効化##TargetingEnabled", &enabled_);
         ImGui::Text("ゲームモード有効: %s", gameModeActive_ ? "はい" : "いいえ");
         ImGui::Text("カメラ有効: %s", camera_ ? "はい" : "いいえ");
-        ImGui::Text("敵管理有効: %s", enemyManager_ ? "はい" : "いいえ");
+        ImGui::Text("対象プロバイダー接続: %s", targetProvider_ ? "はい" : "いいえ");
         ImGui::Text("メイン照準矩形有効: %s", visibleRect_.valid ? "はい" : "いいえ");
         ImGui::DragInt("最大候補数##MaximumCandidateCount", &maximumCandidateCount_, 1.0f, 1, 32);
     }
@@ -82,7 +93,13 @@ void AimCorridorTargetingController::DrawImGui() {
     if (ImGui::CollapsingHeader("現在の対象##CurrentTarget", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("対象ID: %s", currentTargetValid_ ? currentTarget_.runtimeId.c_str() : "なし");
         ImGui::Text("対象名: %s", currentTargetValid_ ? currentTarget_.runtimeId.c_str() : "なし");
-        ImGui::Text("対象種別: %s", currentTargetValid_ ? currentTarget_.enemyType.c_str() : "なし");
+        ImGui::Text("対象種別: %s", currentTargetValid_ ? GetTargetKindName(currentTarget_.targetKind) : "なし");
+        if (currentTargetValid_
+            && currentTarget_.targetKind == PlayerLockOnTargetKind::KrakenWeakPoint) {
+            ImGui::Text("サブターゲット番号: %u", currentTarget_.subTargetIndex);
+        } else {
+            ImGui::Text("サブターゲット番号: なし");
+        }
         ImGui::Text("対象ワールド位置: (%.3f, %.3f, %.3f)",
             currentTarget_.worldPosition.x, currentTarget_.worldPosition.y, currentTarget_.worldPosition.z);
         ImGui::Text("対象画面UV: (%.4f, %.4f)", currentTarget_.screenUv.x, currentTarget_.screenUv.y);

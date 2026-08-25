@@ -192,6 +192,8 @@
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingShot.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileLaunch.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHoming.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.cpp" />
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp" />
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
@@ -227,6 +229,7 @@
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingProjection.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp" />
+    <ClCompile Include="engine\Game\Targeting\PlayerLockOnTargetProvider.cpp" />
     <ClCompile Include="engine\Game\UI\AimCorridorVisualController.cpp" />
     <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerBaseOffset.cpp" />
     <ClCompile Include="engine\Game\UI\AimCorridorVisualControllerImGui.cpp" />
@@ -318,6 +321,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterState.cpp" />
@@ -465,6 +469,7 @@
     <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
+    <ClInclude Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.h" />
     <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
     <ClInclude Include="engine\Game\RailShooter\RailPathRuntimeV2.h" />
@@ -482,6 +487,7 @@
     <ClInclude Include="engine\Game\RailShooter\StartupEnemySpawnController.h" />
     <ClInclude Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.h" />
     <ClInclude Include="engine\Game\Targeting\AimCorridorTargetingController.h" />
+    <ClInclude Include="engine\Game\Targeting\PlayerLockOnTargetProvider.h" />
     <ClInclude Include="engine\Game\UI\AimCorridorVisualController.h" />
     <ClInclude Include="engine\Game\UI\AimCorridorVisualRenderer.h" />
     <ClInclude Include="engine\Game\UI\WarningUIController.h" />
@@ -562,6 +568,7 @@
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h" />
+    <ClInclude Include="engine\Game\KrakenTentacleWeakPointAnchorSnapshot.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterConfig.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossControllerInternal.h" />

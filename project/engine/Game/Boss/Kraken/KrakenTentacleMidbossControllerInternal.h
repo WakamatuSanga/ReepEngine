@@ -99,6 +99,45 @@ struct KrakenTentacleMidbossBoundsSnapshot {
     Vector3 center{};
 };
 
+struct KrakenTentaclePlacementSettings {
+    float forwardOffset = 18.0f;
+    float rightOffset = 0.0f;
+    float upOffset = -5.0f;
+    float uniformScale = 2.20f;
+    float modelFacingYawOffset = 0.0f;
+};
+
+struct KrakenTentaclePlacementDiagnostics {
+    KrakenTentacleMidbossBoundsSnapshot worldBounds{};
+    Vector3 modelForward{};
+    Vector3 cameraForward{};
+    Vector3 bossToPlayerDirection{};
+    Vector3 screenBoundsMinimum{};
+    Vector3 screenBoundsMaximum{};
+    Vector3 attackCapsuleStart{};
+    Vector3 attackCapsuleEnd{};
+    Vector3 playerSphereCenter{};
+    float lastFacingYaw = 0.0f;
+    float forwardDot = 0.0f;
+    float bossPlayerDistance = 0.0f;
+    float bossCameraDistance = 0.0f;
+    float screenHeightOccupancy = 0.0f;
+    float rootSideScreenY = 0.0f;
+    float nearPlaneDistance = 0.0f;
+    float attackCapsuleRadius = 0.0f;
+    float playerSphereRadius = 0.0f;
+    float attackClosestDistance = 0.0f;
+    float attackCombinedRadius = 0.0f;
+    std::uint64_t facingApplyCount = 0;
+    std::uint32_t attackReachChainMask = 0;
+    bool facingValid = false;
+    bool screenBoundsValid = false;
+    bool rootSideHidden = false;
+    bool nearPlaneWarning = false;
+    bool attackReachValid = false;
+    bool attackOverlap = false;
+};
+
 enum class KrakenTentacleCollisionTargetKind : std::uint8_t {
     Player,
     PlayerBullet,
@@ -308,6 +347,11 @@ enum class KrakenTentacleMidbossPendingCommand : std::uint8_t {
     TestBodyHitEffect,
     TestWeakPointHitEffect,
     TestDefeatEffect,
+    ApplyRecommendedPlacement,
+    FacePlayer,
+    PlaceInFrontOfCamera,
+    ResetAttackReachDiagnostics,
+    ResetDefeatVisibilityDiagnostics,
 };
 
 struct KrakenTentacleMidbossController::Impl {
@@ -384,6 +428,7 @@ struct KrakenTentacleMidbossController::Impl {
     bool IsAttackDamagePhaseActive() const;
     void RefreshSkinningDiagnostics();
     void RefreshDrawDiagnostics();
+    void RefreshPlacementDiagnostics();
     void ProcessPendingCommand();
     void AdvanceState(float deltaTime);
     void EnterState(KrakenTentacleMidbossState state);
@@ -396,6 +441,10 @@ struct KrakenTentacleMidbossController::Impl {
     void ReturnToBindPose();
     void ResetStateOnly();
     bool PlaceInFrontOfCamera();
+    bool FacePlayer();
+    void ApplyRecommendedPlacementSettings();
+    void ResetAttackReachDiagnostics();
+    void ResetDefeatVisibilityDiagnostics();
 
     KrakenTentacleAttackPreviewPhase GetAttackPhase() const;
     KrakenTentacleColliderAttackPhase GetColliderAttackPhase() const;
@@ -444,6 +493,8 @@ struct KrakenTentacleMidbossController::Impl {
     KrakenProjectileDamageDiagnostics projectileDamageDiagnostics{};
     KrakenTentacleDefeatSettings defeatSettings{};
     KrakenTentacleDefeatDiagnostics defeatDiagnostics{};
+    KrakenTentaclePlacementSettings placementSettings{};
+    KrakenTentaclePlacementDiagnostics placementDiagnostics{};
     KrakenTentacleMidbossEffectController effectController{};
     KrakenTentacleMidbossPendingCommand pendingCommand =
         KrakenTentacleMidbossPendingCommand::None;
@@ -458,11 +509,8 @@ struct KrakenTentacleMidbossController::Impl {
 
     Vector3 worldPosition{};
     Vector3 worldRotation{};
-    Vector3 worldScale{ 0.5f, 0.5f, 0.5f };
+    Vector3 worldScale{ 1.0f, 1.0f, 1.0f };
     Matrix4x4 worldMatrix{};
-    float cameraForwardOffset = 35.0f;
-    float cameraRightOffset = 0.0f;
-    float cameraUpOffset = -2.0f;
     float colliderRadiusScale = 1.0f;
     float colliderGlobalRadiusScale = 1.0f;
     std::uint64_t collisionRegistrationGeneration = 1;

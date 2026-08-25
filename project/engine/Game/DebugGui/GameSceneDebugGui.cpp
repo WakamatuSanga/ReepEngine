@@ -44,6 +44,7 @@
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
@@ -255,6 +256,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->aimCorridorTargetingController_) {
         scene_->aimCorridorTargetingController_->DrawImGui();
+    }
+    if (scene_->playerLockOnTargetProvider_) {
+        scene_->playerLockOnTargetProvider_->DrawImGui();
     }
     if (scene_->boostController_) {
         scene_->boostController_->DrawImGui();

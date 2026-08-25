@@ -260,5 +260,6 @@ bool KrakenTentacleMidbossController::Impl::UpdateCurrentPoseAndSkinning() {
         return false;
     }
     RefreshBoneSnapshots();
+    RefreshPlacementDiagnostics();
     return true;
 }

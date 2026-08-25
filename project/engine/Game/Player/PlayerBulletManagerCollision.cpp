@@ -58,6 +58,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             closestBulletRadius = bulletRadius;
         }
         if (normalizedDistanceSq <= 1.0f) {
+            RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = bulletPosition;
             }
@@ -120,6 +121,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             closestBulletRadius = bulletRadius;
         }
         if (distanceSquared <= combinedRadius * combinedRadius) {
+            RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = bullet->GetPosition();
             }

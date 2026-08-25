@@ -2,6 +2,8 @@
 
 #include "KrakenTentacleMidbossControllerInternal.h"
 
+#include "Engine/Game/Player/Player.h"
+
 #include <cmath>
 
 bool KrakenTentacleMidbossController::ResetForWaveEncounter() {
@@ -56,15 +58,65 @@ Vector3 KrakenTentacleMidbossController::GetWorldPosition() const {
 }
 
 float KrakenTentacleMidbossController::GetCameraForwardOffset() const {
-    return impl_ ? impl_->cameraForwardOffset : 0.0f;
+    return impl_ ? impl_->placementSettings.forwardOffset : 0.0f;
 }
 
 float KrakenTentacleMidbossController::GetCameraRightOffset() const {
-    return impl_ ? impl_->cameraRightOffset : 0.0f;
+    return impl_ ? impl_->placementSettings.rightOffset : 0.0f;
 }
 
 float KrakenTentacleMidbossController::GetCameraUpOffset() const {
-    return impl_ ? impl_->cameraUpOffset : 0.0f;
+    return impl_ ? impl_->placementSettings.upOffset : 0.0f;
+}
+
+void KrakenTentacleMidbossController::Impl::ApplyRecommendedPlacementSettings() {
+    placementSettings = {};
+    worldScale = {
+        placementSettings.uniformScale,
+        placementSettings.uniformScale,
+        placementSettings.uniformScale };
+}
+
+bool KrakenTentacleMidbossController::Impl::FacePlayer() {
+    if (!collisionPlayer) {
+        lastError = "Playerが未接続のため正面を向けません。";
+        return false;
+    }
+    const Vector3 playerPosition = collisionPlayer->GetWorldPosition();
+    const Vector3 toPlayer = {
+        playerPosition.x - worldPosition.x,
+        0.0f,
+        playerPosition.z - worldPosition.z };
+    const float length = std::sqrt(
+        toPlayer.x * toPlayer.x + toPlayer.z * toPlayer.z);
+    if (!std::isfinite(length) || length <= 0.00001f) {
+        lastError = "Player方向をXZ平面で計算できません。";
+        return false;
+    }
+    const float facingYaw = std::atan2(toPlayer.x, toPlayer.z);
+    if (!std::isfinite(facingYaw) ||
+        !std::isfinite(placementSettings.modelFacingYawOffset)) {
+        lastError = "Player方向のYawが有限値ではありません。";
+        return false;
+    }
+    worldRotation = {
+        0.0f,
+        facingYaw + placementSettings.modelFacingYawOffset,
+        0.0f };
+    placementDiagnostics.lastFacingYaw = facingYaw;
+    ++placementDiagnostics.facingApplyCount;
+    lastError.clear();
+    return true;
+}
+
+void KrakenTentacleMidbossController::Impl::ResetAttackReachDiagnostics() {
+    placementDiagnostics.attackReachChainMask = 0;
+}
+
+void KrakenTentacleMidbossController::Impl::ResetDefeatVisibilityDiagnostics() {
+    defeatDiagnostics.retreatVisibleUpdateCount = 0;
+    defeatDiagnostics.instantHideDetectionCount = 0;
+    defeatDiagnostics.currentFallDistance = 0.0f;
 }
 
 void KrakenTentacleMidbossController::SetWaveEncounterControlActive(

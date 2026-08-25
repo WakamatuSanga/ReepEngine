@@ -346,6 +346,31 @@ void EnemyManager::CollectTargetableEnemies(std::vector<EnemyTargetView>& outTar
     }
 }
 
+bool EnemyManager::TryGetEnemyTargetSnapshot(
+    std::string_view enemyId,
+    EnemyTargetSnapshot& outSnapshot) const {
+    outSnapshot = {};
+    if (enemyId.empty()) {
+        return false;
+    }
+
+    for (const std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (!enemy || enemy->GetEnemyId() != enemyId) {
+            continue;
+        }
+        outSnapshot.worldPosition = enemy->GetPosition();
+        outSnapshot.active = enemy->IsActive();
+        outSnapshot.alive = !enemy->IsDead();
+        outSnapshot.valid = outSnapshot.active
+            && outSnapshot.alive
+            && std::isfinite(outSnapshot.worldPosition.x)
+            && std::isfinite(outSnapshot.worldPosition.y)
+            && std::isfinite(outSnapshot.worldPosition.z);
+        return true;
+    }
+    return false;
+}
+
 void EnemyManager::SetDefaultHitRadius(float hitRadius) {
     defaultHitRadius_ = (std::max)(0.001f, hitRadius);
 }
