@@ -409,8 +409,8 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
         chainDiagnostic.currentValid =
             tip != tipSnapshots.end() && capsule != capsuleSnapshots.end();
         if (chainDiagnostic.currentValid) {
-            chainDiagnostic.currentTipWorldPosition = tip->worldPosition;
-            chainDiagnostic.currentFinalMovableBoneWorldPosition = tip->worldPosition;
+            chainDiagnostic.currentTipWorldPosition = tip->chainTipWorldPosition;
+            chainDiagnostic.currentFinalMovableBoneWorldPosition = tip->chainTipWorldPosition;
             chainDiagnostic.currentAttackCapsuleStart = capsule->worldStart;
             chainDiagnostic.currentAttackCapsuleEnd = capsule->worldEnd;
             chainDiagnostic.currentAttackCapsuleDirection = Normalize(

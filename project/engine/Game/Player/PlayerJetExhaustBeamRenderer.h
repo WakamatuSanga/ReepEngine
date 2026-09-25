@@ -17,7 +17,7 @@ public:
         Vector2 uv;
     };
 
-    bool Initialize(DirectXCommon* dxCommon);
+    bool Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha = false);
     bool IsInitialized() const { return initialized_; }
     void Draw(
         const std::vector<Vertex>& vertices,
@@ -28,7 +28,8 @@ public:
         float edgeSoftness,
         float tipFadePower,
         float time,
-        uint32_t mode);
+        uint32_t mode,
+        float nozzleClipDepth = 0.0f);
 
 private:
     struct Constants {
@@ -38,7 +39,7 @@ private:
     };
 
     bool CreateRootSignature();
-    bool CreatePipelineState();
+    bool CreatePipelineState(bool preserveDestinationAlpha);
     bool EnsureVertexCapacity(size_t vertexCount);
 
     DirectXCommon* dxCommon_ = nullptr;

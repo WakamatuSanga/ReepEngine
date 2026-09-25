@@ -13,7 +13,8 @@ void KrakenTentacleMidbossController::Impl::UpdateObjectTransform() {
     }
     object->SetScale(worldScale);
     object->SetRotate(worldRotation);
-    object->SetTranslate(worldPosition);
+    object->SetTranslate({ worldPosition.x,
+        worldPosition.y + entranceVisualOffsetY, worldPosition.z });
     object->SetCamera(camera);
     object->Update();
 }

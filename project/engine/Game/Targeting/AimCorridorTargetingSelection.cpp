@@ -33,6 +33,15 @@ void AimCorridorTargetingController::SwitchCandidate(
     breakGraceElapsed_ = 0.0f;
     lockedHoldElapsed_ = 0.0f;
     lastSwitchReason_ = reason ? reason : "候補を変更";
+    if (nextIsKraken && target.overlapsVisibleRect) {
+        lockState_ = AimLockState::Locked;
+        lockedTargetId_ = target.runtimeId;
+        lockedTargetWorldPosition_ = target.worldPosition;
+        lockedTargetAimPosition_ = target.worldPosition;
+        lockProgress_ = 1.0f;
+        ++lockCompletedCount_;
+        lastSwitchReason_ = "触手への照準重なりで即時ロック";
+    }
 }
 
 void AimCorridorTargetingController::ClearTarget(
@@ -180,7 +189,7 @@ void AimCorridorTargetingController::PublishVisualState(float unscaledDeltaTime)
         markerRenderer_->Update(
             unscaledDeltaTime,
             markerVisible,
-            currentTarget_.worldPosition,
+            currentTarget_.markerWorldPosition,
             currentTarget_.screenRadius,
             currentTarget_.cameraDepth);
     }

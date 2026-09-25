@@ -3,6 +3,7 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterConfig.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -16,6 +17,7 @@ bool IsFinite(const Vector3& value) {
 }
 
 bool KrakenTentacleWaveEncounterController::BeginEncounter() {
+    ClearEntrance();
     state_ = KrakenTentacleWaveEncounterState::Starting;
     if (!ValidateContexts() || !ValidateObjective()) {
         EnterError("Wave 4 Encounterの開始Contextが無効です。");
@@ -51,15 +53,7 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("有効な触手Chainを検出できませんでした。");
         return false;
     }
-    kraken_->SetAttackDamageEnabled(true);
-    kraken_->SetProjectileDamageEnabled(true);
-    if (!kraken_->IsAttackDamageEnabled() ||
-        !kraken_->IsProjectileDamageEnabled()) {
-        ++damageSetupFailureCount_;
-        EnterError("中ボスDamageを有効化できませんでした。");
-        return false;
-    }
-    ++damageEnableCount_;
+    DisableDamage();
     if (!kraken_->SetSelectedAttackChainForWaveEncounter(0)) {
         ++zeroChainCount_;
         EnterError("Attack Chain 0を選択できませんでした。");
@@ -87,26 +81,27 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
         EnterError("中ボスの配置座標が有限値ではありません。");
         return false;
     }
-    if (!kraken_->ShowForWaveEncounter() || !kraken_->IsVisible()) {
-        ++spawnFailureCount_;
-        EnterError("中ボスを表示できませんでした。");
-        return false;
-    }
-    ++bossShowCount_;
     kraken_->SetWaveEncounterControlActive(true);
 
     attackTimer_ = 0.0f;
     currentAttackDelay_ = firstAttackDelay_;
     nextAttackChain_ = 0;
     firstAttackPending_ = true;
-    schedulerEnabled_ = true;
+    schedulerEnabled_ = false;
     completionPublished_ = false;
     waitingForWave5Timer_ = 0.0f;
     publishedDefeatSequenceId_ = 0;
     encounterStartedForRevision_ = true;
     ++wave4StartCount_;
-    state_ = KrakenTentacleWaveEncounterState::Active;
-    BeginFovOverride();
+    activeEntranceSettings_ = entranceSettings_;
+    fovBlendDuration_ = activeEntranceSettings_.cameraBlendDuration;
+    entrancePhase_ = EntrancePhase::Shake;
+    if (activeEntranceSettings_.shakeDuration > 0.0f) {
+        entranceShake_->Start(
+            activeEntranceSettings_.shakeDuration,
+            activeEntranceSettings_.shakeAmplitude,
+            KrakenTentacleWaveEncounterConfig::kEntranceShakeFrequency);
+    }
     return true;
 }
 
@@ -281,6 +276,7 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
         EnterError("Gameplay Delta Timeが有限値ではありません。");
         return;
     }
+    entranceShake_->BeginFrame(camera_);
     UpdateFovOverride(gameplayDeltaTime);
     if (ProcessPendingDebugCommand()) {
         return;
@@ -350,11 +346,16 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
         return;
     }
 
-    if ((state_ == KrakenTentacleWaveEncounterState::Active ||
+    if ((state_ == KrakenTentacleWaveEncounterState::Starting ||
+         state_ == KrakenTentacleWaveEncounterState::Active ||
          state_ == KrakenTentacleWaveEncounterState::Defeating) &&
         !IsTargetWaveCurrent()) {
         ++unexpectedWaveChangeCount_;
         EnterError("中ボス撃破完了前にWaveが変更されました。");
+        return;
+    }
+    if (state_ == KrakenTentacleWaveEncounterState::Starting) {
+        UpdateEntrance(gameplayDeltaTime);
         return;
     }
     if (state_ == KrakenTentacleWaveEncounterState::Active) {

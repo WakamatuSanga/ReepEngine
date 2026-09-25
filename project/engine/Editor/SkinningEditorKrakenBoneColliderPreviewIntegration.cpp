@@ -78,7 +78,7 @@ void SkinningEditorKrakenMotionPreview::RefreshBoneColliderPreview(
     }
     if (!skeleton_ ||
         chains_.empty() ||
-        bindChainTipSkeletonPositions_.size() != chains_.size()) {
+        bindChainWeakPointSkeletonPositions_.size() != chains_.size()) {
         RefreshBoneColliderPhaseControl();
         return;
     }
@@ -95,7 +95,7 @@ void SkinningEditorKrakenMotionPreview::RefreshBoneColliderPreview(
                 chainJoints,
                 skeleton_->root,
                 skeleton_->joints.size(),
-                bindChainTipSkeletonPositions_)) {
+                bindChainWeakPointSkeletonPositions_)) {
             RefreshBoneColliderPhaseControl();
             return;
         }

@@ -180,12 +180,12 @@ BuildDefeatEffectPositionCandidates() const {
     Vector3 tipAverage{};
     std::size_t validTipCount = 0;
     for (const KrakenTentacleMidbossTipSnapshot& tip : tipSnapshots) {
-        if (!tip.valid || !IsFinite(tip.worldPosition)) {
+        if (!tip.valid || !IsFinite(tip.chainTipWorldPosition)) {
             continue;
         }
-        tipAverage.x += tip.worldPosition.x;
-        tipAverage.y += tip.worldPosition.y;
-        tipAverage.z += tip.worldPosition.z;
+        tipAverage.x += tip.chainTipWorldPosition.x;
+        tipAverage.y += tip.chainTipWorldPosition.y;
+        tipAverage.z += tip.chainTipWorldPosition.z;
         ++validTipCount;
     }
     if (validTipCount == chains.size() && validTipCount > 0) {

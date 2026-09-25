@@ -12,7 +12,7 @@ public:
     void Finalize();
     void BeginFrame(Camera* camera);
     void Start(float duration, float amplitude, float frequency);
-    void UpdateAndApply(float deltaTime, Camera* camera);
+    void UpdateAndApply(float deltaTime, Camera* camera, bool viewOnly = false);
     void Reset(Camera* camera);
     void DrawImGui();
 
@@ -24,6 +24,7 @@ private:
 
     bool isPlaying_ = false;
     bool hasAppliedOffset_ = false;
+    bool appliedToView_ = false;
     float elapsedTime_ = 0.0f;
     float duration_ = 0.7f;
     float amplitude_ = 0.08f;

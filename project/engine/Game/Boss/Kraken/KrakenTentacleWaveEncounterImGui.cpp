@@ -66,6 +66,10 @@ void KrakenTentacleWaveEncounterController::DrawImGui() {
     }
 
     const bool hasManager = waveManager_ != nullptr;
+    DrawEntranceSettingsImGui();
+    if (kraken_) {
+        kraken_->DrawPlacementImGui();
+    }
     const bool hasKraken = kraken_ != nullptr;
     const bool hasRail = railRig_ != nullptr;
     const std::string currentWaveId =

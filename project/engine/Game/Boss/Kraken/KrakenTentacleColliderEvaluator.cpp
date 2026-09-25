@@ -111,6 +111,27 @@ namespace {
     }
 }
 
+bool TryGetKrakenTentacleWeakPointSkeletonPosition(
+    const Skeleton& skeleton,
+    const std::vector<int>& chainJoints,
+    Vector3& position) {
+    position = {};
+    if (chainJoints.empty()) {
+        return false;
+    }
+    const int first = chainJoints[(chainJoints.size() - 1) / 2];
+    const int second = chainJoints[chainJoints.size() / 2];
+    if (!IsJointIndexValid(first, skeleton, skeleton.root) ||
+        !IsJointIndexValid(second, skeleton, skeleton.root)) {
+        return false;
+    }
+    const Vector3& a = skeleton.joints[first].worldTranslate;
+    const Vector3& b = skeleton.joints[second].worldTranslate;
+    position = { (a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f,
+        (a.z + b.z) * 0.5f };
+    return IsFinite(position);
+}
+
 KrakenTentacleColliderDefinitionResult
 BuildKrakenTentacleColliderDefinitions(
     std::uint32_t detectedChainCount,
@@ -193,7 +214,8 @@ BuildKrakenTentacleColliderDefinitions(
     }
     result.tipSphere.chainIndex = chainIndex;
     result.tipSphere.role = KrakenColliderPreviewRole::WeakPoint;
-    result.tipSphere.tipJointIndex = chainJoints.back();
+    // Keep legacy field/ID names; this sphere now belongs to the chain center.
+    result.tipSphere.tipJointIndex = chainJoints[(chainJoints.size() - 1) / 2];
     result.tipSphere.recommendedLocalRadius = 0.30f;
     result.tipSphere.bindTipSkeletonPosition = bindTipSkeletonPosition;
     result.valid = true;
@@ -271,7 +293,7 @@ EvaluateKrakenTentacleTipSphereCollider(
     const Skeleton& skeleton,
     const Matrix4x4& worldMatrix,
     int skeletonRootJointIndex,
-    int tipJointIndex,
+    const std::vector<int>& chainJoints,
     const Vector3& bindTipSkeletonPosition,
     bool hasBindTipPosition,
     float localRadius,
@@ -280,12 +302,13 @@ EvaluateKrakenTentacleTipSphereCollider(
     KrakenTentacleTipSphereColliderEvaluation result{};
     result.worldRadius = localRadius * radiusScale * globalRadiusScale *
         ExtractMaximumScale(worldMatrix);
-    result.jointValid = IsJointIndexValid(
-        tipJointIndex, skeleton, skeletonRootJointIndex);
+    Vector3 skeletonPosition{};
+    result.jointValid = skeletonRootJointIndex == skeleton.root &&
+        TryGetKrakenTentacleWeakPointSkeletonPosition(
+            skeleton, chainJoints, skeletonPosition);
     if (result.jointValid && hasBindTipPosition) {
         result.worldPosition = TransformPosition(
-            skeleton.joints[static_cast<std::size_t>(
-                tipJointIndex)].worldTranslate,
+            skeletonPosition,
             worldMatrix);
         result.bindWorldPosition = TransformPosition(
             bindTipSkeletonPosition,

@@ -131,7 +131,7 @@ void SkinningEditorKrakenBoneColliderPreview::RefreshDiagnostics(
         if (tipRadiusFinite && !tipRadiusPositive) {
             ++diagnostics_.nonPositiveRadiusCount;
         }
-        tipSphere_.valid = tipIndexValid &&
+        tipSphere_.valid = tipSphere_.valid && tipIndexValid &&
             tipPositionFinite && tipRadiusFinite && tipRadiusPositive;
     } else {
         tipSphere_.valid = false;

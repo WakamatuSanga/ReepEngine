@@ -43,6 +43,8 @@ private:
         const Vector3& endB);
 
     std::unique_ptr<PlayerJetExhaustBeamRenderer> renderer_;
+    // Each draw owns its vertex and constant buffers until the frame-end GPU wait.
+    std::unique_ptr<PlayerJetExhaustBeamRenderer> glowRenderer_;
     std::vector<BeamVertex> beamVertices_;
     std::vector<BeamVertex> glowVertices_;
 
@@ -53,26 +55,26 @@ private:
     bool showBeamDebug_ = false;
     bool exhaustEnabled_ = true;
 
-    float baseBeamLength_ = 1.5f;
-    float boostBeamLength_ = 2.8f;
+    float baseBeamLength_ = 1.30f;
+    float boostBeamLength_ = 1.68f;
     float beamStartWidth_ = 0.08f;
-    float beamEndWidth_ = 0.30f;
-    float baseBeamBrightness_ = 1.0f;
-    float boostBeamBrightness_ = 1.7f;
-    float beamFlickerStrength_ = 0.035f;
-    float beamEdgeSoftness_ = 2.8f;
-    float beamTipFadePower_ = 1.55f;
-    float nozzleGlowSize_ = 0.22f;
-    float boostNozzleGlowSize_ = 0.36f;
-    float nozzleGlowBrightness_ = 1.1f;
-    float boostNozzleGlowBrightness_ = 1.8f;
+    float beamEndWidth_ = 0.075f;
+    float baseBeamBrightness_ = 2.12f;
+    float boostBeamBrightness_ = 3.02f;
+    float beamFlickerStrength_ = 0.480f;
+    float beamEdgeSoftness_ = 3.28f;
+    float beamTipFadePower_ = 2.89f;
+    float nozzleGlowSize_ = 0.12f;
+    float boostNozzleGlowSize_ = 0.01f;
+    float nozzleGlowBrightness_ = 1.22f;
+    float boostNozzleGlowBrightness_ = 2.04f;
     float time_ = 0.0f;
 
-    float currentBeamLength_ = 1.5f;
-    float currentBeamEndWidth_ = 0.30f;
-    float currentBeamBrightness_ = 1.0f;
-    float currentGlowSize_ = 0.22f;
-    float currentGlowBrightness_ = 1.1f;
+    float currentBeamLength_ = 1.30f;
+    float currentBeamEndWidth_ = 0.075f;
+    float currentBeamBrightness_ = 2.12f;
+    float currentGlowSize_ = 0.12f;
+    float currentGlowBrightness_ = 1.22f;
     Vector3 currentNozzlePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 currentBeamEndPosition_{ 0.0f, 0.0f, -1.0f };
     Vector3 currentExhaustDirection_{ 0.0f, 0.0f, -1.0f };

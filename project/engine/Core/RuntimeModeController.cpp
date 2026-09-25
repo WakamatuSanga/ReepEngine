@@ -122,13 +122,7 @@ void RuntimeModeController::DrawImGui() {
     ImGui::SameLine();
     if (ImGui::Button("全体軽量 (Overall Light)")) { useGameModeRenderScale_ = true; gameModeRenderScale_ = 0.75f; }
     ImGui::Checkbox("Game Mode軽量プリセット自動適用 (Auto Apply Game Mode Performance Preset)", &autoApplyGameModePerformancePreset_);
-    ImGui::Text("Game Mode Internal Resolution: %u x %u",
-        performanceStats_.renderTextureWidth,
-        performanceStats_.renderTextureHeight);
     ImGui::Text("Internal Render Scale: %.2f", performanceStats_.internalRenderScale);
-    ImGui::Text("BackBuffer Size: %d x %d", performanceStats_.windowWidth, performanceStats_.windowHeight);
-    ImGui::Text("Internal Render Size: %u x %u", performanceStats_.renderTextureWidth, performanceStats_.renderTextureHeight);
-    ImGui::Text("Scene RT Size: %u x %u", performanceStats_.renderTextureWidth, performanceStats_.renderTextureHeight);
     ImGui::Text("Depth RT Size: %u x %u", performanceStats_.depthTextureWidth, performanceStats_.depthTextureHeight);
     ImGui::Text("Current Viewport Size: %.1f x %.1f", performanceStats_.currentViewportWidth, performanceStats_.currentViewportHeight);
     ImGui::Text("Current Scissor Size: %d x %d", performanceStats_.currentScissorWidth, performanceStats_.currentScissorHeight);

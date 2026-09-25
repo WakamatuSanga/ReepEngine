@@ -150,6 +150,12 @@ struct KrakenTentacleColliderPhaseEvaluation {
         KrakenColliderPhaseReason::MotionStateInvalid;
 };
 
+// The weak point uses the same middle bone(s) as the central lock marker.
+bool TryGetKrakenTentacleWeakPointSkeletonPosition(
+    const Skeleton& skeleton,
+    const std::vector<int>& chainJoints,
+    Vector3& position);
+
 KrakenTentacleColliderDefinitionResult
 BuildKrakenTentacleColliderDefinitions(
     std::uint32_t detectedChainCount,
@@ -175,7 +181,7 @@ EvaluateKrakenTentacleTipSphereCollider(
     const Skeleton& skeleton,
     const Matrix4x4& worldMatrix,
     int skeletonRootJointIndex,
-    int tipJointIndex,
+    const std::vector<int>& chainJoints,
     const Vector3& bindTipSkeletonPosition,
     bool hasBindTipPosition,
     float localRadius,

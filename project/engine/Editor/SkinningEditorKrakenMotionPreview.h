@@ -138,6 +138,7 @@ private:
     KrakenTentacleIdlePoseResult idlePoseResult_{};
     std::vector<Matrix4x4> bindPalette_;
     std::vector<Vector3> bindChainTipSkeletonPositions_;
+    std::vector<Vector3> bindChainWeakPointSkeletonPositions_;
     std::vector<Chain> chains_;
     std::unique_ptr<SkinningEditorKrakenAttackMotion> attackMotion_;
     std::unique_ptr<KrakenTentacleAttackPoseResult> attackPoseResult_;

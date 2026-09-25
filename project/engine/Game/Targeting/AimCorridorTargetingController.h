@@ -67,6 +67,7 @@ private:
     struct ProjectedTarget {
         std::string runtimeId;
         Vector3 worldPosition{};
+        Vector3 markerWorldPosition{};
         Vector2 screenUv{};
         Vector2 screenRadius{};
         Vector2 boundsMinimum{};
@@ -116,6 +117,8 @@ private:
 
     void ClampParameters();
     void ProjectTargets();
+    bool ProjectKrakenTarget(const PlayerLockOnTargetSnapshot& source,
+        ProjectedTarget& target, KrakenNaturalLockTargetDiagnostic& diagnostic) const;
     bool ProjectWorldToScreen(
         const Vector3& worldPosition,
         Vector2& screenUv,

@@ -58,6 +58,40 @@ namespace {
     }
 }
 
+bool ShouldDeferKrakenBodyHitForWeakPoint(
+    const KrakenTentacleCollisionQueryResult& bodyHit,
+    const Vector3& projectilePosition,
+    const Vector3& projectileVelocity,
+    float projectileRadius,
+    const Vector3& weakPointCenter,
+    float weakPointRadius) {
+    if (!bodyHit.valid || !bodyHit.intersecting ||
+        !IsFinite(projectilePosition) || !IsFinite(projectileVelocity) ||
+        !IsFinite(weakPointCenter) || !IsValidRadius(projectileRadius) ||
+        !IsValidRadius(weakPointRadius) ||
+        DistanceSquared(bodyHit.closestPoint, weakPointCenter) >
+            static_cast<double>(weakPointRadius) * weakPointRadius) {
+        return false;
+    }
+    const double speedSquared = DistanceSquared(projectileVelocity, {});
+    const Vector3 toWeakPoint = { weakPointCenter.x - projectilePosition.x,
+        weakPointCenter.y - projectilePosition.y,
+        weakPointCenter.z - projectilePosition.z };
+    const double projection = static_cast<double>(toWeakPoint.x) * projectileVelocity.x +
+        static_cast<double>(toWeakPoint.y) * projectileVelocity.y +
+        static_cast<double>(toWeakPoint.z) * projectileVelocity.z;
+    if (speedSquared <= 0.0 || projection <= 0.0) {
+        return false;
+    }
+    const Vector3 closestOnRay = AddScaled(
+        projectilePosition, projectileVelocity, projection / speedSquared);
+    const auto currentHit = QueryKrakenSphereSphereIntersection(
+        weakPointCenter, weakPointRadius, projectilePosition, projectileRadius);
+    const auto rayHit = QueryKrakenSphereSphereIntersection(
+        weakPointCenter, weakPointRadius, closestOnRay, projectileRadius);
+    return currentHit.valid && !currentHit.intersecting && rayHit.intersecting;
+}
+
 KrakenTentacleCollisionQueryResult QueryKrakenCapsuleSphereIntersection(
     const Vector3& capsuleStart,
     const Vector3& capsuleEnd,

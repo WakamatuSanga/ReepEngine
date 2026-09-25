@@ -151,6 +151,8 @@ void KrakenTentacleMidbossController::Impl::EnterHidden(
     const std::string& errorMessage,
     bool safetyRecovery) {
     AbortDefeatForHide();
+    entranceActive = false;
+    entranceVisualOffsetY = 0.0f;
 #ifdef USE_IMGUI
     health.SetDebugHpOne(false, !IsDefeatState() && !defeatStarted && !defeatCompleted);
 #endif
@@ -216,7 +218,7 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
             "撃破待ちのため、新しい攻撃を開始できません。";
         return false;
     }
-    if (!IsVisible() || state != KrakenTentacleMidbossState::Idle ||
+    if (!IsVisible() || entranceActive || state != KrakenTentacleMidbossState::Idle ||
         selectedAttackChainIndex >= chains.size()) {
         ++diagnostics.attackStartRejectedCount;
         if (selectedAttackChainIndex >= chains.size()) {
@@ -231,6 +233,7 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
     }
     lastWarning.clear();
     idleSwayEnabled = true;
+    ApplyPendingPlacement();
     if (!CaptureAttackTargetSnapshot()) {
         ++diagnostics.attackStartRejectedCount;
         return false;
@@ -335,10 +338,6 @@ void KrakenTentacleMidbossController::Impl::ProcessPendingCommand() {
     case KrakenTentacleMidbossPendingCommand::TestDefeatEffect:
         ProcessDefeatEffectTest(false, true);
         break;
-    case KrakenTentacleMidbossPendingCommand::ApplyRecommendedPlacement:
-        ApplyRecommendedPlacementSettings();
-        PlaceInFrontOfCamera();
-        break;
     case KrakenTentacleMidbossPendingCommand::FacePlayer:
         FacePlayer();
         break;
@@ -413,13 +412,22 @@ void KrakenTentacleMidbossController::Impl::AdvanceState(float deltaTime) {
     EnterHidden("攻撃State遷移回数が上限を超えました。", true);
 }
 
-bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
+bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera(bool captureBase) {
     if (!camera) {
         lastError = "Gameplay Cameraが無効なため前方へ配置できません。";
         return false;
     }
-    const Matrix4x4& cameraWorld = camera->GetWorldMatrix();
-    const Vector3 cameraPosition = camera->GetTranslate();
+    if (captureBase) {
+        placementBaseCameraWorld = camera->GetWorldMatrix();
+        const Vector3 position = camera->GetTranslate();
+        placementBaseCameraWorld.m[3][0] = position.x;
+        placementBaseCameraWorld.m[3][1] = position.y;
+        placementBaseCameraWorld.m[3][2] = position.z;
+        placementBaseValid = true;
+    }
+    const Matrix4x4& cameraWorld = placementBaseCameraWorld;
+    const Vector3 cameraPosition = {
+        cameraWorld.m[3][0], cameraWorld.m[3][1], cameraWorld.m[3][2] };
     const Vector3 cameraRight = {
         cameraWorld.m[0][0], cameraWorld.m[0][1], cameraWorld.m[0][2] };
     const Vector3 cameraUp = {
@@ -430,7 +438,9 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
         !IsFinite(cameraUp) || !IsFinite(cameraForward) ||
         !std::isfinite(placementSettings.forwardOffset) ||
         !std::isfinite(placementSettings.rightOffset) ||
-        !std::isfinite(placementSettings.upOffset)) {
+        !std::isfinite(placementSettings.upOffset) ||
+        !std::isfinite(placementSettings.uniformScale) ||
+        placementSettings.uniformScale <= kMinimumScale) {
         lastError = "Gameplay Cameraの行列または配置距離が無効です。";
         return false;
     }
@@ -452,9 +462,12 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera() {
         lastError = "カメラ前方の配置座標が有限値ではありません。";
         return false;
     }
-    if (!FacePlayer()) {
+    worldScale = { placementSettings.uniformScale,
+        placementSettings.uniformScale, placementSettings.uniformScale };
+    if (captureBase && !FacePlayer()) {
         return false;
     }
+    placementChangePending = false;
     // ImGui操作中にはSnapshotを更新せず、次回のRuntime Updateで
     // 描画・Debug Draw・Collision Queryへ同時に反映する。
     return true;
@@ -507,6 +520,7 @@ void KrakenTentacleMidbossController::Impl::Update(float scaledDeltaTime) {
         return;
     }
     AdvanceState(lastScaledDeltaTime);
+    ApplyPendingPlacement();
     if (!IsVisible()) {
         return;
     }

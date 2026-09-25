@@ -92,7 +92,6 @@ void AimCorridorTargetingController::DrawImGui() {
 
     if (ImGui::CollapsingHeader("現在の対象##CurrentTarget", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Text("対象ID: %s", currentTargetValid_ ? currentTarget_.runtimeId.c_str() : "なし");
-        ImGui::Text("対象名: %s", currentTargetValid_ ? currentTarget_.runtimeId.c_str() : "なし");
         ImGui::Text("対象種別: %s", currentTargetValid_ ? GetTargetKindName(currentTarget_.targetKind) : "なし");
         if (currentTargetValid_
             && currentTarget_.targetKind == PlayerLockOnTargetKind::KrakenWeakPoint) {

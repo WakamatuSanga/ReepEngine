@@ -19,6 +19,7 @@ class PlayerBulletManager;
 class PlayerDamageFeedbackController;
 class PlayerDeathSequenceController;
 struct KrakenTentacleWeakPointAnchorSnapshot;
+struct KrakenTentacleLockOnGeometrySnapshot;
 struct KrakenTentacleFramingSnapshot;
 struct Vector3;
 
@@ -87,6 +88,7 @@ public:
         float viewWidth,
         float viewHeight) const;
     void DrawImGui();
+    void DrawPlacementImGui();
     void Reset();
     void Finalize();
 
@@ -97,6 +99,8 @@ public:
     bool ResetForWaveEncounter();
     bool PlaceInFrontOfCameraForWaveEncounter();
     bool ShowForWaveEncounter();
+    bool BeginEntranceForWaveEncounter(float riseDistance);
+    bool UpdateEntranceForWaveEncounter(float progress);
     void HideForWaveEncounter();
     bool SetSelectedAttackChainForWaveEncounter(std::size_t chainIndex);
     bool TryStartAttackForWaveEncounter();
@@ -104,6 +108,9 @@ public:
     bool TryGetWeakPointLockOnAnchorSnapshot(
         std::size_t chainIndex,
         KrakenTentacleWeakPointAnchorSnapshot& outSnapshot) const;
+    bool TryGetChainLockOnGeometrySnapshot(
+        std::size_t chainIndex,
+        KrakenTentacleLockOnGeometrySnapshot& outSnapshot) const;
     bool TryGetFramingSnapshot(
         KrakenTentacleFramingSnapshot& outSnapshot) const;
     std::size_t GetSelectedAttackChain() const;

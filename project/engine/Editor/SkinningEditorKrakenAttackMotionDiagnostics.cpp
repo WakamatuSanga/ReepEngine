@@ -2,6 +2,7 @@
 
 #include "SkinningEditorKrakenAttackMotion.h"
 #include "Engine/Animation/Skeleton.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleColliderEvaluator.h"
 
 #include <cmath>
 
@@ -46,6 +47,7 @@ namespace {
 
 void SkinningEditorKrakenMotionPreview::CaptureBindTipPositions() {
     bindChainTipSkeletonPositions_.clear();
+    bindChainWeakPointSkeletonPositions_.clear();
     attackTipDiagnostics_ = {};
 
     if (!skeleton_ || chains_.empty()) {
@@ -81,6 +83,14 @@ void SkinningEditorKrakenMotionPreview::CaptureBindTipPositions() {
         }
 
         bindChainTipSkeletonPositions_.push_back(tipSkeletonPosition);
+        Vector3 weakPointPosition{};
+        if (!TryGetKrakenTentacleWeakPointSkeletonPosition(
+                *skeleton_, chain.joints, weakPointPosition)) {
+            bindChainWeakPointSkeletonPositions_.clear();
+            runtimeError_ = "Bind Poseの弱点位置を取得できませんでした。";
+            return;
+        }
+        bindChainWeakPointSkeletonPositions_.push_back(weakPointPosition);
     }
 }
 

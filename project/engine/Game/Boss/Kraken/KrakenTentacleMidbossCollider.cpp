@@ -60,11 +60,10 @@ bool KrakenTentacleMidbossController::Impl::RebuildColliderDefinitions() {
             lastError = "Collider定義の対象Chainが空です。";
             return false;
         }
-        const int tipJointIndex = chain.joints.back();
-        if (tipJointIndex < 0 ||
-            static_cast<std::size_t>(tipJointIndex) >=
-                skeleton->joints.size()) {
-            lastError = "Collider定義のTip Jointが範囲外です。";
+        Vector3 bindWeakPointPosition{};
+        if (!TryGetKrakenTentacleWeakPointSkeletonPosition(
+                *skeleton, chain.joints, bindWeakPointPosition)) {
+            lastError = "Collider定義の弱点位置を取得できません。";
             return false;
         }
         KrakenTentacleColliderDefinitionResult result =
@@ -74,8 +73,7 @@ bool KrakenTentacleMidbossController::Impl::RebuildColliderDefinitions() {
                 chain.joints,
                 skeleton->root,
                 skeleton->joints.size(),
-                skeleton->joints[
-                    static_cast<std::size_t>(tipJointIndex)].worldTranslate);
+                bindWeakPointPosition);
         if (!result.valid ||
             result.capsules.size() != kExpectedCapsulesPerChain) {
             lastError = result.error ==
@@ -146,9 +144,9 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         : 0.0f;
     phaseState.slamDuration = GetKrakenTentacleAttackPhaseDuration(
         attackSettings, KrakenTentacleAttackPreviewPhase::Slam);
-    phaseState.connected = IsVisible() && !IsDefeatState();
+    phaseState.connected = IsVisible() && !IsDefeatState() && !entranceActive;
     phaseState.safetyRecovery = safetyStopped;
-    phaseState.motionStateValid = IsVisible() && !IsDefeatState();
+    phaseState.motionStateValid = IsVisible() && !IsDefeatState() && !entranceActive;
     phaseState.attackMotionActive = IsAttackState();
     phaseState.waitingForLoop = false;
     const KrakenTentacleColliderPhaseContext phaseContext =
@@ -224,7 +222,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
                 *skeleton,
                 worldMatrix,
                 skeleton->root,
-                definition.tipJointIndex,
+                chains[definition.chainIndex].joints,
                 definition.bindTipSkeletonPosition,
                 true,
                 definition.recommendedLocalRadius,
@@ -246,6 +244,9 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         snapshot.role = definition.role;
         snapshot.jointIndex = definition.tipJointIndex;
         snapshot.worldPosition = evaluation.worldPosition;
+        snapshot.chainTipWorldPosition = TransformPosition(
+            skeleton->joints[chains[definition.chainIndex].joints.back()].worldTranslate,
+            worldMatrix);
         snapshot.bindWorldPosition = evaluation.bindWorldPosition;
         snapshot.worldRadius = evaluation.worldRadius;
         snapshot.distanceFromBind = evaluation.distanceFromBind;

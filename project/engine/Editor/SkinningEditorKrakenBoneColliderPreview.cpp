@@ -123,7 +123,7 @@ void SkinningEditorKrakenBoneColliderPreview::Update(
             skeleton,
             previewWorldMatrix,
             skeletonRootJointIndex_,
-            tipSphere_.tipJointIndex,
+            chainJoints_,
             bindTipSkeletonPosition_,
             hasBindTipPosition_,
             tipSphere_.localRadius,

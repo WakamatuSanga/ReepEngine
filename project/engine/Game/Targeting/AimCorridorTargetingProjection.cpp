@@ -178,116 +178,70 @@ void AimCorridorTargetingController::ProjectTargets() {
         target.worldPosition = targetView.worldPosition;
         target.targetKind = targetView.kind;
         target.subTargetIndex = targetView.subTargetIndex;
-        const Vector3 cameraOffset =
-            Subtract(target.worldPosition, camera_->GetViewTranslate());
-        target.cameraDepth = Dot(cameraOffset, cameraForward);
+        target.markerWorldPosition = target.worldPosition;
         if (krakenDiagnostic) {
-            krakenDiagnostic->cameraSpacePosition = {
-                Dot(cameraOffset, cameraRight),
-                Dot(cameraOffset, cameraUp),
-                target.cameraDepth,
-            };
-            krakenDiagnostic->viewDepth = target.cameraDepth;
-            krakenDiagnostic->cameraFront =
-                std::isfinite(target.cameraDepth) && target.cameraDepth > 0.0f;
-            const Matrix4x4& viewProjection =
-                camera_->GetViewProjectionMatrix();
-            krakenDiagnostic->clipPosition = {
-                target.worldPosition.x * viewProjection.m[0][0] +
-                    target.worldPosition.y * viewProjection.m[1][0] +
-                    target.worldPosition.z * viewProjection.m[2][0] +
-                    viewProjection.m[3][0],
-                target.worldPosition.x * viewProjection.m[0][1] +
-                    target.worldPosition.y * viewProjection.m[1][1] +
-                    target.worldPosition.z * viewProjection.m[2][1] +
-                    viewProjection.m[3][1],
-                target.worldPosition.x * viewProjection.m[0][2] +
-                    target.worldPosition.y * viewProjection.m[1][2] +
-                    target.worldPosition.z * viewProjection.m[2][2] +
-                    viewProjection.m[3][2],
-            };
-            krakenDiagnostic->clipW =
-                target.worldPosition.x * viewProjection.m[0][3] +
-                target.worldPosition.y * viewProjection.m[1][3] +
-                target.worldPosition.z * viewProjection.m[2][3] +
-                viewProjection.m[3][3];
-        }
-        if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
-            || target.cameraDepth > maximumTargetDepth_) {
-            if (krakenDiagnostic) {
-                krakenDiagnostic->projectionFailureReason =
-                    "対象深度が許可範囲外";
-                krakenDiagnostic->rejectionReason =
-                    "Camera前方・深度判定で拒否";
+            if (!ProjectKrakenTarget(targetView, target, *krakenDiagnostic)) {
+                krakenDiagnostic->projectionFailureReason = "触手形状を画面へ投影できません";
+                krakenDiagnostic->rejectionReason = "触手形状が画面・深度範囲外";
+                continue;
             }
-            continue;
-        }
-        if (!ProjectWorldToScreen(target.worldPosition, target.screenUv, target.clipW)) {
-            if (krakenDiagnostic) {
-                krakenDiagnostic->clipW = target.clipW;
-                krakenDiagnostic->projectionFailureReason =
-                    "クリップWまたはNDCが無効";
-                krakenDiagnostic->rejectionReason = "画面投影で拒否";
+        } else {
+            const Vector3 cameraOffset =
+                Subtract(target.worldPosition, camera_->GetViewTranslate());
+            target.cameraDepth = Dot(cameraOffset, cameraForward);
+            if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
+                || target.cameraDepth > maximumTargetDepth_) {
+                continue;
             }
-            continue;
-        }
-        if (krakenDiagnostic) {
-            krakenDiagnostic->clipW = target.clipW;
-            krakenDiagnostic->screenUv = target.screenUv;
-            krakenDiagnostic->ndcPosition = {
-                target.screenUv.x * 2.0f - 1.0f,
-                1.0f - target.screenUv.y * 2.0f,
-            };
-            krakenDiagnostic->viewportInside =
-                target.screenUv.x >= 0.0f && target.screenUv.x <= 1.0f &&
-                target.screenUv.y >= 0.0f && target.screenUv.y <= 1.0f;
-            krakenDiagnostic->projectionValid = true;
-        }
+            if (!ProjectWorldToScreen(target.worldPosition, target.screenUv, target.clipW)) {
+                continue;
+            }
 
-        const float worldRadius = std::isfinite(targetView.worldRadius) && targetView.worldRadius > 0.0f
-            ? targetView.worldRadius
-            : fallbackWorldRadius_;
-        Vector2 rightUv{};
-        Vector2 upUv{};
-        float unusedClipW = 0.0f;
-        const bool rightValid = ProjectWorldToScreen(
-            Add(target.worldPosition, Scale(cameraRight, worldRadius)), rightUv, unusedClipW);
-        const bool upValid = ProjectWorldToScreen(
-            Add(target.worldPosition, Scale(cameraUp, worldRadius)), upUv, unusedClipW);
-        float radiusX = rightValid ? std::abs(rightUv.x - target.screenUv.x) : minimumScreenRadius_;
-        float radiusY = upValid ? std::abs(upUv.y - target.screenUv.y) : minimumScreenRadius_;
-        if (!considerEnemyBounds_) {
-            radiusX = minimumScreenRadius_;
-            radiusY = minimumScreenRadius_;
+            const float worldRadius = std::isfinite(targetView.worldRadius) && targetView.worldRadius > 0.0f
+                ? targetView.worldRadius
+                : fallbackWorldRadius_;
+            Vector2 rightUv{};
+            Vector2 upUv{};
+            float unusedClipW = 0.0f;
+            const bool rightValid = ProjectWorldToScreen(
+                Add(target.worldPosition, Scale(cameraRight, worldRadius)), rightUv, unusedClipW);
+            const bool upValid = ProjectWorldToScreen(
+                Add(target.worldPosition, Scale(cameraUp, worldRadius)), upUv, unusedClipW);
+            float radiusX = rightValid ? std::abs(rightUv.x - target.screenUv.x) : minimumScreenRadius_;
+            float radiusY = upValid ? std::abs(upUv.y - target.screenUv.y) : minimumScreenRadius_;
+            if (!considerEnemyBounds_) {
+                radiusX = minimumScreenRadius_;
+                radiusY = minimumScreenRadius_;
+            }
+            target.screenRadius = {
+                std::clamp(radiusX, minimumScreenRadius_, maximumScreenRadius_),
+                std::clamp(radiusY, minimumScreenRadius_, maximumScreenRadius_),
+            };
+            target.boundsMinimum = {
+                target.screenUv.x - target.screenRadius.x,
+                target.screenUv.y - target.screenRadius.y,
+            };
+            target.boundsMaximum = {
+                target.screenUv.x + target.screenRadius.x,
+                target.screenUv.y + target.screenRadius.y,
+            };
+            target.overlapsVisibleRect = RectsOverlap(
+                target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
+            target.overlapsSoftRect = RectsOverlap(
+                target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
+            const float normalizedX = (target.screenUv.x - visibleRect_.center.x)
+                / (std::max)(softRect_.halfSize.x, 0.00001f);
+            const float normalizedY = (target.screenUv.y - visibleRect_.center.y)
+                / (std::max)(softRect_.halfSize.y, 0.00001f);
+            const float centerScore = std::sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+            const float normalizedDepth = std::clamp(
+                (target.cameraDepth - minimumTargetDepth_) / (maximumTargetDepth_ - minimumTargetDepth_),
+                0.0f,
+                1.0f);
+            target.score = centerScore + normalizedDepth * depthScoreWeight_
+                - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
+            target.projectionValid = true;
         }
-        target.screenRadius = {
-            std::clamp(radiusX, minimumScreenRadius_, maximumScreenRadius_),
-            std::clamp(radiusY, minimumScreenRadius_, maximumScreenRadius_),
-        };
-        target.boundsMinimum = {
-            target.screenUv.x - target.screenRadius.x,
-            target.screenUv.y - target.screenRadius.y,
-        };
-        target.boundsMaximum = {
-            target.screenUv.x + target.screenRadius.x,
-            target.screenUv.y + target.screenRadius.y,
-        };
-        target.overlapsVisibleRect = RectsOverlap(
-            target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
-        target.overlapsSoftRect = RectsOverlap(
-            target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
-        const float normalizedX = (target.screenUv.x - visibleRect_.center.x)
-            / (std::max)(softRect_.halfSize.x, 0.00001f);
-        const float normalizedY = (target.screenUv.y - visibleRect_.center.y)
-            / (std::max)(softRect_.halfSize.y, 0.00001f);
-        const float centerScore = std::sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
-        const float normalizedDepth = std::clamp(
-            (target.cameraDepth - minimumTargetDepth_) / (maximumTargetDepth_ - minimumTargetDepth_),
-            0.0f,
-            1.0f);
-        target.score = centerScore + normalizedDepth * depthScoreWeight_
-            - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
-        target.projectionValid = true;
         if (krakenDiagnostic) {
             const float deltaX =
                 target.screenUv.x - softRect_.center.x;
@@ -308,7 +262,7 @@ void AimCorridorTargetingController::ProjectTargets() {
                 ? "より良い候補との比較待ち"
                 : "補助捕捉矩形外";
         }
-        if (target.overlapsSoftRect) {
+        if (krakenDiagnostic ? target.overlapsVisibleRect : target.overlapsSoftRect) {
             ++candidateCount_;
             if (target.score < bestScore) {
                 bestScore = target.score;

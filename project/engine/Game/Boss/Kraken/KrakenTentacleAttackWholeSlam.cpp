@@ -568,7 +568,6 @@ void KrakenTentacleMidbossController::Impl::DrawWholeSlamDiagnosticsImGui() {
         pose.mainHingeApplied ? "はい" : "いいえ");
     ImGui::Text("上側しなり合計: %.2f 度",
         pose.appliedUpperBendDegrees);
-    ImGui::Text("副回転: %.2f 度", pose.appliedUpperBendDegrees);
     ImGui::Text("姿勢有効: %s", pose.valid ? "はい" : "いいえ");
     ImGui::SeparatorText("到達と回避");
     const std::size_t chain = wholeSlamDiagnostics.chainIndex <

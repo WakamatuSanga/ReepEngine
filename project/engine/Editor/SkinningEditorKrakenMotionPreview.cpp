@@ -161,6 +161,7 @@ void SkinningEditorKrakenMotionPreview::ClearTarget() {
     manualRotationDegrees_.clear();
     bindPalette_.clear();
     bindChainTipSkeletonPositions_.clear();
+    bindChainWeakPointSkeletonPositions_.clear();
     idlePoseResult_ = {};
     chains_.clear();
     attackMotion_.reset();

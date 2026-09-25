@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/math/Matrix4x4.h"
+#include "Engine/Game/KrakenTentacleWeakPointAnchorSnapshot.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,6 +25,7 @@ struct PlayerLockOnTargetSnapshot {
     std::uint64_t sourceColliderId = 0;
     Vector3 worldPosition{};
     float worldRadius = 0.0f;
+    KrakenTentacleLockOnGeometrySnapshot krakenGeometry{};
     PlayerLockOnTargetKind kind = PlayerLockOnTargetKind::NormalEnemy;
     std::uint32_t subTargetIndex = 0;
     bool alive = false;

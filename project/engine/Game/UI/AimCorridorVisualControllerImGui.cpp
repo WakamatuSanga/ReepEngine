@@ -186,9 +186,6 @@ void AimCorridorVisualController::DrawImGui() {
         ImGui::Text("手前枠から奥枠までの画面距離（UV）: %.6f", nearToFarScreenDistance_);
         ImGui::Text("前方配置が有効: %s", forwardPlacementActive_ ? "はい" : "いいえ");
         ImGui::Text("上下方向が正常: %s", verticalDirectionNormal_ ? "はい" : "いいえ");
-        if (ImGui::Button("推奨オフセットを適用##ApplyRecommendedBaseOffsets")) {
-            ResetBaseScreenOffsetParameters();
-        }
         if (ImGui::Button("基準画面オフセットを一時無効化##TemporarilyDisableBaseScreenOffset")) {
             baseScreenOffsetEnabled_ = false;
         }
@@ -213,7 +210,6 @@ void AimCorridorVisualController::DrawImGui() {
         ImGui::DragFloat("奥枠／手前枠の目標画面高さ比##TargetFarToNearScreenHeightRatio",
             &targetFarToNearScreenHeightRatio_, 0.005f, 0.55f, 0.65f, "%.3f");
         ImGui::Text("手前枠の実効ワールド高さ: %.4f", nearWorldHeight_);
-        ImGui::DragFloat("奥枠の手動ワールド高さ##FarManualWorldHeight", &farWorldHeight_, 0.05f, 0.01f, 100.0f);
         ImGui::Text("奥枠の実効ワールド高さ: %.4f", effectiveFarWorldHeight_);
         ImGui::Text("手前枠のカメラ深度: %.4f", nearLeadDepth_);
         ImGui::Text("奥枠のカメラ深度: %.4f", farLeadDepth_);
@@ -324,10 +320,6 @@ void AimCorridorVisualController::DrawImGui() {
         if (ImGui::Button("プレイヤー通過軸を強制使用##ForceCameraThroughPlayerAxis")) {
             axisMode_ = AxisMode::CameraThroughAimOrigin;
         }
-        ImGui::SameLine();
-        if (ImGui::Button("配置軸モードをリセット##ResetAxisMode")) {
-            axisMode_ = AxisMode::CameraThroughAimOrigin;
-        }
         if (ImGui::Button("左入力を強制##ForceMoveInputLeft")) {
             forceMoveInputForDebug_ = true;
             forcedMoveInputForDebug_ = { -1.0f, 0.0f };
@@ -392,7 +384,6 @@ void AimCorridorVisualController::DrawImGui() {
         if (ImGui::Button("Glow設定を復元##RestoreGlowSettings")) {
             disableGlow_ = false;
         }
-        ImGui::Checkbox("サイズ確認用に先行・追従を固定##FreezeLeadForSizeTest", &freezeLeadState_);
         if (ImGui::Button("先行・追従設定をリセット##ResetLeadParameters")) {
             ResetLeadParameters();
             ResetLeadState();

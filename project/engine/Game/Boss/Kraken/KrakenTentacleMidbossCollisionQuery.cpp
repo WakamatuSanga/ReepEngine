@@ -444,6 +444,16 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
                     bullet.worldPosition,
                     bullet.radius);
             diagnostics.invalidCollisionQueryCount += result.valid ? 0 : 1;
+            const bool approachingWeakPoint = std::any_of(
+                tipSnapshots.begin(), tipSnapshots.end(), [&](const auto& weakPoint) {
+                    return weakPoint.queryTarget && weakPoint.chainIndex == collider.chainIndex &&
+                        ShouldDeferKrakenBodyHitForWeakPoint(result, bullet.worldPosition,
+                            bullet.velocity, bullet.radius, weakPoint.worldPosition,
+                            weakPoint.worldRadius);
+                });
+            if (approachingWeakPoint) {
+                continue;
+            }
             AddIntersectingPair(
                 currentCollisionPairs,
                 collider.role,

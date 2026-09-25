@@ -1,13 +1,16 @@
 #pragma once
 
 #include "Engine/math/Matrix4x4.h"
+#include "KrakenTentacleWaveEncounterConfig.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 class Camera;
+class CameraShakeController;
 class EnemyWaveManager;
 class KrakenTentacleMidbossController;
 class RailShooterCameraRig;
@@ -25,6 +28,8 @@ enum class KrakenTentacleWaveEncounterState : std::uint8_t {
 
 class KrakenTentacleWaveEncounterController {
 public:
+    KrakenTentacleWaveEncounterController();
+    ~KrakenTentacleWaveEncounterController();
     bool Initialize(
         EnemyWaveManager* waveManager,
         KrakenTentacleMidbossController* kraken,
@@ -42,6 +47,7 @@ public:
     KrakenTentacleWaveEncounterState GetState() const { return state_; }
 
 private:
+    enum class EntrancePhase : std::uint8_t { None, Shake, CameraPullback, Tentacles };
     enum class PendingDebugCommand : std::uint8_t {
         None,
         Refresh,
@@ -59,6 +65,10 @@ private:
     bool ValidateContexts();
     bool ValidateObjective();
     bool BeginEncounter();
+    void UpdateEntrance(float gameplayDeltaTime);
+    bool BeginCombat();
+    void ClearEntrance();
+    void DrawEntranceSettingsImGui();
     bool PrepareWave4Reentry(bool& rearmedThisUpdate);
     bool RearmForNewWave4Revision();
     void UpdateAttackScheduler(float gameplayDeltaTime);
@@ -84,6 +94,12 @@ private:
     KrakenTentacleMidbossController* kraken_ = nullptr;
     RailShooterCameraRig* railRig_ = nullptr;
     Camera* camera_ = nullptr;
+    std::unique_ptr<CameraShakeController> entranceShake_;
+    EntrancePhase entrancePhase_ = EntrancePhase::None;
+    float entranceElapsed_ = 0.0f;
+    // Session settings survive controller recreation on Restart; active values are frozen.
+    inline static KrakenTentacleWaveEncounterConfig::EntranceSettings entranceSettings_{};
+    KrakenTentacleWaveEncounterConfig::EntranceSettings activeEntranceSettings_{};
 
     KrakenTentacleWaveEncounterState state_ =
         KrakenTentacleWaveEncounterState::WaitingForWave4;

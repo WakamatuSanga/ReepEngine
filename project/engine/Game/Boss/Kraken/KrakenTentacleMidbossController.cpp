@@ -39,7 +39,8 @@ namespace {
 
 KrakenTentacleMidbossController::Impl::Impl() {
     requestedAssetPath = kOriginalAssetPath;
-    ApplyRecommendedPlacementSettings();
+    worldScale = { placementSettings.uniformScale,
+        placementSettings.uniformScale, placementSettings.uniformScale };
     ApplyRecommendedAttackPoseSettings();
     worldMatrix = MatrixMath::MakeAffine(
         worldScale, worldRotation, worldPosition);
@@ -161,6 +162,8 @@ void KrakenTentacleMidbossController::Impl::SetCamera(Camera* value) {
 }
 
 void KrakenTentacleMidbossController::Impl::Reset() {
+    entranceActive = false;
+    entranceVisualOffsetY = 0.0f;
     const Vector3 resetWorldPosition = defeatStartWorldPositionValid
         ? defeatStartWorldPosition : Vector3{};
     ResetCollisionQueryState(true);
@@ -174,7 +177,10 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     lastScaledDeltaTime = 0.0f;
     worldPosition = resetWorldPosition;
     worldRotation = {};
-    ApplyRecommendedPlacementSettings();
+    placementBaseValid = false;
+    placementChangePending = false;
+    worldScale = { placementSettings.uniformScale,
+        placementSettings.uniformScale, placementSettings.uniformScale };
     placementDiagnostics = {};
     attackReachDiagnostics = {};
     ResetWholeSlamDiagnostics();
@@ -213,6 +219,8 @@ void KrakenTentacleMidbossController::Impl::Reset() {
 }
 
 void KrakenTentacleMidbossController::Impl::Finalize() {
+    entranceActive = false;
+    entranceVisualOffsetY = 0.0f;
     projectileDamageFinalizing = true;
     defeatFinalizing = true;
     ResetCollisionQueryState(true);

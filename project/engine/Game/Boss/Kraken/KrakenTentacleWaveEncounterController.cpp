@@ -3,6 +3,7 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterConfig.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -12,6 +13,11 @@
 namespace {
 constexpr float kMultiplierEpsilon = 0.0001f;
 }
+
+KrakenTentacleWaveEncounterController::KrakenTentacleWaveEncounterController()
+    : entranceShake_(std::make_unique<CameraShakeController>()) {}
+
+KrakenTentacleWaveEncounterController::~KrakenTentacleWaveEncounterController() = default;
 
 bool KrakenTentacleWaveEncounterController::Initialize(
     EnemyWaveManager* waveManager,
@@ -32,6 +38,7 @@ bool KrakenTentacleWaveEncounterController::Initialize(
 }
 
 void KrakenTentacleWaveEncounterController::Reset() {
+    ClearEntrance();
     RestoreFovImmediately();
     if (camera_ && std::isfinite(camera_->GetFovY())) {
         baseFovY_ = camera_->GetFovY();
@@ -166,6 +173,7 @@ void KrakenTentacleWaveEncounterController::HideKraken() {
 
 void KrakenTentacleWaveEncounterController::EnterError(
     const std::string& message) {
+    ClearEntrance();
     EndFovOverride(true);
     schedulerEnabled_ = false;
     const bool resumed = SetRailHold(false);

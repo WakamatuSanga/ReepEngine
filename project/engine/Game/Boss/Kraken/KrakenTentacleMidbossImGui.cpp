@@ -207,74 +207,6 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         ImGui::Text("プリミティブ2 → KrakenSuckerInner");
     }
 
-    if (ImGui::CollapsingHeader("配置##Placement")) {
-        // 編集値は次回のRuntime Updateで描画・Debug Draw・診断へ反映する。
-        ImGui::DragFloat3(
-            "ワールド位置##WorldPosition",
-            &worldPosition.x, 0.1f, -10000.0f, 10000.0f, "%.3f");
-        Vector3 rotationDegrees = {
-            worldRotation.x * 180.0f / std::numbers::pi_v<float>,
-            worldRotation.y * 180.0f / std::numbers::pi_v<float>,
-            worldRotation.z * 180.0f / std::numbers::pi_v<float>,
-        };
-        if (ImGui::DragFloat3(
-                "ワールド回転（度）##WorldRotation",
-                &rotationDegrees.x, 0.5f, -360.0f, 360.0f, "%.2f")) {
-            worldRotation = {
-                rotationDegrees.x * std::numbers::pi_v<float> / 180.0f,
-                rotationDegrees.y * std::numbers::pi_v<float> / 180.0f,
-                rotationDegrees.z * std::numbers::pi_v<float> / 180.0f,
-            };
-        }
-        if (ImGui::DragFloat(
-                "均一ワールド拡縮##UniformWorldScale",
-                &placementSettings.uniformScale,
-                0.01f, 0.01f, 100.0f, "%.3f")) {
-            worldScale = {
-                placementSettings.uniformScale,
-                placementSettings.uniformScale,
-                placementSettings.uniformScale };
-        }
-        ImGui::DragFloat(
-            "カメラ前方距離##CameraForwardOffset",
-            &placementSettings.forwardOffset,
-            0.1f, -1000.0f, 1000.0f, "%.2f");
-        ImGui::DragFloat(
-            "カメラ右方向距離##CameraRightOffset",
-            &placementSettings.rightOffset,
-            0.1f, -1000.0f, 1000.0f, "%.2f");
-        ImGui::DragFloat(
-            "カメラ上方向距離##CameraUpOffset",
-            &placementSettings.upOffset,
-            0.1f, -1000.0f, 1000.0f, "%.2f");
-        float facingOffsetDegrees =
-            placementSettings.modelFacingYawOffset * 180.0f /
-            std::numbers::pi_v<float>;
-        if (ImGui::DragFloat(
-                "モデル正面Yaw補正（度）##ModelFacingYawOffset",
-                &facingOffsetDegrees, 0.5f, -180.0f, 180.0f, "%.2f")) {
-            placementSettings.modelFacingYawOffset =
-                facingOffsetDegrees * std::numbers::pi_v<float> / 180.0f;
-        }
-        if (ImGui::Button("推奨配置値へ戻す##RecommendedPlacement")) {
-            pendingCommand =
-                KrakenTentacleMidbossPendingCommand::ApplyRecommendedPlacement;
-        }
-        if (ImGui::Button("プレイヤー方向へ向け直す##FacePlayer")) {
-            pendingCommand = KrakenTentacleMidbossPendingCommand::FacePlayer;
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(
-                "現在カメラ前方へ配置##PlaceInFrontOfCamera")) {
-            pendingCommand =
-                KrakenTentacleMidbossPendingCommand::PlaceInFrontOfCamera;
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip(
-                "現在位置を一度だけ設定します。カメラへ継続追従しません。");
-        }
-    }
-
     if (ImGui::CollapsingHeader(
             "配置・画面・攻撃到達診断##PlacementDiagnostics",
             ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -436,7 +368,7 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         if (selectedAttackChainIndex < tipSnapshots.size()) {
             DrawVector3Text(
                 "先端ワールド位置",
-                tipSnapshots[selectedAttackChainIndex].worldPosition);
+                tipSnapshots[selectedAttackChainIndex].chainTipWorldPosition);
         }
     }
 

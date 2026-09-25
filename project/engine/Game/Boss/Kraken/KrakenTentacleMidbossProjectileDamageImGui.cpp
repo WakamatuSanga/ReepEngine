@@ -268,13 +268,6 @@ DrawProjectileDamageImGui() {
     if (ImGui::Button("体力を全回復##HealFull")) {
         HealProjectileDamageHealth();
     }
-    ImGui::SameLine();
-    if (ImGui::Button("体力を最大値へリセット##ResetHpToMaximum")) {
-        HealProjectileDamageHealth();
-    }
-    if (ImGui::Button("最大体力を現在体力へ反映##ApplyMaximumHp")) {
-        HealProjectileDamageHealth();
-    }
     if (ImGui::Button("弱点倍率を推奨値へ戻す##ResetWeakMultiplier")) {
         health.SetWeakPointMultiplier(
             KrakenTentacleMidbossHealth::kRecommendedWeakPointMultiplier);

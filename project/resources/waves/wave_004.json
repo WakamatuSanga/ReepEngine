@@ -4,6 +4,11 @@
   "delay": 0.0,
   "clearCondition": "AllDead",
   "nextWaveId": "wave_005",
+  "showWarningOnStart": true,
+  "warningText": "WARNING",
+  "warningDuration": 1.5,
+  "waitForWarningBeforeSpawn": true,
+  "postWarningDelay": 0.15,
   "clearDelayAfterAllDead": 0.0,
   "clearDelayAfterAllEscaped": 0.0,
   "enemies": []

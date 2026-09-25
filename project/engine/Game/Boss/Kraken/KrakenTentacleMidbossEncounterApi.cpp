@@ -40,6 +40,39 @@ bool KrakenTentacleMidbossController::ShowForWaveEncounter() {
     return impl_ && impl_->Show();
 }
 
+bool KrakenTentacleMidbossController::BeginEntranceForWaveEncounter(float riseDistance) {
+    if (!impl_ || !std::isfinite(riseDistance) || riseDistance < 0.0f ||
+        !impl_->Show()) {
+        return false;
+    }
+    impl_->entranceActive = true;
+    impl_->entranceRiseDistance = riseDistance;
+    impl_->entranceVisualOffsetY = -riseDistance;
+    impl_->attackDamageEnabled = false;
+    impl_->projectileDamageEnabled = false;
+    impl_->ResetCollisionQueryState(false);
+    impl_->UpdateObjectTransform();
+    impl_->RefreshColliderSnapshots();
+    return true;
+}
+
+bool KrakenTentacleMidbossController::UpdateEntranceForWaveEncounter(float progress) {
+    if (!impl_ || !impl_->entranceActive || !impl_->IsVisible() ||
+        !std::isfinite(progress)) {
+        return false;
+    }
+    const float t = std::clamp(progress, 0.0f, 1.0f);
+    const float remaining = 1.0f - t;
+    impl_->entranceVisualOffsetY =
+        -impl_->entranceRiseDistance * remaining * remaining * remaining;
+    if (t >= 1.0f) {
+        impl_->entranceVisualOffsetY = 0.0f;
+        impl_->entranceActive = false;
+    }
+    impl_->UpdateObjectTransform();
+    return true;
+}
+
 void KrakenTentacleMidbossController::HideForWaveEncounter() {
     if (impl_) {
         impl_->Hide();
@@ -84,11 +117,12 @@ float KrakenTentacleMidbossController::GetCameraUpOffset() const {
 }
 
 void KrakenTentacleMidbossController::Impl::ApplyRecommendedPlacementSettings() {
-    placementSettings = {};
-    worldScale = {
-        placementSettings.uniformScale,
-        placementSettings.uniformScale,
-        placementSettings.uniformScale };
+    const KrakenTentaclePlacementSettings defaults{};
+    placementSettings.forwardOffset = defaults.forwardOffset;
+    placementSettings.rightOffset = defaults.rightOffset;
+    placementSettings.upOffset = defaults.upOffset;
+    placementSettings.uniformScale = defaults.uniformScale;
+    placementChangePending = true;
 }
 
 bool KrakenTentacleMidbossController::Impl::FacePlayer() {
@@ -121,6 +155,20 @@ bool KrakenTentacleMidbossController::Impl::FacePlayer() {
     ++placementDiagnostics.facingApplyCount;
     lastError.clear();
     return true;
+}
+
+void KrakenTentacleMidbossController::Impl::ApplyPendingPlacement() {
+    if (!placementChangePending || !placementBaseValid || entranceActive ||
+        state != KrakenTentacleMidbossState::Idle || health.IsDefeatPending() ||
+        defeatStarted || defeatCompleted) {
+        return;
+    }
+    if (PlaceInFrontOfCamera(false)) {
+        // Update all world-space consumers before an Idle -> attack target capture.
+        UpdateObjectTransform();
+        RefreshColliderSnapshots();
+        RefreshBoneSnapshots();
+    }
 }
 
 void KrakenTentacleMidbossController::Impl::ResetDefeatVisibilityDiagnostics() {

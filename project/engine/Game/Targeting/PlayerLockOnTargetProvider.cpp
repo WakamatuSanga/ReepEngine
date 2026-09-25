@@ -277,6 +277,12 @@ void PlayerLockOnTargetProvider::CollectTargetableTargets(
             ++lastInvalidCandidateCount_;
             continue;
         }
+        // Only selection needs the body geometry. ID queries for missiles keep the tip anchor.
+        if (!krakenRuntime_->TryGetChainLockOnGeometrySnapshot(
+                source.chainIndex, target.krakenGeometry)) {
+            ++lastInvalidCandidateCount_;
+            continue;
+        }
         outTargets.push_back(std::move(target));
         ++lastKrakenCandidateCount_;
     }

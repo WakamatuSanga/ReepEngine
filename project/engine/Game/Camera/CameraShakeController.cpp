@@ -52,7 +52,7 @@ void CameraShakeController::Start(float duration, float amplitude, float frequen
     isPlaying_ = true;
 }
 
-void CameraShakeController::UpdateAndApply(float deltaTime, Camera* camera) {
+void CameraShakeController::UpdateAndApply(float deltaTime, Camera* camera, bool viewOnly) {
     if (!camera) {
         return;
     }
@@ -73,7 +73,12 @@ void CameraShakeController::UpdateAndApply(float deltaTime, Camera* camera) {
         std::sin(phase * 1.43f) * 0.25f,
         }, amplitude_ * envelope);
 
-    camera->SetTranslate(AddVector3(camera->GetTranslate(), currentOffset_));
+    appliedToView_ = viewOnly;
+    if (appliedToView_) {
+        camera->SetViewTranslationOffset(AddVector3(camera->GetViewTranslationOffset(), currentOffset_));
+    } else {
+        camera->SetTranslate(AddVector3(camera->GetTranslate(), currentOffset_));
+    }
     hasAppliedOffset_ = true;
 
     if (elapsedTime_ >= duration_) {
@@ -113,7 +118,11 @@ void CameraShakeController::RemoveAppliedOffset(Camera* camera) {
         return;
     }
 
-    camera->SetTranslate(SubtractVector3(camera->GetTranslate(), currentOffset_));
+    if (appliedToView_) {
+        camera->SetViewTranslationOffset(SubtractVector3(camera->GetViewTranslationOffset(), currentOffset_));
+    } else {
+        camera->SetTranslate(SubtractVector3(camera->GetTranslate(), currentOffset_));
+    }
     currentOffset_ = { 0.0f, 0.0f, 0.0f };
     hasAppliedOffset_ = false;
 }

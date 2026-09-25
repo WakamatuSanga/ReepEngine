@@ -158,6 +158,7 @@ void KrakenTentacleWaveEncounterController::EndFovOverride(bool immediate) {
     fovBlendElapsed_ = 0.0f;
     fovBlendProgress_ = 0.0f;
     fovBlendActive_ = true;
+    fovBlendDuration_ = 0.45f; // Preserve the existing return-to-normal composition timing.
 }
 
 void KrakenTentacleWaveEncounterController::UpdateFovOverride(

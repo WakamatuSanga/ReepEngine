@@ -228,6 +228,7 @@
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetMarkerRenderer.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingController.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingControllerImGui.cpp" />
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingKrakenProjection.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingProjection.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingNaturalLockDiagnostics.cpp" />
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp" />
@@ -332,6 +333,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterCompletion.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterImGui.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterFraming.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterEntrance.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossState.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossPose.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackReach.cpp" />
@@ -339,6 +341,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDiagnostics.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossRender.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDebugDraw.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossPlacementImGui.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossImGui.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionQuery.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionDiagnostics.cpp" />

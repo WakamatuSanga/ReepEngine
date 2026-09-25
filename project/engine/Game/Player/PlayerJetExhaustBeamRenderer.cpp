@@ -17,7 +17,7 @@ namespace {
     }
 }
 
-bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon) {
+bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha) {
     initialized_ = false;
     dxCommon_ = dxCommon;
     constantData_ = nullptr;
@@ -34,7 +34,7 @@ bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon) {
         return false;
     }
 
-    initialized_ = EnsureVertexCapacity(kInitialVertexCapacity) && CreateRootSignature() && CreatePipelineState();
+    initialized_ = EnsureVertexCapacity(kInitialVertexCapacity) && CreateRootSignature() && CreatePipelineState(preserveDestinationAlpha);
     return initialized_;
 }
 
@@ -47,7 +47,8 @@ void PlayerJetExhaustBeamRenderer::Draw(
     float edgeSoftness,
     float tipFadePower,
     float time,
-    uint32_t mode) {
+    uint32_t mode,
+    float nozzleClipDepth) {
     if (!initialized_ || !dxCommon_ || !camera || vertices.empty() || !constantData_ || !rootSignature_ || !pipelineState_) {
         return;
     }
@@ -69,7 +70,7 @@ void PlayerJetExhaustBeamRenderer::Draw(
         std::clamp(alphaScale, 0.0f, 1.0f),
         std::clamp(edgeSoftness, 0.5f, 8.0f),
         std::clamp(tipFadePower, 0.2f, 4.0f),
-        0.0f,
+        nozzleClipDepth,
     };
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
@@ -115,7 +116,7 @@ bool PlayerJetExhaustBeamRenderer::CreateRootSignature() {
     return SUCCEEDED(hr);
 }
 
-bool PlayerJetExhaustBeamRenderer::CreatePipelineState() {
+bool PlayerJetExhaustBeamRenderer::CreatePipelineState(bool preserveDestinationAlpha) {
     Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = dxCommon_->CompileShader(L"resources/shaders/PlayerJetExhaustBeam.VS.hlsl", L"vs_6_0");
     Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = dxCommon_->CompileShader(L"resources/shaders/PlayerJetExhaustBeam.PS.hlsl", L"ps_6_0");
     assert(vertexShaderBlob);
@@ -140,8 +141,9 @@ bool PlayerJetExhaustBeamRenderer::CreatePipelineState() {
     desc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
     desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;
     desc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-    desc.BlendState.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
-    desc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
+    // Beam adds light without making the scene transparent in the ImGui Game View.
+    desc.BlendState.RenderTarget[0].SrcBlendAlpha = preserveDestinationAlpha ? D3D12_BLEND_ZERO : D3D12_BLEND_ONE;
+    desc.BlendState.RenderTarget[0].DestBlendAlpha = preserveDestinationAlpha ? D3D12_BLEND_ONE : D3D12_BLEND_ZERO;
     desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
     desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
     desc.BlendState.RenderTarget[1].RenderTargetWriteMask = 0;

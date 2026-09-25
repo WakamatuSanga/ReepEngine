@@ -116,7 +116,9 @@ void EnemyWaveManager::UpdatePendingStartWarning(float deltaTime) {
     }
 
     pendingStartWarningTimer_ -= (std::max)(0.0f, deltaTime);
-    if (pendingStartWarningTimer_ > 0.0f) {
+    // WARNING uses unscaled time; never publish Wave4 while it is still visible.
+    if (pendingStartWarningTimer_ > 0.0f ||
+        (warningUIController_ && warningUIController_->IsActive())) {
         return;
     }
 

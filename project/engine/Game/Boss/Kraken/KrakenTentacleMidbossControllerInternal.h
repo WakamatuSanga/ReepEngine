@@ -80,6 +80,7 @@ struct KrakenTentacleMidbossTipSnapshot {
     KrakenColliderPreviewRole role = KrakenColliderPreviewRole::WeakPoint;
     int jointIndex = -1;
     Vector3 worldPosition{};
+    Vector3 chainTipWorldPosition{}; // Bone tip for reach/effect diagnostics, not a weak point.
     Vector3 bindWorldPosition{};
     float worldRadius = 0.0f;
     float distanceFromBind = 0.0f;
@@ -349,7 +350,6 @@ enum class KrakenTentacleMidbossPendingCommand : std::uint8_t {
     TestBodyHitEffect,
     TestWeakPointHitEffect,
     TestDefeatEffect,
-    ApplyRecommendedPlacement,
     FacePlayer,
     PlaceInFrontOfCamera,
     ResetAttackReachDiagnostics,
@@ -446,7 +446,9 @@ struct KrakenTentacleMidbossController::Impl {
     void ReturnToIdle();
     void ReturnToBindPose();
     void ResetStateOnly();
-    bool PlaceInFrontOfCamera();
+    bool PlaceInFrontOfCamera(bool captureBase = true);
+    void ApplyPendingPlacement();
+    void DrawPlacementImGui();
     bool FacePlayer();
     void ApplyRecommendedPlacementSettings();
     void ApplyRecommendedAttackPoseSettings();
@@ -513,7 +515,11 @@ struct KrakenTentacleMidbossController::Impl {
     KrakenProjectileDamageDiagnostics projectileDamageDiagnostics{};
     KrakenTentacleDefeatSettings defeatSettings{};
     KrakenTentacleDefeatDiagnostics defeatDiagnostics{};
-    KrakenTentaclePlacementSettings placementSettings{};
+    // Session-only tuning survives Restart, including controller recreation.
+    inline static KrakenTentaclePlacementSettings placementSettings{};
+    Matrix4x4 placementBaseCameraWorld{};
+    bool placementBaseValid = false;
+    bool placementChangePending = false;
     KrakenTentaclePlacementDiagnostics placementDiagnostics{};
     KrakenTentacleAttackReachDiagnostics attackReachDiagnostics{};
     KrakenTentacleWholeSlamRuntimeDiagnostics wholeSlamDiagnostics{};
@@ -531,6 +537,9 @@ struct KrakenTentacleMidbossController::Impl {
 
     Vector3 worldPosition{};
     Vector3 worldRotation{};
+    float entranceVisualOffsetY = 0.0f;
+    float entranceRiseDistance = 0.0f;
+    bool entranceActive = false;
     Vector3 worldScale{ 1.0f, 1.0f, 1.0f };
     Matrix4x4 worldMatrix{};
     float colliderRadiusScale = 1.0f;

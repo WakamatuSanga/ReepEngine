@@ -119,7 +119,6 @@ void KrakenTentacleMidbossController::Impl::DrawAttackDamageImGui() {
     }
     ImGui::Text("選択チェーン: %zu", selectedAttackChainIndex);
     ImGui::Text("現在状態: %s", StateLabel(state));
-    ImGui::Text("攻撃フェーズ: %s", StateLabel(state));
     ImGui::Text("叩きつけ進行率: %.3f", GetSlamProgress());
     ImGui::Text(
         "攻撃コライダーのフェーズ有効: %s",
