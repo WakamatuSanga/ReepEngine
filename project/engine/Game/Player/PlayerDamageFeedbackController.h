@@ -19,6 +19,7 @@ public:
     void Update(float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
+    void DrawPlayerStatusImGui();
 
     bool ApplyDamage(const Vector3& position, int damage = 1, bool ignoreInvincible = false);
     bool IsInvincible() const;

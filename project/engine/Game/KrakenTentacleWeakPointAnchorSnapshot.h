@@ -5,6 +5,7 @@
 #include <cstdint>
 
 struct KrakenTentacleWeakPointAnchorSnapshot {
+    std::uint64_t colliderId = 0;
     std::uint32_t chainIndex = 0;
     Vector3 worldCenter{};
     float worldRadius = 0.0f;

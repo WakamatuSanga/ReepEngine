@@ -38,6 +38,7 @@ void AimCorridorTargetingController::Finalize() {
     markerRenderer_.reset();
     targetSnapshots_.clear();
     projectedTargets_.clear();
+    krakenNaturalLockDiagnostics_.clear();
     visualController_ = nullptr;
     camera_ = nullptr;
     targetProvider_ = nullptr;
@@ -60,13 +61,19 @@ void AimCorridorTargetingController::Reset() {
     lockProgress_ = 0.0f;
     targetHoldElapsed_ = 0.0f;
     breakGraceElapsed_ = 0.0f;
+    lockedHoldElapsed_ = 0.0f;
     candidateCount_ = 0;
     lockCompletedCount_ = 0;
     lockBreakCount_ = 0;
+    krakenAcquireResetCount_ = 0;
+    krakenCandidateSwitchCount_ = 0;
+    krakenImmediateUnlockCount_ = 0;
+    lastKrakenUnlockReason_ = "なし";
     visibleRect_ = {};
     softRect_ = {};
     targetSnapshots_.clear();
     projectedTargets_.clear();
+    krakenNaturalLockDiagnostics_.clear();
     lastSwitchReason_ = "状態をリセット";
     debugForcedState_ = -1;
     if (markerRenderer_) {

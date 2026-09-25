@@ -253,6 +253,7 @@ bool KrakenTentacleMidbossController::Impl::BeginDefeat() {
         EnterHidden(defeatDiagnostics.lastError, true);
         return false;
     }
+    ClearAttackTargetSnapshot();
 
     defeatStarted = true;
     defeatCompleted = false;

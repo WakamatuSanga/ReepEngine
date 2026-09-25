@@ -40,6 +40,7 @@ namespace {
 KrakenTentacleMidbossController::Impl::Impl() {
     requestedAssetPath = kOriginalAssetPath;
     ApplyRecommendedPlacementSettings();
+    ApplyRecommendedAttackPoseSettings();
     worldMatrix = MatrixMath::MakeAffine(
         worldScale, worldRotation, worldPosition);
 }
@@ -70,6 +71,7 @@ bool KrakenTentacleMidbossController::Impl::FailInitialization(
     consumedProjectileIds.clear();
     aggregatedProjectileEventsThisFrame.clear();
     defeatFrozenPose.clear();
+    ResetWholeSlamDiagnostics();
     effectController.Finalize();
     defeatDiagnostics = {};
     health.Finalize();
@@ -174,10 +176,12 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     worldRotation = {};
     ApplyRecommendedPlacementSettings();
     placementDiagnostics = {};
+    attackReachDiagnostics = {};
+    ResetWholeSlamDiagnostics();
     colliderRadiusScale = 1.0f;
     colliderGlobalRadiusScale = 1.0f;
     idleSettings = {};
-    attackSettings = {};
+    ApplyRecommendedAttackPoseSettings();
     colliderPhaseSettings = {};
     idleSwayEnabled = true;
     showBones = false;
@@ -240,6 +244,8 @@ void KrakenTentacleMidbossController::Impl::Finalize() {
     defeatFrozenPose.clear();
     defeatSettings = {};
     defeatDiagnostics = {};
+    attackReachDiagnostics = {};
+    ResetWholeSlamDiagnostics();
     defeatStartWorldPosition = {};
     defeatSequenceId = 0;
     defeatStarted = false;

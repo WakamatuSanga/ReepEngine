@@ -2,6 +2,7 @@
 
 #include "Engine/math/Matrix4x4.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -73,6 +74,11 @@ private:
     bool IsNewRevisionWave4() const;
     bool IsRearmRequired() const;
     bool ProcessPendingDebugCommand();
+    void BeginFovOverride();
+    void EndFovOverride(bool immediate);
+    void UpdateFovOverride(float gameplayDeltaTime);
+    void RestoreFovImmediately();
+    void RefreshFramingDiagnostics();
 
     EnemyWaveManager* waveManager_ = nullptr;
     KrakenTentacleMidbossController* kraken_ = nullptr;
@@ -149,6 +155,25 @@ private:
     float retryDelay_ = 0.25f;
     float waitingForWave5Timer_ = 0.0f;
     float wave5TransitionTimeout_ = 3.0f;
+    float baseFovY_ = 0.0f;
+    float wave4FovY_ = 0.0f;
+    float fovBlendStartY_ = 0.0f;
+    float fovBlendElapsed_ = 0.0f;
+    float fovBlendDuration_ = 0.45f;
+    float fovBlendProgress_ = 0.0f;
+    float wave4FovAdditionDegrees_ = 10.0f;
+    float wave4VerticalViewOffset_ = 0.0f;
+    float wave4BackwardViewOffset_ = 2.0f;
+    float framingCameraForwardDot_ = 1.0f;
+    Vector3 baseViewTranslationOffset_{};
+    Vector3 wave4ViewTranslationOffset_{};
+    Vector3 viewBlendStartTranslationOffset_{};
+    Vector3 compositionCameraForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 framingScreenMinimum_{};
+    Vector3 framingScreenMaximum_{};
+    std::array<bool, 4> visibleTentacleChains_{};
+    std::size_t visibleWeakPointCount_ = 0;
+    std::size_t visibleTentacleCount_ = 0;
 
     bool initialized_ = false;
     bool encounterStartedForRevision_ = false;
@@ -163,6 +188,17 @@ private:
     bool lastRearmSucceeded_ = false;
     bool objectiveIncompleteResyncAttempted_ = false;
     bool lastObjectiveIncompleteResyncSucceeded_ = false;
+    bool baseFovCaptured_ = false;
+    bool fovOverrideRequested_ = false;
+    bool fovOverrideActive_ = false;
+    bool fovBlendActive_ = false;
+    bool fovRestoreVerified_ = false;
+    bool viewTranslationRestoreVerified_ = false;
+    bool framingCameraRotationUnchanged_ = true;
+    bool framingScreenBoundsValid_ = false;
+    bool framingRootSideHidden_ = false;
+    bool framingNearPlaneWarning_ = false;
+    float framingScreenHeightOccupancy_ = 0.0f;
     KrakenTentacleWaveEncounterState lastReentryStateBefore_ =
         KrakenTentacleWaveEncounterState::WaitingForWave4;
     KrakenTentacleWaveEncounterState lastReentryStateAfter_ =

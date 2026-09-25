@@ -139,6 +139,7 @@ void KrakenTentacleMidbossController::Impl::EnterState(
     state = nextState;
     stateElapsedTime = 0.0f;
     if (state == KrakenTentacleMidbossState::Idle) {
+        ClearAttackTargetSnapshot();
         idleTime = 0.0f;
         attackElapsedTime = 0.0f;
     } else if (state == KrakenTentacleMidbossState::Windup) {
@@ -150,7 +151,11 @@ void KrakenTentacleMidbossController::Impl::EnterHidden(
     const std::string& errorMessage,
     bool safetyRecovery) {
     AbortDefeatForHide();
+#ifdef USE_IMGUI
+    health.SetDebugHpOne(false, !IsDefeatState() && !defeatStarted && !defeatCompleted);
+#endif
     state = KrakenTentacleMidbossState::Hidden;
+    ClearAttackTargetSnapshot();
     InvalidateAttackDamageSequence();
     stateElapsedTime = 0.0f;
     idleTime = 0.0f;
@@ -194,6 +199,9 @@ bool KrakenTentacleMidbossController::Impl::Show() {
     lastError.clear();
     idleSwayEnabled = true;
     EnterState(KrakenTentacleMidbossState::Idle);
+#ifdef USE_IMGUI
+    health.SetDebugHpOne(debugHpOneEnabled, true);
+#endif
     return true;
 }
 
@@ -223,8 +231,13 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
     }
     lastWarning.clear();
     idleSwayEnabled = true;
+    if (!CaptureAttackTargetSnapshot()) {
+        ++diagnostics.attackStartRejectedCount;
+        return false;
+    }
     EnterState(KrakenTentacleMidbossState::Windup);
     BeginAttackDamageSequence();
+    wholeSlamDiagnostics.attackSequenceId = currentAttackSequenceId;
     return true;
 }
 
@@ -333,6 +346,10 @@ void KrakenTentacleMidbossController::Impl::ProcessPendingCommand() {
         PlaceInFrontOfCamera();
         break;
     case KrakenTentacleMidbossPendingCommand::ResetAttackReachDiagnostics:
+        ResetAttackReachDiagnostics();
+        break;
+    case KrakenTentacleMidbossPendingCommand::ApplyRecommendedAttackPose:
+        ApplyRecommendedAttackPoseSettings();
         ResetAttackReachDiagnostics();
         break;
     case KrakenTentacleMidbossPendingCommand::ResetDefeatVisibilityDiagnostics:

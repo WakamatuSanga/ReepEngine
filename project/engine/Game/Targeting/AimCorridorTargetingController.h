@@ -39,6 +39,7 @@ public:
     void Update(float scaledDeltaTime, float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
+    void DrawKrakenNaturalLockDiagnosticsImGui() const;
 
     bool HasCandidate() const { return !candidateTargetId_.empty(); }
     bool HasLockedTarget() const { return !lockedTargetId_.empty() && lockState_ == AimLockState::Locked; }
@@ -80,6 +81,39 @@ private:
         bool projectionValid = false;
     };
 
+    struct KrakenNaturalLockTargetDiagnostic {
+        std::string targetId{};
+        std::string projectionFailureReason = "未評価";
+        std::string rejectionReason = "未評価";
+        Vector3 worldPosition{};
+        Vector3 cameraPosition{};
+        Vector3 cameraForward{};
+        Vector3 cameraSpacePosition{};
+        Vector3 clipPosition{};
+        Vector2 ndcPosition{};
+        Vector2 screenUv{};
+        Vector2 screenRadius{};
+        float worldRadius = 0.0f;
+        float clipW = 0.0f;
+        float viewDepth = 0.0f;
+        float screenDistance = 0.0f;
+        float lockAllowedDistance = 0.0f;
+        float candidateScore = 0.0f;
+        std::size_t providerCandidateIndex = 0;
+        std::uint64_t sourceColliderId = 0;
+        uint32_t chainIndex = 0;
+        bool sourceReceived = false;
+        bool providerAdded = false;
+        bool alive = false;
+        bool targetable = false;
+        bool valid = false;
+        bool cameraFront = false;
+        bool viewportInside = false;
+        bool projectionValid = false;
+        bool corridorInside = false;
+        bool candidateSelected = false;
+    };
+
     void ClampParameters();
     void ProjectTargets();
     bool ProjectWorldToScreen(
@@ -106,6 +140,8 @@ private:
 
     std::vector<PlayerLockOnTargetSnapshot> targetSnapshots_;
     std::vector<ProjectedTarget> projectedTargets_;
+    std::vector<KrakenNaturalLockTargetDiagnostic>
+        krakenNaturalLockDiagnostics_;
     ScreenRect visibleRect_{};
     ScreenRect softRect_{};
     ProjectedTarget currentTarget_{};
@@ -124,6 +160,7 @@ private:
     float lockProgress_ = 0.0f;
     float targetHoldElapsed_ = 0.0f;
     float breakGraceElapsed_ = 0.0f;
+    float lockedHoldElapsed_ = 0.0f;
 
     float softAssistScale_ = 1.60f;
     float fallbackWorldRadius_ = 1.50f;
@@ -141,6 +178,10 @@ private:
     int candidateCount_ = 0;
     uint32_t lockCompletedCount_ = 0;
     uint32_t lockBreakCount_ = 0;
+    uint32_t krakenAcquireResetCount_ = 0;
+    uint32_t krakenCandidateSwitchCount_ = 0;
+    uint32_t krakenImmediateUnlockCount_ = 0;
+    std::string lastKrakenUnlockReason_ = "なし";
 
     int debugForcedState_ = -1;
     bool showCandidateBounds_ = false;

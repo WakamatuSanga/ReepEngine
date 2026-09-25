@@ -39,28 +39,6 @@ namespace {
         }
     }
 
-    bool DrawAxisCombo(
-        const char* label,
-        KrakenTentacleAttackLocalAxis& axis) {
-        const char* axisLabels[] = { "X", "Y", "Z" };
-        int currentAxis = static_cast<int>(axis);
-        if (!ImGui::Combo(label, &currentAxis, axisLabels, 3)) {
-            return false;
-        }
-        currentAxis = std::clamp(currentAxis, 0, 2);
-        axis = static_cast<KrakenTentacleAttackLocalAxis>(currentAxis);
-        return true;
-    }
-
-    bool DrawSignCombo(const char* label, float& sign) {
-        const char* signLabels[] = { "+1", "-1" };
-        int currentSign = sign < 0.0f ? 1 : 0;
-        if (!ImGui::Combo(label, &currentSign, signLabels, 2)) {
-            return false;
-        }
-        sign = currentSign == 1 ? -1.0f : 1.0f;
-        return true;
-    }
 #endif
 }
 
@@ -182,8 +160,8 @@ void SkinningEditorKrakenMotionPreview::DrawAttackMotionImGui() {
 
     const KrakenTentacleAttackPoseTotals poseTotals =
         attack.EvaluatePoseTotals();
-    ImGui::Text("現在の主軸合計角度: %.2f 度", poseTotals.primaryDegrees);
-    ImGui::Text("現在の副軸合計角度: %.2f 度", poseTotals.secondaryDegrees);
+    ImGui::Text("現在の主ヒンジ入力角度: %.2f 度", poseTotals.primaryDegrees);
+    ImGui::Text("現在の上側しなり合計: %.2f 度", poseTotals.secondaryDegrees);
 
     ImGui::SeparatorText("再生操作##AttackPlaybackControls");
     ImGui::BeginDisabled(!hierarchyValid_ || chainCount == 0);
@@ -315,58 +293,49 @@ void SkinningEditorKrakenMotionPreview::DrawAttackMotionImGui() {
 
     ImGui::SeparatorText("攻撃ポーズ設定##AttackPoseSettings");
     settingsChanged |= ImGui::DragFloat(
-        "振りかぶり主軸合計角度##AttackWindupPrimary",
+        "振りかぶり主ヒンジ##AttackWindupPrimary",
         &settings.windupPrimaryTotalDegrees,
-        0.5f, -120.0f, 120.0f, "%.1f 度");
+        0.5f, -60.0f, 0.0f, "%.1f 度");
     settingsChanged |= ImGui::DragFloat(
-        "振りかぶり副軸合計角度##AttackWindupSecondary",
+        "振りかぶり上側しなり##AttackWindupSecondary",
         &settings.windupSecondaryTotalDegrees,
-        0.5f, -60.0f, 60.0f, "%.1f 度");
+        0.5f, -20.0f, 20.0f, "%.1f 度");
+    ImGui::Text("振り下ろし終点: 保存対象への必要角度");
+    ImGui::TextDisabled(
+        "旧80度は位相補間の内部基準だけに使用し、姿勢終点には適用しません。");
     settingsChanged |= ImGui::DragFloat(
-        "振り下ろし主軸合計角度##AttackSlamPrimary",
-        &settings.slamPrimaryTotalDegrees,
-        0.5f, -120.0f, 120.0f, "%.1f 度");
-    settingsChanged |= ImGui::DragFloat(
-        "振り下ろし副軸合計角度##AttackSlamSecondary",
+        "振り下ろし上側しなり##AttackSlamSecondary",
         &settings.slamSecondaryTotalDegrees,
-        0.5f, -60.0f, 60.0f, "%.1f 度");
+        0.5f, -20.0f, 20.0f, "%.1f 度");
     settingsChanged |= ImGui::DragFloat(
-        "先端配分バイアス（Tip Bias）##AttackTipBias",
+        "上側しなり配分バイアス##AttackTipBias",
         &settings.tipBias, 0.05f, 0.10f, 8.00f, "%.2f");
     DrawTooltip(
-        "チェーン内で先端側のボーンへ、どの程度大きく回転を配分するか調整します。");
+        "任意の上側しなりを、先端側へどの程度強く配分するか調整します。");
 
     const int maximumFixedBones = selectedChain
         ? (std::max)(
             static_cast<int>(selectedChain->joints.size()) - 1,
             0)
         : 0;
+    const int minimumFixedBones = maximumFixedBones > 0 ? 1 : 0;
     int fixedLeadingBoneCount = std::clamp(
         static_cast<int>(settings.fixedLeadingBoneCount),
-        0,
+        minimumFixedBones,
         maximumFixedBones);
     if (ImGui::DragInt(
         "固定する先頭ボーン数##AttackFixedLeadingBones",
         &fixedLeadingBoneCount,
         1.0f,
-        0,
+        minimumFixedBones,
         maximumFixedBones)) {
         settings.fixedLeadingBoneCount = static_cast<std::uint32_t>(
-            std::clamp(fixedLeadingBoneCount, 0, maximumFixedBones));
+            std::clamp(fixedLeadingBoneCount,
+                minimumFixedBones, maximumFixedBones));
         settingsChanged = true;
     }
-    settingsChanged |= DrawAxisCombo(
-        "主回転軸##AttackPrimaryAxis",
-        settings.primaryAxis);
-    settingsChanged |= DrawSignCombo(
-        "主回転符号##AttackPrimarySign",
-        settings.primarySign);
-    settingsChanged |= DrawAxisCombo(
-        "副回転軸##AttackSecondaryAxis",
-        settings.secondaryAxis);
-    settingsChanged |= DrawSignCombo(
-        "副回転符号##AttackSecondarySign",
-        settings.secondarySign);
+    ImGui::TextDisabled(
+        "回転軸は支点から対象へ向く親ローカル平面として自動計算します。");
 
     if (settingsChanged) {
         attack.SetSettings(settings);

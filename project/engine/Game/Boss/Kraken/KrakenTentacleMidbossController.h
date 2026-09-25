@@ -19,6 +19,7 @@ class PlayerBulletManager;
 class PlayerDamageFeedbackController;
 class PlayerDeathSequenceController;
 struct KrakenTentacleWeakPointAnchorSnapshot;
+struct KrakenTentacleFramingSnapshot;
 struct Vector3;
 
 enum class KrakenTentacleMidbossState : std::uint8_t {
@@ -67,6 +68,9 @@ public:
         GetProjectileEnterEventsThisFrame() const;
     float GetMaxHp() const;
     float GetCurrentHp() const;
+#ifdef USE_IMGUI
+    void SetDebugHpOne(bool enabled);
+#endif
     bool IsDefeatPending() const;
     bool IsDefeatStarted() const;
     bool IsDefeatCompleted() const;
@@ -100,6 +104,8 @@ public:
     bool TryGetWeakPointLockOnAnchorSnapshot(
         std::size_t chainIndex,
         KrakenTentacleWeakPointAnchorSnapshot& outSnapshot) const;
+    bool TryGetFramingSnapshot(
+        KrakenTentacleFramingSnapshot& outSnapshot) const;
     std::size_t GetSelectedAttackChain() const;
     Vector3 GetWorldPosition() const;
     float GetCameraForwardOffset() const;

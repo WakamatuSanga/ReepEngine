@@ -67,10 +67,10 @@ struct KrakenTentacleAttackPreviewSettings {
     float recoveryDuration = 0.55f;
     float loopInterval = 0.25f;
 
-    float windupPrimaryTotalDegrees = -35.0f;
-    float windupSecondaryTotalDegrees = 12.0f;
-    float slamPrimaryTotalDegrees = 65.0f;
-    float slamSecondaryTotalDegrees = -8.0f;
+    float windupPrimaryTotalDegrees = -25.0f;
+    float windupSecondaryTotalDegrees = 0.0f;
+    float slamPrimaryTotalDegrees = 80.0f;
+    float slamSecondaryTotalDegrees = 0.0f;
     float tipBias = 1.60f;
     std::uint32_t fixedLeadingBoneCount = 1;
 

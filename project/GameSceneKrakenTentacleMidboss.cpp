@@ -3,6 +3,9 @@
 #include "MyGame.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
+#ifdef USE_IMGUI
+#include "Engine/Game/Enemy/EnemyManager.h"
+#endif
 #include "Engine/Graphics/Model/ModelManager.h"
 
 void GameScene::InitializeKrakenTentacleMidboss() {
@@ -20,6 +23,9 @@ void GameScene::InitializeKrakenTentacleMidboss() {
         modelManager->GetModelCommon(),
         game->GetObject3dCommon());
     krakenTentacleMidboss_->SetCamera(camera_.get());
+#ifdef USE_IMGUI
+    krakenTentacleMidboss_->SetDebugHpOne(EnemyManager::IsDebugHpOneEnabled());
+#endif
     const bool playerAlive = !(playerDeathSequenceController_ &&
         playerDeathSequenceController_->IsActiveOrFinished());
     krakenTentacleMidboss_->SetCollisionQueryContext(

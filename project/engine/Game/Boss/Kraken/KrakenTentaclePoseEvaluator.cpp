@@ -292,16 +292,16 @@ KrakenTentacleAttackPreviewSettings SanitizeKrakenTentacleAttackSettings(
         settings.loopInterval, 0.0f,
         kMaximumLoopInterval, defaults.loopInterval);
     result.windupPrimaryTotalDegrees = ClampFinite(
-        settings.windupPrimaryTotalDegrees, -120.0f, 120.0f,
+        settings.windupPrimaryTotalDegrees, -60.0f, 0.0f,
         defaults.windupPrimaryTotalDegrees);
     result.slamPrimaryTotalDegrees = ClampFinite(
-        settings.slamPrimaryTotalDegrees, -120.0f, 120.0f,
+        settings.slamPrimaryTotalDegrees, 0.0f, 100.0f,
         defaults.slamPrimaryTotalDegrees);
     result.windupSecondaryTotalDegrees = ClampFinite(
-        settings.windupSecondaryTotalDegrees, -60.0f, 60.0f,
+        settings.windupSecondaryTotalDegrees, -20.0f, 20.0f,
         defaults.windupSecondaryTotalDegrees);
     result.slamSecondaryTotalDegrees = ClampFinite(
-        settings.slamSecondaryTotalDegrees, -60.0f, 60.0f,
+        settings.slamSecondaryTotalDegrees, -20.0f, 20.0f,
         defaults.slamSecondaryTotalDegrees);
     result.tipBias = ClampFinite(
         settings.tipBias, kMinimumTipBias,

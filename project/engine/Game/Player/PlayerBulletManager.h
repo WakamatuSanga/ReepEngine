@@ -126,6 +126,7 @@ public:
     const Vector3& GetLastAimPoint() const { return lastAimPoint_; }
     const Vector3& GetLastAimDirection() const { return lastAimDirection_; }
     const Vector3& GetLastMuzzlePosition() const { return lastMuzzlePosition_; }
+    void DrawKrakenNaturalLockHomingDiagnosticsImGui() const;
 
 private:
     enum class LockedWingShotResult : uint8_t {

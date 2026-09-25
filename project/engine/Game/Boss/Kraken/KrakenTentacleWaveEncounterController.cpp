@@ -7,6 +7,7 @@
 #include "Engine/Graphics/Camera/Camera.h"
 
 #include <cmath>
+#include <numbers>
 
 namespace {
 constexpr float kMultiplierEpsilon = 0.0001f;
@@ -31,6 +32,13 @@ bool KrakenTentacleWaveEncounterController::Initialize(
 }
 
 void KrakenTentacleWaveEncounterController::Reset() {
+    RestoreFovImmediately();
+    if (camera_ && std::isfinite(camera_->GetFovY())) {
+        baseFovY_ = camera_->GetFovY();
+        wave4FovY_ = baseFovY_ +
+            wave4FovAdditionDegrees_ *
+                std::numbers::pi_v<float> / 180.0f;
+    }
     if (railRig_) {
         SetRailHold(false);
     }
@@ -158,6 +166,7 @@ void KrakenTentacleWaveEncounterController::HideKraken() {
 
 void KrakenTentacleWaveEncounterController::EnterError(
     const std::string& message) {
+    EndFovOverride(true);
     schedulerEnabled_ = false;
     const bool resumed = SetRailHold(false);
     errorRailResumeSucceeded_ = resumed;

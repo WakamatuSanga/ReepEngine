@@ -57,6 +57,7 @@
 #include "Engine/Level/LevelSceneRuntime.h"
 
 #ifdef USE_IMGUI
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -240,7 +241,7 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
         scene_->editorCameraController_->DrawImGui();
     }
     if (scene_->player_) {
-        scene_->player_->DrawImGui();
+        scene_->player_->DrawImGui(scene_->playerDamageFeedbackController_.get());
     }
     if (scene_->playerRailFlightVisualTiltController_) {
         scene_->playerRailFlightVisualTiltController_->DrawImGui();
@@ -258,7 +259,9 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
         scene_->aimCorridorTargetingController_->DrawImGui();
     }
     if (scene_->playerLockOnTargetProvider_) {
-        scene_->playerLockOnTargetProvider_->DrawImGui();
+        scene_->playerLockOnTargetProvider_->DrawImGui(
+            scene_->aimCorridorTargetingController_.get(),
+            scene_->playerBulletManager_.get());
     }
     if (scene_->boostController_) {
         scene_->boostController_->DrawImGui();
@@ -297,6 +300,10 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->enemyManager_) {
         scene_->enemyManager_->DrawImGui();
+        if (scene_->krakenTentacleMidboss_) {
+            scene_->krakenTentacleMidboss_->SetDebugHpOne(
+                EnemyManager::IsDebugHpOneEnabled());
+        }
     }
     if (scene_->enemyBulletManager_) {
         scene_->enemyBulletManager_->DrawImGui();

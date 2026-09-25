@@ -2,6 +2,20 @@
 #include "SkinningEditorKrakenMotionPreview.h"
 
 #include "Engine/Animation/Skeleton.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleAttackWholeSlam.h"
+
+namespace {
+Vector3 TransformPosition(const Vector3& value, const Matrix4x4& matrix) {
+    return {
+        value.x * matrix.m[0][0] + value.y * matrix.m[1][0] +
+            value.z * matrix.m[2][0] + matrix.m[3][0],
+        value.x * matrix.m[0][1] + value.y * matrix.m[1][1] +
+            value.z * matrix.m[2][1] + matrix.m[3][1],
+        value.x * matrix.m[0][2] + value.y * matrix.m[1][2] +
+            value.z * matrix.m[2][2] + matrix.m[3][2],
+    };
+}
+}
 
 void SkinningEditorKrakenMotionPreview::UpdateAttackMotion(
     float unscaledDeltaTime) {
@@ -47,13 +61,22 @@ void SkinningEditorKrakenMotionPreview::ApplyAttackPose() {
         return;
     }
 
-    const bool built = BuildKrakenTentacleAttackPose(
+    UpdateSkeletonWorldTransforms(*skeleton_);
+    const Vector3 previewTarget = TransformPosition(
+        { 0.0f, 10.36f, 5.83f }, previewWorldMatrix_);
+    KrakenTentacleWholeSlamPoseDiagnostics diagnostics{};
+    const bool built = BuildKrakenTentacleWholeSlamPose(
         attackMotion_->GetSettings(),
+        KrakenTentacleWholeSlamTargetSettings{},
+        attackMotion_->GetPhase(),
         attackMotion_->EvaluatePoseTotals(),
         chains_[chainIndex].joints,
         bindLocalEulerRadians_,
-        skeleton_->root,
-        *attackPoseResult_);
+        *skeleton_,
+        previewWorldMatrix_,
+        previewTarget,
+        *attackPoseResult_,
+        diagnostics);
     if (!built || !attackPoseResult_->valid) {
         runtimeError_ = attackPoseResult_->errorMessage.empty()
             ? "\u653B\u6483Pose\u3092\u751F\u6210\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002"

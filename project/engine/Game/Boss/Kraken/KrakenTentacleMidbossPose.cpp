@@ -168,32 +168,17 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
             attackSettings,
             GetAttackPhase(),
             stateElapsedTime);
-    KrakenTentacleAttackPoseResult result{};
-    if (!totals.finite ||
-        !BuildKrakenTentacleAttackPose(
-            attackSettings,
+    if (!wholeSlamDiagnostics.attackTargetSnapshotValid ||
+        !totals.finite ||
+        !ApplyWholeSlamPoseToSkeleton(
+            *skeleton,
+            selectedAttackChainIndex,
+            GetAttackPhase(),
             totals,
-            chains[selectedAttackChainIndex].joints,
-            bindLocalEulerRadians,
-            skeleton->root,
-            result) ||
-        !result.valid) {
-        lastError = result.errorMessage.empty()
-            ? "Attack Poseの生成に失敗しました。"
-            : result.errorMessage;
+            wholeSlamDiagnostics.attackTargetWorldPosition,
+            &wholeSlamDiagnostics.pose)) {
+        lastError = "触手全体叩きつけPoseの生成に失敗しました。";
         return false;
-    }
-    for (const KrakenTentacleAttackJointPose& pose : result.joints) {
-        if (!pose.finite || pose.jointIndex < 0 ||
-            static_cast<std::size_t>(pose.jointIndex) >=
-                skeleton->joints.size() ||
-            pose.jointIndex == skeleton->root) {
-            lastError = "Attack Poseに無効なJointがあります。";
-            return false;
-        }
-        skeleton->joints[
-            static_cast<std::size_t>(pose.jointIndex)].localRotate =
-            pose.absoluteLocalEulerRadians;
     }
     return true;
 }
@@ -261,5 +246,6 @@ bool KrakenTentacleMidbossController::Impl::UpdateCurrentPoseAndSkinning() {
     }
     RefreshBoneSnapshots();
     RefreshPlacementDiagnostics();
+    RefreshAttackReachDiagnostics();
     return true;
 }

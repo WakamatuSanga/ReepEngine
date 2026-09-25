@@ -106,6 +106,7 @@ bool KrakenTentacleWaveEncounterController::BeginEncounter() {
     encounterStartedForRevision_ = true;
     ++wave4StartCount_;
     state_ = KrakenTentacleWaveEncounterState::Active;
+    BeginFovOverride();
     return true;
 }
 
@@ -280,6 +281,7 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
         EnterError("Gameplay Delta Timeが有限値ではありません。");
         return;
     }
+    UpdateFovOverride(gameplayDeltaTime);
     if (ProcessPendingDebugCommand()) {
         return;
     }
@@ -459,6 +461,7 @@ void KrakenTentacleWaveEncounterController::PostKrakenUpdate() {
 
 void KrakenTentacleWaveEncounterController::PostWaveUpdate(
     float gameplayDeltaTime) {
+    RefreshFramingDiagnostics();
     if (!initialized_ || state_ == KrakenTentacleWaveEncounterState::Error) {
         return;
     }

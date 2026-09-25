@@ -9,7 +9,9 @@
 #include <vector>
 
 class EnemyManager;
+class AimCorridorTargetingController;
 class KrakenTentacleMidbossController;
+class PlayerBulletManager;
 struct EnemyTargetView;
 
 enum class PlayerLockOnTargetKind : std::uint8_t {
@@ -19,6 +21,7 @@ enum class PlayerLockOnTargetKind : std::uint8_t {
 
 struct PlayerLockOnTargetSnapshot {
     std::string id{};
+    std::uint64_t sourceColliderId = 0;
     Vector3 worldPosition{};
     float worldRadius = 0.0f;
     PlayerLockOnTargetKind kind = PlayerLockOnTargetKind::NormalEnemy;
@@ -44,7 +47,9 @@ public:
     bool TryGetTargetSnapshot(
         std::string_view targetId,
         PlayerLockOnTargetSnapshot& outSnapshot) const;
-    void DrawImGui();
+    void DrawImGui(
+        const AimCorridorTargetingController* targetingController,
+        const PlayerBulletManager* playerBulletManager);
 
     bool IsInitialized() const { return initialized_; }
     bool IsEnemyManagerConnected() const { return enemyManager_ != nullptr; }
@@ -57,6 +62,13 @@ public:
         return lastKrakenCandidateCount_;
     }
     std::size_t GetDuplicateIdCount() const { return duplicateIdCount_; }
+    std::size_t GetNonFinitePositionCount() const {
+        return nonFinitePositionCount_;
+    }
+    std::size_t GetKrakenSourceTargetCount() const {
+        SyncKrakenTargetIds();
+        return krakenTargetIds_.size();
+    }
 
 private:
     struct KrakenTargetId {

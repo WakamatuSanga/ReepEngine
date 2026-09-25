@@ -2,9 +2,23 @@
 
 #include "KrakenTentacleMidbossControllerInternal.h"
 
+#include "Engine/Game/KrakenTentacleFramingSnapshot.h"
 #include "Engine/Game/Player/Player.h"
 
+#include <algorithm>
 #include <cmath>
+
+#ifdef USE_IMGUI
+void KrakenTentacleMidbossController::SetDebugHpOne(bool enabled) {
+    if (!impl_ || impl_->debugHpOneEnabled == enabled) {
+        return;
+    }
+    impl_->debugHpOneEnabled = enabled;
+    impl_->health.SetDebugHpOne(enabled,
+        impl_->initialized && impl_->IsVisible() && !impl_->IsDefeatState() &&
+        !impl_->defeatStarted && !impl_->defeatCompleted);
+}
+#endif
 
 bool KrakenTentacleMidbossController::ResetForWaveEncounter() {
     if (!impl_ || !impl_->initialized) {
@@ -109,10 +123,6 @@ bool KrakenTentacleMidbossController::Impl::FacePlayer() {
     return true;
 }
 
-void KrakenTentacleMidbossController::Impl::ResetAttackReachDiagnostics() {
-    placementDiagnostics.attackReachChainMask = 0;
-}
-
 void KrakenTentacleMidbossController::Impl::ResetDefeatVisibilityDiagnostics() {
     defeatDiagnostics.retreatVisibleUpdateCount = 0;
     defeatDiagnostics.instantHideDetectionCount = 0;
@@ -128,4 +138,52 @@ void KrakenTentacleMidbossController::SetWaveEncounterControlActive(
 
 bool KrakenTentacleMidbossController::IsWaveEncounterControlActive() const {
     return impl_ && impl_->waveEncounterControlActive;
+}
+
+bool KrakenTentacleMidbossController::TryGetFramingSnapshot(
+    KrakenTentacleFramingSnapshot& outSnapshot) const {
+    outSnapshot = {};
+    if (!impl_ || !impl_->initialized) {
+        return false;
+    }
+    outSnapshot.screenMinimum =
+        impl_->placementDiagnostics.screenBoundsMinimum;
+    outSnapshot.screenMaximum =
+        impl_->placementDiagnostics.screenBoundsMaximum;
+    outSnapshot.screenHeightOccupancy =
+        impl_->placementDiagnostics.screenHeightOccupancy;
+    outSnapshot.screenBoundsValid =
+        impl_->placementDiagnostics.screenBoundsValid;
+    outSnapshot.rootSideHidden =
+        impl_->placementDiagnostics.rootSideHidden;
+    outSnapshot.nearPlaneWarning =
+        impl_->placementDiagnostics.nearPlaneWarning;
+    const std::size_t chainCount = (std::min)(
+        impl_->chains.size(),
+        KrakenTentacleFramingSnapshot::kChainCapacity);
+    for (std::size_t chainIndex = 0; chainIndex < chainCount; ++chainIndex) {
+        const KrakenTentacleChain& chain = impl_->chains[chainIndex];
+        if (chain.joints.empty()) {
+            continue;
+        }
+        const int tipJointIndex = chain.joints.back();
+        const int midpointJointIndex = chain.joints[chain.joints.size() / 2];
+        for (const KrakenTentacleMidbossBoneSnapshot& bone :
+            impl_->boneSnapshots) {
+            if (!bone.valid) {
+                continue;
+            }
+            if (bone.jointIndex == tipJointIndex) {
+                outSnapshot.tipWorldPositions[chainIndex] =
+                    bone.worldPosition;
+                outSnapshot.tipValid[chainIndex] = true;
+            }
+            if (bone.jointIndex == midpointJointIndex) {
+                outSnapshot.upperMidpointWorldPositions[chainIndex] =
+                    bone.worldPosition;
+                outSnapshot.upperMidpointValid[chainIndex] = true;
+            }
+        }
+    }
+    return true;
 }

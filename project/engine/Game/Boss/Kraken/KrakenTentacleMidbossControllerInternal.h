@@ -2,6 +2,8 @@
 
 #include "Engine/Game/Boss/Kraken/KrakenTentacleColliderEvaluator.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleAttackDamage.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleAttackReachDiagnostics.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleAttackWholeSlam.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossHealth.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossDefeat.h"
@@ -100,9 +102,9 @@ struct KrakenTentacleMidbossBoundsSnapshot {
 };
 
 struct KrakenTentaclePlacementSettings {
-    float forwardOffset = 18.0f;
-    float rightOffset = 0.0f;
-    float upOffset = -5.0f;
+    float forwardOffset = 15.5f;
+    float rightOffset = 1.0f;
+    float upOffset = -15.5f;
     float uniformScale = 2.20f;
     float modelFacingYawOffset = 0.0f;
 };
@@ -351,6 +353,7 @@ enum class KrakenTentacleMidbossPendingCommand : std::uint8_t {
     FacePlayer,
     PlaceInFrontOfCamera,
     ResetAttackReachDiagnostics,
+    ApplyRecommendedAttackPose,
     ResetDefeatVisibilityDiagnostics,
 };
 
@@ -402,6 +405,8 @@ struct KrakenTentacleMidbossController::Impl {
     void DrawProjectileDamageImGui();
     void DrawDefeatImGui();
     void DrawEffectImGui();
+    void DrawAttackReachDiagnosticsImGui();
+    void DrawWholeSlamDiagnosticsImGui();
     std::vector<KrakenProjectileEnterEvent>
         GetProjectileEnterEventsThisFrame() const;
     void ResetProjectileDamageState(bool resetSettings);
@@ -429,6 +434,7 @@ struct KrakenTentacleMidbossController::Impl {
     void RefreshSkinningDiagnostics();
     void RefreshDrawDiagnostics();
     void RefreshPlacementDiagnostics();
+    void RefreshAttackReachDiagnostics();
     void ProcessPendingCommand();
     void AdvanceState(float deltaTime);
     void EnterState(KrakenTentacleMidbossState state);
@@ -443,7 +449,18 @@ struct KrakenTentacleMidbossController::Impl {
     bool PlaceInFrontOfCamera();
     bool FacePlayer();
     void ApplyRecommendedPlacementSettings();
+    void ApplyRecommendedAttackPoseSettings();
     void ResetAttackReachDiagnostics();
+    bool CaptureAttackTargetSnapshot();
+    void ClearAttackTargetSnapshot();
+    void ResetWholeSlamDiagnostics();
+    bool ApplyWholeSlamPoseToSkeleton(
+        Skeleton& targetSkeleton,
+        std::size_t chainIndex,
+        KrakenTentacleAttackPreviewPhase phase,
+        const KrakenTentacleAttackPoseTotals& totals,
+        const Vector3& attackTarget,
+        KrakenTentacleWholeSlamPoseDiagnostics* poseDiagnostics) const;
     void ResetDefeatVisibilityDiagnostics();
 
     KrakenTentacleAttackPreviewPhase GetAttackPhase() const;
@@ -490,11 +507,16 @@ struct KrakenTentacleMidbossController::Impl {
     KrakenTentacleMidbossDiagnostics diagnostics{};
     KrakenTentacleAttackDamageDiagnostics attackDamageDiagnostics{};
     KrakenTentacleMidbossHealth health{};
+#ifdef USE_IMGUI
+    bool debugHpOneEnabled = false;
+#endif
     KrakenProjectileDamageDiagnostics projectileDamageDiagnostics{};
     KrakenTentacleDefeatSettings defeatSettings{};
     KrakenTentacleDefeatDiagnostics defeatDiagnostics{};
     KrakenTentaclePlacementSettings placementSettings{};
     KrakenTentaclePlacementDiagnostics placementDiagnostics{};
+    KrakenTentacleAttackReachDiagnostics attackReachDiagnostics{};
+    KrakenTentacleWholeSlamRuntimeDiagnostics wholeSlamDiagnostics{};
     KrakenTentacleMidbossEffectController effectController{};
     KrakenTentacleMidbossPendingCommand pendingCommand =
         KrakenTentacleMidbossPendingCommand::None;

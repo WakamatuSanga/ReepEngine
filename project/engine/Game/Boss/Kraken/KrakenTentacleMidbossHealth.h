@@ -28,6 +28,9 @@ public:
     bool SetWeakPointMultiplier(float multiplier);
     bool HealFull();
     bool ForceDefeatForDebug();
+#ifdef USE_IMGUI
+    void SetDebugHpOne(bool enabled, bool alive);
+#endif
     bool TryApplyDamage(
         float damage,
         KrakenTentacleHealthDamageApplication& application);
@@ -45,4 +48,7 @@ private:
     float weakPointMultiplier_ = kRecommendedWeakPointMultiplier;
     bool defeatPending_ = false;
     bool valid_ = false;
+#ifdef USE_IMGUI
+    float debugOriginalHp_ = 0.0f;
+#endif
 };

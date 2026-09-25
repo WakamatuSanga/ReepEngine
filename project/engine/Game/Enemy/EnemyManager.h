@@ -35,6 +35,9 @@ public:
     void Update(float deltaTime);
     void Draw();
     void DrawImGui();
+#ifdef USE_IMGUI
+    static bool IsDebugHpOneEnabled() { return debugHpOneEnabled_; }
+#endif
 
     Enemy* SpawnEnemy(const std::string& enemyType = "Default", Vector3 position = { 0.0f, 0.0f, 10.0f });
     Enemy* SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward);
@@ -75,6 +78,10 @@ private:
     uint32_t nextEnemySerial_ = 1;
     int selectedEnemyIndex_ = -1;
     bool autoRemoveDeadEnemies_ = false;
+#ifdef USE_IMGUI
+    // Process-local only: preserve the checkbox across scene restarts.
+    inline static bool debugHpOneEnabled_ = false;
+#endif
     bool debugSpawnFaceCameraOpposite_ = true;
     Vector3 debugSpawnPosition_{ 0.0f, 0.0f, 10.0f };
     Vector3 debugSpawnRotation_{ 0.0f, 0.0f, 0.0f };

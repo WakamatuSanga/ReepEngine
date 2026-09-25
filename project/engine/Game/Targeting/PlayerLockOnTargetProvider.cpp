@@ -3,6 +3,8 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/KrakenTentacleWeakPointAnchorSnapshot.h"
+#include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 
 #include <algorithm>
 #include <cmath>
@@ -160,6 +162,7 @@ bool PlayerLockOnTargetProvider::BuildKrakenSnapshot(
         krakenRuntime_->TryGetWeakPointLockOnAnchorSnapshot(
             target.chainIndex, anchor);
     if (anchorFound) {
+        outSnapshot.sourceColliderId = anchor.colliderId;
         outSnapshot.worldPosition = anchor.worldCenter;
         outSnapshot.worldRadius = anchor.worldRadius;
     }
@@ -367,7 +370,9 @@ bool PlayerLockOnTargetProvider::TryGetTargetSnapshot(
     return true;
 }
 
-void PlayerLockOnTargetProvider::DrawImGui() {
+void PlayerLockOnTargetProvider::DrawImGui(
+    const AimCorridorTargetingController* targetingController,
+    const PlayerBulletManager* playerBulletManager) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(480.0f, 620.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin(
@@ -375,11 +380,17 @@ void PlayerLockOnTargetProvider::DrawImGui() {
         ImGui::End();
         return;
     }
-
     ImGui::SeparatorText("接続状態");
     ImGui::Text("プロバイダー初期化: %s", BoolText(initialized_));
     ImGui::Text("通常敵管理接続: %s", BoolText(enemyManager_ != nullptr));
     ImGui::Text("クラーケン実行接続: %s", BoolText(krakenRuntime_ != nullptr));
+
+    if (targetingController) {
+        targetingController->DrawKrakenNaturalLockDiagnosticsImGui();
+    }
+    if (playerBulletManager) {
+        playerBulletManager->DrawKrakenNaturalLockHomingDiagnosticsImGui();
+    }
 
     ImGui::SeparatorText("候補診断");
     ImGui::Text("全候補数: %zu", lastCandidateCount_);

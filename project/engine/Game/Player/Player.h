@@ -14,6 +14,7 @@ class Object3dCommon;
 class PlayerActionController;
 class PlayerBarrelRollRingController;
 class PlayerBulletCancelEffectController;
+class PlayerDamageFeedbackController;
 
 class Player {
 public:
@@ -36,7 +37,7 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void Draw();
-    void DrawImGui();
+    void DrawImGui(PlayerDamageFeedbackController* damageFeedbackController = nullptr);
 
     void SetGameViewInputActive(bool isActive);
     void SetActionDebugVisualsEnabled(bool isEnabled);
@@ -68,6 +69,8 @@ public:
     float GetHitRadius() const { return hitRadius_; }
     float GetLocalOffsetX() const { return localOffsetX_; }
     float GetLocalOffsetY() const { return localOffsetY_; }
+    float GetMoveLimitX() const { return moveLimitX_; }
+    float GetMoveLimitY() const { return moveLimitY_; }
     bool IsBarrelRolling() const;
     bool IsInvincible() const;
     bool IsBarrelRollEffectEnabled() const;

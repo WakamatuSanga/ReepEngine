@@ -4,6 +4,9 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterConfig.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
+#include "Engine/Graphics/Camera/Camera.h"
+
+#include <numbers>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -150,6 +153,77 @@ void KrakenTentacleWaveEncounterController::DrawImGui() {
         ImGui::Text("エラー時復帰成功: %s", BoolText(errorRailResumeSucceeded_));
         ImGui::Text("基本速度変更: なし");
         ImGui::Text("加速設定変更: なし");
+    }
+
+    if (ImGui::CollapsingHeader(
+            "ウェーブ4画面構図##Wave4CameraFraming",
+            ImGuiTreeNodeFlags_DefaultOpen)) {
+        constexpr float kRadiansToDegrees =
+            180.0f / std::numbers::pi_v<float>;
+        const float currentFov = camera_ ? camera_->GetFovY() : 0.0f;
+        const Vector3 currentViewOffset = camera_
+            ? camera_->GetViewTranslationOffset()
+            : Vector3{};
+        ImGui::Text("通常画角: %.2f 度",
+            baseFovY_ * kRadiansToDegrees);
+        ImGui::Text("ウェーブ4画角: %.2f 度",
+            wave4FovY_ * kRadiansToDegrees);
+        ImGui::Text("現在画角: %.2f 度",
+            currentFov * kRadiansToDegrees);
+        ImGui::Text("画角追加量: %.2f 度",
+            wave4FovAdditionDegrees_);
+        ImGui::Text("世界上方向の描画偏移: %.2f",
+            wave4VerticalViewOffset_);
+        ImGui::Text("カメラ後方の描画偏移: %.2f",
+            wave4BackwardViewOffset_);
+        ImGui::Text("通常時の描画偏移: (%.2f, %.2f, %.2f)",
+            baseViewTranslationOffset_.x,
+            baseViewTranslationOffset_.y,
+            baseViewTranslationOffset_.z);
+        ImGui::Text("ウェーブ4の描画偏移: (%.2f, %.2f, %.2f)",
+            wave4ViewTranslationOffset_.x,
+            wave4ViewTranslationOffset_.y,
+            wave4ViewTranslationOffset_.z);
+        ImGui::Text("現在の描画偏移: (%.2f, %.2f, %.2f)",
+            currentViewOffset.x, currentViewOffset.y,
+            currentViewOffset.z);
+        ImGui::Text("物理配置と描画構図の分離: はい");
+        ImGui::Text("カメラ回転を維持: %s",
+            BoolText(framingCameraRotationUnchanged_));
+        ImGui::Text("構図開始時前方との内積: %.6f",
+            framingCameraForwardDot_);
+        ImGui::Text("画角上書き中: %s",
+            BoolText(fovOverrideActive_));
+        ImGui::Text("画角遷移中: %s", BoolText(fovBlendActive_));
+        ImGui::Text("遷移進行率: %.3f", fovBlendProgress_);
+        ImGui::Text("遷移時間: %.2f 秒", fovBlendDuration_);
+        ImGui::Text("通常画角復帰確認: %s",
+            BoolText(fovRestoreVerified_));
+        ImGui::Text("通常描画偏移復帰確認: %s",
+            BoolText(viewTranslationRestoreVerified_));
+        ImGui::SeparatorText("画面内確認");
+        ImGui::Text("見えている弱点数: %zu", visibleWeakPointCount_);
+        ImGui::Text("可視触手数（先端／弱点／上側中点）: %zu",
+            visibleTentacleCount_);
+        ImGui::Text("可視条件を満たす: %s",
+            BoolText(visibleTentacleCount_ >= 3));
+        for (std::size_t chainIndex = 0;
+            chainIndex < visibleTentacleChains_.size(); ++chainIndex) {
+            ImGui::Text("チェーン%zu可視: %s", chainIndex,
+                BoolText(visibleTentacleChains_[chainIndex]));
+        }
+        ImGui::Text("画面境界有効: %s",
+            BoolText(framingScreenBoundsValid_));
+        ImGui::Text("画面境界最小: (%.1f, %.1f)",
+            framingScreenMinimum_.x, framingScreenMinimum_.y);
+        ImGui::Text("画面境界最大: (%.1f, %.1f)",
+            framingScreenMaximum_.x, framingScreenMaximum_.y);
+        ImGui::Text("画面高占有率: %.1f%%",
+            framingScreenHeightOccupancy_ * 100.0f);
+        ImGui::Text("根元切断面が画面下: %s",
+            BoolText(framingRootSideHidden_));
+        ImGui::Text("近接面警告: %s",
+            BoolText(framingNearPlaneWarning_));
     }
 
     if (ImGui::CollapsingHeader("自動攻撃管理##AttackScheduler")) {

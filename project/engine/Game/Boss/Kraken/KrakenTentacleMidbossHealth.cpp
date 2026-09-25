@@ -4,6 +4,9 @@
 #include <cmath>
 
 void KrakenTentacleMidbossHealth::Initialize() {
+#ifdef USE_IMGUI
+    debugOriginalHp_ = 0.0f;
+#endif
     maxHp_ = kProvisionalMaxHp;
     currentHp_ = maxHp_;
     weakPointMultiplier_ = kRecommendedWeakPointMultiplier;
@@ -16,6 +19,9 @@ void KrakenTentacleMidbossHealth::Reset() {
 }
 
 void KrakenTentacleMidbossHealth::Finalize() {
+#ifdef USE_IMGUI
+    debugOriginalHp_ = 0.0f;
+#endif
     maxHp_ = 0.0f;
     currentHp_ = 0.0f;
     weakPointMultiplier_ = kRecommendedWeakPointMultiplier;
@@ -93,3 +99,20 @@ float KrakenTentacleMidbossHealth::GetHpRatio() const {
     }
     return std::clamp(currentHp_ / maxHp_, 0.0f, 1.0f);
 }
+
+#ifdef USE_IMGUI
+void KrakenTentacleMidbossHealth::SetDebugHpOne(bool enabled, bool alive) {
+    if (!alive || !valid_ || defeatPending_ ||
+        !std::isfinite(currentHp_) || currentHp_ <= 0.0f) {
+        debugOriginalHp_ = 0.0f;
+        return;
+    }
+    if (enabled && debugOriginalHp_ == 0.0f) {
+        debugOriginalHp_ = currentHp_;
+        currentHp_ = 1.0f;
+    } else if (!enabled && debugOriginalHp_ > 0.0f) {
+        currentHp_ = debugOriginalHp_;
+        debugOriginalHp_ = 0.0f;
+    }
+}
+#endif

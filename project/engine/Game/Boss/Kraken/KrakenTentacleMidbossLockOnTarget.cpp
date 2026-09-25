@@ -22,6 +22,7 @@ bool KrakenTentacleMidbossController::TryGetWeakPointLockOnAnchorSnapshot(
             return false;
         }
 
+        outSnapshot.colliderId = snapshot.colliderId;
         outSnapshot.chainIndex = snapshot.chainIndex;
         outSnapshot.worldCenter = snapshot.worldPosition;
         outSnapshot.worldRadius = snapshot.worldRadius;

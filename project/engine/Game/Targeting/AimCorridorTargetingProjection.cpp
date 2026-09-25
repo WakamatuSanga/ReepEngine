@@ -78,6 +78,7 @@ bool AimCorridorTargetingController::RectsOverlap(
 
 void AimCorridorTargetingController::ProjectTargets() {
     projectedTargets_.clear();
+    krakenNaturalLockDiagnostics_.clear();
     visibleRect_ = {};
     softRect_ = {};
     candidateCount_ = 0;
@@ -127,15 +128,49 @@ void AimCorridorTargetingController::ProjectTargets() {
 
     targetProvider_->CollectTargetableTargets(targetSnapshots_);
     projectedTargets_.reserve((std::min)(targetSnapshots_.size(), static_cast<size_t>(maximumCandidateCount_)));
+    krakenNaturalLockDiagnostics_.reserve(targetSnapshots_.size());
     float bestScore = (std::numeric_limits<float>::max)();
-    for (const PlayerLockOnTargetSnapshot& targetView : targetSnapshots_) {
+    for (std::size_t snapshotIndex = 0;
+         snapshotIndex < targetSnapshots_.size(); ++snapshotIndex) {
+        const PlayerLockOnTargetSnapshot& targetView =
+            targetSnapshots_[snapshotIndex];
+        KrakenNaturalLockTargetDiagnostic* krakenDiagnostic = nullptr;
+        if (targetView.kind == PlayerLockOnTargetKind::KrakenWeakPoint) {
+            KrakenNaturalLockTargetDiagnostic diagnostic{};
+            diagnostic.targetId = targetView.id;
+            diagnostic.chainIndex = targetView.subTargetIndex;
+            diagnostic.worldPosition = targetView.worldPosition;
+            diagnostic.worldRadius = targetView.worldRadius;
+            diagnostic.sourceColliderId = targetView.sourceColliderId;
+            diagnostic.cameraPosition = camera_->GetViewTranslate();
+            diagnostic.cameraForward = cameraForward;
+            diagnostic.providerCandidateIndex = snapshotIndex;
+            diagnostic.sourceReceived = true;
+            diagnostic.providerAdded = true;
+            diagnostic.alive = targetView.alive;
+            diagnostic.targetable = targetView.targetable;
+            diagnostic.valid = targetView.valid;
+            diagnostic.projectionFailureReason = "なし";
+            diagnostic.rejectionReason = "未評価";
+            krakenNaturalLockDiagnostics_.push_back(std::move(diagnostic));
+            krakenDiagnostic = &krakenNaturalLockDiagnostics_.back();
+        }
         if (projectedTargets_.size() >= static_cast<size_t>(maximumCandidateCount_)) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->projectionFailureReason = "最大候補数を超過";
+                krakenDiagnostic->rejectionReason = "Aim候補上限で拒否";
+            }
             break;
         }
         if (!targetView.valid || !targetView.alive || !targetView.targetable
             || targetView.id.empty() || !std::isfinite(targetView.worldPosition.x)
             || !std::isfinite(targetView.worldPosition.y)
             || !std::isfinite(targetView.worldPosition.z)) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->projectionFailureReason =
+                    "Providerスナップショットが無効";
+                krakenDiagnostic->rejectionReason = "Aim受信時に拒否";
+            }
             continue;
         }
         ProjectedTarget target{};
@@ -143,13 +178,70 @@ void AimCorridorTargetingController::ProjectTargets() {
         target.worldPosition = targetView.worldPosition;
         target.targetKind = targetView.kind;
         target.subTargetIndex = targetView.subTargetIndex;
-        target.cameraDepth = Dot(Subtract(target.worldPosition, camera_->GetTranslate()), cameraForward);
+        const Vector3 cameraOffset =
+            Subtract(target.worldPosition, camera_->GetViewTranslate());
+        target.cameraDepth = Dot(cameraOffset, cameraForward);
+        if (krakenDiagnostic) {
+            krakenDiagnostic->cameraSpacePosition = {
+                Dot(cameraOffset, cameraRight),
+                Dot(cameraOffset, cameraUp),
+                target.cameraDepth,
+            };
+            krakenDiagnostic->viewDepth = target.cameraDepth;
+            krakenDiagnostic->cameraFront =
+                std::isfinite(target.cameraDepth) && target.cameraDepth > 0.0f;
+            const Matrix4x4& viewProjection =
+                camera_->GetViewProjectionMatrix();
+            krakenDiagnostic->clipPosition = {
+                target.worldPosition.x * viewProjection.m[0][0] +
+                    target.worldPosition.y * viewProjection.m[1][0] +
+                    target.worldPosition.z * viewProjection.m[2][0] +
+                    viewProjection.m[3][0],
+                target.worldPosition.x * viewProjection.m[0][1] +
+                    target.worldPosition.y * viewProjection.m[1][1] +
+                    target.worldPosition.z * viewProjection.m[2][1] +
+                    viewProjection.m[3][1],
+                target.worldPosition.x * viewProjection.m[0][2] +
+                    target.worldPosition.y * viewProjection.m[1][2] +
+                    target.worldPosition.z * viewProjection.m[2][2] +
+                    viewProjection.m[3][2],
+            };
+            krakenDiagnostic->clipW =
+                target.worldPosition.x * viewProjection.m[0][3] +
+                target.worldPosition.y * viewProjection.m[1][3] +
+                target.worldPosition.z * viewProjection.m[2][3] +
+                viewProjection.m[3][3];
+        }
         if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
             || target.cameraDepth > maximumTargetDepth_) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->projectionFailureReason =
+                    "対象深度が許可範囲外";
+                krakenDiagnostic->rejectionReason =
+                    "Camera前方・深度判定で拒否";
+            }
             continue;
         }
         if (!ProjectWorldToScreen(target.worldPosition, target.screenUv, target.clipW)) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->clipW = target.clipW;
+                krakenDiagnostic->projectionFailureReason =
+                    "クリップWまたはNDCが無効";
+                krakenDiagnostic->rejectionReason = "画面投影で拒否";
+            }
             continue;
+        }
+        if (krakenDiagnostic) {
+            krakenDiagnostic->clipW = target.clipW;
+            krakenDiagnostic->screenUv = target.screenUv;
+            krakenDiagnostic->ndcPosition = {
+                target.screenUv.x * 2.0f - 1.0f,
+                1.0f - target.screenUv.y * 2.0f,
+            };
+            krakenDiagnostic->viewportInside =
+                target.screenUv.x >= 0.0f && target.screenUv.x <= 1.0f &&
+                target.screenUv.y >= 0.0f && target.screenUv.y <= 1.0f;
+            krakenDiagnostic->projectionValid = true;
         }
 
         const float worldRadius = std::isfinite(targetView.worldRadius) && targetView.worldRadius > 0.0f
@@ -196,6 +288,26 @@ void AimCorridorTargetingController::ProjectTargets() {
         target.score = centerScore + normalizedDepth * depthScoreWeight_
             - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
         target.projectionValid = true;
+        if (krakenDiagnostic) {
+            const float deltaX =
+                target.screenUv.x - softRect_.center.x;
+            const float deltaY =
+                target.screenUv.y - softRect_.center.y;
+            const float allowedX =
+                softRect_.halfSize.x + target.screenRadius.x;
+            const float allowedY =
+                softRect_.halfSize.y + target.screenRadius.y;
+            krakenDiagnostic->screenRadius = target.screenRadius;
+            krakenDiagnostic->screenDistance =
+                std::sqrt(deltaX * deltaX + deltaY * deltaY);
+            krakenDiagnostic->lockAllowedDistance =
+                std::sqrt(allowedX * allowedX + allowedY * allowedY);
+            krakenDiagnostic->corridorInside = target.overlapsSoftRect;
+            krakenDiagnostic->candidateScore = target.score;
+            krakenDiagnostic->rejectionReason = target.overlapsSoftRect
+                ? "より良い候補との比較待ち"
+                : "補助捕捉矩形外";
+        }
         if (target.overlapsSoftRect) {
             ++candidateCount_;
             if (target.score < bestScore) {
@@ -205,6 +317,16 @@ void AimCorridorTargetingController::ProjectTargets() {
             }
         }
         projectedTargets_.push_back(std::move(target));
+    }
+    for (KrakenNaturalLockTargetDiagnostic& diagnostic :
+         krakenNaturalLockDiagnostics_) {
+        diagnostic.candidateSelected =
+            !bestCandidateId_.empty() && diagnostic.targetId == bestCandidateId_;
+        if (diagnostic.candidateSelected) {
+            diagnostic.rejectionReason = "なし";
+        } else if (diagnostic.corridorInside) {
+            diagnostic.rejectionReason = "既存スコアで別候補を選択";
+        }
     }
 }
 

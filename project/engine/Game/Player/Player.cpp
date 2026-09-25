@@ -15,6 +15,7 @@
 #include <filesystem>
 
 #ifdef USE_IMGUI
+#include "PlayerDamageFeedbackController.h"
 #include "externals/imgui/imgui.h"
 #endif
 
@@ -209,16 +210,21 @@ void Player::Draw() {
     }
 }
 
-void Player::DrawImGui() {
+void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤー確認 (Player Debug)")) {
+    if (!ImGui::Begin("プレイヤー情報 (Player Debug)###プレイヤー確認 (Player Debug)")) {
         ImGui::End();
         return;
     }
 
     ImGui::Checkbox("Player有効 (Enable Player)", &enablePlayer_);
     ImGui::Checkbox("Player表示 (Show Player)", &showPlayer_);
+    if (damageFeedbackController && ImGui::CollapsingHeader(
+        "HP・無敵 (HP / Invincibility)", ImGuiTreeNodeFlags_DefaultOpen)) {
+        damageFeedbackController->DrawPlayerStatusImGui();
+    }
+    ImGui::Separator();
     ImGui::TextWrapped("Model Path: %s", modelPath_.c_str());
     ImGui::TextWrapped("Resolved Model Path: %s", resolvedModelPath_.empty() ? "(none)" : resolvedModelPath_.c_str());
     ImGui::TextWrapped("Texture Path: %s", texturePath_.empty() ? "(none)" : texturePath_.c_str());
@@ -407,6 +413,8 @@ void Player::DrawImGui() {
         visualFinalRotation_.y,
         visualFinalRotation_.z);
     ImGui::End();
+#else
+    (void)damageFeedbackController;
 #endif
 }
 

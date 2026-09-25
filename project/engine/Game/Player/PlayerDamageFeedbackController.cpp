@@ -101,13 +101,22 @@ void PlayerDamageFeedbackController::DrawImGui() {
 
     ImGui::Checkbox("Enable Damage Feedback", &enableDamageFeedback_);
     ImGui::Checkbox("Damage Spark Enabled", &damageSparkEnabled_);
-    ImGui::Text("Player HP: %d / %d", hp_, maxHp_);
-    ImGui::Text("Is Invincible: %s", IsInvincible() ? "true" : "false");
-    ImGui::Text("Invincible Timer: %.2f", invincibleTimer_);
-    ImGui::DragFloat("Invincible Duration", &invincibleDuration_, 0.01f, 0.0f, 5.0f, "%.2f");
     ImGui::DragFloat("Blink Rate", &blinkRate_, 0.1f, 0.0f, 30.0f, "%.1f");
     ImGui::DragFloat("Damage Flash Duration", &damageFlashDuration_, 0.01f, 0.0f, 2.0f, "%.2f");
     ImGui::DragFloat("Damage Flash Alpha", &damageFlashAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
+
+    ImGui::End();
+#endif
+}
+
+void PlayerDamageFeedbackController::DrawPlayerStatusImGui() {
+#ifdef USE_IMGUI
+    ImGui::PushID("PlayerDamageFeedback");
+    ImGui::Checkbox("デバッグ無敵 (Toggle Invincible)", &debugForceInvincible_);
+    ImGui::Text("Player HP: %d / %d", hp_, maxHp_);
+    ImGui::Text("無敵状態 (Debug / Damage): %s", IsInvincible() ? "true" : "false");
+    ImGui::Text("Invincible Timer: %.2f", invincibleTimer_);
+    ImGui::DragFloat("Invincible Duration", &invincibleDuration_, 0.01f, 0.0f, 5.0f, "%.2f");
     ImGui::Text("Last Damage Position: %.2f, %.2f, %.2f", lastDamagePosition_.x, lastDamagePosition_.y, lastDamagePosition_.z);
     ImGui::Text("Damage Feedback Count: %llu", static_cast<unsigned long long>(damageFeedbackCount_));
     ImGui::TextWrapped("Last Result: %s", lastResult_);
@@ -124,9 +133,7 @@ void PlayerDamageFeedbackController::DrawImGui() {
     if (ImGui::Button("Reset HP")) {
         ResetHp();
     }
-    ImGui::Checkbox("Toggle Invincible", &debugForceInvincible_);
-
-    ImGui::End();
+    ImGui::PopID();
 #endif
 }
 

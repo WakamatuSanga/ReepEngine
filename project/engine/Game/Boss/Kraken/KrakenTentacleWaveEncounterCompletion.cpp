@@ -27,6 +27,7 @@ bool KrakenTentacleWaveEncounterController::PublishCompletion() {
 
     schedulerEnabled_ = false;
     attackTimer_ = 0.0f;
+    EndFovOverride(false);
     DisableDamage();
     kraken_->SetWaveEncounterControlActive(false);
     if (kraken_->IsAttackDamageEnabled() ||
@@ -67,6 +68,7 @@ void KrakenTentacleWaveEncounterController::CompleteWave5Transition() {
     }
 
     schedulerEnabled_ = false;
+    EndFovOverride(false);
     DisableDamage();
     kraken_->SetWaveEncounterControlActive(false);
     HideKraken();

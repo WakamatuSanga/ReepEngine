@@ -110,6 +110,13 @@ void EnemyManager::DrawImGui() {
 
     ImGui::Text("Enemy Count: %zu", GetEnemyCount());
     ImGui::Text("Active Count: %zu", GetActiveCount());
+    if (ImGui::Checkbox("敵HPを1にする（デバッグ）", &debugHpOneEnabled_)) {
+        for (const auto& enemy : enemies_) {
+            if (enemy) {
+                enemy->SetDebugHpOne(debugHpOneEnabled_);
+            }
+        }
+    }
     ImGui::Checkbox("Auto Remove Dead Enemies", &autoRemoveDeadEnemies_);
     ImGui::Checkbox("Spawn Faces Camera Opposite", &debugSpawnFaceCameraOpposite_);
     const Vector3 defaultForward = GetDefaultSpawnForward();
@@ -258,6 +265,9 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
         spawnSpinSpeedDegrees_,
         spawnAttackDelay_);
     Enemy* enemyPtr = enemy.get();
+#ifdef USE_IMGUI
+    enemy->SetDebugHpOne(debugHpOneEnabled_);
+#endif
     enemies_.push_back(std::move(enemy));
     return enemyPtr;
 }

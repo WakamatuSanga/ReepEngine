@@ -355,7 +355,7 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         ImGui::Text(
             "交差中: %s", BoolLabel(placementDiagnostics.attackOverlap));
         ImGui::Text(
-            "到達済みチェーンBits: 0x%X",
+            "到達済みチェーンビット: 0x%X",
             placementDiagnostics.attackReachChainMask);
         if (ImGui::Button(
                 "攻撃到達診断をリセット##ResetAttackReachDiagnostics")) {
@@ -363,6 +363,9 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
                 ResetAttackReachDiagnostics;
         }
     }
+
+    DrawAttackReachDiagnosticsImGui();
+    DrawWholeSlamDiagnosticsImGui();
 
     if (ImGui::CollapsingHeader("モーション##Motion")) {
         ImGui::Checkbox(
