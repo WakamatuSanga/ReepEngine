@@ -98,36 +98,6 @@ void PrimitiveEffectSystem::DrawImGui() {
 #endif
 }
 
-void PrimitiveEffectSystem::DrawVisibilityImGui() {
-#ifdef USE_IMGUI
-    ImGui::Checkbox("Primitive Effects", &isVisible_);
-    if (!isVisible_) {
-        return;
-    }
-
-    ImGui::Indent();
-    if (rotatingPlaneHitEffect_) {
-        bool isEffectVisible = rotatingPlaneHitEffect_->IsVisible();
-        if (ImGui::Checkbox("Rotating Plane Hit", &isEffectVisible)) {
-            rotatingPlaneHitEffect_->SetVisible(isEffectVisible);
-        }
-    }
-    if (ringEffect_) {
-        bool isEffectVisible = ringEffect_->IsVisible();
-        if (ImGui::Checkbox("Ring Effect", &isEffectVisible)) {
-            ringEffect_->SetVisible(isEffectVisible);
-        }
-    }
-    if (cylinderEffect_) {
-        bool isEffectVisible = cylinderEffect_->IsVisible();
-        if (ImGui::Checkbox("Cylinder Effect", &isEffectVisible)) {
-            cylinderEffect_->SetVisible(isEffectVisible);
-        }
-    }
-    ImGui::Unindent();
-#endif
-}
-
 size_t PrimitiveEffectSystem::GetEffectCount() const {
     size_t count = 0;
     count += rotatingPlaneHitEffect_ ? 1u : 0u;

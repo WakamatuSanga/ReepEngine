@@ -2,10 +2,21 @@
 #include "Engine/Animation/AnimationClip.h"
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
+enum class KrakenPreviewAssetMode : std::uint8_t;
 class Camera;
+class GltfSkinnedModel;
+class SkinningEditorKrakenMotionPreview;
+struct GltfNodeMatrixDiagnostics;
+struct GltfSkinnedMaterialDiagnostics;
+struct GltfSkinnedPrimitiveDiagnostics;
+struct SkinningEditorGltfMatrixDiagnosticsState;
+struct SkinningEditorSkinnedMaterialDiagnosticsState;
+struct SkinningEditorSkinnedPrimitiveDiagnosticsState;
+struct SkinningEditorSkeletonSnapshot;
 struct Skeleton;
 
 class SkinningEditor {
@@ -37,7 +48,8 @@ public:
     };
 
     SkinningEditor();
-    void Update();
+    ~SkinningEditor();
+    void Update(float unscaledDeltaTime);
     void DrawImGui();
     void DrawGizmo(const Camera* camera);
     void DrawDebugOverlay(const Camera* camera) const;
@@ -61,6 +73,21 @@ public:
     void SetStatusMessage(const std::string& message);
     void SetGameViewRect(float x, float y, float width, float height);
     void ClearGameViewRect();
+    void SetKrakenMotionPreviewTarget(Skeleton* skeleton, GltfSkinnedModel* model);
+    void RefreshKrakenMotionPreviewDiagnostics();
+    void SetKrakenGltfPreviewLoadResult(
+        KrakenPreviewAssetMode assetMode,
+        const GltfNodeMatrixDiagnostics& diagnostics,
+        const SkinningEditorSkeletonSnapshot& snapshot);
+    void SetKrakenSkinnedPrimitiveLoadResult(
+        const GltfSkinnedPrimitiveDiagnostics& diagnostics,
+        const GltfSkinnedModel* activeModel);
+    void SetKrakenSkinnedMaterialLoadResult(
+        const GltfSkinnedMaterialDiagnostics& diagnostics,
+        const GltfSkinnedModel* activeModel);
+    bool ConsumeKrakenGltfPreviewLoadRequest(
+        KrakenPreviewAssetMode& assetMode);
+    KrakenPreviewAssetMode GetKrakenPreviewAssetMode() const;
 
     void SetOpen(bool isOpen) { isOpen_ = isOpen; }
     bool IsOpen() const { return isOpen_; }
@@ -160,6 +187,16 @@ private:
     void StoreCurrentClipToCurrentTarget();
     std::string BuildTargetStatusMessage(const TargetEntry& target) const;
 
+    void UpdateKrakenMotionPreview(float unscaledDeltaTime);
+    void DrawKrakenMotionPreviewImGui();
+    void DrawGltfNodeMatrixDiagnosticsImGui();
+    void DrawSkinnedPrimitiveDiagnosticsImGui();
+    void DrawSkinnedMaterialDiagnosticsImGui();
+    void RequestKrakenPreviewAssetLoad(KrakenPreviewAssetMode assetMode);
+    void ClearKrakenMotionPreviewTarget();
+    bool IsKrakenMotionPreviewTarget() const;
+    void BeginKrakenLegacyPoseEditingGuard() const;
+    void EndKrakenLegacyPoseEditingGuard() const;
     bool isOpen_ = true;
     bool isTranslateGizmoEnabled_ = false;
     bool isGizmoActive_ = false;
@@ -207,4 +244,11 @@ private:
     std::array<char, 128> clipNameBuffer_{};
     std::array<char, 260> jsonPathBuffer_{};
     std::string statusMessage_;
+    std::unique_ptr<SkinningEditorKrakenMotionPreview> krakenMotionPreview_;
+    std::unique_ptr<SkinningEditorGltfMatrixDiagnosticsState>
+        gltfMatrixDiagnosticsState_;
+    std::unique_ptr<SkinningEditorSkinnedPrimitiveDiagnosticsState>
+        skinnedPrimitiveDiagnosticsState_;
+    std::unique_ptr<SkinningEditorSkinnedMaterialDiagnosticsState>
+        skinnedMaterialDiagnosticsState_;
 };

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+enum class KrakenPreviewAssetMode : std::uint8_t;
 class GltfSkinnedModel;
 class AimCorridorTargetingController;
 class AimCorridorVisualController;
@@ -20,6 +21,8 @@ class DirectXCommon;
 class EditorCameraController;
 class CombatEffectController;
 class ImpactDistortionController;
+class KrakenTentacleMidbossController;
+class KrakenTentacleWaveEncounterController;
 class CombatSlowMotionController;
 class EnemyAttackController;
 class EnemyDefeatEffectController;
@@ -49,6 +52,7 @@ class PlayerChargeFeedbackController;
 class PlayerChargeGatherEffectController;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
+class PlayerLockOnTargetProvider;
 class PlayerSonicBoostRingController;
 class PlayerRailController;
 class PlayerRailFlightVisualTiltController;
@@ -83,7 +87,22 @@ private:
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();
+    void InitializeKrakenTentacleMidboss();
+    void InitializeKrakenWaveFoundation();
+    void InitializeKrakenTentacleWaveEncounter();
     void FinalizeSkinningEditorPreview();
+    void FinalizeKrakenTentacleMidboss();
+    void FinalizeKrakenWaveFoundation();
+    void FinalizeKrakenTentacleWaveEncounter();
+    void UpdateKrakenTentacleMidboss(float scaledDeltaTime);
+    void PreUpdateKrakenTentacleWaveEncounter(float scaledDeltaTime);
+    void PostKrakenUpdateKrakenTentacleWaveEncounter();
+    void PostWaveUpdateKrakenTentacleWaveEncounter(float scaledDeltaTime);
+    void DrawKrakenTentacleWaveEncounterImGui();
+    void ResetKrakenTentacleWaveEncounter();
+    void DrawKrakenTentacleMidboss();
+    void DrawKrakenTentacleMidbossDebug();
+    void DrawKrakenTentacleMidbossImGui();
     void UpdateSceneRuntime();
     void DrawSceneRender();
     void FinalizeSceneResources();
@@ -119,6 +138,9 @@ private:
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;
     std::unique_ptr<ImpactDistortionController> impactDistortionController_;
+    std::unique_ptr<KrakenTentacleMidbossController> krakenTentacleMidboss_;
+    std::unique_ptr<PlayerLockOnTargetProvider> playerLockOnTargetProvider_;
+    std::unique_ptr<KrakenTentacleWaveEncounterController> krakenTentacleWaveEncounter_;
     std::unique_ptr<EnemyDefeatEffectController> enemyDefeatEffectController_;
     std::unique_ptr<EnemyManager> enemyManager_;
     std::unique_ptr<InfluenceFieldManager> influenceFieldManager_;
@@ -147,6 +169,7 @@ private:
     std::unique_ptr<Skeleton> skinningPreviewSkeleton_;
     std::unique_ptr<GltfSkinnedModel> skinningPreviewModel_;
     std::unique_ptr<Object3d> skinningPreviewObject_;
+    KrakenPreviewAssetMode skinningPreviewAssetMode_;
     std::unique_ptr<GltfSkinnedModel> animatedCubeModel_;
     std::unique_ptr<Object3d> animatedCubeObject_;
     std::unique_ptr<Sprite> debugSprite_;

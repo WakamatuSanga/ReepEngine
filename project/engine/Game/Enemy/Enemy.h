@@ -82,6 +82,21 @@ public:
     void Damage(int amount);
     void Kill();
     void Revive(int hp);
+#ifdef USE_IMGUI
+    void SetDebugHpOne(bool enabled) {
+        if (!isActive_ || isDead_ || state_ == State::Dead || hp_ <= 0) {
+            debugOriginalHp_ = 0;
+            return;
+        }
+        if (enabled && debugOriginalHp_ == 0) {
+            debugOriginalHp_ = hp_;
+            hp_ = 1;
+        } else if (!enabled && debugOriginalHp_ > 0) {
+            hp_ = debugOriginalHp_;
+            debugOriginalHp_ = 0;
+        }
+    }
+#endif
 
     bool IsActive() const { return isActive_; }
     bool IsDead() const { return isDead_; }
@@ -158,6 +173,9 @@ private:
     float currentAlignT_ = 0.0f;
     float spawnGlideArcHeight_ = 1.0f;
     int hp_ = 10;
+#ifdef USE_IMGUI
+    int debugOriginalHp_ = 0;
+#endif
     bool isActive_ = true;
     bool isDead_ = false;
     bool useFallbackModel_ = false;

@@ -9,6 +9,8 @@
 #include "externals/imgui/imgui.h"
 #endif
 
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace {
@@ -150,15 +152,32 @@ void CombatEffectController::DrawImGui() {
 }
 
 void CombatEffectController::PlayPlayerBulletHitEnemy(const Vector3& position) {
-    PlayPlayerBulletHitEnemy(position, false);
+    PlayPlayerBulletHitEnemy(position, false, 1.0f);
 }
 
 void CombatEffectController::PlayPlayerBulletHitEnemy(const Vector3& position, bool lethalHit) {
+    PlayPlayerBulletHitEnemy(position, lethalHit, 1.0f);
+}
+
+void CombatEffectController::PlayPlayerBulletHitEnemy(
+    const Vector3& position,
+    bool lethalHit,
+    float runtimeScale) {
+    TryPlayPlayerBulletHitEnemy(position, lethalHit, runtimeScale);
+}
+
+bool CombatEffectController::TryPlayPlayerBulletHitEnemy(
+    const Vector3& position,
+    bool lethalHit,
+    float runtimeScale) {
+    const float safeRuntimeScale = std::isfinite(runtimeScale)
+        ? std::clamp(runtimeScale, 0.25f, 4.0f) : 1.0f;
     ++enemyHitEffectCount_;
-    PlayHitRing(
+    return PlayHitRing(
         position,
         lethalHit ? "PlayerBulletHitEnemyLethal" : "PlayerBulletHitEnemy",
-        lethalHit ? enemyDeathEffectScale_ : enemyHitRingScale_,
+        (lethalHit ? enemyDeathEffectScale_ : enemyHitRingScale_) *
+            safeRuntimeScale,
         lethalHit ? 1.0f : enemyHitRingAlpha_,
         lethalHit ? true : enableEnemyHitRing_);
 }
@@ -178,7 +197,7 @@ void CombatEffectController::PlayEnemyDeathExplosion(const Vector3& position) {
     PlayExplosion(position, "EnemyDeathExplosion");
 }
 
-void CombatEffectController::PlayHitRing(
+bool CombatEffectController::PlayHitRing(
     const Vector3& position,
     const char* effectType,
     float ringScale,
@@ -186,7 +205,7 @@ void CombatEffectController::PlayHitRing(
     bool ringEnabled) {
     if (!enableCombatEffects_) {
         RecordEffect(effectType, position, "Combat effects disabled");
-        return;
+        return false;
     }
 
     bool playedSomething = false;
@@ -216,6 +235,7 @@ void CombatEffectController::PlayHitRing(
     }
 
     RecordEffect(effectType, position, playedSomething ? result.c_str() : "No hit effect enabled");
+    return playedSomething;
 }
 
 void CombatEffectController::PlayExplosion(const Vector3& position, const char* effectType) {

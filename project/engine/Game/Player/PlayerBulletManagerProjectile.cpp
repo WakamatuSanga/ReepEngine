@@ -26,6 +26,7 @@ EnemyBullet* PlayerBulletManager::SpawnBullet(
     instance.bullet->SetRadius(bulletRadius_);
     instance.bullet->SetLifeTime(bulletLifeTime_);
     instance.bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
+    instance.runtimeId = AllocateBulletRuntimeId();
     instance.damage = (std::max)(1, damage);
     if (projectileRailMotionAdapter_) {
         projectileRailMotionAdapter_->RegisterProjectile(*instance.bullet);
@@ -35,4 +36,12 @@ EnemyBullet* PlayerBulletManager::SpawnBullet(
     bullets_.push_back(std::move(instance));
     ++firedBulletCount_;
     return bulletPtr;
+}
+
+uint64_t PlayerBulletManager::AllocateBulletRuntimeId() {
+    const uint64_t runtimeId = nextBulletRuntimeId_++;
+    if (nextBulletRuntimeId_ == 0) {
+        nextBulletRuntimeId_ = 1;
+    }
+    return runtimeId;
 }

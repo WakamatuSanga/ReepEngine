@@ -5,10 +5,13 @@
 #include "Engine/Editor/BlenderSync/BlenderLiveSync.h"
 #include "Engine/Editor/Camera/EditorCameraController.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Editor/KrakenPreviewAssetMode.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterController.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -43,6 +46,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/PlayerHudController.h"
@@ -58,11 +62,24 @@
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 
-GameScene::GameScene() = default;
+GameScene::GameScene()
+    : skinningPreviewAssetMode_(KrakenPreviewAssetMode::OriginalMatrix) {}
 
 GameScene::~GameScene() = default;
 
 void GameScene::FinalizeSceneResources() {
+    if (aimCorridorTargetingController_) {
+        aimCorridorTargetingController_->Finalize();
+    }
+    if (playerBulletManager_) {
+        playerBulletManager_->ClearAimCorridorContext();
+    }
+    if (playerLockOnTargetProvider_) {
+        playerLockOnTargetProvider_->Finalize();
+    }
+    playerLockOnTargetProvider_.reset();
+    FinalizeKrakenTentacleWaveEncounter();
+    FinalizeKrakenTentacleMidboss();
     FinalizeSkinningEditorPreview();
     debugGui_.reset();
     if (editorCameraController_) {
@@ -80,6 +97,7 @@ void GameScene::FinalizeSceneResources() {
         startupEnemySpawnController_->Finalize();
     }
     startupEnemySpawnController_.reset();
+    FinalizeKrakenWaveFoundation();
     if (enemyWaveManager_) {
         enemyWaveManager_->Finalize();
     }
@@ -141,12 +159,6 @@ void GameScene::FinalizeSceneResources() {
         combatSlowMotionController_->Finalize();
     }
     combatSlowMotionController_.reset();
-    if (playerBulletManager_) {
-        playerBulletManager_->ClearAimCorridorContext();
-    }
-    if (aimCorridorTargetingController_) {
-        aimCorridorTargetingController_->Finalize();
-    }
     aimCorridorTargetingController_.reset();
     if (aimCorridorVisualController_) {
         aimCorridorVisualController_->Finalize();

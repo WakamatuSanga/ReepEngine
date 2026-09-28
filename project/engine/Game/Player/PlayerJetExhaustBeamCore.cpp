@@ -68,7 +68,8 @@ namespace {
 
 bool PlayerJetExhaustBeamCore::Initialize(DirectXCommon* dxCommon) {
     renderer_ = std::make_unique<PlayerJetExhaustBeamRenderer>();
-    return renderer_->Initialize(dxCommon);
+    glowRenderer_ = std::make_unique<PlayerJetExhaustBeamRenderer>();
+    return renderer_->Initialize(dxCommon, true) && glowRenderer_->Initialize(dxCommon);
 }
 
 void PlayerJetExhaustBeamCore::Update(
@@ -91,7 +92,7 @@ void PlayerJetExhaustBeamCore::Update(
     currentGlowBrightness_ = Lerp(nozzleGlowBrightness_, boostNozzleGlowBrightness_, boostT);
     currentBeamEndPosition_ = Add(currentNozzlePosition_, Scale(currentExhaustDirection_, currentBeamLength_));
 
-    const Vector3 viewDirection = Normalize(Subtract(camera ? camera->GetTranslate() : currentNozzlePosition_, currentNozzlePosition_), { 0.0f, 0.0f, 1.0f });
+    const Vector3 viewDirection = Normalize(Subtract(camera ? camera->GetViewTranslate() : currentNozzlePosition_, currentNozzlePosition_), { 0.0f, 0.0f, 1.0f });
     Vector3 side = Normalize(Cross(viewDirection, currentExhaustDirection_), playerRight);
     if (Length(side) <= kMinLength) {
         side = Normalize(playerRight, { 1.0f, 0.0f, 0.0f });
@@ -106,14 +107,20 @@ void PlayerJetExhaustBeamCore::Update(
 }
 
 void PlayerJetExhaustBeamCore::Draw(const Camera* camera, float brightnessScale, float alphaScale) {
-    if (!renderer_ || !camera || !exhaustEnabled_) {
+    if (!renderer_ || !glowRenderer_ || !camera || !exhaustEnabled_) {
         return;
     }
     if (enableBeamCore_ && !beamVertices_.empty()) {
-        renderer_->Draw(beamVertices_, camera, currentBeamBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_, beamEdgeSoftness_, beamTipFadePower_, time_, 0u);
+        const Matrix4x4& viewProjection = camera->GetViewProjectionMatrix();
+        // Clip Z is proportional to view depth minus the near plane distance.
+        const float nozzleClipDepth = currentNozzlePosition_.x * viewProjection.m[0][2]
+            + currentNozzlePosition_.y * viewProjection.m[1][2]
+            + currentNozzlePosition_.z * viewProjection.m[2][2] + viewProjection.m[3][2];
+        renderer_->Draw(beamVertices_, camera, currentBeamBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_, beamEdgeSoftness_, beamTipFadePower_, time_, 0u,
+            (std::max)(nozzleClipDepth, kMinLength));
     }
     if (enableNozzleGlow_ && !glowVertices_.empty()) {
-        renderer_->Draw(glowVertices_, camera, currentGlowBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_ * 0.5f, beamEdgeSoftness_, beamTipFadePower_, time_, 1u);
+        glowRenderer_->Draw(glowVertices_, camera, currentGlowBrightness_ * brightnessScale, alphaScale, beamFlickerStrength_ * 0.5f, beamEdgeSoftness_, beamTipFadePower_, time_, 1u);
     }
 }
 
@@ -122,10 +129,11 @@ void PlayerJetExhaustBeamCore::ApplyCurrentTunedPreset() {
     enableOuterParticles_ = true;
     enableNozzleGlow_ = true;
     useCrossBillboard_ = true;
-    baseBeamLength_ = 2.22f;
-    boostBeamLength_ = 2.17f;
-    beamStartWidth_ = 0.375f;
-    beamEndWidth_ = 0.910f;
+    showBeamDebug_ = false;
+    baseBeamLength_ = 1.30f;
+    boostBeamLength_ = 1.68f;
+    beamStartWidth_ = 0.080f;
+    beamEndWidth_ = 0.075f;
     baseBeamBrightness_ = 2.12f;
     boostBeamBrightness_ = 3.02f;
     beamFlickerStrength_ = 0.480f;

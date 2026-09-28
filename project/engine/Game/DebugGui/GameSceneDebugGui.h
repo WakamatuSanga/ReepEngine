@@ -21,6 +21,7 @@ private:
     void ClearGameViewDebugState();
     void DrawGameViewImGui(DirectXCommon* dxCommon);
     void DrawManagerDebugWindows();
+    void RefreshSkinningPreviewAfterEditorInput(bool refreshObjectTransform);
     void DrawSceneToolWindows(DirectXCommon* dxCommon, VolumetricCloudPass* volumetricCloudPass);
 
     GameScene* scene_ = nullptr;

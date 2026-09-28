@@ -110,6 +110,13 @@ void EnemyManager::DrawImGui() {
 
     ImGui::Text("Enemy Count: %zu", GetEnemyCount());
     ImGui::Text("Active Count: %zu", GetActiveCount());
+    if (ImGui::Checkbox("敵HPを1にする（デバッグ）", &debugHpOneEnabled_)) {
+        for (const auto& enemy : enemies_) {
+            if (enemy) {
+                enemy->SetDebugHpOne(debugHpOneEnabled_);
+            }
+        }
+    }
     ImGui::Checkbox("Auto Remove Dead Enemies", &autoRemoveDeadEnemies_);
     ImGui::Checkbox("Spawn Faces Camera Opposite", &debugSpawnFaceCameraOpposite_);
     const Vector3 defaultForward = GetDefaultSpawnForward();
@@ -258,6 +265,9 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
         spawnSpinSpeedDegrees_,
         spawnAttackDelay_);
     Enemy* enemyPtr = enemy.get();
+#ifdef USE_IMGUI
+    enemy->SetDebugHpOne(debugHpOneEnabled_);
+#endif
     enemies_.push_back(std::move(enemy));
     return enemyPtr;
 }
@@ -344,6 +354,31 @@ void EnemyManager::CollectTargetableEnemies(std::vector<EnemyTargetView>& outTar
         outTargets.push_back({ enemy->GetEnemyId(), enemyType, position,
             std::isfinite(worldRadius) && worldRadius > 0.0f ? worldRadius : 0.0f });
     }
+}
+
+bool EnemyManager::TryGetEnemyTargetSnapshot(
+    std::string_view enemyId,
+    EnemyTargetSnapshot& outSnapshot) const {
+    outSnapshot = {};
+    if (enemyId.empty()) {
+        return false;
+    }
+
+    for (const std::unique_ptr<Enemy>& enemy : enemies_) {
+        if (!enemy || enemy->GetEnemyId() != enemyId) {
+            continue;
+        }
+        outSnapshot.worldPosition = enemy->GetPosition();
+        outSnapshot.active = enemy->IsActive();
+        outSnapshot.alive = !enemy->IsDead();
+        outSnapshot.valid = outSnapshot.active
+            && outSnapshot.alive
+            && std::isfinite(outSnapshot.worldPosition.x)
+            && std::isfinite(outSnapshot.worldPosition.y)
+            && std::isfinite(outSnapshot.worldPosition.z);
+        return true;
+    }
+    return false;
 }
 
 void EnemyManager::SetDefaultHitRadius(float hitRadius) {

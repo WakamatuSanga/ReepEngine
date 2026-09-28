@@ -124,6 +124,12 @@
     <Filter Include="ヘッダー ファイル\engine\Game\RailShooter">
       <UniqueIdentifier>{e113a578-3c95-4d64-b818-334507bde2f5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\engine\Game\Boss\Kraken">
+      <UniqueIdentifier>{e32f5133-405c-4a3f-8a24-5d9ae0c86791}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\engine\Game\Boss\Kraken">
+      <UniqueIdentifier>{b6b09e2e-dca3-43a6-9ce9-9b722990ef68}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ソース ファイル\application">
       <UniqueIdentifier>{da05e6c8-cb16-4e6c-bed8-45a4c3322b9f}</UniqueIdentifier>
     </Filter>
@@ -237,6 +243,66 @@
     <ClCompile Include="engine\Editor\SkinningEditor.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenMotionPreview.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenMotionPreviewImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotion.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionReadOnly.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionPose.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenAttackMotionImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreview.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewCollection.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewIntegration.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderDebugDraw.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControl.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControlImGui.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkinningDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkinnedMaterialDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkinnedPrimitiveDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorGltfMatrixDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Editor\SkinningEditorSkeletonComparison.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Core\ImGuiManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -285,6 +351,9 @@
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2Boost.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Camera\RailShooterCameraRigEncounterSpeed.cpp">
+      <Filter>ソース ファイル\engine\Game\Camera</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Camera\RailShooterCameraRigRuntimeV2ImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Camera</Filter>
     </ClCompile>
@@ -315,10 +384,19 @@
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingControllerImGui.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingKrakenProjection.cpp">
+      <Filter>ソース ファイル\engine\Game\Targeting</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingProjection.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingNaturalLockDiagnostics.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Targeting\AimCorridorTargetingSelection.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Targeting\PlayerLockOnTargetProvider.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\UI\AimCorridorVisualController.cpp">
@@ -456,6 +534,15 @@
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingMissileIgnition.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHoming.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingNaturalLockDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -466,6 +553,9 @@
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerRuntimeIdKill.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp">
@@ -507,6 +597,12 @@
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManager.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerExternalObjective.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerExternalObjectiveImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
@@ -514,6 +610,12 @@
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerProgression.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerWaveInfo.cpp">
+      <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\RailShooter\EnemyWaveManagerWaveValidation.cpp">
       <Filter>ソース ファイル\engine\Game\RailShooter</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\RailShooter\EventActionDispatcher.cpp">
@@ -603,6 +705,138 @@
     <ClCompile Include="GameSceneSkinningEditorInitialize.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
+    <ClCompile Include="GameSceneKrakenTentacleMidboss.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneKrakenWaveFoundation.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="GameSceneKrakenTentacleWaveEncounter.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleChainUtility.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleCollisionQuery.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseTransition.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterState.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterAttack.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterCompletion.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterFraming.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterEntrance.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossState.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossPose.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackReach.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollider.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossRender.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDebugDraw.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossPlacementImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionQuery.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamageImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossHealth.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamage.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamageRuntime.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamageImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeat.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeatRuntime.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeatImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectController.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectDiagnostics.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectImGui.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
     <ClCompile Include="GameSceneInitialize.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -648,8 +882,35 @@
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModel.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialBinding.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelMaterialLoader.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDraw.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelJointWarning.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDiagnostics.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkeletonLoader.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfNodeTransformParser.cpp">
+      <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Skybox\Skybox.cpp">
       <Filter>ソース ファイル</Filter>
@@ -833,6 +1094,9 @@
     <ClInclude Include="engine\Game\Targeting\AimCorridorTargetingController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Targeting\PlayerLockOnTargetProvider.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\UI\AimCorridorVisualController.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -933,6 +1197,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
+      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h">
@@ -1085,8 +1352,110 @@
     <ClInclude Include="engine\Graphics\Model\GltfSkinnedModel.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelMaterialData.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelMaterialLoader.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveData.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenMotionPreview.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenAttackMotion.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPreview.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPreviewCollection.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorKrakenBoneColliderPhaseControl.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleChainUtility.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleCollisionQuery.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionDiagnostics.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossHealth.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamage.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossDefeat.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEffectController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\KrakenTentacleWeakPointAnchorSnapshot.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\KrakenTentacleFramingSnapshot.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterConfig.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossControllerInternal.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleAttackReachDiagnostics.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkinnedMaterialDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Graphics\Model\GltfSkeletonLoader.h">
       <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkinnedPrimitiveDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfNodeMatrixDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Graphics\Model\GltfNodeTransformParser.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\KrakenPreviewAssetMode.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorGltfMatrixDiagnostics.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Editor\SkinningEditorSkeletonComparison.h">
+      <Filter>&#x30D8;&#x30C3;&#x30C0;&#x30FC; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Skybox\Skybox.h">
       <Filter>ヘッダー ファイル</Filter>

@@ -104,6 +104,7 @@ void GameScene::DrawSceneRender() {
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawDebug();
     }
+    DrawKrakenTentacleMidboss();
     if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }

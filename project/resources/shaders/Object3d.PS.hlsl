@@ -84,6 +84,7 @@ struct VertexShaderOutput
     float3 normal : NORMAL;
     float3 worldPos : TEXCOORD1;
     float3 tangent : TANGENT;
+    float jointWarning : TEXCOORD2;
 };
 
 struct PixelShaderOutput
@@ -287,6 +288,17 @@ PixelShaderOutput main(VertexShaderOutput input)
             float noiseFactor = lerp(1.0f, random, saturate(gRandomNoiseData.intensity));
             outputColor.rgb *= noiseFactor;
         }
+    }
+
+    // Disabled vertices take the original shading path unchanged, including alpha.
+    if (input.jointWarning > 0.0f)
+    {
+        float3 N = ResolveSurfaceNormal(input, transformedUV.xy);
+        float facingLight = saturate(dot(N, normalize(-gDirectionalLight.direction)));
+        float textureDetail = saturate(dot(texColor.rgb, float3(0.2126f, 0.7152f, 0.0722f)));
+        float3 warningColor = float3(0.95f, 0.035f, 0.02f)
+            * (0.45f + 0.55f * facingLight) * (0.65f + 0.35f * textureDetail);
+        outputColor.rgb = lerp(outputColor.rgb, warningColor, saturate(input.jointWarning));
     }
 
     PixelShaderOutput output;

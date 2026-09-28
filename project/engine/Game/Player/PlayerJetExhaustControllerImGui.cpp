@@ -92,12 +92,10 @@ void PlayerJetExhaustController::DrawImGui() {
     ImGui::Text("Active Count: %u", activeCount);
     ImGui::Text("Dead Count: %u", deadCount);
     ImGui::Text("Free Count: %u", freeCount);
-    ImGui::Text("Unused Count: %u", freeCount);
     ImGui::Text("Requested / Actual / Skipped Emit: %u / %u / %u", requestedEmit, actualEmit, skippedEmit);
     ImGui::Text("Reused Count: %u", reusedCount);
     ImGui::Text("Current Core Spawn Rate: %.1f / sec", currentCoreSpawnRate_);
     ImGui::Text("Current Outer Spawn Rate: %.1f / sec", currentOuterSpawnRate_);
-    ImGui::Text("Current Active Particle Estimate: %u", activeCount);
     ImGui::Text("Current Pool Usage: %.1f%%", poolUsage * 100.0f);
     if (state && state->isCounterReadbackValid) {
         ImGui::Text("Free Actual / Dead Actual: %u / %u", state->actualFreeListCount, state->actualDeadListCount);
@@ -106,12 +104,6 @@ void PlayerJetExhaustController::DrawImGui() {
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.10f, 1.0f), "警告: 排気Particleプールが詰まり気味です。Spawn Rateを下げるか上限を上げてください。");
     }
     if (ImGui::Button("排気Particle Poolをリセット (Reset Exhaust Particle Pool)")) {
-        if (particleSystem_) {
-            particleSystem_->ResetParticlePool();
-        }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("排気Particleを全消去 (Force Kill Exhaust Particles)")) {
         if (particleSystem_) {
             particleSystem_->ResetParticlePool();
         }

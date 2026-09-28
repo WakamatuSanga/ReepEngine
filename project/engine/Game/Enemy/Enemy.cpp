@@ -419,6 +419,9 @@ void Enemy::Damage(int amount) {
 }
 
 void Enemy::Kill() {
+#ifdef USE_IMGUI
+    debugOriginalHp_ = 0;
+#endif
     isDead_ = true;
     isActive_ = false;
     state_ = State::Dead;

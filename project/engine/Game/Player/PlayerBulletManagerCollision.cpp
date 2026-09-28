@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace {
 float DistanceSquaredLocal(const Vector3& a, const Vector3& b) {
@@ -57,6 +58,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             closestBulletRadius = bulletRadius;
         }
         if (normalizedDistanceSq <= 1.0f) {
+            RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = bulletPosition;
             }
@@ -119,6 +121,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             closestBulletRadius = bulletRadius;
         }
         if (distanceSquared <= combinedRadius * combinedRadius) {
+            RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = bullet->GetPosition();
             }
@@ -151,3 +154,39 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
     return false;
 }
 
+std::vector<PlayerBulletManager::PlayerBulletCollisionSnapshot>
+PlayerBulletManager::GetActiveCollisionSnapshots() const {
+    std::vector<PlayerBulletCollisionSnapshot> snapshots;
+    snapshots.reserve(GetActiveCount());
+
+    for (const PlayerBulletInstance& instance : bullets_) {
+        if (!instance.bullet || !instance.bullet->IsActive() || instance.bullet->IsDead()) {
+            continue;
+        }
+
+        PlayerBulletCollisionSnapshot snapshot{};
+        snapshot.runtimeId = instance.runtimeId;
+        snapshot.worldPosition = instance.bullet->GetPosition();
+        snapshot.velocity = instance.bullet->GetVelocity();
+        snapshot.radius = instance.bullet->GetRadius();
+        snapshot.lifeTime = instance.bullet->GetLifeTime();
+        snapshot.elapsedTime = instance.bullet->GetElapsedTime();
+        snapshot.damage = instance.damage;
+        snapshot.projectileType = instance.projectileType;
+        snapshot.active = instance.bullet->IsActive();
+        snapshot.killed = instance.bullet->IsDead();
+        if (instance.lockedWingLaunch) {
+            snapshot.lockedTargetId =
+                instance.lockedWingLaunch->lockedTargetId;
+            snapshot.launchPhase = static_cast<uint8_t>(
+                instance.lockedWingLaunch->phase);
+            snapshot.homingReady =
+                instance.lockedWingLaunch->homingReady;
+            snapshot.exhaustEnabled =
+                instance.lockedWingLaunch->exhaustEnabled;
+        }
+        snapshots.push_back(std::move(snapshot));
+    }
+
+    return snapshots;
+}

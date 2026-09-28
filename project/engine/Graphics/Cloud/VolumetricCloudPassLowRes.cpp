@@ -446,8 +446,6 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::Text("旧Boost倍率互換値 (Legacy External Boost Multiplier): %.2f", externalFlowMultiplier_);
     ImGui::Text("Base Cloud Flow Speed: %.2f", cloudBaseFlowSpeed_);
     ImGui::Text("Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
-    ImGui::Text("Target Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
-    ImGui::Text("Current Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
     ImGui::Text("現在の流速 (Cloud Flow Current Speed): %.2f", currentCloudFlowSpeed_);
     ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase_);
     ImGui::Text("Cloud Flow Phase Increasing: %s", cloudFlowPhaseIncreasing_ ? "true" : "false");

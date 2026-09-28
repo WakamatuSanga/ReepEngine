@@ -41,6 +41,7 @@
 #include "Engine/Game/RailShooter/PostEffectActionBridge.h"
 #include "Engine/Game/RailShooter/RailShooterEventActionBridge.h"
 #include "Engine/Game/RailShooter/StartupEnemySpawnController.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/PlayerHudController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -326,6 +327,7 @@ void GameScene::InitializeSceneResources() {
     enemyWaveManager_->SetPlayer(player_.get());
     enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
     enemyWaveManager_->SetWarningUIController(warningUIController_.get());
+    InitializeKrakenWaveFoundation();
     startupEnemySpawnController_ = std::make_unique<StartupEnemySpawnController>();
     startupEnemySpawnController_->Initialize(enemyManager_.get(), levelSceneRuntime_.get(), camera_.get());
     postEffectActionBridge_ = std::make_unique<PostEffectActionBridge>();
@@ -343,5 +345,11 @@ void GameScene::InitializeSceneResources() {
     blenderLiveSync_ = std::make_unique<BlenderLiveSync>();
     blenderLiveSync_->Initialize(levelSceneRuntime_.get());
 
+    InitializeKrakenTentacleMidboss();
+    playerLockOnTargetProvider_ =
+        std::make_unique<PlayerLockOnTargetProvider>();
+    playerLockOnTargetProvider_->Initialize(
+        enemyManager_.get(), krakenTentacleMidboss_.get());
+    InitializeKrakenTentacleWaveEncounter();
     InitializeSkinningEditorPreview();
 }

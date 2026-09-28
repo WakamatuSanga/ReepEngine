@@ -1,0 +1,505 @@
+#include "SkinningEditorKrakenMotionPreview.h"
+#include "SkinningEditor.h"
+#include "SkinningEditorKrakenAttackMotion.h"
+#include "SkinningEditorKrakenBoneColliderPhaseControl.h"
+#include "SkinningEditorKrakenBoneColliderPreviewCollection.h"
+#include "SkinningEditorGltfMatrixDiagnostics.h"
+#include "SkinningEditorSkinnedMaterialDiagnostics.h"
+#include "SkinningEditorSkinnedPrimitiveDiagnostics.h"
+#include "Engine/Animation/Skeleton.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <numbers>
+
+namespace {
+    constexpr float kDegreesToRadians = std::numbers::pi_v<float> / 180.0f;
+
+    bool IsFiniteVector(const Vector3& value) {
+        return std::isfinite(value.x) &&
+            std::isfinite(value.y) &&
+            std::isfinite(value.z);
+    }
+
+    bool IsFiniteMatrix(const Matrix4x4& matrix) {
+        for (int row = 0; row < 4; ++row) {
+            for (int column = 0; column < 4; ++column) {
+                if (!std::isfinite(matrix.m[row][column])) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+}
+
+SkinningEditor::~SkinningEditor() = default;
+
+void SkinningEditor::SetKrakenMotionPreviewTarget(
+    Skeleton* skeleton,
+    GltfSkinnedModel* model) {
+    if (!krakenMotionPreview_) {
+        krakenMotionPreview_ =
+            std::make_unique<SkinningEditorKrakenMotionPreview>();
+    }
+    krakenMotionPreview_->SetTarget(skeleton, model);
+}
+
+void SkinningEditor::RefreshKrakenMotionPreviewDiagnostics() {
+    if (krakenMotionPreview_ &&
+        krakenMotionPreview_->IsTarget(targetSkeleton_)) {
+        UpdateKrakenMotionPreview(0.0f);
+        krakenMotionPreview_->RefreshDiagnosticsAndRecover();
+    }
+}
+
+void SkinningEditor::UpdateKrakenMotionPreview(float unscaledDeltaTime) {
+    if (krakenMotionPreview_ &&
+        krakenMotionPreview_->IsTarget(targetSkeleton_)) {
+        krakenMotionPreview_->Update(
+            unscaledDeltaTime,
+            selectedJointIndex_,
+            GetActivePreviewWorldMatrix());
+    }
+}
+
+void SkinningEditor::ClearKrakenMotionPreviewTarget() {
+    if (krakenMotionPreview_) {
+        krakenMotionPreview_->ClearTarget();
+    }
+    skinnedPrimitiveDiagnosticsState_.reset();
+    skinnedMaterialDiagnosticsState_.reset();
+}
+
+bool SkinningEditor::IsKrakenMotionPreviewTarget() const {
+    return krakenMotionPreview_ &&
+        krakenMotionPreview_->IsTarget(targetSkeleton_);
+}
+
+bool SkinningEditorKrakenMotionPreview::IsTarget(
+    const Skeleton* skeleton) const {
+    return skeleton_ &&
+        skeleton_ == skeleton &&
+        targetCompatible_;
+}
+
+bool SkinningEditorKrakenMotionPreview::IsProceduralActive() const {
+    return IsTarget(skeleton_) &&
+        (mode_ == Mode::IdleSway ||
+            mode_ == Mode::AttackSlamPreview);
+}
+
+void SkinningEditorKrakenMotionPreview::SetTarget(
+    Skeleton* skeleton,
+    GltfSkinnedModel* model) {
+    ClearTarget();
+    skeleton_ = skeleton;
+    model_ = model;
+    diagnostics_.skeletonEnabled = skeleton_ != nullptr;
+
+    if (!skeleton_ ||
+        skeleton_->root < 0 ||
+        skeleton_->root >= static_cast<int32_t>(skeleton_->joints.size())) {
+        runtimeError_ = "\u6709\u52B9\u306A\u30B9\u30B1\u30EB\u30C8\u30F3\u30EB\u30FC\u30C8\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3002";
+        return;
+    }
+
+    const Joint& rootJoint =
+        skeleton_->joints[static_cast<std::size_t>(skeleton_->root)];
+    targetCompatible_ =
+        skeleton_->joints.size() == kExpectedJointCount &&
+        rootJoint.name == kExpectedRootName;
+    if (!targetCompatible_) {
+        runtimeError_ = "\u4E92\u63DB\u89E6\u624B\u30B9\u30B1\u30EB\u30C8\u30F3\u3067\u306F\u3042\u308A\u307E\u305B\u3093\u3002";
+        return;
+    }
+
+    attackMotion_ =
+        std::make_unique<SkinningEditorKrakenAttackMotion>();
+    attackPoseResult_ =
+        std::make_unique<KrakenTentacleAttackPoseResult>();
+    InitializeBoneColliderPreview();
+    idlePoseResult_ = {};
+    CaptureBindPose();
+    hierarchyValid_ = ValidateBindPose() && DetectChains();
+    if (!hierarchyValid_ && hierarchyError_.empty()) {
+        SetHierarchyError("\u89E6\u624B\u968E\u5C64\u3092\u691C\u8A3C\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002");
+    } else if (hierarchyValid_) {
+        attackMotion_->RevalidateSelectedChain(chains_.size());
+    }
+
+    mode_ = Mode::Manual;
+    isPaused_ = true;
+    rootRotationAllowed_ = false;
+    applyAllChains_ = true;
+    selectedChainIndex_ = 0;
+    motionTime_ = 0.0f;
+    ResetIdleSettings();
+    RestoreBindLocals();
+    UpdateSkeletonWorldTransforms(*skeleton_);
+    CaptureBindTipPositions();
+    RefreshBoneColliderPreview(true);
+    CaptureBindPalette();
+    RefreshDiagnostics();
+    RefreshAttackTipDiagnostics();
+}
+
+void SkinningEditorKrakenMotionPreview::ClearTarget() {
+    if (skeleton_ && bindPose_.size() == skeleton_->joints.size()) {
+        RestoreBindLocals();
+        UpdateSkeletonWorldTransforms(*skeleton_);
+    }
+
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    skeleton_ = nullptr;
+    model_ = nullptr;
+    bindPose_.clear();
+    bindLocalEulerRadians_.clear();
+    manualRotationDegrees_.clear();
+    bindPalette_.clear();
+    bindChainTipSkeletonPositions_.clear();
+    bindChainWeakPointSkeletonPositions_.clear();
+    idlePoseResult_ = {};
+    chains_.clear();
+    attackMotion_.reset();
+    attackPoseResult_.reset();
+    ClearBoneColliderPreview();
+    diagnostics_ = {};
+    attackTipDiagnostics_ = {};
+    hierarchyError_.clear();
+    runtimeError_.clear();
+    previewWorldMatrix_ = MatrixMath::MakeIdentity4x4();
+    mode_ = Mode::Manual;
+    isPaused_ = true;
+    rootRotationAllowed_ = false;
+    applyAllChains_ = true;
+    hierarchyValid_ = false;
+    targetCompatible_ = false;
+    recovering_ = false;
+    selectedChainIndex_ = 0;
+    motionTime_ = 0.0f;
+    ResetIdleSettings();
+}
+
+void SkinningEditorKrakenMotionPreview::CaptureBindPose() {
+    bindPose_.clear();
+    bindLocalEulerRadians_.clear();
+    manualRotationDegrees_.clear();
+    if (!skeleton_) {
+        return;
+    }
+
+    bindPose_.reserve(skeleton_->joints.size());
+    bindLocalEulerRadians_.reserve(skeleton_->joints.size());
+    manualRotationDegrees_.resize(skeleton_->joints.size());
+    for (const Joint& joint : skeleton_->joints) {
+        bindPose_.push_back({
+            joint.localTranslate,
+            joint.localRotate,
+            joint.localScale,
+            });
+        bindLocalEulerRadians_.push_back(joint.localRotate);
+    }
+}
+
+bool SkinningEditorKrakenMotionPreview::ValidateBindPose() const {
+    if (!skeleton_ || bindPose_.size() != skeleton_->joints.size()) {
+        return false;
+    }
+    for (const BindLocalPose& pose : bindPose_) {
+        if (!IsFiniteVector(pose.translate) ||
+            !IsFiniteVector(pose.rotate) ||
+            !IsFiniteVector(pose.scale)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool SkinningEditorKrakenMotionPreview::DetectChains() {
+    if (!skeleton_) {
+        SetHierarchyError("\u30EB\u30FC\u30C8\u30B8\u30E7\u30A4\u30F3\u30C8\u304C\u4E0D\u6B63\u3067\u3059\u3002");
+        return false;
+    }
+    std::string errorMessage;
+    if (!DetectKrakenTentacleChains(*skeleton_, chains_, errorMessage)) {
+        SetHierarchyError(errorMessage);
+        return false;
+    }
+    hierarchyError_.clear();
+    return true;
+}
+
+void SkinningEditorKrakenMotionPreview::SetHierarchyError(
+    const std::string& message) {
+    hierarchyValid_ = false;
+    hierarchyError_ = message;
+    mode_ = Mode::Manual;
+    isPaused_ = true;
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    if (attackPoseResult_) {
+        *attackPoseResult_ = {};
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::RestoreBindLocals() {
+    if (!skeleton_ || bindPose_.size() != skeleton_->joints.size()) {
+        return;
+    }
+    for (std::size_t jointIndex = 0;
+        jointIndex < skeleton_->joints.size();
+        ++jointIndex) {
+        Joint& joint = skeleton_->joints[jointIndex];
+        const BindLocalPose& pose = bindPose_[jointIndex];
+        joint.localTranslate = pose.translate;
+        joint.localRotate = pose.rotate;
+        joint.localScale = pose.scale;
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::ApplyManualPose() {
+    if (!skeleton_ ||
+        manualRotationDegrees_.size() != skeleton_->joints.size()) {
+        return;
+    }
+    for (std::size_t jointIndex = 0;
+        jointIndex < skeleton_->joints.size();
+        ++jointIndex) {
+        if (static_cast<int>(jointIndex) == skeleton_->root &&
+            !rootRotationAllowed_) {
+            continue;
+        }
+        const Vector3 offset = manualRotationDegrees_[jointIndex];
+        Joint& joint = skeleton_->joints[jointIndex];
+        joint.localRotate.x += offset.x * kDegreesToRadians;
+        joint.localRotate.y += offset.y * kDegreesToRadians;
+        joint.localRotate.z += offset.z * kDegreesToRadians;
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::ApplyIdleSwayPose() {
+    if (!skeleton_ || !hierarchyValid_) {
+        return;
+    }
+
+    KrakenTentacleIdlePoseSettings settings{};
+    settings.frequencyHz = frequencyHz_;
+    settings.rootAmplitudeDegrees = rootAmplitudeDegrees_;
+    settings.tipAmplitudeDegrees = tipAmplitudeDegrees_;
+    settings.secondaryAmplitudeDegrees = secondaryAmplitudeDegrees_;
+    settings.chainPhaseRadians = chainPhaseRadians_;
+    settings.phaseAlongChainRadians = phaseAlongChainRadians_;
+    const bool built = BuildKrakenTentacleIdlePose(
+        settings,
+        motionTime_,
+        chains_,
+        applyAllChains_,
+        static_cast<std::size_t>(selectedChainIndex_),
+        skeleton_->joints.size(),
+        skeleton_->root,
+        idlePoseResult_);
+    if (!built || !idlePoseResult_.valid) {
+        runtimeError_ = idlePoseResult_.errorMessage.empty()
+            ? "Idle Pose\u3092\u751F\u6210\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002"
+            : idlePoseResult_.errorMessage;
+        return;
+    }
+
+    for (const KrakenTentacleIdleJointPose& pose :
+        idlePoseResult_.joints) {
+        Joint& joint = skeleton_->joints[
+            static_cast<std::size_t>(pose.jointIndex)];
+        joint.localRotate.x += pose.localEulerOffsetRadians.x;
+        joint.localRotate.y += pose.localEulerOffsetRadians.y;
+        joint.localRotate.z += pose.localEulerOffsetRadians.z;
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::ApplyCurrentPose() {
+    if (!IsTarget(skeleton_)) {
+        return;
+    }
+
+    RestoreBindLocals();
+    if (!ApplyKrakenTentaclePlacementToRestoredPose(*skeleton_, chains_)) {
+        runtimeError_ = "触手の個別配置をCurrent Poseへ適用できませんでした。";
+        return;
+    }
+    switch (mode_) {
+    case Mode::Manual:
+        ApplyManualPose();
+        break;
+    case Mode::IdleSway:
+        if (hierarchyValid_) {
+            ApplyIdleSwayPose();
+        }
+        break;
+    case Mode::AttackSlamPreview:
+        if (hierarchyValid_) {
+            ApplyAttackPose();
+        }
+        break;
+    }
+
+    if (!ValidateCurrentPose()) {
+        runtimeError_ =
+            "\u975E\u6709\u9650\u306E\u30DD\u30FC\u30BA\u3092\u691C\u51FA\u3057\u305F\u305F\u3081\u3001\u30D0\u30A4\u30F3\u30C9\u30DD\u30FC\u30BA\u3078\u623B\u3057\u307E\u3057\u305F\u3002";
+        ReturnToBindPose(false);
+        return;
+    }
+    UpdateSkeletonWorldTransforms(*skeleton_);
+    if (!ValidateCurrentPose()) {
+        runtimeError_ =
+            "\u975E\u6709\u9650\u306E\u968E\u5C64\u884C\u5217\u3092\u691C\u51FA\u3057\u305F\u305F\u3081\u3001\u30D0\u30A4\u30F3\u30C9\u30DD\u30FC\u30BA\u3078\u623B\u3057\u307E\u3057\u305F\u3002";
+        ReturnToBindPose(false);
+    }
+}
+
+bool SkinningEditorKrakenMotionPreview::ValidateCurrentPose() const {
+    if (!skeleton_) {
+        return false;
+    }
+    for (const Joint& joint : skeleton_->joints) {
+        if (!IsFiniteVector(joint.localTranslate) ||
+            !IsFiniteVector(joint.localRotate) ||
+            !IsFiniteVector(joint.localScale) ||
+            !IsFiniteMatrix(joint.worldMatrix)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void SkinningEditorKrakenMotionPreview::Update(
+    float unscaledDeltaTime,
+    int selectedJointIndex,
+    const Matrix4x4& previewWorldMatrix) {
+    if (!IsTarget(skeleton_)) {
+        return;
+    }
+
+    previewWorldMatrix_ = previewWorldMatrix;
+    if (mode_ != Mode::AttackSlamPreview) {
+        UpdateSelectedChainFromJoint(selectedJointIndex);
+    }
+    if (mode_ == Mode::IdleSway) {
+        if (!hierarchyValid_) {
+            SwitchToManual();
+        } else if (!isPaused_) {
+            const float safeDeltaTime = std::clamp(
+                std::isfinite(unscaledDeltaTime)
+                ? unscaledDeltaTime
+                : 0.0f,
+                0.0f,
+                0.1f);
+            motionTime_ += safeDeltaTime;
+        }
+    } else if (mode_ == Mode::AttackSlamPreview) {
+        if (!hierarchyValid_) {
+            SwitchToManual();
+        } else {
+            UpdateAttackMotion(unscaledDeltaTime);
+        }
+    }
+    ApplyCurrentPose();
+    RefreshAttackTipDiagnostics();
+    RefreshBoneColliderPreview();
+}
+
+void SkinningEditorKrakenMotionPreview::UpdateSelectedChainFromJoint(
+    int selectedJointIndex) {
+    if (mode_ == Mode::AttackSlamPreview) {
+        return;
+    }
+    for (std::size_t chainIndex = 0;
+        chainIndex < chains_.size();
+        ++chainIndex) {
+        const std::vector<int>& joints = chains_[chainIndex].joints;
+        if (std::find(
+            joints.begin(),
+            joints.end(),
+            selectedJointIndex) != joints.end()) {
+            selectedChainIndex_ = static_cast<int>(chainIndex);
+            return;
+        }
+    }
+    if (!chains_.empty()) {
+        selectedChainIndex_ = std::clamp(
+            selectedChainIndex_,
+            0,
+            static_cast<int>(chains_.size()) - 1);
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::SwitchToManual() {
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    mode_ = Mode::Manual;
+    isPaused_ = true;
+    motionTime_ = 0.0f;
+}
+
+void SkinningEditorKrakenMotionPreview::StartIdleSway() {
+    if (!hierarchyValid_) {
+        return;
+    }
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    mode_ = Mode::IdleSway;
+    isPaused_ = false;
+    motionTime_ = 0.0f;
+}
+
+void SkinningEditorKrakenMotionPreview::ReturnToBindPoseFromEditor() {
+    if (!skeleton_) {
+        return;
+    }
+    ReturnToBindPose(true);
+}
+
+void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
+    bool clearError) {
+    if (attackMotion_) {
+        attackMotion_->Stop();
+    }
+    if (attackPoseResult_) {
+        *attackPoseResult_ = {};
+    }
+    std::fill(
+        manualRotationDegrees_.begin(),
+        manualRotationDegrees_.end(),
+        Vector3{});
+    mode_ = Mode::Manual;
+    isPaused_ = true;
+    motionTime_ = 0.0f;
+    RestoreBindLocals();
+    if (skeleton_) {
+        UpdateSkeletonWorldTransforms(*skeleton_);
+    }
+    RefreshAttackTipDiagnostics();
+    RefreshBoneColliderPreview();
+    if (clearError) {
+        runtimeError_.clear();
+        diagnostics_.safetyRecoveryOccurred = false;
+        if (attackMotion_) {
+            attackMotion_->ClearLastError();
+        }
+    }
+}
+
+void SkinningEditorKrakenMotionPreview::ResetIdleSettings() {
+    const KrakenTentacleIdlePoseSettings defaults{};
+    frequencyHz_ = defaults.frequencyHz;
+    rootAmplitudeDegrees_ = defaults.rootAmplitudeDegrees;
+    tipAmplitudeDegrees_ = defaults.tipAmplitudeDegrees;
+    secondaryAmplitudeDegrees_ = defaults.secondaryAmplitudeDegrees;
+    chainPhaseRadians_ = defaults.chainPhaseRadians;
+    phaseAlongChainRadians_ = defaults.phaseAlongChainRadians;
+}

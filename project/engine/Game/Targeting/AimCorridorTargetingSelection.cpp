@@ -1,6 +1,7 @@
 #include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 
 #include <algorithm>
@@ -8,6 +9,18 @@
 void AimCorridorTargetingController::SwitchCandidate(
     const ProjectedTarget& target,
     const char* reason) {
+    const bool previousWasKraken = currentTargetValid_ &&
+        currentTarget_.targetKind == PlayerLockOnTargetKind::KrakenWeakPoint;
+    const bool nextIsKraken =
+        target.targetKind == PlayerLockOnTargetKind::KrakenWeakPoint;
+    if (!candidateTargetId_.empty() &&
+        candidateTargetId_ != target.runtimeId &&
+        (previousWasKraken || nextIsKraken)) {
+        ++krakenCandidateSwitchCount_;
+    }
+    if (lockState_ == AimLockState::Acquiring && previousWasKraken) {
+        ++krakenAcquireResetCount_;
+    }
     candidateTargetId_ = target.runtimeId;
     lockedTargetId_.clear();
     currentTarget_ = target;
@@ -18,12 +31,35 @@ void AimCorridorTargetingController::SwitchCandidate(
     lockProgress_ = 0.0f;
     targetHoldElapsed_ = 0.0f;
     breakGraceElapsed_ = 0.0f;
+    lockedHoldElapsed_ = 0.0f;
     lastSwitchReason_ = reason ? reason : "候補を変更";
+    if (nextIsKraken && target.overlapsVisibleRect) {
+        lockState_ = AimLockState::Locked;
+        lockedTargetId_ = target.runtimeId;
+        lockedTargetWorldPosition_ = target.worldPosition;
+        lockedTargetAimPosition_ = target.worldPosition;
+        lockProgress_ = 1.0f;
+        ++lockCompletedCount_;
+        lastSwitchReason_ = "触手への照準重なりで即時ロック";
+    }
 }
 
 void AimCorridorTargetingController::ClearTarget(
     bool countLockBreak,
     const char* reason) {
+    const bool currentWasKraken = currentTargetValid_ &&
+        currentTarget_.targetKind == PlayerLockOnTargetKind::KrakenWeakPoint;
+    if (currentWasKraken && lockState_ == AimLockState::Acquiring &&
+        lockElapsed_ > 0.0f) {
+        ++krakenAcquireResetCount_;
+    }
+    if (currentWasKraken && lockState_ == AimLockState::Locked &&
+        lockedHoldElapsed_ <= 0.1f) {
+        ++krakenImmediateUnlockCount_;
+    }
+    if (currentWasKraken) {
+        lastKrakenUnlockReason_ = reason ? reason : "対象を解除";
+    }
     if (countLockBreak && lockState_ == AimLockState::Locked) {
         ++lockBreakCount_;
     }
@@ -39,6 +75,7 @@ void AimCorridorTargetingController::ClearTarget(
     lockProgress_ = 0.0f;
     targetHoldElapsed_ = 0.0f;
     breakGraceElapsed_ = 0.0f;
+    lockedHoldElapsed_ = 0.0f;
     lastSwitchReason_ = reason ? reason : "対象を解除";
 }
 
@@ -79,6 +116,7 @@ void AimCorridorTargetingController::UpdateSelection(float scaledDeltaTime) {
     }
 
     if (lockState_ == AimLockState::Locked) {
+        lockedHoldElapsed_ += scaledDeltaTime;
         lockedTargetId_ = current->runtimeId;
         lockedTargetWorldPosition_ = current->worldPosition;
         lockedTargetAimPosition_ = current->worldPosition;
@@ -107,6 +145,7 @@ void AimCorridorTargetingController::UpdateSelection(float scaledDeltaTime) {
             lockedTargetWorldPosition_ = current->worldPosition;
             lockedTargetAimPosition_ = current->worldPosition;
             lockProgress_ = 1.0f;
+            lockedHoldElapsed_ = 0.0f;
             ++lockCompletedCount_;
             lastSwitchReason_ = "ロック取得完了";
         }
@@ -150,7 +189,7 @@ void AimCorridorTargetingController::PublishVisualState(float unscaledDeltaTime)
         markerRenderer_->Update(
             unscaledDeltaTime,
             markerVisible,
-            currentTarget_.worldPosition,
+            currentTarget_.markerWorldPosition,
             currentTarget_.screenRadius,
             currentTarget_.cameraDepth);
     }

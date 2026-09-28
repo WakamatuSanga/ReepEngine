@@ -2,7 +2,7 @@ struct BeamConstants
 {
     float4x4 viewProjection;
     float4 params;        // x: brightness, y: flicker strength, z: time, w: mode
-    float4 qualityParams; // x: alpha scale, y: edge softness, z: tip fade power, w: unused
+    float4 qualityParams; // x: alpha scale, y: edge softness, z: tip fade power, w: nozzle clip Z
 };
 
 ConstantBuffer<BeamConstants> gBeam : register(b0);
@@ -11,6 +11,7 @@ struct PixelShaderInput
 {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
+    float beamNearFade : TEXCOORD1;
 };
 
 float4 MakeOutput(float4 color) : SV_TARGET0
@@ -76,6 +77,11 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     float core = pow(center, edgeSoftness);
     float edgeHeat = pow(center, 1.2f);
     float tipFade = pow(saturate(1.0f - smoothstep(0.0f, 1.0f, u)), tipFadePower);
+    // Soften the finite nozzle edge; side and tip fades already reach zero.
+    float rootFade = smoothstep(0.0f, 0.1f, u);
+    // Only the camera-facing extension fades. Squaring compensates for its
+    // inverse-depth-squared projected area; it reaches zero at the near plane.
+    float nearFade = saturate(input.beamNearFade);
 
     float3 c0 = float3(1.0f, 0.95f, 0.65f);
     float3 c1 = float3(1.0f, 0.45f, 0.05f);
@@ -84,7 +90,7 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     color = lerp(color, c2, smoothstep(0.45f, 1.0f, u));
 
     float flicker = 1.0f + sin(time * 37.0f + u * 9.0f) * flickerStrength * 0.06f;
-    float alpha = saturate(lerp(edgeHeat * 0.22f, core, 0.80f) * tipFade * alphaScale);
+    float alpha = saturate(lerp(edgeHeat * 0.22f, core, 0.80f) * tipFade * rootFade * nearFade * nearFade * alphaScale);
     if (alpha <= 0.01f)
     {
         discard;

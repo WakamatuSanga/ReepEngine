@@ -120,6 +120,7 @@ RailShooterCameraRig::RailShooterCameraRig() = default;
 RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
+    externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
     camera_ = camera;
     railRuntime_ = railRuntime;
@@ -132,6 +133,7 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
     ClearRuntimeV2ForceTests();
     ResetBoostRailSpeedState();

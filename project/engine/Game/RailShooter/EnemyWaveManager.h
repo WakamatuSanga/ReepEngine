@@ -3,7 +3,10 @@
 #include "Engine/math/Matrix4x4.h"
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +24,7 @@ public:
     ~EnemyWaveManager();
 
     void Initialize(EnemyManager* enemyManager, const Camera* camera);
+    void Reset();
     void Finalize();
     void Update(float deltaTime);
     void DrawImGui();
@@ -36,6 +40,31 @@ public:
 
     size_t GetLoadedWaveCount() const { return waves_.size(); }
     size_t GetActiveWaveCount() const { return activeWaves_.size(); }
+
+    static constexpr size_t kInvalidWaveIndex =
+        (std::numeric_limits<size_t>::max)();
+    const std::string& GetCurrentWaveId() const;
+    uint64_t GetCurrentWaveRevision() const { return currentWaveRevision_; }
+    bool IsCurrentWave(std::string_view waveId) const;
+    size_t GetCurrentWaveIndex() const { return currentWaveIndex_; }
+
+    bool ConfigureExternalWaveObjective(std::string_view targetWaveId);
+    bool SetExternalWaveObjectiveCompleted(bool completed);
+    void ClearExternalWaveObjective();
+    bool IsExternalWaveObjectiveConfigured() const;
+    bool IsExternalWaveObjectiveCompleted() const;
+    bool IsCurrentWaveBlockedByExternalObjective() const;
+    const std::string& GetExternalWaveObjectiveTargetWaveId() const;
+    uint64_t GetExternalWaveObjectiveCompletionRevision() const;
+    uint64_t GetExternalWaveObjectiveBlockedCompletionCount() const;
+    uint64_t GetExternalWaveObjectiveCompletionPublishCount() const;
+    uint64_t GetExternalWaveObjectiveDuplicatePublishSuppressionCount() const;
+
+    bool ValidateWaveResources();
+    bool HasLoadedWave(std::string_view waveId) const;
+    size_t GetWaveDuplicateIdCount() const { return waveDuplicateIdCount_; }
+    size_t GetUnresolvedNextWaveCount() const { return unresolvedNextWaveCount_; }
+    size_t GetWaveChainCycleCount() const { return waveChainCycleCount_; }
 
 private:
     enum class LaserState {
@@ -88,6 +117,16 @@ private:
         float laserTimer = 0.0f;
     };
 
+    struct ExternalWaveObjectiveState {
+        std::string targetWaveId;
+        uint64_t completionRevision = 0;
+        uint64_t blockedCompletionCount = 0;
+        uint64_t completionPublishCount = 0;
+        uint64_t duplicatePublishSuppressionCount = 0;
+        bool configured = false;
+        bool completed = false;
+    };
+
     bool LoadWaveById(const std::string& waveId, std::string& resultMessage);
     bool LoadWaveFile(const std::string& filePath, std::string& resultMessage);
     bool IsWaveLoaded(const std::string& waveId) const;
@@ -118,6 +157,17 @@ private:
     ActiveWave* FindActiveWave(size_t waveIndex);
     bool IsWaveCurrentlyActive(const std::string& waveId) const;
     void ClearPendingNextWave();
+    void InitializeWaveFoundationState();
+    void FinalizeWaveFoundationState();
+    void ResetWaveFoundationForRestart();
+    void LoadStep9AWaves();
+    void PublishCurrentWaveStart(size_t waveIndex);
+    void RefreshCurrentWaveDiagnostics();
+    bool DoesExternalObjectiveAllowCompletion(std::string_view waveId) const;
+    bool PassExternalObjectiveCompletionGate(std::string_view waveId);
+    bool IsWaveReachableFromAutoStart(std::string_view waveId) const;
+    void DrawProgressionObjectiveImGui();
+    void ResetFoundationDiagnostics();
     static const char* ToWaveEndReasonText(WaveEnemyEndReason reason);
     void AddLog(const std::string& message);
     void ResetManualWaveBuffer();
@@ -140,6 +190,11 @@ private:
     std::string lastWaveWarningText_ = "(none)";
     std::string pendingStartWaveId_;
     std::string pendingNextWaveId_;
+    std::string currentWaveId_;
+    std::string currentWaveNextWaveId_;
+    std::string lastConfiguredExternalObjectiveWaveId_;
+    std::string lastExternalObjectiveError_ = "なし";
+    std::string lastWaveValidationResult_ = "未検証";
     Vector3 lastSpawnPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 lastScreenAnchorPosition_{ 0.0f, 0.0f, 0.0f };
     float lastWaveElapsedTime_ = 0.0f;
@@ -151,6 +206,14 @@ private:
     size_t pendingStartWaveIndex_ = 0;
     size_t lastWaveSpawnedCount_ = 0;
     size_t lastWaveEnemyCount_ = 0;
+    size_t currentWaveIndex_ = kInvalidWaveIndex;
+    size_t currentWaveSpawnCount_ = 0;
+    size_t currentWaveScheduledSpawnCount_ = 0;
+    size_t currentWaveActiveEnemyCount_ = 0;
+    size_t waveDuplicateIdCount_ = 0;
+    size_t unresolvedNextWaveCount_ = 0;
+    size_t waveChainCycleCount_ = 0;
+    size_t waveValidationCount_ = 0;
     std::array<char, 64> manualWaveIdBuffer_{};
     bool enabled_ = true;
     bool autoLoadMissingWave_ = true;
@@ -162,6 +225,13 @@ private:
     bool pendingStartWarningActive_ = false;
     bool gameModeWasActive_ = false;
     bool screenAnchorEnabled_ = true;
+    bool currentWaveDataValid_ = false;
+    bool currentWaveBaseComplete_ = false;
+    bool currentWaveFinalComplete_ = false;
+    bool waveResourcesValid_ = false;
+    bool emptyTargetWaveBlockObserved_ = false;
+    bool initialized_ = false;
+    bool finalizing_ = false;
     std::string autoStartWaveId_ = "wave_001";
     float spawnWidth_ = 20.0f;
     float spawnHeight_ = 12.0f;
@@ -183,4 +253,6 @@ private:
     size_t lastGameModeAutoStartCount_ = 0;
     size_t despawnedOutOfCameraCount_ = 0;
     size_t screenAnchorEnemyCount_ = 0;
+    uint64_t currentWaveRevision_ = 0;
+    ExternalWaveObjectiveState externalWaveObjective_{};
 };

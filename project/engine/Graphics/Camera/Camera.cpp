@@ -18,8 +18,12 @@ void Camera::Update() {
 	// ワールド行列 (カメラ自体の位置・回転)
 	worldMatrix_ = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 
-	// ビュー行列 (ワールド行列の逆行列)
-	viewMatrix_ = Inverse(worldMatrix_);
+	// 描画専用OffsetはGameplay Cameraの物理座標を変更しない。
+	Matrix4x4 viewWorldMatrix = worldMatrix_;
+	viewWorldMatrix.m[3][0] += viewTranslationOffset_.x;
+	viewWorldMatrix.m[3][1] += viewTranslationOffset_.y;
+	viewWorldMatrix.m[3][2] += viewTranslationOffset_.z;
+	viewMatrix_ = Inverse(viewWorldMatrix);
 
 	// プロジェクション行列
 	projectionMatrix_ = PerspectiveFov(fovY_, aspectRatio_, nearClip_, farClip_);

@@ -93,6 +93,14 @@ public:
     bool ShouldHideRailDebugWhileActive() const { return hideRailDebugWhileActive_ || gameplayPreviewMode_; }
     bool ShouldHideRailPointsWhileActive() const { return hideRailPointsWhileActive_ || gameplayPreviewMode_; }
     bool ShouldHideEventDebugWhileActive() const { return hideEventDebugWhileActive_ || gameplayPreviewMode_; }
+    bool SetExternalEncounterRailSpeedMultiplier(float multiplier);
+    float GetExternalEncounterRailSpeedMultiplier() const;
+    float GetBaseRailSpeed() const;
+    float GetExistingRailSpeedScale() const;
+    float GetBoostRailSpeedMultiplier() const;
+    float GetEffectiveRailSpeed() const;
+    float GetRailDistance() const;
+    float GetLastRailAdvance() const;
 
 private:
     struct RailCameraPose {
@@ -187,6 +195,7 @@ private:
     float existingRailSpeedScale_ = 1.0f;
     float boostRailSpeedMultiplier_ = 1.15f;
     float currentRailSpeedMultiplier_ = 1.0f;
+    float externalEncounterRailSpeedMultiplier_ = 1.0f;
     float targetRailSpeedMultiplier_ = 1.0f;
     float boostRailAccelerationTime_ = 0.10f;
     float boostRailReturnTime_ = 0.45f;

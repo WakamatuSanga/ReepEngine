@@ -19,7 +19,6 @@ public:
     void Update(float deltaTime);
     void Draw();
     void DrawImGui();
-    void DrawVisibilityImGui();
     size_t GetEffectCount() const;
 
     void PlayHitEffectAt(const Vector3& position);

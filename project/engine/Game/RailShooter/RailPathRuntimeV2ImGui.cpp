@@ -40,7 +40,6 @@ void RailPathRuntimeV2::DrawImGui() {
         HelpMarker("Runtime V2はデバッグプレビュー専用で、通常GameModeのCameraにはまだ接続していません。");
         ImGui::Text("Build成功: %s", valid_ ? "はい" : "いいえ");
         ImGui::Text("構築結果: %s", lastBuildResult_.c_str());
-        ImGui::Text("有効: %s", valid_ ? "はい" : "いいえ");
         ImGui::Text("Adapter方式: %s", adapterMode_.c_str());
         ImGui::Text("入力ノード数: %zu / 有効ノード数: %zu", sourceNodes_.size(), nodes_.size());
         ImGui::Text("除外した連続重複: %zu", duplicateNodeSkipCount_);

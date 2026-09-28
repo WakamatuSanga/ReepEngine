@@ -239,6 +239,7 @@ void GameScene::UpdateSceneRuntime() {
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
+    PreUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
     if (railShooterCameraRig_) {
         railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
         railShooterCameraRig_->Update(gameplayDeltaTime);
@@ -314,7 +315,7 @@ void GameScene::UpdateSceneRuntime() {
     if (!aimCorridorTargetingController_ && aimCorridorVisualController_) {
         aimCorridorTargetingController_ = std::make_unique<AimCorridorTargetingController>();
         aimCorridorTargetingController_->Initialize(
-            dxCommon, enemyManager_.get(), camera_.get(), aimCorridorVisualController_.get());
+            dxCommon, playerLockOnTargetProvider_.get(), camera_.get(), aimCorridorVisualController_.get());
     }
     if (aimCorridorVisualController_) {
         aimCorridorVisualController_->SetGameModeActive(isGameMode);
@@ -323,7 +324,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerBulletManager_) {
         playerBulletManager_->SetAimRuntimeContext(
-            aimCorridorVisualController_.get(), aimCorridorTargetingController_.get(), enemyManager_.get(),
+            aimCorridorVisualController_.get(), aimCorridorTargetingController_.get(), playerLockOnTargetProvider_.get(),
             isGameMode, isPlayerAliveForAim);
     }
     if (playerBulletManager_) {
@@ -341,6 +342,8 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyManager_) {
         enemyManager_->Update(gameplayDeltaTime);
     }
+    UpdateKrakenTentacleMidboss(gameplayDeltaTime);
+    PostKrakenUpdateKrakenTentacleWaveEncounter();
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
         influenceFieldManager_->Update(gameplayDeltaTime);
@@ -399,6 +402,7 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyWaveManager_) {
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
+    PostWaveUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
     if (enemyLaserTelegraphController_) {
         enemyLaserTelegraphController_->Update(gameplayDeltaTime);
     }
@@ -502,10 +506,12 @@ void GameScene::UpdateSceneRuntime() {
         if (skinningPreviewSkeleton_) {
             UpdateSkeletonWorldTransforms(*skinningPreviewSkeleton_);
         }
-        skinningEditor_->Update();
+        skinningEditor_->Update(unscaledDeltaTime);
+#ifndef USE_IMGUI
         if (skinningPreviewModel_) {
-            skinningPreviewModel_->UpdateSkinning();
+            skinningEditor_->RefreshKrakenMotionPreviewDiagnostics();
         }
+#endif
     }
 
     if (runtimeModeController_) {

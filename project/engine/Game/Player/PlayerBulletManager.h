@@ -11,12 +11,13 @@ class AimCorridorTargetingController;
 class AimCorridorVisualController;
 class Camera;
 class EnemyBullet;
-class EnemyManager;
 class GameViewport;
 class LockedWingMissileExhaustController;
 class Object3dCommon;
 class Player;
+class PlayerLockOnTargetProvider;
 class ProjectileRailMotionAdapter;
+enum class PlayerLockOnTargetKind : uint8_t;
 
 class PlayerBulletManager {
 public:
@@ -35,6 +36,28 @@ public:
     enum class PlayerProjectileType : uint8_t {
         NormalShot,
         LockedWingShot,
+    };
+
+    enum class PlayerProjectileKillReason : uint8_t {
+        KrakenBodyHit,
+        KrakenWeakPointHit,
+    };
+
+    struct PlayerBulletCollisionSnapshot {
+        uint64_t runtimeId = 0;
+        Vector3 worldPosition{};
+        Vector3 velocity{};
+        float radius = 0.0f;
+        float lifeTime = 0.0f;
+        float elapsedTime = 0.0f;
+        int damage = 1;
+        PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
+        std::string lockedTargetId;
+        uint8_t launchPhase = 0;
+        bool active = false;
+        bool killed = false;
+        bool homingReady = false;
+        bool exhaustEnabled = false;
     };
 
     enum class WingSide : uint8_t {
@@ -64,7 +87,7 @@ public:
     void SetAimRuntimeContext(
         AimCorridorVisualController* visualController,
         AimCorridorTargetingController* targetingController,
-        EnemyManager* enemyManager,
+        const PlayerLockOnTargetProvider* targetProvider,
         bool gameModeActive,
         bool playerAlive);
     void ClearAimCorridorContext();
@@ -88,6 +111,10 @@ public:
         float* lastDistance,
         float* lastRadiusSum,
         float* lastBulletRadius);
+    std::vector<PlayerBulletCollisionSnapshot> GetActiveCollisionSnapshots() const;
+    bool TryKillProjectileByRuntimeId(
+        std::uint64_t runtimeId,
+        PlayerProjectileKillReason reason);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
     float GetChargeTime() const { return chargeTime_; }
@@ -99,6 +126,7 @@ public:
     const Vector3& GetLastAimPoint() const { return lastAimPoint_; }
     const Vector3& GetLastAimDirection() const { return lastAimDirection_; }
     const Vector3& GetLastMuzzlePosition() const { return lastMuzzlePosition_; }
+    void DrawKrakenNaturalLockHomingDiagnosticsImGui() const;
 
 private:
     enum class LockedWingShotResult : uint8_t {
@@ -119,10 +147,33 @@ private:
         bool valid = false;
     };
 
+    struct LockOnTargetProviderDiagnostics {
+        std::string targetId{};
+        Vector3 worldPosition{};
+        PlayerLockOnTargetKind kind{};
+        bool querySucceeded = false;
+        bool alive = false;
+        bool targetable = false;
+        bool valid = false;
+    };
+
+    enum class LockedWingTargetLostReason : uint8_t {
+        None,
+        MissingTargetId,
+        TargetProviderUnavailable,
+        TargetRemoved,
+        TargetDead,
+        TargetInactive,
+        NonFiniteTarget,
+        NonFiniteDirection,
+    };
+
     struct LockedWingLaunchState {
         std::string lockedTargetId;
         Vector3 currentFlightDirection{ 0.0f, 0.0f, 1.0f };
         Vector3 currentEjectionDownDirection{ 0.0f, -1.0f, 0.0f };
+        Vector3 targetWorldPosition{};
+        Vector3 desiredDirection{ 0.0f, 0.0f, 1.0f };
         uint64_t sequence = 0;
         uint64_t exhaustHandle = 0;
         float totalElapsed = 0.0f;
@@ -132,22 +183,37 @@ private:
         float ignitionRampDuration = 0.15f;
         float baseBulletSpeed = 0.0f;
         float currentSpeedRate = 0.0f;
+        float targetDistance = -1.0f;
+        float directionDot = 1.0f;
+        float angleErrorDegrees = 0.0f;
+        float frameTurnDegrees = 0.0f;
+        float maximumFrameTurnDegrees = 0.0f;
         WingSide launchWing = WingSide::Left;
         LockedWingLaunchPhase phase = LockedWingLaunchPhase::EjectionDrop;
+        LockedWingTargetLostReason targetLostReason =
+            LockedWingTargetLostReason::None;
         bool exhaustEnabled = false;
         bool ignitionStarted = false;
         bool homingReady = false;
         bool homingEnabled = false;
+        bool homingStarted = false;
+        bool targetQuerySucceeded = false;
+        bool targetAlive = false;
+        bool targetLost = false;
+        bool targetLostStraightRecorded = false;
+        bool exhaustFollowingDirection = false;
     };
 
     struct PlayerBulletInstance {
         std::unique_ptr<EnemyBullet> bullet;
         std::unique_ptr<LockedWingLaunchState> lockedWingLaunch;
+        uint64_t runtimeId = 0;
         int damage = 1;
         PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
     };
 
     void FireFromPlayer();
+    uint64_t AllocateBulletRuntimeId();
     LockedWingShotResult TrySpawnLockedWingShot();
     LockedWingShotResult SpawnLockedWingShot(
         WingSide wing, const std::string& targetId, bool forcedTest);
@@ -155,13 +221,21 @@ private:
     Vector3 ResolveLockedWingLaunchDirection() const;
     Vector3 ResolveLockedWingEjectionDownDirection() const;
     void UpdateLockedWingShot(PlayerBulletInstance& instance, float scaledDeltaTime);
+    void UpdateLockedWingHoming(
+        PlayerBulletInstance& instance,
+        float cruiseDeltaTime);
     void UpdateLockedWingMissileExhaust(PlayerBulletInstance& instance);
     void UpdateLockedWingShotDiagnostics();
+    void ResetLockedWingHomingDiagnostics(bool resetStatistics);
+    void RefreshLockOnTargetProviderDiagnostics();
+    void RecordLockedWingHomingHit(const PlayerBulletInstance& instance);
     void ResetLockedWingShotState(bool resetStatistics);
     void ClearLockedWingShotForceState();
     void DrawLockedWingShotImGui();
     void DrawLockedWingMissileLaunchImGui();
     void DrawLockedWingMissileIgnitionImGui();
+    void DrawLockOnTargetProviderImGui();
+    void DrawLockedWingHomingImGui();
     void RemoveDeadBullets();
     void SyncModelPathBuffer();
     void UpdateCameraVelocity(float deltaTime);
@@ -183,7 +257,7 @@ private:
     GameViewport* gameViewport_ = nullptr;
     ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::unique_ptr<LockedWingMissileExhaustController> lockedWingMissileExhaustController_;
-    EnemyManager* enemyManager_ = nullptr;
+    const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     AimCorridorVisualController* aimCorridorVisualController_ = nullptr;
     AimCorridorTargetingController* aimCorridorTargetingController_ = nullptr;
     std::vector<PlayerBulletInstance> bullets_;
@@ -244,12 +318,14 @@ private:
     bool lastAimFallbackUsed_ = false;
     bool lastShotSpawnDataValid_ = false;
     size_t firedBulletCount_ = 0;
+    uint64_t nextBulletRuntimeId_ = 1;
     size_t cursorAimVisualUseCount_ = 0;
     size_t cursorAimStandardShotCount_ = 0;
     size_t aimCorridorShotCount_ = 0;
     size_t straightForwardShotCount_ = 0;
 
     LockedTargetValidation lockedTargetValidation_{};
+    LockOnTargetProviderDiagnostics lockOnTargetProviderDiagnostics_{};
     Vector3 leftLockedWingLocalOffset_{ -1.0f, -0.35f, -0.33f };
     Vector3 rightLockedWingLocalOffset_{ 1.0f, -0.35f, -0.33f };
     Vector3 leftLockedWingWorldPosition_{};
@@ -278,6 +354,9 @@ private:
     bool lastLockedWingIgnitionStarted_ = false;
     bool lastLockedWingHomingReady_ = false;
     bool lastLockedWingHomingEnabled_ = false;
+    bool lockedWingHomingEnabled_ = true;
+    float lockedWingHomingTurnRateDegreesPerSecond_ = 360.0f;
+    float lockedWingHomingMinimumTargetDistance_ = 0.05f;
     uint64_t lockedWingSequenceCounter_ = 0;
     uint64_t lastLockedWingShotSequence_ = 0;
     size_t lockedWingShotCount_ = 0;
@@ -293,4 +372,18 @@ private:
     size_t lockedWingCruiseTransitionCount_ = 0;
     size_t lockedWingDirectionFallbackCount_ = 0;
     size_t lockedWingNonFiniteVelocityCount_ = 0;
+    size_t lockedWingHomingStartCount_ = 0;
+    size_t lockedWingHomingUpdateCount_ = 0;
+    size_t lockedWingTargetQuerySuccessCount_ = 0;
+    size_t lockedWingTargetQueryFailureCount_ = 0;
+    size_t lockedWingTargetDeathCount_ = 0;
+    size_t lockedWingTargetRemovalCount_ = 0;
+    size_t lockedWingNonFiniteTargetCount_ = 0;
+    size_t lockedWingNonFiniteDirectionCount_ = 0;
+    size_t lockedWingOppositeFallbackCount_ = 0;
+    size_t lockedWingMaximumTurnClampCount_ = 0;
+    size_t lockedWingHomingHitCount_ = 0;
+    size_t lockedWingTargetLostStraightCount_ = 0;
+    size_t lockedWingTargetSwitchCount_ = 0;
+    size_t normalShotHomingApplyCount_ = 0;
 };

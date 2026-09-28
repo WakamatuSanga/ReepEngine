@@ -11,6 +11,10 @@
 class Model;
 class ModelCommon;
 class DirectXCommon;
+struct GltfSkinnedMaterialDiagnostics;
+struct GltfSkinnedMaterialState;
+struct GltfSkinnedPrimitiveDiagnostics;
+struct GltfSkinnedPrimitiveState;
 struct Skeleton;
 
 class GltfSkinnedModel {
@@ -32,7 +36,24 @@ public:
         int missingTextureCount = 0;
     };
 
-    GltfSkinnedModel() = default;
+    struct SkinningDiagnostics {
+        std::vector<Matrix4x4> paletteMatrices;
+        uint32_t paletteCount = 0;
+        uint32_t nonFinitePaletteMatrixCount = 0;
+        uint32_t identityPaletteMatrixCount = 0;
+        uint32_t referencedJointCount = 0;
+        uint32_t vertexCount = 0;
+        uint32_t nonFiniteSkinnedVertexCount = 0;
+        uint32_t weightlessVertexCount = 0;
+        uint32_t invalidJointInfluenceCount = 0;
+        uint32_t nonFiniteWeightCount = 0;
+        uint32_t abnormalWeightSumVertexCount = 0;
+        uint32_t maxPositiveInfluenceCount = 0;
+        Bounds sourceBounds{};
+        Bounds skinnedBounds{};
+    };
+
+    GltfSkinnedModel();
     ~GltfSkinnedModel();
 
     GltfSkinnedModel(const GltfSkinnedModel&) = delete;
@@ -43,6 +64,7 @@ public:
     void UpdateSkinning();
     void DispatchComputeSkinning(ID3D12GraphicsCommandList* commandList);
     void SetUseComputeOutputVertices(bool enabled);
+    void SetJointWarning(const std::vector<int>& jointIndices, float strength);
 
     Model* GetModel() const { return model_.get(); }
     bool IsValid() const { return model_ != nullptr; }
@@ -63,6 +85,9 @@ public:
     const Bounds& GetSourceBounds() const { return sourceBounds_; }
     const Bounds& GetSkinnedBounds() const { return skinnedBounds_; }
     const TextureDebugInfo& GetTextureDebugInfo() const { return textureDebugInfo_; }
+    SkinningDiagnostics GetSkinningDiagnostics() const;
+    const GltfSkinnedPrimitiveDiagnostics& GetPrimitiveDiagnostics() const;
+    GltfSkinnedMaterialDiagnostics GetMaterialDiagnostics() const;
 
 private:
     struct SkinningInformation {
@@ -88,11 +113,15 @@ private:
     bool CreateComputeRootSignature(DirectXCommon* dxCommon);
     bool CreateComputePipelineState(DirectXCommon* dxCommon);
     bool InitializeComputeSkinningResources(ModelCommon* modelCommon);
+    void ResetLoadedState();
+    bool FailPrimitiveLoad(const std::string& errorMessage);
 
 private:
     Skeleton* skeleton_ = nullptr;
     std::unique_ptr<Model> model_;
     std::vector<SourceVertex> sourceVertices_;
+    std::unique_ptr<GltfSkinnedPrimitiveState> primitiveState_;
+    std::unique_ptr<GltfSkinnedMaterialState> materialState_;
     std::vector<Matrix4x4> inverseBindMatrices_;
     std::vector<Matrix4x4> jointPalette_;
     Bounds sourceBounds_{};

@@ -110,12 +110,12 @@ namespace {
 void PlayerBulletManager::SetAimRuntimeContext(
     AimCorridorVisualController* visualController,
     AimCorridorTargetingController* targetingController,
-    EnemyManager* enemyManager,
+    const PlayerLockOnTargetProvider* targetProvider,
     bool gameModeActive,
     bool playerAlive) {
     aimCorridorVisualController_ = visualController;
     aimCorridorTargetingController_ = targetingController;
-    enemyManager_ = enemyManager;
+    targetProvider_ = targetProvider;
 
     const bool enteringGameMode =
         (!aimRuntimeStateInitialized_ && gameModeActive)
@@ -148,7 +148,7 @@ void PlayerBulletManager::SetAimRuntimeContext(
 void PlayerBulletManager::ClearAimCorridorContext() {
     aimCorridorVisualController_ = nullptr;
     aimCorridorTargetingController_ = nullptr;
-    enemyManager_ = nullptr;
+    targetProvider_ = nullptr;
     aimRuntimeStateInitialized_ = false;
     aimGameModeActive_ = false;
     aimPlayerAlive_ = true;
@@ -450,11 +450,13 @@ void PlayerBulletManager::DrawAimImGui() {
     ImGui::TextWrapped("ロック対象の識別子: %s",
         lockedTargetId.empty() ? "なし" : lockedTargetId.c_str());
     ImGui::Text("ロック完了時の発射方式: 対象有効なら左右翼下弾");
-    ImGui::Text("追尾未使用: はい");
+    ImGui::Text(
+        "翼下弾の追尾: %s",
+        ToJapaneseBool(lockedWingHomingEnabled_));
     if (ImGui::IsItemHovered()) {
         ImGui::SetTooltip(
             "ロック完了かつ対象が有効な場合は、左右翼下から交互に発射します。\n"
-            "翼下弾も今回の段階では追尾せず、そのまま直進します。");
+            "翼下弾は巡航へ移行後、発射時に保存した対象へ追尾します。");
     }
 
     ImGui::Text("マウスがゲーム表示領域内: %s", ToJapaneseBool(mouseInGameView_));

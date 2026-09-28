@@ -1,0 +1,19 @@
+{
+  "waveId": "wave_005",
+  "name": "Progression Check Wave 5",
+  "delay": 0.0,
+  "clearCondition": "AllDead",
+  "clearDelayAfterAllDead": 3.5,
+  "clearDelayAfterAllEscaped": 0.0,
+  "enemies": [
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 0.0,
+      "screenX": 0.0,
+      "screenY": 0.14,
+      "depth": 55.0,
+      "movePattern": "StraightApproach",
+      "attackPattern": "SingleShot"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 #include "AimCorridorTargetingController.h"
 
-#include "Engine/Game/Enemy/EnemyManager.h"
+#include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -78,13 +78,14 @@ bool AimCorridorTargetingController::RectsOverlap(
 
 void AimCorridorTargetingController::ProjectTargets() {
     projectedTargets_.clear();
+    krakenNaturalLockDiagnostics_.clear();
     visibleRect_ = {};
     softRect_ = {};
     candidateCount_ = 0;
     bestCandidateId_.clear();
     bestCandidateScore_ = 0.0f;
     currentTargetValid_ = false;
-    if (!enemyManager_ || !camera_ || !visualController_) {
+    if (!targetProvider_ || !camera_ || !visualController_) {
         return;
     }
 
@@ -125,72 +126,143 @@ void AimCorridorTargetingController::ProjectTargets() {
         { cameraWorld.m[2][0], cameraWorld.m[2][1], cameraWorld.m[2][2] },
         { 0.0f, 0.0f, 1.0f });
 
-    std::vector<EnemyTargetView> targetViews;
-    enemyManager_->CollectTargetableEnemies(targetViews);
-    projectedTargets_.reserve((std::min)(targetViews.size(), static_cast<size_t>(maximumCandidateCount_)));
+    targetProvider_->CollectTargetableTargets(targetSnapshots_);
+    projectedTargets_.reserve((std::min)(targetSnapshots_.size(), static_cast<size_t>(maximumCandidateCount_)));
+    krakenNaturalLockDiagnostics_.reserve(targetSnapshots_.size());
     float bestScore = (std::numeric_limits<float>::max)();
-    for (const EnemyTargetView& targetView : targetViews) {
+    for (std::size_t snapshotIndex = 0;
+         snapshotIndex < targetSnapshots_.size(); ++snapshotIndex) {
+        const PlayerLockOnTargetSnapshot& targetView =
+            targetSnapshots_[snapshotIndex];
+        KrakenNaturalLockTargetDiagnostic* krakenDiagnostic = nullptr;
+        if (targetView.kind == PlayerLockOnTargetKind::KrakenWeakPoint) {
+            KrakenNaturalLockTargetDiagnostic diagnostic{};
+            diagnostic.targetId = targetView.id;
+            diagnostic.chainIndex = targetView.subTargetIndex;
+            diagnostic.worldPosition = targetView.worldPosition;
+            diagnostic.worldRadius = targetView.worldRadius;
+            diagnostic.sourceColliderId = targetView.sourceColliderId;
+            diagnostic.cameraPosition = camera_->GetViewTranslate();
+            diagnostic.cameraForward = cameraForward;
+            diagnostic.providerCandidateIndex = snapshotIndex;
+            diagnostic.sourceReceived = true;
+            diagnostic.providerAdded = true;
+            diagnostic.alive = targetView.alive;
+            diagnostic.targetable = targetView.targetable;
+            diagnostic.valid = targetView.valid;
+            diagnostic.projectionFailureReason = "なし";
+            diagnostic.rejectionReason = "未評価";
+            krakenNaturalLockDiagnostics_.push_back(std::move(diagnostic));
+            krakenDiagnostic = &krakenNaturalLockDiagnostics_.back();
+        }
         if (projectedTargets_.size() >= static_cast<size_t>(maximumCandidateCount_)) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->projectionFailureReason = "最大候補数を超過";
+                krakenDiagnostic->rejectionReason = "Aim候補上限で拒否";
+            }
             break;
         }
+        if (!targetView.valid || !targetView.alive || !targetView.targetable
+            || targetView.id.empty() || !std::isfinite(targetView.worldPosition.x)
+            || !std::isfinite(targetView.worldPosition.y)
+            || !std::isfinite(targetView.worldPosition.z)) {
+            if (krakenDiagnostic) {
+                krakenDiagnostic->projectionFailureReason =
+                    "Providerスナップショットが無効";
+                krakenDiagnostic->rejectionReason = "Aim受信時に拒否";
+            }
+            continue;
+        }
         ProjectedTarget target{};
-        target.runtimeId = targetView.runtimeId;
-        target.enemyType = targetView.enemyType;
+        target.runtimeId = targetView.id;
         target.worldPosition = targetView.worldPosition;
-        target.cameraDepth = Dot(Subtract(target.worldPosition, camera_->GetTranslate()), cameraForward);
-        if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
-            || target.cameraDepth > maximumTargetDepth_) {
-            continue;
-        }
-        if (!ProjectWorldToScreen(target.worldPosition, target.screenUv, target.clipW)) {
-            continue;
-        }
+        target.targetKind = targetView.kind;
+        target.subTargetIndex = targetView.subTargetIndex;
+        target.markerWorldPosition = target.worldPosition;
+        if (krakenDiagnostic) {
+            if (!ProjectKrakenTarget(targetView, target, *krakenDiagnostic)) {
+                krakenDiagnostic->projectionFailureReason = "触手形状を画面へ投影できません";
+                krakenDiagnostic->rejectionReason = "触手形状が画面・深度範囲外";
+                continue;
+            }
+        } else {
+            const Vector3 cameraOffset =
+                Subtract(target.worldPosition, camera_->GetViewTranslate());
+            target.cameraDepth = Dot(cameraOffset, cameraForward);
+            if (!std::isfinite(target.cameraDepth) || target.cameraDepth < minimumTargetDepth_
+                || target.cameraDepth > maximumTargetDepth_) {
+                continue;
+            }
+            if (!ProjectWorldToScreen(target.worldPosition, target.screenUv, target.clipW)) {
+                continue;
+            }
 
-        const float worldRadius = std::isfinite(targetView.worldRadius) && targetView.worldRadius > 0.0f
-            ? targetView.worldRadius
-            : fallbackWorldRadius_;
-        Vector2 rightUv{};
-        Vector2 upUv{};
-        float unusedClipW = 0.0f;
-        const bool rightValid = ProjectWorldToScreen(
-            Add(target.worldPosition, Scale(cameraRight, worldRadius)), rightUv, unusedClipW);
-        const bool upValid = ProjectWorldToScreen(
-            Add(target.worldPosition, Scale(cameraUp, worldRadius)), upUv, unusedClipW);
-        float radiusX = rightValid ? std::abs(rightUv.x - target.screenUv.x) : minimumScreenRadius_;
-        float radiusY = upValid ? std::abs(upUv.y - target.screenUv.y) : minimumScreenRadius_;
-        if (!considerEnemyBounds_) {
-            radiusX = minimumScreenRadius_;
-            radiusY = minimumScreenRadius_;
+            const float worldRadius = std::isfinite(targetView.worldRadius) && targetView.worldRadius > 0.0f
+                ? targetView.worldRadius
+                : fallbackWorldRadius_;
+            Vector2 rightUv{};
+            Vector2 upUv{};
+            float unusedClipW = 0.0f;
+            const bool rightValid = ProjectWorldToScreen(
+                Add(target.worldPosition, Scale(cameraRight, worldRadius)), rightUv, unusedClipW);
+            const bool upValid = ProjectWorldToScreen(
+                Add(target.worldPosition, Scale(cameraUp, worldRadius)), upUv, unusedClipW);
+            float radiusX = rightValid ? std::abs(rightUv.x - target.screenUv.x) : minimumScreenRadius_;
+            float radiusY = upValid ? std::abs(upUv.y - target.screenUv.y) : minimumScreenRadius_;
+            if (!considerEnemyBounds_) {
+                radiusX = minimumScreenRadius_;
+                radiusY = minimumScreenRadius_;
+            }
+            target.screenRadius = {
+                std::clamp(radiusX, minimumScreenRadius_, maximumScreenRadius_),
+                std::clamp(radiusY, minimumScreenRadius_, maximumScreenRadius_),
+            };
+            target.boundsMinimum = {
+                target.screenUv.x - target.screenRadius.x,
+                target.screenUv.y - target.screenRadius.y,
+            };
+            target.boundsMaximum = {
+                target.screenUv.x + target.screenRadius.x,
+                target.screenUv.y + target.screenRadius.y,
+            };
+            target.overlapsVisibleRect = RectsOverlap(
+                target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
+            target.overlapsSoftRect = RectsOverlap(
+                target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
+            const float normalizedX = (target.screenUv.x - visibleRect_.center.x)
+                / (std::max)(softRect_.halfSize.x, 0.00001f);
+            const float normalizedY = (target.screenUv.y - visibleRect_.center.y)
+                / (std::max)(softRect_.halfSize.y, 0.00001f);
+            const float centerScore = std::sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+            const float normalizedDepth = std::clamp(
+                (target.cameraDepth - minimumTargetDepth_) / (maximumTargetDepth_ - minimumTargetDepth_),
+                0.0f,
+                1.0f);
+            target.score = centerScore + normalizedDepth * depthScoreWeight_
+                - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
+            target.projectionValid = true;
         }
-        target.screenRadius = {
-            std::clamp(radiusX, minimumScreenRadius_, maximumScreenRadius_),
-            std::clamp(radiusY, minimumScreenRadius_, maximumScreenRadius_),
-        };
-        target.boundsMinimum = {
-            target.screenUv.x - target.screenRadius.x,
-            target.screenUv.y - target.screenRadius.y,
-        };
-        target.boundsMaximum = {
-            target.screenUv.x + target.screenRadius.x,
-            target.screenUv.y + target.screenRadius.y,
-        };
-        target.overlapsVisibleRect = RectsOverlap(
-            target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
-        target.overlapsSoftRect = RectsOverlap(
-            target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
-        const float normalizedX = (target.screenUv.x - visibleRect_.center.x)
-            / (std::max)(softRect_.halfSize.x, 0.00001f);
-        const float normalizedY = (target.screenUv.y - visibleRect_.center.y)
-            / (std::max)(softRect_.halfSize.y, 0.00001f);
-        const float centerScore = std::sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
-        const float normalizedDepth = std::clamp(
-            (target.cameraDepth - minimumTargetDepth_) / (maximumTargetDepth_ - minimumTargetDepth_),
-            0.0f,
-            1.0f);
-        target.score = centerScore + normalizedDepth * depthScoreWeight_
-            - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
-        target.projectionValid = true;
-        if (target.overlapsSoftRect) {
+        if (krakenDiagnostic) {
+            const float deltaX =
+                target.screenUv.x - softRect_.center.x;
+            const float deltaY =
+                target.screenUv.y - softRect_.center.y;
+            const float allowedX =
+                softRect_.halfSize.x + target.screenRadius.x;
+            const float allowedY =
+                softRect_.halfSize.y + target.screenRadius.y;
+            krakenDiagnostic->screenRadius = target.screenRadius;
+            krakenDiagnostic->screenDistance =
+                std::sqrt(deltaX * deltaX + deltaY * deltaY);
+            krakenDiagnostic->lockAllowedDistance =
+                std::sqrt(allowedX * allowedX + allowedY * allowedY);
+            krakenDiagnostic->corridorInside = target.overlapsSoftRect;
+            krakenDiagnostic->candidateScore = target.score;
+            krakenDiagnostic->rejectionReason = target.overlapsSoftRect
+                ? "より良い候補との比較待ち"
+                : "補助捕捉矩形外";
+        }
+        if (krakenDiagnostic ? target.overlapsVisibleRect : target.overlapsSoftRect) {
             ++candidateCount_;
             if (target.score < bestScore) {
                 bestScore = target.score;
@@ -199,6 +271,16 @@ void AimCorridorTargetingController::ProjectTargets() {
             }
         }
         projectedTargets_.push_back(std::move(target));
+    }
+    for (KrakenNaturalLockTargetDiagnostic& diagnostic :
+         krakenNaturalLockDiagnostics_) {
+        diagnostic.candidateSelected =
+            !bestCandidateId_.empty() && diagnostic.targetId == bestCandidateId_;
+        if (diagnostic.candidateSelected) {
+            diagnostic.rejectionReason = "なし";
+        } else if (diagnostic.corridorInside) {
+            diagnostic.rejectionReason = "既存スコアで別候補を選択";
+        }
     }
 }
 

@@ -11,7 +11,9 @@ class AimCorridorTargetMarkerRenderer;
 class AimCorridorVisualController;
 class Camera;
 class DirectXCommon;
-class EnemyManager;
+class PlayerLockOnTargetProvider;
+enum class PlayerLockOnTargetKind : uint8_t;
+struct PlayerLockOnTargetSnapshot;
 
 class AimCorridorTargetingController {
 public:
@@ -27,7 +29,7 @@ public:
 
     bool Initialize(
         DirectXCommon* dxCommon,
-        EnemyManager* enemyManager,
+        const PlayerLockOnTargetProvider* targetProvider,
         Camera* camera,
         AimCorridorVisualController* visualController);
     void Finalize();
@@ -37,6 +39,7 @@ public:
     void Update(float scaledDeltaTime, float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
+    void DrawKrakenNaturalLockDiagnosticsImGui() const;
 
     bool HasCandidate() const { return !candidateTargetId_.empty(); }
     bool HasLockedTarget() const { return !lockedTargetId_.empty() && lockState_ == AimLockState::Locked; }
@@ -46,6 +49,11 @@ public:
     AimLockState GetLockState() const { return lockState_; }
     const Vector3& GetLockedTargetWorldPosition() const { return lockedTargetWorldPosition_; }
     const Vector3& GetLockedTargetAimPosition() const { return lockedTargetAimPosition_; }
+    bool TryGetLockedTargetSnapshot(PlayerLockOnTargetSnapshot& outSnapshot) const;
+    bool IsUsingTargetProvider(
+        const PlayerLockOnTargetProvider* provider) const {
+        return provider != nullptr && targetProvider_ == provider;
+    }
 
 private:
     struct ScreenRect {
@@ -58,8 +66,8 @@ private:
 
     struct ProjectedTarget {
         std::string runtimeId;
-        std::string enemyType;
         Vector3 worldPosition{};
+        Vector3 markerWorldPosition{};
         Vector2 screenUv{};
         Vector2 screenRadius{};
         Vector2 boundsMinimum{};
@@ -67,13 +75,50 @@ private:
         float clipW = 0.0f;
         float cameraDepth = 0.0f;
         float score = 0.0f;
+        PlayerLockOnTargetKind targetKind{};
+        uint32_t subTargetIndex = 0;
         bool overlapsVisibleRect = false;
         bool overlapsSoftRect = false;
         bool projectionValid = false;
     };
 
+    struct KrakenNaturalLockTargetDiagnostic {
+        std::string targetId{};
+        std::string projectionFailureReason = "未評価";
+        std::string rejectionReason = "未評価";
+        Vector3 worldPosition{};
+        Vector3 cameraPosition{};
+        Vector3 cameraForward{};
+        Vector3 cameraSpacePosition{};
+        Vector3 clipPosition{};
+        Vector2 ndcPosition{};
+        Vector2 screenUv{};
+        Vector2 screenRadius{};
+        float worldRadius = 0.0f;
+        float clipW = 0.0f;
+        float viewDepth = 0.0f;
+        float screenDistance = 0.0f;
+        float lockAllowedDistance = 0.0f;
+        float candidateScore = 0.0f;
+        std::size_t providerCandidateIndex = 0;
+        std::uint64_t sourceColliderId = 0;
+        uint32_t chainIndex = 0;
+        bool sourceReceived = false;
+        bool providerAdded = false;
+        bool alive = false;
+        bool targetable = false;
+        bool valid = false;
+        bool cameraFront = false;
+        bool viewportInside = false;
+        bool projectionValid = false;
+        bool corridorInside = false;
+        bool candidateSelected = false;
+    };
+
     void ClampParameters();
     void ProjectTargets();
+    bool ProjectKrakenTarget(const PlayerLockOnTargetSnapshot& source,
+        ProjectedTarget& target, KrakenNaturalLockTargetDiagnostic& diagnostic) const;
     bool ProjectWorldToScreen(
         const Vector3& worldPosition,
         Vector2& screenUv,
@@ -91,12 +136,15 @@ private:
         const Vector2& rhsMaximum);
 
     DirectXCommon* dxCommon_ = nullptr;
-    EnemyManager* enemyManager_ = nullptr;
+    const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     Camera* camera_ = nullptr;
     AimCorridorVisualController* visualController_ = nullptr;
     std::unique_ptr<AimCorridorTargetMarkerRenderer> markerRenderer_;
 
+    std::vector<PlayerLockOnTargetSnapshot> targetSnapshots_;
     std::vector<ProjectedTarget> projectedTargets_;
+    std::vector<KrakenNaturalLockTargetDiagnostic>
+        krakenNaturalLockDiagnostics_;
     ScreenRect visibleRect_{};
     ScreenRect softRect_{};
     ProjectedTarget currentTarget_{};
@@ -115,6 +163,7 @@ private:
     float lockProgress_ = 0.0f;
     float targetHoldElapsed_ = 0.0f;
     float breakGraceElapsed_ = 0.0f;
+    float lockedHoldElapsed_ = 0.0f;
 
     float softAssistScale_ = 1.60f;
     float fallbackWorldRadius_ = 1.50f;
@@ -132,6 +181,10 @@ private:
     int candidateCount_ = 0;
     uint32_t lockCompletedCount_ = 0;
     uint32_t lockBreakCount_ = 0;
+    uint32_t krakenAcquireResetCount_ = 0;
+    uint32_t krakenCandidateSwitchCount_ = 0;
+    uint32_t krakenImmediateUnlockCount_ = 0;
+    std::string lastKrakenUnlockReason_ = "なし";
 
     int debugForcedState_ = -1;
     bool showCandidateBounds_ = false;

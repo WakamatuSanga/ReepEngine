@@ -48,7 +48,8 @@ void RailShooterCameraRig::UpdateBoostRailSpeed(float deltaTime, bool advancing)
     currentRailSpeedMultiplier_ +=
         (targetRailSpeedMultiplier_ - currentRailSpeedMultiplier_) * std::clamp(alpha, 0.0f, 1.0f);
     currentRailSpeedMultiplier_ = std::clamp(currentRailSpeedMultiplier_, 1.0f, boostRailSpeedMultiplier_);
-    effectiveRailSpeed_ = railSpeed_ * existingRailSpeedScale_ * currentRailSpeedMultiplier_;
+    effectiveRailSpeed_ = railSpeed_ * existingRailSpeedScale_ *
+        currentRailSpeedMultiplier_ * externalEncounterRailSpeedMultiplier_;
     lastRailAdvance_ = advancing ? effectiveRailSpeed_ * safeDeltaTime : 0.0f;
     if (advancing) ++boostMultiplierApplyCount_;
     boostDoubleApplicationDetected_ = false;
@@ -57,7 +58,8 @@ void RailShooterCameraRig::UpdateBoostRailSpeed(float deltaTime, bool advancing)
 void RailShooterCameraRig::ResetBoostRailSpeedState() {
     currentRailSpeedMultiplier_ = 1.0f;
     targetRailSpeedMultiplier_ = 1.0f;
-    effectiveRailSpeed_ = railSpeed_ * existingRailSpeedScale_;
+    effectiveRailSpeed_ = railSpeed_ * existingRailSpeedScale_ *
+        externalEncounterRailSpeedMultiplier_;
     lastRailAdvance_ = 0.0f;
     boostStateActive_ = false;
     boostDoubleApplicationDetected_ = false;

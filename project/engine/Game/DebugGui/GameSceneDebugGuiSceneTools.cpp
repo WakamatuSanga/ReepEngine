@@ -144,7 +144,6 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     Vector3 camTrans = scene_->camera_->GetTranslate();
     if (ImGui::DragFloat3("Cam Pos", &camTrans.x, 0.1f)) scene_->camera_->SetTranslate(camTrans);
     ImGui::SeparatorText("Skybox");
-    ImGui::Checkbox("Show Skybox", &scene_->isSkyboxVisible_);
     ImGui::Checkbox("Follow Camera", &scene_->isSkyboxFollowCamera_);
     ImGui::DragFloat3("Skybox Scale", &scene_->skyboxScale_.x, 1.0f, 1.0f, 1000.0f, "%.1f");
     ImGui::TextWrapped("DDS: %s", scene_->skyboxTexturePath_.c_str());
@@ -201,17 +200,6 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
             cloudParams.lightStepCount = static_cast<uint32_t>(cloudLightStepCount);
         }
         if (volumetricCloudPass) {
-            const char* cloudDebugViewNames[] = {
-                "Final",
-                "Alpha only",
-                "Density only",
-                "Light only"
-            };
-            int cloudDebugView = static_cast<int>(volumetricCloudPass->GetDebugViewMode());
-            if (ImGui::Combo("雲のデバッグ表示 (Cloud Debug View)", &cloudDebugView, cloudDebugViewNames, IM_ARRAYSIZE(cloudDebugViewNames))) {
-                volumetricCloudPass->SetDebugViewMode(
-                    static_cast<VolumetricCloudPass::DebugViewMode>(cloudDebugView));
-            }
             volumetricCloudPass->DrawImGui();
         }
         ImGui::SeparatorText("雲の最適化診断 (Cloud Optimization Debug)");
@@ -402,7 +390,6 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     DrawPostEffectUI("Vignette", postEffectParams.vignetteEnabled, postEffectParams.vignetteIntensity);
     DrawPostEffectUI("Smoothing", postEffectParams.smoothingEnabled, postEffectParams.smoothingIntensity);
     ImGui::SeparatorText("Primitive Preview");
-    ImGui::Checkbox("Show Primitive Preview", &scene_->isPrimitivePreviewVisible_);
     ImGui::Text("Front Row : Plane / Circle / Ring / Triangle");
     ImGui::Text("Back Row  : Box / Cylinder / Cone / Torus");
     ImGui::Text("Ring uses gradationLine.png (AddressV = CLAMP)");
@@ -514,7 +501,7 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     ImGui::Checkbox("Sphere", &scene_->isSphereVisible_);
     ImGui::Checkbox("AnimatedCube", &scene_->isAnimatedCubeVisible_);
     ImGui::Checkbox("Active Skinned Model", &scene_->isSkinnedModelVisible_);
-    if (ImGui::Button("\U00004E92\U000063DBPreview\U00003092\U0000518D\U00008AAD\U00008FBC")) {
+    if (ImGui::Button("\u73FE\u5728\u306EPreview\u30A2\u30BB\u30C3\u30C8\u3092\u518D\u8AAD\u8FBC##ReloadCurrentPreviewAsset")) {
         scene_->InitializeSkinningEditorPreview();
     }
     const Skeleton* visibleSkinningTarget = scene_->skinningEditor_ ? scene_->skinningEditor_->GetTargetSkeleton() : nullptr;
@@ -528,9 +515,6 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
     ImGui::Checkbox("Primitive Preview", &scene_->isPrimitivePreviewVisible_);
     ImGui::SeparatorText("Particles / Effects");
     ImGui::Checkbox("ParticleManager", &scene_->isParticleVisible_);
-    if (scene_->primitiveEffectSystem_) {
-        scene_->primitiveEffectSystem_->DrawVisibilityImGui();
-    }
     ImGui::Checkbox("ボリューメトリック雲 (Volumetric Cloud)", &scene_->isVolumetricCloudVisible_);
     ImGui::SeparatorText("Debug");
     ImGui::Checkbox("Debug Sprite", &scene_->isDebugSpriteVisible_);

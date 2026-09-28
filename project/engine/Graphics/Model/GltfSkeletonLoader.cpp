@@ -1,4 +1,6 @@
 #include "GltfSkeletonLoader.h"
+#include "GltfNodeMatrixDiagnostics.h"
+#include "GltfNodeTransformParser.h"
 #include "Engine/Utility/Logger.h"
 #include "Engine/Animation/Skeleton.h"
 #include <algorithm>
@@ -25,6 +27,8 @@ namespace {
         Vector3 translation{ 0.0f, 0.0f, 0.0f };
         std::array<float, 4> rotation{ 0.0f, 0.0f, 0.0f, 1.0f };
         Vector3 scale{ 1.0f, 1.0f, 1.0f };
+        GltfNodeTransformInput transformInput{};
+        GltfNodeTransformParseResult transformResult{};
     };
 
     struct GltfSkinData {
@@ -292,6 +296,8 @@ namespace {
                 if (!ParseNode(node)) {
                     return false;
                 }
+                node.transformInput.nodeName = node.name;
+                node.transformInput.nodeIndex = static_cast<int>(nodes.size());
                 nodes.push_back(std::move(node));
 
                 SkipWhitespace();
@@ -329,15 +335,26 @@ namespace {
                         return false;
                     }
                 } else if (key == "translation") {
+                    node.transformInput.hasTranslation = true;
                     if (!ParseVector3(node.translation)) {
                         return false;
                     }
+                    node.transformInput.translation = node.translation;
                 } else if (key == "rotation") {
+                    node.transformInput.hasRotation = true;
                     if (!ParseVector4(node.rotation)) {
                         return false;
                     }
+                    node.transformInput.rotation = node.rotation;
                 } else if (key == "scale") {
+                    node.transformInput.hasScale = true;
                     if (!ParseVector3(node.scale)) {
+                        return false;
+                    }
+                    node.transformInput.scale = node.scale;
+                } else if (key == "matrix") {
+                    node.transformInput.hasMatrix = true;
+                    if (!ParseNodeMatrix(node.transformInput)) {
                         return false;
                     }
                 } else {
@@ -466,6 +483,45 @@ namespace {
                 return false;
             }
             return true;
+        }
+
+        bool ParseNodeMatrix(GltfNodeTransformInput& transform) {
+            transform.matrixElementCount = 0;
+            transform.matrixNonNumericElementCount = 0;
+            transform.matrixValues.fill(0.0f);
+            if (!Consume('[')) {
+                transform.matrixIsArray = false;
+                return SkipValue();
+            }
+
+            transform.matrixIsArray = true;
+            while (true) {
+                SkipWhitespace();
+                if (Consume(']')) {
+                    return true;
+                }
+
+                const std::size_t elementIndex = transform.matrixElementCount++;
+                float value = 0.0f;
+                if (ParseFloat(value)) {
+                    if (elementIndex < transform.matrixValues.size()) {
+                        transform.matrixValues[elementIndex] = value;
+                    }
+                } else {
+                    ++transform.matrixNonNumericElementCount;
+                    if (!SkipValue()) {
+                        return false;
+                    }
+                }
+
+                SkipWhitespace();
+                if (Consume(']')) {
+                    return true;
+                }
+                if (!Consume(',')) {
+                    return false;
+                }
+            }
         }
 
         bool ParseIntArray(std::vector<int>& values) {
@@ -809,7 +865,14 @@ namespace {
     }
 }
 
-std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& filePath) {
+std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(
+    const std::string& filePath,
+    GltfNodeMatrixDiagnostics* diagnostics) {
+    GltfNodeMatrixDiagnostics localDiagnostics{};
+    GltfNodeMatrixDiagnostics& loadDiagnostics =
+        diagnostics ? *diagnostics : localDiagnostics;
+    loadDiagnostics = {};
+    loadDiagnostics.sourcePath = filePath;
     try {
         Logger::Log("[GltfSkeletonLoader] Begin: " + filePath);
         Logger::Log(
@@ -819,6 +882,8 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& fi
         std::ifstream stream{ std::filesystem::path(filePath) };
         if (!stream.is_open()) {
             Logger::Log("[GltfSkeletonLoader] Failed: could not open glTF file.");
+            loadDiagnostics.errorMessage =
+                "glTF\u30D5\u30A1\u30A4\u30EB\u3092\u958B\u3051\u307E\u305B\u3093\u3067\u3057\u305F\u3002";
             return nullptr;
         }
 
@@ -841,6 +906,8 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& fi
                 "[GltfSkeletonLoader] Failed: could not parse JSON. cursor=" +
                 std::to_string(reader.GetCursor()) +
                 " context=" + reader.MakeErrorContext());
+            loadDiagnostics.errorMessage =
+                "glTF JSON\u307E\u305F\u306FNode\u5909\u63DB\u914D\u5217\u3092\u89E3\u6790\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F\u3002";
             return nullptr;
         }
 
@@ -912,12 +979,51 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& fi
             }
         }
 
-        std::vector<Matrix4x4> nodeLocalMatrices(nodes.size(), MatrixMath::MakeIdentity4x4());
-        std::vector<Matrix4x4> nodeWorldMatrices(nodes.size(), MatrixMath::MakeIdentity4x4());
-        std::vector<bool> worldComputed(nodes.size(), false);
-        for (size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
-            nodeLocalMatrices[nodeIndex] = MakeNodeLocalMatrix(nodes[nodeIndex]);
+        for (int jointIndex = 0;
+             jointIndex < static_cast<int>(skin.joints.size());
+             ++jointIndex) {
+            const int nodeIndex = skin.joints[static_cast<std::size_t>(jointIndex)];
+            if (nodeIndex >= 0 && nodeIndex < static_cast<int>(nodes.size())) {
+                nodes[static_cast<std::size_t>(nodeIndex)].transformInput.jointIndex =
+                    jointIndex;
+            }
         }
+
+        bool nodeTransformsValid = true;
+        std::vector<Matrix4x4> nodeLocalMatrices(
+            nodes.size(), MatrixMath::MakeIdentity4x4());
+        for (std::size_t nodeIndex = 0; nodeIndex < nodes.size(); ++nodeIndex) {
+            GltfNodeData& node = nodes[nodeIndex];
+            node.transformResult = ParseGltfNodeLocalTransform(node.transformInput);
+            AccumulateGltfNodeTransformDiagnostics(
+                node.transformInput,
+                node.transformResult,
+                loadDiagnostics);
+            if (!node.transformResult.valid) {
+                nodeTransformsValid = false;
+                continue;
+            }
+            nodeLocalMatrices[nodeIndex] = node.transformResult.localMatrix;
+        }
+        if (!nodeTransformsValid) {
+            Logger::Log(
+                "[GltfSkeletonLoader] Node transform failed: " +
+                loadDiagnostics.errorMessage);
+            return nullptr;
+        }
+        Logger::Log(
+            "[GltfSkeletonLoader] node transforms matrix=" +
+            std::to_string(loadDiagnostics.matrixNodeCount) +
+            " trs=" + std::to_string(loadDiagnostics.trsNodeCount) +
+            " identity=" + std::to_string(loadDiagnostics.identityNodeCount) +
+            " decomposed=" +
+            std::to_string(loadDiagnostics.matrixDecompositionSuccessCount) +
+            " maxReconstructionError=" +
+            std::to_string(loadDiagnostics.maxReconstructionError));
+
+        std::vector<Matrix4x4> nodeWorldMatrices(
+            nodes.size(), MatrixMath::MakeIdentity4x4());
+        std::vector<bool> worldComputed(nodes.size(), false);
 
         std::function<const Matrix4x4&(int)> ComputeWorldMatrix = [&](int nodeIndex) -> const Matrix4x4& {
             size_t safeIndex = static_cast<size_t>(nodeIndex);
@@ -985,20 +1091,35 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& fi
             joint.parentIndex = parentJointIndex;
             joint.parent = (parentJointIndex >= 0) ? std::optional<int32_t>{ parentJointIndex } : std::nullopt;
 
-            Matrix4x4 localMatrix = nodeWorldMatrices[static_cast<size_t>(nodeIndex)];
-            if (parentJointIndex >= 0) {
-                localMatrix = MatrixMath::Multipty(
-                    nodeWorldMatrices[static_cast<size_t>(nodeIndex)],
-                    MatrixMath::Inverse(nodeWorldMatrices[static_cast<size_t>(
-                        skin.joints[static_cast<size_t>(parentJointIndex)])]));
+            const bool usesDirectNodeLocal =
+                (parentJointIndex < 0 && node.parentIndex < 0) ||
+                (parentJointIndex >= 0 &&
+                 node.parentIndex ==
+                    skin.joints[static_cast<std::size_t>(parentJointIndex)]);
+            Matrix4x4 localMatrix = nodeLocalMatrices[
+                static_cast<std::size_t>(nodeIndex)];
+            if (!usesDirectNodeLocal) {
+                localMatrix = nodeWorldMatrices[static_cast<std::size_t>(nodeIndex)];
+                if (parentJointIndex >= 0) {
+                    localMatrix = MatrixMath::Multipty(
+                        nodeWorldMatrices[static_cast<std::size_t>(nodeIndex)],
+                        MatrixMath::Inverse(nodeWorldMatrices[static_cast<std::size_t>(
+                            skin.joints[static_cast<std::size_t>(parentJointIndex)])]));
+                }
             }
             joint.localMatrix = localMatrix;
-            DecomposeLocalMatrix(localMatrix, joint);
+            if (usesDirectNodeLocal) {
+                joint.localTranslate = node.transformResult.translation;
+                joint.localRotate = node.transformResult.eulerRotation;
+                joint.localScale = node.transformResult.scale;
+            } else {
+                DecomposeLocalMatrix(localMatrix, joint);
+            }
             joint.transform.translate = joint.localTranslate;
-            joint.transform.rotate = { node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3] };
+            joint.transform.rotate = node.transformResult.rotation;
             joint.transform.scale = joint.localScale;
-            joint.sourceNodeTranslation = node.translation;
-            joint.sourceNodeScale = node.scale;
+            joint.sourceNodeTranslation = node.transformResult.translation;
+            joint.sourceNodeScale = node.transformResult.scale;
         }
 
         skeleton->root = -1;
@@ -1034,12 +1155,22 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(const std::string& fi
             "[GltfSkeletonLoader] Success: joints=" + std::to_string(skeleton->joints.size()) +
             " jointMap=" + std::to_string(skeleton->jointMap.size()));
         UpdateSkeletonWorldTransforms(*skeleton);
+        loadDiagnostics.loadSucceeded = true;
         return skeleton;
     } catch (const std::exception& exception) {
         Logger::Log(std::string("[GltfSkeletonLoader] Exception: ") + exception.what());
+        if (loadDiagnostics.errorMessage.empty()) {
+            loadDiagnostics.errorMessage =
+                "Node\u5909\u63DB\u8AAD\u8FBC\u4E2D\u306B\u4F8B\u5916\u304C\u767A\u751F\u3057\u307E\u3057\u305F: " +
+                std::string(exception.what());
+        }
         return nullptr;
     } catch (...) {
         Logger::Log("[GltfSkeletonLoader] Unknown exception.");
+        if (loadDiagnostics.errorMessage.empty()) {
+            loadDiagnostics.errorMessage =
+                "Node\u5909\u63DB\u8AAD\u8FBC\u4E2D\u306B\u4E0D\u660E\u306A\u4F8B\u5916\u304C\u767A\u751F\u3057\u307E\u3057\u305F\u3002";
+        }
         return nullptr;
     }
 }

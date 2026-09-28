@@ -94,6 +94,7 @@ void PlayerBulletManager::UpdateLockedWingShot(
         }
         state.exhaustHandle = 0;
         state.exhaustEnabled = false;
+        state.exhaustFollowingDirection = false;
         if (state.sequence == lastLockedWingShotSequence_) {
             lastLockedWingExhaustEnabled_ = false;
         }
@@ -171,12 +172,9 @@ void PlayerBulletManager::UpdateLockedWingShot(
         state.phase = LockedWingLaunchPhase::IgnitionRamp;
         const float ignitionElapsed = state.totalElapsed - holdEnd;
         speedRate = SmoothStep(ignitionElapsed / rampDuration);
-        endVelocity = Scale(
-            flightDirection, state.baseBulletSpeed * speedRate);
     } else {
         state.phase = LockedWingLaunchPhase::Cruise;
         speedRate = 1.0f;
-        endVelocity = Scale(flightDirection, state.baseBulletSpeed);
     }
 
     const float dropOverlap = (std::max)(
@@ -193,15 +191,36 @@ void PlayerBulletManager::UpdateLockedWingShot(
     const float cruiseOverlap = (std::max)(
         state.totalElapsed - (std::max)(previousElapsed, ignitionEnd),
         0.0f);
+    const Vector3 preHomingFlightDirection = flightDirection;
+    state.homingReady = state.phase == LockedWingLaunchPhase::Cruise;
+    if (state.homingReady) {
+        UpdateLockedWingHoming(instance, cruiseOverlap);
+        if (!TryNormalize(state.currentFlightDirection, flightDirection)) {
+            ++lockedWingDirectionFallbackCount_;
+            flightDirection = preHomingFlightDirection;
+        }
+    }
+    state.currentFlightDirection = flightDirection;
+
+    if (state.phase == LockedWingLaunchPhase::IgnitionRamp) {
+        endVelocity = Scale(
+            preHomingFlightDirection, state.baseBulletSpeed * speedRate);
+    } else if (state.phase == LockedWingLaunchPhase::Cruise) {
+        endVelocity = Scale(flightDirection, state.baseBulletSpeed);
+    }
     Vector3 frameDisplacement = Scale(
         ejectionDownDirection,
         (state.ejectionDropDistance / dropDuration) * dropOverlap);
     frameDisplacement = Add(
         frameDisplacement,
         Scale(
+            preHomingFlightDirection,
+            state.baseBulletSpeed * ignitionTravelTime));
+    frameDisplacement = Add(
+        frameDisplacement,
+        Scale(
             flightDirection,
-            state.baseBulletSpeed
-                * (ignitionTravelTime + cruiseOverlap)));
+            state.baseBulletSpeed * cruiseOverlap));
     Vector3 movementVelocity = safeDeltaTime > kMinimumVectorLength
         ? Scale(frameDisplacement, 1.0f / safeDeltaTime)
         : endVelocity;
@@ -241,8 +260,6 @@ void PlayerBulletManager::UpdateLockedWingShot(
         endVelocity = {};
     }
     state.currentSpeedRate = speedRate;
-    state.homingReady = state.phase == LockedWingLaunchPhase::Cruise;
-    state.homingEnabled = false;
     bullet.SetVelocity(movementVelocity);
     bullet.SetVisualForwardOverride(flightDirection);
 
@@ -258,19 +275,25 @@ void PlayerBulletManager::UpdateLockedWingShot(
         lastLockedWingExhaustEnabled_ = state.exhaustEnabled;
         lastLockedWingIgnitionStarted_ = state.ignitionStarted;
         lastLockedWingHomingReady_ = state.homingReady;
-        lastLockedWingHomingEnabled_ = false;
+        lastLockedWingHomingEnabled_ = state.homingEnabled;
         switch (state.phase) {
         case LockedWingLaunchPhase::EjectionDrop:
             lastLockedWingStatus_ = "翼下から下方向へ分離中です";
             break;
         case LockedWingLaunchPhase::PreIgnitionHold:
-            lastLockedWingStatus_ = "Rail基準で点火前待機中です";
+            lastLockedWingStatus_ = "レール基準で点火前待機中です";
             break;
         case LockedWingLaunchPhase::IgnitionRamp:
             lastLockedWingStatus_ = "噴射炎を点火し、加速中です";
             break;
         case LockedWingLaunchPhase::Cruise:
-            lastLockedWingStatus_ = "噴射炎を維持して直進巡航中です";
+            if (state.homingEnabled) {
+                lastLockedWingStatus_ = "保存した対象へ追尾巡航中です";
+            } else if (state.targetLost) {
+                lastLockedWingStatus_ = "対象喪失後の方向で直進巡航中です";
+            } else {
+                lastLockedWingStatus_ = "追尾無効で直進巡航中です";
+            }
             break;
         }
     }
@@ -290,6 +313,7 @@ void PlayerBulletManager::UpdateLockedWingMissileExhaust(
         }
         state.exhaustHandle = 0;
         state.exhaustEnabled = false;
+        state.exhaustFollowingDirection = false;
         if (state.sequence == lastLockedWingShotSequence_) {
             lastLockedWingExhaustEnabled_ = false;
         }
@@ -313,6 +337,7 @@ void PlayerBulletManager::UpdateLockedWingMissileExhaust(
         lastLockedWingRelativeVelocity_ = phaseEndVelocity;
     }
     if (!state.exhaustEnabled || state.exhaustHandle == 0) {
+        state.exhaustFollowingDirection = false;
         return;
     }
     if (!lockedWingMissileExhaustController_->UpdateMissile(
@@ -321,9 +346,12 @@ void PlayerBulletManager::UpdateLockedWingMissileExhaust(
             state.currentFlightDirection)) {
         state.exhaustHandle = 0;
         state.exhaustEnabled = false;
+        state.exhaustFollowingDirection = false;
         if (state.sequence == lastLockedWingShotSequence_) {
             lastLockedWingExhaustEnabled_ = false;
         }
+    } else {
+        state.exhaustFollowingDirection = true;
     }
 }
 
@@ -389,30 +417,32 @@ void PlayerBulletManager::DrawLockedWingMissileIgnitionImGui() {
     ImGui::Text("現在速度倍率: %.3f", lastLockedWingSpeedRate_);
     ImGui::Text("現在速度: %.3f", lastLockedWingCurrentSpeed_);
     ImGui::Text(
-        "Flight Direction: %.3f, %.3f, %.3f",
+        "現在飛行方向: %.3f, %.3f, %.3f",
         lastLockedWingLaunchDirection_.x,
         lastLockedWingLaunchDirection_.y,
         lastLockedWingLaunchDirection_.z);
     ImGui::Text(
-        "Ejection Down Direction: %.3f, %.3f, %.3f",
+        "現在分離下方向: %.3f, %.3f, %.3f",
         lastLockedWingEjectionDownDirection_.x,
         lastLockedWingEjectionDownDirection_.y,
         lastLockedWingEjectionDownDirection_.z);
     ImGui::Text(
-        "Exhaust有効: %s",
+        "排気有効: %s",
         ToJapaneseBool(lastLockedWingExhaustEnabled_));
     ImGui::Text(
         "点火開始済み: %s",
         ToJapaneseBool(lastLockedWingIgnitionStarted_));
     ImGui::Text(
-        "Homing Ready: %s",
+        "追尾準備完了: %s",
         ToJapaneseBool(lastLockedWingHomingReady_));
     ImGui::Text(
-        "Homing Enabled: %s",
+        "追尾有効: %s",
         ToJapaneseBool(lastLockedWingHomingEnabled_));
-    ImGui::Text("Target方向を未使用: はい");
-    ImGui::Text("Rail Speedを未加算: はい");
-    ImGui::Text("Camera Velocityを未加算: はい");
+    ImGui::Text(
+        "対象方向を追尾へ使用: %s",
+        ToJapaneseBool(lastLockedWingHomingEnabled_));
+    ImGui::Text("レール速度を未加算: はい");
+    ImGui::Text("カメラ速度を未加算: はい");
 
     ImGui::SeparatorText("分離・待機・点火の統計");
     ImGui::Text("下方分離開始回数: %zu", lockedWingEjectionDropStartCount_);
@@ -422,10 +452,10 @@ void PlayerBulletManager::DrawLockedWingMissileIgnitionImGui() {
     ImGui::Text("点火開始回数: %zu", lockedWingIgnitionStartCount_);
     ImGui::Text("巡航移行回数: %zu", lockedWingCruiseTransitionCount_);
     ImGui::Text(
-        "不正Direction Fallback回数: %zu",
+        "不正方向の代替使用回数: %zu",
         lockedWingDirectionFallbackCount_);
     ImGui::Text(
-        "非有限Velocity検出数: %zu",
+        "非有限速度検出数: %zu",
         lockedWingNonFiniteVelocityCount_);
 #endif
 }

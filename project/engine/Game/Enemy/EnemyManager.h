@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class Camera;
@@ -17,6 +18,13 @@ struct EnemyTargetView {
     float worldRadius = 0.0f;
 };
 
+struct EnemyTargetSnapshot {
+    Vector3 worldPosition{};
+    bool active = false;
+    bool alive = false;
+    bool valid = false;
+};
+
 class EnemyManager {
 public:
     EnemyManager();
@@ -27,6 +35,9 @@ public:
     void Update(float deltaTime);
     void Draw();
     void DrawImGui();
+#ifdef USE_IMGUI
+    static bool IsDebugHpOneEnabled() { return debugHpOneEnabled_; }
+#endif
 
     Enemy* SpawnEnemy(const std::string& enemyType = "Default", Vector3 position = { 0.0f, 0.0f, 10.0f });
     Enemy* SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward);
@@ -39,6 +50,9 @@ public:
     std::vector<Vector3> GetActiveEnemyPositions() const;
     std::vector<Enemy*> GetActiveEnemies() const;
     void CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const;
+    bool TryGetEnemyTargetSnapshot(
+        std::string_view enemyId,
+        EnemyTargetSnapshot& outSnapshot) const;
     void SetDefaultHitRadius(float hitRadius);
     void SetDefaultHitScale(const Vector3& hitScale);
     void SetUseEllipsoidHitShape(bool enabled);
@@ -64,6 +78,10 @@ private:
     uint32_t nextEnemySerial_ = 1;
     int selectedEnemyIndex_ = -1;
     bool autoRemoveDeadEnemies_ = false;
+#ifdef USE_IMGUI
+    // Process-local only: preserve the checkbox across scene restarts.
+    inline static bool debugHpOneEnabled_ = false;
+#endif
     bool debugSpawnFaceCameraOpposite_ = true;
     Vector3 debugSpawnPosition_{ 0.0f, 0.0f, 10.0f };
     Vector3 debugSpawnRotation_{ 0.0f, 0.0f, 0.0f };
