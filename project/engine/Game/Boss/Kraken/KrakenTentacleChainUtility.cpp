@@ -130,3 +130,49 @@ bool DetectKrakenTentacleChains(
     }
     return !outChains.empty();
 }
+
+bool ApplyKrakenTentaclePlacementToRestoredPose(
+    Skeleton& skeleton,
+    const std::vector<KrakenTentacleChain>& chains) {
+    // Idle screen order is 04, 03, 02, 01. Keep that mapping while attacking.
+    // Model +X moves 01 inward; model -Z moves 02/03 away from the Player.
+    constexpr const char* rootNames[] = {
+        "Tentacle_01_Root", "Tentacle_02_Root",
+        "Tentacle_03_Root", "Tentacle_04_Root" };
+    const Vector3 offsets[] = {
+        {1.75f, 0.0f, 0.0f}, {1.40f, 0.0f, -0.10f},
+        {-0.50f, 0.0f, -0.10f}, {-1.10f, 0.0f, 0.0f} };
+    int roots[] = {-1, -1, -1, -1};
+    if (chains.size() != 4) {
+        return false;
+    }
+    for (const KrakenTentacleChain& chain : chains) {
+        if (chain.joints.empty()) {
+            return false;
+        }
+        const int index = chain.joints.front();
+        if (index < 0 || static_cast<std::size_t>(index) >= skeleton.joints.size() ||
+            skeleton.joints[index].parentIndex != skeleton.root) {
+            return false;
+        }
+        for (int slot = 0; slot < 4; ++slot) {
+            if (skeleton.joints[index].name == rootNames[slot]) {
+                if (roots[slot] != -1) {
+                    return false;
+                }
+                roots[slot] = index;
+            }
+        }
+    }
+    for (int root : roots) {
+        if (root == -1) {
+            return false;
+        }
+    }
+    for (int slot = 0; slot < 4; ++slot) {
+        Vector3& position = skeleton.joints[roots[slot]].localTranslate;
+        position.x += offsets[slot].x;
+        position.z += offsets[slot].z;
+    }
+    return true;
+}

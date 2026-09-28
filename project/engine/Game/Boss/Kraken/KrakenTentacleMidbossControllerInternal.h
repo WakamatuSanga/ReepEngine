@@ -459,7 +459,7 @@ struct KrakenTentacleMidbossController::Impl {
     bool ApplyWholeSlamPoseToSkeleton(
         Skeleton& targetSkeleton,
         std::size_t chainIndex,
-        KrakenTentacleAttackPreviewPhase phase,
+        KrakenTentacleAttackPreviewPhase phase, float phaseTime, float poseIdleTime,
         const KrakenTentacleAttackPoseTotals& totals,
         const Vector3& attackTarget,
         KrakenTentacleWholeSlamPoseDiagnostics* poseDiagnostics) const;
@@ -491,6 +491,7 @@ struct KrakenTentacleMidbossController::Impl {
 
     std::vector<KrakenTentacleMidbossBindLocalPose> bindPose;
     std::vector<Vector3> bindLocalEulerRadians;
+    std::vector<Vector3> attackEntryPose;
     std::vector<KrakenTentacleChain> chains;
     std::vector<KrakenTentacleColliderDefinitionResult> colliderDefinitions;
     std::vector<KrakenTentacleMidbossBoneSnapshot> boneSnapshots;

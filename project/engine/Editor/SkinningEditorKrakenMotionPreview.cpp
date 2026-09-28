@@ -326,6 +326,10 @@ void SkinningEditorKrakenMotionPreview::ApplyCurrentPose() {
     }
 
     RestoreBindLocals();
+    if (!ApplyKrakenTentaclePlacementToRestoredPose(*skeleton_, chains_)) {
+        runtimeError_ = "触手の個別配置をCurrent Poseへ適用できませんでした。";
+        return;
+    }
     switch (mode_) {
     case Mode::Manual:
         ApplyManualPose();

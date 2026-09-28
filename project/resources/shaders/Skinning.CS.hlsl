@@ -10,6 +10,7 @@ struct Vertex
     float2 texcoord;
     float3 normal;
     float3 tangent;
+    float jointWarning;
 };
 
 struct VertexInfluence

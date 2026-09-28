@@ -329,8 +329,9 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
                     predicted.joints[jointIndex].localRotate = bindPose[jointIndex].rotate;
                     predicted.joints[jointIndex].localScale = bindPose[jointIndex].scale;
                 }
-                bool poseValid = sampleIndex == 0;
-                if (sampleIndex != 0) {
+                bool poseValid = ApplyKrakenTentaclePlacementToRestoredPose(
+                    predicted, chains);
+                if (poseValid && sampleIndex != 0) {
                     const float duration = GetKrakenTentacleAttackPhaseDuration(
                         sanitized, phases[sampleIndex]);
                     const KrakenTentacleAttackPoseTotals totals =
@@ -338,7 +339,7 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
                             sanitized, phases[sampleIndex],
                             duration * ratios[sampleIndex]);
                     poseValid = totals.finite && ApplyWholeSlamPoseToSkeleton(
-                        predicted, chainIndex, phases[sampleIndex], totals,
+                        predicted, chainIndex, phases[sampleIndex], duration * ratios[sampleIndex], idleTime, totals,
                         center, nullptr);
                 }
                 KrakenTentacleReachPhaseDiagnostics& sample =

@@ -48,6 +48,7 @@ public:
 
 private:
     enum class EntrancePhase : std::uint8_t { None, Shake, CameraPullback, Tentacles };
+    enum class FollowupPhase : std::uint8_t { None, AwaitRecovery, Interval };
     enum class PendingDebugCommand : std::uint8_t {
         None,
         Refresh,
@@ -72,6 +73,7 @@ private:
     bool PrepareWave4Reentry(bool& rearmedThisUpdate);
     bool RearmForNewWave4Revision();
     void UpdateAttackScheduler(float gameplayDeltaTime);
+    void CancelFollowupAttack();
     bool PublishCompletion();
     void CompleteWave5Transition();
     bool SetRailHold(bool hold);
@@ -163,6 +165,9 @@ private:
     std::uint64_t railHoldStartCount_ = 0;
 
     std::size_t nextAttackChain_ = 0;
+    std::size_t firstAttackChain_ = 0;
+    FollowupPhase followupPhase_ = FollowupPhase::None;
+    bool nextAttackIsDouble_ = false;
     std::size_t detectedChainCount_ = 0;
     float attackTimer_ = 0.0f;
     float currentAttackDelay_ = 1.25f;

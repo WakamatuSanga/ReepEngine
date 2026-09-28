@@ -13,6 +13,7 @@ struct VertexShaderInput
     float2 uv : TEXCOORD;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
+    float jointWarning : TEXCOORD1;
 };
 
 struct VertexShaderOutput
@@ -22,6 +23,7 @@ struct VertexShaderOutput
     float3 normal : NORMAL;
     float3 worldPos : TEXCOORD1;
     float3 tangent : TANGENT;
+    float jointWarning : TEXCOORD2;
 };
 
 VertexShaderOutput main(VertexShaderInput input)
@@ -30,6 +32,7 @@ VertexShaderOutput main(VertexShaderInput input)
     
     output.pos = mul(input.pos, gTransformationMatrix.WVP);
     output.uv = input.uv;
+    output.jointWarning = input.jointWarning;
     
     // 法線の変換に逆転置行列の3x3部分を使用
     output.normal = normalize(mul(input.normal, (float3x3) gTransformationMatrix.WorldInverseTranspose));

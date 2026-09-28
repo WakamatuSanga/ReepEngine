@@ -140,7 +140,6 @@ void KrakenTentacleMidbossController::Impl::EnterState(
     stateElapsedTime = 0.0f;
     if (state == KrakenTentacleMidbossState::Idle) {
         ClearAttackTargetSnapshot();
-        idleTime = 0.0f;
         attackElapsedTime = 0.0f;
     } else if (state == KrakenTentacleMidbossState::Windup) {
         attackElapsedTime = 0.0f;
@@ -237,6 +236,10 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
     if (!CaptureAttackTargetSnapshot()) {
         ++diagnostics.attackStartRejectedCount;
         return false;
+    }
+    attackEntryPose.clear();
+    for (int joint : chains[selectedAttackChainIndex].joints) {
+        attackEntryPose.push_back(skeleton->joints[joint].localRotate);
     }
     EnterState(KrakenTentacleMidbossState::Windup);
     BeginAttackDamageSequence();
@@ -361,11 +364,13 @@ void KrakenTentacleMidbossController::Impl::ProcessPendingCommand() {
 }
 
 void KrakenTentacleMidbossController::Impl::AdvanceState(float deltaTime) {
+    if (state == KrakenTentacleMidbossState::Idle || IsAttackState()) {
+        idleTime += deltaTime;
+    }
     float remaining = deltaTime;
     for (int transitionGuard = 0; transitionGuard < 8; ++transitionGuard) {
         if (state == KrakenTentacleMidbossState::Idle) {
             stateElapsedTime += remaining;
-            idleTime += remaining;
             return;
         }
         if (!IsAttackState()) {

@@ -118,6 +118,10 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
         lastError = "Bind PoseをCurrent Poseへ復元できませんでした。";
         return false;
     }
+    if (!ApplyKrakenTentaclePlacementToRestoredPose(*skeleton, chains)) {
+        lastError = "触手の個別配置をCurrent Poseへ適用できませんでした。";
+        return false;
+    }
     if (state == KrakenTentacleMidbossState::Idle) {
         if (!idleSwayEnabled) {
             return true;
@@ -173,7 +177,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
         !ApplyWholeSlamPoseToSkeleton(
             *skeleton,
             selectedAttackChainIndex,
-            GetAttackPhase(),
+            GetAttackPhase(), stateElapsedTime, idleTime,
             totals,
             wholeSlamDiagnostics.attackTargetWorldPosition,
             &wholeSlamDiagnostics.pose)) {

@@ -414,7 +414,7 @@ bool KrakenTentacleWaveEncounterController::ProcessPendingDebugCommand() {
         return false;
     case PendingDebugCommand::SchedulerOff:
         schedulerEnabled_ = false;
-        attackTimer_ = 0.0f;
+        CancelFollowupAttack();
         return false;
     case PendingDebugCommand::AttackNow:
         if (state_ == KrakenTentacleWaveEncounterState::Active &&
@@ -449,7 +449,7 @@ void KrakenTentacleWaveEncounterController::PostKrakenUpdate() {
     if (state_ == KrakenTentacleWaveEncounterState::Active &&
         kraken_->IsDefeatStarted()) {
         schedulerEnabled_ = false;
-        attackTimer_ = 0.0f;
+        CancelFollowupAttack();
         ++defeatAttackSuppressionCount_;
         state_ = KrakenTentacleWaveEncounterState::Defeating;
     }

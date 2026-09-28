@@ -382,15 +382,14 @@ bool BuildKrakenTentacleWholeSlamPose(
                 pose.attackOffset, pose.absoluteLocalRotation);
             pose.absoluteLocalEulerRadians = ConvertQuaternionToEulerXYZ(
                 pose.absoluteLocalRotation);
-        } else if (chainBone > hingeBone && upperWeightSum > kEpsilon &&
-            std::fabs(outDiagnostics.appliedUpperBendDegrees) > kEpsilon) {
+        } else if (chainBone > hingeBone && upperWeightSum > kEpsilon) {
             const std::size_t upperIndex = chainBone - hingeBone - 1;
             const float t = static_cast<float>(upperIndex + 1) /
                 static_cast<float>(upperBoneCount);
             const float weight = std::pow(t, settings.tipBias) /
                 upperWeightSum;
-            pose.secondaryDegrees =
-                outDiagnostics.appliedUpperBendDegrees * weight;
+            pose.secondaryDegrees = (outDiagnostics.appliedUpperBendDegrees +
+                EvaluateKrakenTentacleSlamFlex(phase, outDiagnostics.slamProgress, t)) * weight;
             const Joint& joint = bindSkeleton.joints[
                 static_cast<std::size_t>(jointIndex)];
             if (joint.parentIndex < 0 || static_cast<std::size_t>(
@@ -405,8 +404,8 @@ bool BuildKrakenTentacleWholeSlamPose(
             pose.attackOffset = AxisRotation(localAxis, pose.secondaryDegrees);
             pose.absoluteLocalRotation = Multiply(
                 pose.attackOffset, pose.absoluteLocalRotation);
-            pose.absoluteLocalEulerRadians = ConvertQuaternionToEulerXYZ(
-                pose.absoluteLocalRotation);
+            pose.absoluteLocalEulerRadians = std::fabs(pose.secondaryDegrees) > kEpsilon
+                ? ConvertQuaternionToEulerXYZ(pose.absoluteLocalRotation) : bindEuler;
         }
         pose.finite = IsFinite(pose.attackOffset) &&
             IsFinite(pose.absoluteLocalRotation) &&
@@ -418,6 +417,10 @@ bool BuildKrakenTentacleWholeSlamPose(
         outPose.joints.push_back(pose);
     }
 
+    outDiagnostics.appliedUpperBendDegrees = 0.0f;
+    for (const auto& joint : outPose.joints) {
+        outDiagnostics.appliedUpperBendDegrees += joint.secondaryDegrees;
+    }
     outPose.normalizedWeightSum = 1.0f;
     outPose.valid = true;
     outDiagnostics.mainHingeApplied =
@@ -432,51 +435,6 @@ bool BuildKrakenTentacleWholeSlamPose(
         std::isfinite(outDiagnostics.appliedMainHingeDegrees);
     outDiagnostics.valid = outDiagnostics.finite;
     return outDiagnostics.valid;
-}
-
-bool KrakenTentacleMidbossController::Impl::
-ApplyWholeSlamPoseToSkeleton(
-    Skeleton& targetSkeleton,
-    std::size_t chainIndex,
-    KrakenTentacleAttackPreviewPhase phase,
-    const KrakenTentacleAttackPoseTotals& totals,
-    const Vector3& attackTarget,
-    KrakenTentacleWholeSlamPoseDiagnostics* poseDiagnostics) const {
-    if (chainIndex >= chains.size()) {
-        return false;
-    }
-    UpdateSkeletonWorldTransforms(targetSkeleton);
-    KrakenTentacleAttackPoseResult pose{};
-    KrakenTentacleWholeSlamPoseDiagnostics diagnostics{};
-    if (!BuildKrakenTentacleWholeSlamPose(
-            attackSettings, wholeSlamDiagnostics.targetSettings, phase,
-            totals, chains[chainIndex].joints,
-            bindLocalEulerRadians, targetSkeleton, worldMatrix,
-            attackTarget, pose, diagnostics) || !pose.valid) {
-        return false;
-    }
-    for (const KrakenTentacleAttackJointPose& jointPose : pose.joints) {
-        targetSkeleton.joints[static_cast<std::size_t>(
-            jointPose.jointIndex)].localRotate =
-            jointPose.absoluteLocalEulerRadians;
-    }
-    UpdateSkeletonWorldTransforms(targetSkeleton);
-    const int hingeJointIndex = chains[chainIndex].joints[
-        (std::min)(static_cast<std::size_t>(attackSettings.fixedLeadingBoneCount),
-            chains[chainIndex].joints.size() - 1)];
-    const int tipJointIndex = chains[chainIndex].joints.back();
-    diagnostics.pivotWorldPosition = TransformPosition(
-        targetSkeleton.joints[static_cast<std::size_t>(
-            hingeJointIndex)].worldTranslate, worldMatrix);
-    diagnostics.tipWorldPosition = TransformPosition(
-        targetSkeleton.joints[static_cast<std::size_t>(
-            tipJointIndex)].worldTranslate, worldMatrix);
-    diagnostics.tentacleWorldDirection = Normalize(Subtract(
-        diagnostics.tipWorldPosition, diagnostics.pivotWorldPosition));
-    if (poseDiagnostics) {
-        *poseDiagnostics = diagnostics;
-    }
-    return true;
 }
 
 bool KrakenTentacleMidbossController::Impl::CaptureAttackTargetSnapshot() {
@@ -500,12 +458,14 @@ bool KrakenTentacleMidbossController::Impl::CaptureAttackTargetSnapshot() {
 }
 
 void KrakenTentacleMidbossController::Impl::ClearAttackTargetSnapshot() {
+    attackEntryPose.clear();
     wholeSlamDiagnostics.attackTargetWorldPosition = {};
     wholeSlamDiagnostics.attackSequenceId = 0;
     wholeSlamDiagnostics.attackTargetSnapshotValid = false;
 }
 
 void KrakenTentacleMidbossController::Impl::ResetWholeSlamDiagnostics() {
+    attackEntryPose.clear();
     wholeSlamDiagnostics = {};
 }
 

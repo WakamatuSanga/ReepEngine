@@ -729,6 +729,9 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseTransition.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
@@ -896,6 +899,9 @@
     </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDraw.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelJointWarning.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDiagnostics.cpp">
       <Filter>&#x30BD;&#x30FC;&#x30B9; &#x30D5;&#x30A1;&#x30A4;&#x30EB;</Filter>

@@ -19,6 +19,7 @@ public:
         Vector2 texcoord;
         Vector3 normal;
         Vector3 tangent{ 1.0f, 0.0f, 0.0f };
+        float jointWarning = 0.0f;
     };
 
     struct MaterialData {

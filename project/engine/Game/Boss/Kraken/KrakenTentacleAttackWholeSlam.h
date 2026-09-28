@@ -7,6 +7,10 @@
 
 struct Skeleton;
 
+// Small distributed lag, zero at phase boundaries and at the targeted Slam endpoint.
+float EvaluateKrakenTentacleSlamFlex(
+    KrakenTentacleAttackPreviewPhase phase, float progress, float upperPosition);
+
 struct KrakenTentacleWholeSlamTargetSettings {
     float hingeGain = 1.0f;
     float minimumHingeDegrees = 0.0f;

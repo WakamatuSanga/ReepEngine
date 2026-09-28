@@ -324,6 +324,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleColliderEvaluator.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseTransition.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp" />
@@ -380,6 +381,7 @@
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveLoader.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDraw.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelPrimitiveDiagnostics.cpp" />
+    <ClCompile Include="engine\Graphics\Model\GltfSkinnedModelJointWarning.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfSkeletonLoader.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfNodeTransformParser.cpp" />
     <ClCompile Include="engine\Core\ImGuiManager.cpp" />
