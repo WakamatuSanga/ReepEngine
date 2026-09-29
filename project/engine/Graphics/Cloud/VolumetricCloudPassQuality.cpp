@@ -21,6 +21,31 @@ void VolumetricCloudPass::UpdateQualityConstantBuffer()
 }
 
 
+void VolumetricCloudPass::ResetCloudDefaults()
+{
+    // Startup and Reset Cloud Preset share only the requested default settings.
+    isEnabled_ = true;
+    forceMode_ = ForceMode::None;
+    cloudResolutionScale_ = 0.125f;
+    enableDepthAwareUpsample_ = true;
+    depthThreshold_ = 0.0500f;
+    viewStepScale_ = 1.50f;
+    lightStepScale_ = 0.25f;
+    cloudRenderInterval_ = 1;
+    debugViewMode_ = DebugViewMode::Final;
+    useCameraRelativeCloudVolume_ = true;
+    cloudNearDistance_ = -5.0f;
+    cloudFarDistance_ = 188.0f;
+    cloudBehindCameraDistance_ = 5.0f;
+    cloudHeightOffset_ = -50.3f;
+    cloudVolumeWidth_ = 150.0f;
+    cloudVolumeHeight_ = 1.0f;
+    cloudVolumeDepth_ = 1.0f;
+    keepCameraBelowClouds_ = true;
+    cameraToCloudBottom_ = 0.0f;
+    recreateCloudBufferRequested_ = true;
+}
+
 void VolumetricCloudPass::ApplyUserPreferredCloudPreset()
 {
     useLowResolutionCloud_ = true;

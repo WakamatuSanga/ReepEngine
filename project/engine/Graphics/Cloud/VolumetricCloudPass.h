@@ -75,6 +75,7 @@ public:
     void SetCloudInfluenceEnabled(bool enabled);
     void SetCameraForwardTunnelSettings(bool enabled, float length, float radius, float clearStrength);
     void ApplyGameModePerformancePreset();
+    void ResetCloudDefaults();
     void SetDiagnosticDisableComposite(bool disabled) { diagnosticDisableCloudComposite_ = disabled; }
     void SetDiagnosticDisableDepthAwareUpsample(bool disabled) { diagnosticDisableDepthAwareUpsample_ = disabled; }
     float GetExternalFlowMultiplier() const { return externalFlowMultiplier_; }

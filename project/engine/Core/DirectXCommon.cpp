@@ -1,4 +1,5 @@
 #include "DirectXCommon.h"
+#include "FrameTimer.h"
 
 #include <cassert>
 #include <algorithm>
@@ -280,6 +281,7 @@ void DirectXCommon::Initialize(WinApp* winApp)
 // --------------------
 void DirectXCommon::Finalize()
 {
+    FinalizeFixFPS();
     // GPU がコマンドを全部処理するまで待つ
     if (commandQueue && fence) {
         ++fenceValue;
@@ -351,45 +353,57 @@ void DirectXCommon::PreDraw()
 // --------------------
 void DirectXCommon::PostDraw()
 {
-    UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+    HRESULT hr;
+    {
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::SubmitMs);
+        UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-    // RENDER_TARGET → PRESENT
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    commandList->ResourceBarrier(1, &barrier);
+        // RENDER_TARGET → PRESENT
+        D3D12_RESOURCE_BARRIER barrier{};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        barrier.Transition.pResource = swapChainResources[backBufferIndex].Get();
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        commandList->ResourceBarrier(1, &barrier);
 
-    // コマンドリストを閉じて実行
-    HRESULT hr = commandList->Close();
-    assert(SUCCEEDED(hr));
-    ID3D12CommandList* commandLists[] = { commandList.Get() };
-    commandQueue->ExecuteCommandLists(1, commandLists);
+        // コマンドリストを閉じて実行
+        hr = commandList->Close();
+        assert(SUCCEEDED(hr));
+        ID3D12CommandList* commandLists[] = { commandList.Get() };
+        commandQueue->ExecuteCommandLists(1, commandLists);
+    }
 
     // 画面の入れ替え
-    hr = swapChain->Present(presentInterval_, 0);
-    assert(SUCCEEDED(hr));
+    {
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PresentMs);
+        hr = swapChain->Present(presentInterval_, 0);
+        assert(SUCCEEDED(hr));
+    }
 
     // Fence 更新 & 待ち
-    ++fenceValue;
-    hr = commandQueue->Signal(fence.Get(), fenceValue);
-    assert(SUCCEEDED(hr));
-
-    if (fence->GetCompletedValue() < fenceValue) {
-        hr = fence->SetEventOnCompletion(fenceValue, fenceEvent);
+    {
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::GpuWaitMs);
+        ++fenceValue;
+        hr = commandQueue->Signal(fence.Get(), fenceValue);
         assert(SUCCEEDED(hr));
-        WaitForSingleObject(fenceEvent, INFINITE);
+
+        if (fence->GetCompletedValue() < fenceValue) {
+            hr = fence->SetEventOnCompletion(fenceValue, fenceEvent);
+            assert(SUCCEEDED(hr));
+            WaitForSingleObject(fenceEvent, INFINITE);
+        }
     }
 
     // VSync待ちの直後に 60fps 固定処理
     if (fixedFpsWaitEnabled_) {
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::FixedFpsMs);
         UpdateFixFPS();
     }
 
     // 次フレーム用リセット
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::CommandResetMs);
     hr = commandAllocator->Reset();
     assert(SUCCEEDED(hr));
     hr = commandList->Reset(commandAllocator.Get(), nullptr);
@@ -693,40 +707,63 @@ void DirectXCommon::SetOffscreenRenderScale(float scale)
     }
 }
 
+DirectXCommon::~DirectXCommon() {
+    // Also covers owners that release DirectXCommon without calling Finalize.
+    // Do not change the existing GPU/fence shutdown behavior here.
+    FinalizeFixFPS();
+}
+
 void DirectXCommon::InitializeFixFPS() {
-    // 現在時間を記録する
+    FinalizeFixFPS();
+    fixedFpsTimer_ = CreateWaitableTimerExW(nullptr, nullptr,
+        CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
     reference_ = std::chrono::steady_clock::now();
 }
 
-// FPS固定 更新
+void DirectXCommon::FinalizeFixFPS() {
+    if (fixedFpsTimer_) {
+        CancelWaitableTimer(fixedFpsTimer_);
+        CloseHandle(fixedFpsTimer_);
+        fixedFpsTimer_ = nullptr;
+    }
+}
+
+// Keep the existing 60 FPS period and end-of-wait reference update.
 void DirectXCommon::UpdateFixFPS() {
-    // 1/60秒ぴったりの時間（マイクロ秒）
-    const std::chrono::microseconds kMinTime(
-        uint64_t(1000000.0f / 60.0f));
-    // 1/60秒よりわずかに短い時間（スライド通り定義しておく）
-    const std::chrono::microseconds kMinCheckTime(
-        uint64_t(1000000.0f / 65.0f));
+    using Clock = std::chrono::steady_clock;
+    using TimerTick = std::chrono::duration<long long, std::ratio<1, 10000000>>;
+    constexpr std::chrono::microseconds kMinTime(16666);
+    const auto deadline = reference_ + kMinTime;
+    auto now = Clock::now();
 
-    // 現在時間を取得する
-    std::chrono::steady_clock::time_point now =
-        std::chrono::steady_clock::now();
-
-    // 前回記録からの経過時間を取得する
-    std::chrono::microseconds elapsed =
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            now - reference_);
-
-    // 1/60秒（よりわずかに短い時間）経っていない場合
-    if (elapsed < kMinTime) {
-        // 1/60秒経過するまで微小なスリープを繰り返す
-        while (std::chrono::steady_clock::now() - reference_ < kMinTime) {
-            // 1マイクロ秒スリープ
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
+    // Recheck the same monotonic deadline after waking. Bound retries so an
+    // unexpectedly early signal cannot turn into a tight polling loop.
+    for (int attempt = 0; fixedFpsTimer_ && now < deadline && attempt < 2; ++attempt) {
+        const auto remaining = deadline - now;
+        LARGE_INTEGER dueTime{};
+        // Negative means relative time; ceil keeps sub-100ns values nonzero.
+        dueTime.QuadPart = -std::chrono::ceil<TimerTick>(remaining).count();
+        if (!SetWaitableTimer(fixedFpsTimer_, &dueTime, 0, nullptr, nullptr, FALSE)) {
+            FinalizeFixFPS();
+            break;
+        }
+        // No infinite wait on this timer. The existing GPU fence wait is unchanged.
+        const DWORD timeoutMs = static_cast<DWORD>(
+            std::chrono::ceil<std::chrono::milliseconds>(remaining).count()) + 1;
+        const DWORD result = WaitForSingleObject(fixedFpsTimer_, timeoutMs);
+        now = Clock::now();
+        if (result != WAIT_OBJECT_0) {
+            FinalizeFixFPS();
+            break;
         }
     }
 
-    // 現在の時間を記録する
-    reference_ = std::chrono::steady_clock::now();
+    // Creation/arming/wait failure (or repeated early wake): block for only the
+    // remaining time. This fallback may be less precise, but does not busy-spin.
+    if (Clock::now() < deadline) {
+        std::this_thread::sleep_until(deadline);
+    }
+    reference_ = Clock::now();
 }
 
 

@@ -1,4 +1,5 @@
 #include "PlayerBulletManager.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Utility/Logger.h"
@@ -6,6 +7,7 @@
 
 EnemyBullet* PlayerBulletManager::SpawnBullet(
     const Vector3& position, const Vector3& velocity, int damage) {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerSpawnMs);
     if (!object3dCommon_ || !camera_) {
         Logger::Log("[PlayerBulletManager] SpawnBullet skipped: Object3dCommon or Camera is null");
         return nullptr;
@@ -35,6 +37,7 @@ EnemyBullet* PlayerBulletManager::SpawnBullet(
     EnemyBullet* bulletPtr = instance.bullet.get();
     bullets_.push_back(std::move(instance));
     ++firedBulletCount_;
+    FrameTimer::GetInstance().AddBulletMetric(FrameTimer::BulletMetric::PlayerSpawnCount);
     return bulletPtr;
 }
 

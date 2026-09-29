@@ -1,5 +1,6 @@
 ﻿#include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Utility/Logger.h"
 #include <algorithm>
@@ -43,6 +44,7 @@ void EnemyBulletManager::Finalize() {
 }
 
 void EnemyBulletManager::Update(float deltaTime) {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyUpdateMs);
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
             if (projectileRailMotionAdapter_) {
@@ -63,6 +65,7 @@ void EnemyBulletManager::Update(float deltaTime) {
 }
 
 void EnemyBulletManager::Draw() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyDrawMs);
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
             bullet->Draw();
@@ -182,6 +185,7 @@ void EnemyBulletManager::DrawImGui() {
 }
 
 EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vector3& velocity) {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemySpawnMs);
     if (!object3dCommon_ || !camera_) {
         Logger::Log("[EnemyBulletManager] SpawnBullet skipped: Object3dCommon or Camera is null");
         return nullptr;
@@ -205,6 +209,7 @@ EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vect
 
     EnemyBullet* bulletPtr = bullet.get();
     bullets_.push_back(std::move(bullet));
+    FrameTimer::GetInstance().AddBulletMetric(FrameTimer::BulletMetric::EnemySpawnCount);
     return bulletPtr;
 }
 
@@ -256,6 +261,7 @@ size_t EnemyBulletManager::ClearBulletsInRadius(
     float radius,
     std::vector<Vector3>* clearedPositions,
     size_t maxRecordedPositions) {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::CancelHitMs);
     const float safeRadius = (std::max)(0.0f, radius);
     size_t clearedCount = 0;
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {

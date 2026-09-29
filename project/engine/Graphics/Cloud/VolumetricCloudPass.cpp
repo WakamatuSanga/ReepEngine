@@ -69,6 +69,7 @@ void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
     CreateConstantBuffer();
     CreateCompositeConstantBuffer();
     ApplyUserPreferredCloudPreset();
+    ResetCloudDefaults();
 }
 
 VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(const Camera* camera, const CloudVolume* cloudVolume) const

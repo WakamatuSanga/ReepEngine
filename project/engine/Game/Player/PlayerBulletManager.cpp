@@ -1,6 +1,8 @@
 #include "PlayerBulletManager.h"
 #include "LockedWingMissileExhaustController.h"
+#include "PlayerFanChargeAttack.h"
 #include "MyGame.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/SrvManager.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
@@ -89,6 +91,7 @@ PlayerBulletManager::PlayerBulletManager() = default;
 PlayerBulletManager::~PlayerBulletManager() = default;
 
 void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player) {
+    fanChargeAttack_ = std::make_unique<PlayerFanChargeAttack>();
     ClearAimCorridorContext();
     object3dCommon_ = object3dCommon;
     camera_ = camera;
@@ -125,6 +128,7 @@ void PlayerBulletManager::Finalize() {
 }
 
 void PlayerBulletManager::Update(float deltaTime) {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerUpdateMs);
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     UpdateCameraVelocity(safeDeltaTime);
     UpdateViewportDebugState();
@@ -148,9 +152,9 @@ void PlayerBulletManager::Update(float deltaTime) {
     if (input) {
         inputBlocked = ShouldBlockFireInput();
     }
-    UpdateChargeState(safeDeltaTime, !input || inputBlocked);
+    const bool chargeBurstFrame = UpdateChargeState(safeDeltaTime, !input || inputBlocked);
 
-    if (!inputBlocked && input) {
+    if (!inputBlocked && input && !chargeBurstFrame) {
         lastCanFire_ = fireTimer_ >= fireInterval_;
         if (lastLeftClickPressed_ && lastCanFire_) {
             FireFromPlayer();
@@ -160,11 +164,13 @@ void PlayerBulletManager::Update(float deltaTime) {
     }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
-            if (projectileRailMotionAdapter_) {
+            // Fan shots keep their launch-time world path; never retarget with the rail/cursor.
+            if (projectileRailMotionAdapter_ && !instance.fanTrajectory) {
                 projectileRailMotionAdapter_->ApplyToProjectile(
                     *instance.bullet, ProjectileRailMotionAdapter::ProjectileKind::Player);
             }
             UpdateLockedWingShot(instance, safeDeltaTime);
+            UpdateFanChargeShot(instance, safeDeltaTime);
             instance.bullet->Update(safeDeltaTime);
             UpdateLockedWingMissileExhaust(instance);
             if (projectileRailMotionAdapter_ && instance.bullet->IsDead()) {
@@ -183,6 +189,7 @@ void PlayerBulletManager::Update(float deltaTime) {
 }
 
 void PlayerBulletManager::Draw() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerDrawMs);
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
             instance.bullet->Draw();
@@ -346,6 +353,7 @@ void PlayerBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisua
 }
 
 void PlayerBulletManager::DeleteAllBullets() {
+    ResetFanCharge();
     if (lockedWingMissileExhaustController_) {
         lockedWingMissileExhaustController_->Reset(false);
     }
@@ -486,20 +494,6 @@ void PlayerBulletManager::ApplyModelRotationOffsetToBullets() {
             instance.bullet->SetModelRotationOffset(playerBulletModelRotationOffset_);
         }
     }
-}
-
-void PlayerBulletManager::UpdateChargeState(float deltaTime, bool inputBlocked) {
-    maxChargeTime_ = (std::max)(maxChargeTime_, 0.05f);
-    if (!enableChargeFeedbackInput_ || inputBlocked || !lastLeftClickHeld_) {
-        chargeTime_ = 0.0f;
-        chargeRate_ = 0.0f;
-        isChargeMax_ = false;
-        return;
-    }
-
-    chargeTime_ = (std::min)(maxChargeTime_, chargeTime_ + (std::max)(deltaTime, 0.0f));
-    chargeRate_ = std::clamp(chargeTime_ / maxChargeTime_, 0.0f, 1.0f);
-    isChargeMax_ = chargeRate_ >= 1.0f;
 }
 
 bool PlayerBulletManager::ShouldBlockFireInput() {

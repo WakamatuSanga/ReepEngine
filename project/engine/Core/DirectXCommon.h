@@ -63,7 +63,7 @@ public:
     };
 
     DirectXCommon() = default;
-    ~DirectXCommon() = default;
+    ~DirectXCommon();
 
     // DirectX の初期化 / 終了
     void Initialize(WinApp* winApp);
@@ -208,12 +208,14 @@ private:
 
     // FPS固定初期化
     void InitializeFixFPS();
+    void FinalizeFixFPS();
     // FPS固定更新
     void UpdateFixFPS();
     void UpdateOffscreenViewportAndScissor();
 
     // 記録時間（FPS固定用）
     std::chrono::steady_clock::time_point reference_;
+    HANDLE fixedFpsTimer_ = nullptr;
 
 private:
     // WindowsAPI

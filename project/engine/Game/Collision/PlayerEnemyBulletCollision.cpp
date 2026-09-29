@@ -1,4 +1,5 @@
 #include "PlayerEnemyBulletCollision.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
@@ -55,6 +56,7 @@ void PlayerEnemyBulletCollision::SetDamageFeedbackController(PlayerDamageFeedbac
     damageFeedbackController_ = controller;
 }
 void PlayerEnemyBulletCollision::Update() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerHitMs);
     lastHit_ = false;
     lastBlockedByBarrelRoll_ = false;
     lastBlockedByDamageInvincible_ = false;

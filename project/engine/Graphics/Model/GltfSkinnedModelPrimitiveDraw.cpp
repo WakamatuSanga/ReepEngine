@@ -1,4 +1,5 @@
 #include "Model.h"
+#include "Engine/Core/FrameTimer.h"
 
 void Model::DrawIndexRanges(
     ID3D12GraphicsCommandList* commandList) const {
@@ -7,6 +8,7 @@ void Model::DrawIndexRanges(
     }
 
     if (modelData_.indexDrawRanges.empty()) {
+        FrameTimer::GetInstance().CountBulletDraw();
         commandList->DrawIndexedInstanced(
             static_cast<UINT>(modelData_.indices.size()),
             1,
@@ -17,6 +19,7 @@ void Model::DrawIndexRanges(
     }
 
     for (const IndexDrawRange& range : modelData_.indexDrawRanges) {
+        FrameTimer::GetInstance().CountBulletDraw();
         commandList->DrawIndexedInstanced(
             range.indexCount,
             1,
