@@ -86,7 +86,12 @@ void MyGame::Finalize() {
 
 void MyGame::Run() {
     while (true) {
-        if (winApp_->ProcessMessage()) break;
+        {
+            // This lies before the next BeginFrame, so it belongs to the
+            // frame interval that is about to finish.
+            FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::MessagesMs);
+            if (winApp_->ProcessMessage()) break;
+        }
         Update();
         Draw();
     }
@@ -94,6 +99,7 @@ void MyGame::Run() {
 
 void MyGame::Update() {
     FrameTimer::GetInstance().BeginFrame();
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::GameUpdateMs);
     imguiManager_->Begin();
     input_->Update();
     SceneManager::GetInstance()->Update();
@@ -101,13 +107,16 @@ void MyGame::Update() {
 }
 
 void MyGame::Draw() {
-    dxCommon_->PreDraw();
-    srvManager_->PreDraw();
-    SceneManager::GetInstance()->Draw();
-    dxCommon_->PrepareSwapChainForImGui();
-    dxCommon_->CopyRenderTextureToSwapChain();
-    dxCommon_->PrepareRenderTextureForImGui();
-    imguiManager_->Draw();
-    dxCommon_->RestoreRenderTextureAfterImGui();
+    {
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::RenderCommandsMs);
+        dxCommon_->PreDraw();
+        srvManager_->PreDraw();
+        SceneManager::GetInstance()->Draw();
+        dxCommon_->PrepareSwapChainForImGui();
+        dxCommon_->CopyRenderTextureToSwapChain();
+        dxCommon_->PrepareRenderTextureForImGui();
+        imguiManager_->Draw();
+        dxCommon_->RestoreRenderTextureAfterImGui();
+    }
     dxCommon_->PostDraw();
 }

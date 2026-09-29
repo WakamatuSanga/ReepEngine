@@ -15,6 +15,8 @@ class GameViewport;
 class LockedWingMissileExhaustController;
 class Object3dCommon;
 class Player;
+class PlayerFanChargeAttack;
+struct PlayerFanChargeTrajectory;
 class PlayerLockOnTargetProvider;
 class ProjectileRailMotionAdapter;
 enum class PlayerLockOnTargetKind : uint8_t;
@@ -36,6 +38,7 @@ public:
     enum class PlayerProjectileType : uint8_t {
         NormalShot,
         LockedWingShot,
+        FanChargeShot,
     };
 
     enum class PlayerProjectileKillReason : uint8_t {
@@ -205,8 +208,13 @@ private:
     };
 
     struct PlayerBulletInstance {
+        PlayerBulletInstance();
+        ~PlayerBulletInstance();
+        PlayerBulletInstance(PlayerBulletInstance&&) noexcept;
+        PlayerBulletInstance& operator=(PlayerBulletInstance&&) noexcept;
         std::unique_ptr<EnemyBullet> bullet;
         std::unique_ptr<LockedWingLaunchState> lockedWingLaunch;
+        std::unique_ptr<PlayerFanChargeTrajectory> fanTrajectory;
         uint64_t runtimeId = 0;
         int damage = 1;
         PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
@@ -241,7 +249,10 @@ private:
     void UpdateCameraVelocity(float deltaTime);
     void UpdateViewportDebugState();
     void ApplyModelRotationOffsetToBullets();
-    void UpdateChargeState(float deltaTime, bool inputBlocked);
+    bool UpdateChargeState(float deltaTime, bool inputBlocked);
+    void ResetFanCharge();
+    void FireFanChargeVolley();
+    void UpdateFanChargeShot(PlayerBulletInstance& instance, float deltaTime);
     Vector3 ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward);
     Vector3 ResolveFinalShotDirection(
         const Vector3& muzzleWorldPosition,
@@ -257,6 +268,7 @@ private:
     GameViewport* gameViewport_ = nullptr;
     ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::unique_ptr<LockedWingMissileExhaustController> lockedWingMissileExhaustController_;
+    std::unique_ptr<PlayerFanChargeAttack> fanChargeAttack_;
     const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     AimCorridorVisualController* aimCorridorVisualController_ = nullptr;
     AimCorridorTargetingController* aimCorridorTargetingController_ = nullptr;
@@ -289,7 +301,7 @@ private:
     float aimDistance_ = 30.0f;
     float inheritCameraVelocityFactor_ = 0.5f;
     float chargeTime_ = 0.0f;
-    float maxChargeTime_ = 1.2f;
+    float maxChargeTime_ = 1.5f;
     float chargeRate_ = 0.0f;
     float lastShotDirectionLength_ = 0.0f;
     int bulletDamage_ = 1;

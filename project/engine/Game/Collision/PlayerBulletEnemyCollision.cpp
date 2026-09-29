@@ -1,4 +1,5 @@
 #include "PlayerBulletEnemyCollision.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
@@ -47,6 +48,7 @@ void PlayerBulletEnemyCollision::SetImpactDistortionController(ImpactDistortionC
 }
 
 void PlayerBulletEnemyCollision::Update() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyHitMs);
     lastHitResult_ = false;
     lastDamage_ = 0;
     lastDistance_ = -1.0f;

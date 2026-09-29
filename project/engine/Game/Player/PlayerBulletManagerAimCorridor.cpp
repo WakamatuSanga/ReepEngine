@@ -130,12 +130,14 @@ void PlayerBulletManager::SetAimRuntimeContext(
     aimRuntimeStateInitialized_ = true;
 
     if (enteringGameMode || respawned) {
+        ResetFanCharge();
         aimMode_ = AimMode::AimCorridor;
         debugAimModeForced_ = false;
         ResetAimDiagnostics();
         ResetLockedWingShotState(true);
     }
     if (leavingGameMode) {
+        ResetFanCharge();
         ClearLockedWingShotForceState();
         lockedTargetValidation_ = {};
     }
@@ -143,9 +145,13 @@ void PlayerBulletManager::SetAimRuntimeContext(
         aimMode_ = AimMode::AimCorridor;
         debugAimModeForced_ = false;
     }
+    if (!playerAlive) {
+        ResetFanCharge();
+    }
 }
 
 void PlayerBulletManager::ClearAimCorridorContext() {
+    ResetFanCharge();
     aimCorridorVisualController_ = nullptr;
     aimCorridorTargetingController_ = nullptr;
     targetProvider_ = nullptr;

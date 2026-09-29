@@ -1,6 +1,7 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossControllerInternal.h"
 
 #include "Engine/Animation/Skeleton.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/GltfSkeletonLoader.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
@@ -329,6 +330,7 @@ void KrakenTentacleMidbossController::SetEffectContext(
 void KrakenTentacleMidbossController::Update(float scaledDeltaTime) {
     if (impl_) {
         impl_->Update(scaledDeltaTime);
+        FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::KrakenHitMs);
         impl_->UpdateCollisionQuery();
         impl_->UpdateProjectileDamage();
         impl_->UpdateAttackDamage();

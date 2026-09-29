@@ -34,6 +34,7 @@ void RuntimeModeController::Initialize(WinApp* winApp) {
     mode_ = RuntimeMode::Game;
     RequestWindowFullscreen(true);
 #endif
+    FrameTimer::GetInstance().SetBulletMeasurementGameMode(IsGameMode());
 }
 
 void RuntimeModeController::Update(Input* input) {
@@ -184,6 +185,83 @@ void RuntimeModeController::DrawImGui() {
     ImGui::Text("GPU Particle Active Estimate: %u", performanceStats_.gpuParticleActiveEstimate);
     ImGui::TextDisabled("Draw Call Count: not collected yet");
 
+    if (ImGui::CollapsingHeader("弾の負荷計測")) {
+        bool measuring = timer.IsBulletMeasurementEnabled();
+        if (ImGui::Checkbox("弾の計測を有効にする", &measuring)) {
+            timer.SetBulletMeasurementEnabled(measuring);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("計測区間をリセット")) {
+            timer.ResetBulletMeasurement();
+        }
+#ifdef _DEBUG
+        ImGui::TextUnformatted("ビルド構成：Debug x64");
+#else
+        ImGui::TextUnformatted("ビルド構成：Development x64");
+#endif
+        ImGui::Text("生存弾数：プレイヤー %zu / 敵 %zu（敵本体 %zu）",
+            performanceStats_.playerBulletCount, performanceStats_.enemyBulletCount,
+            performanceStats_.activeEnemyCount);
+        const auto& report = timer.GetBulletReport();
+        ImGui::Text("現在のRuntime %s：%.2f 秒 / %llu フレーム",
+            IsGameMode() ? "Game" : "Debug", report.seconds,
+            static_cast<unsigned long long>(report.frames));
+        ImGui::TextWrapped("前フレームの値と、約1秒ごとに更新する1フレームあたりの平均・最大です。モード切り替え時は未完了区間と切り替えフレームを除外し、新しい区間を開始します。区間確定前は平均・最大が0です。");
+        constexpr const char* labels[] = {
+            "フレーム時間 (ms)", "生存プレイヤー弾 (発)", "生存敵弾 (発)",
+            "プレイヤー弾生成 (発/フレーム)", "敵弾生成 (発/フレーム)",
+            "プレイヤー弾生成CPU (ms)", "敵弾生成CPU (ms)",
+            "プレイヤー弾更新CPU (ms)", "敵弾更新CPU (ms)",
+            "弾→通常敵の衝突CPU (ms)", "敵弾→プレイヤーの衝突CPU (ms)",
+            "Kraken衝突・命中処理CPU (ms)", "敵弾消去判定CPU (ms)",
+            "プレイヤー弾描画命令CPU (ms)", "敵弾描画命令CPU (ms)",
+            "プレイヤー弾モデルDraw (回/フレーム)", "敵弾モデルDraw (回/フレーム)",
+            "全体更新CPU (ms)", "描画命令作成全体CPU (ms)",
+            "描画終端・コマンド送信CPU (ms)", "Present呼び出しCPU (ms)",
+            "既存GPU完了待ちCPU (ms)", "固定FPS制御CPU (ms)",
+            "コマンド再設定CPU (ms)", "OSメッセージ処理CPU (ms)",
+            "計測外・差分 (ms)"
+        };
+        static_assert(IM_ARRAYSIZE(labels) == static_cast<int>(FrameTimer::BulletMetric::Count));
+        const auto drawReport = [&](const char* id, const FrameTimer::BulletReport& values, const char* lastLabel) {
+            if (!ImGui::BeginTable(id, 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+                return;
+            }
+            ImGui::TableSetupColumn("計測項目", ImGuiTableColumnFlags_WidthStretch, 3.0f);
+            ImGui::TableSetupColumn(lastLabel, ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn("区間平均", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableSetupColumn("区間最大", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+            ImGui::TableHeadersRow();
+            for (size_t i = 0; i < values.last.size(); ++i) {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::TextWrapped("%s", labels[i]);
+                ImGui::TableNextColumn(); ImGui::Text("%.3f", values.last[i]);
+                ImGui::TableNextColumn(); ImGui::Text("%.3f", values.average[i]);
+                ImGui::TableNextColumn(); ImGui::Text("%.3f", values.maximum[i]);
+            }
+            ImGui::EndTable();
+        };
+        drawReport("BulletPerformance", report, "前フレーム");
+        ImGui::SeparatorText("直近のGame Mode計測結果");
+        const auto& gameReport = timer.GetLastGameBulletReport();
+        if (gameReport.frames == 0) {
+            ImGui::TextUnformatted("未取得");
+        } else {
+            ImGui::Text("保存区間：%.2f 秒 / %llu フレーム",
+                gameReport.seconds, static_cast<unsigned long long>(gameReport.frames));
+            drawReport("GameBulletPerformance", gameReport, "区間末フレーム");
+        }
+        ImGui::TextWrapped("Game ModeではUI非表示でも計測が継続します。保存表の全項目は同じ完了区間の値で、Debug中は更新しません。計測リセット・ON/OFF切り替えで保存結果も解除します。");
+        ImGui::TextWrapped("生成CPUは共通SpawnBullet内（確保・初期化・登録）です。照準計算・チャージ軌道準備・ミサイル追加設定は含みません。プレイヤー弾には通常弾・チャージ弾・ミサイルを含みます。");
+        ImGui::TextWrapped("更新CPUは入力・生成・破棄・ミサイル排気更新を含むManager全体です。衝突CPUは命中後の処理を含み、Kraken欄は対Player攻撃判定も含みます。生成は更新に重複するため合算できません。各行の最大値も同じフレームとは限りません。");
+        ImGui::TextWrapped("描画CPUは命令作成時間でありGPU時間ではありません。判定表示・ミサイル排気を含みます。Draw回数は弾モデルと判定表示の実描画命令のみで、GPU粒子の排気や命中エフェクトは除外します。");
+        ImGui::TextWrapped("GPU時間：未計測。フレーム時間にはVSync・GPU同期・固定FPS待機を含みます。計測OFF時は時計取得・集計を省きます。");
+        ImGui::TextWrapped("全体内訳はCPU側の経過時間です。フレーム時間はUpdate冒頭のBeginFrameから次回BeginFrameまで。全体更新は入力・ImGui・シーン更新、描画命令作成全体はPreDrawからImGui描画まで（PostDrawは除外）です。");
+        ImGui::TextWrapped("PostDrawは終端Barrier・Close・Execute、Present、FenceのSignal・完了確認・既存待機、固定FPS制御、Allocator/ListのResetに分割しています。OSメッセージ処理は次回BeginFrame直前です。新たな待機は追加していません。");
+        ImGui::TextWrapped("全体更新～OSメッセージ処理の8行は重複しません。平均の合計＋計測外・差分の平均＝フレーム平均です。弾の各時間は内訳に含まれるため二重に足さないでください。最大値同士は別フレームの場合があり合算できません。");
+        ImGui::TextWrapped("計測外・差分はBeginFrame内の集計・区間間の処理・計測オーバーヘッド等です。CPU側の経過時間にはOSによる中断も含みます。PresentやFence待ちだけからGPU実行時間は断定できません。");
+    }
+
     ImGui::SeparatorText("Cloud");
     ImGui::Text("Cloud Enabled: %s", performanceStats_.cloudEnabled ? "true" : "false");
     ImGui::Text("Low Resolution Cloud: %s", performanceStats_.lowResolutionCloudEnabled ? "true" : "false");
@@ -280,6 +358,7 @@ void RuntimeModeController::RequestWindowFullscreen(bool fullscreen) {
 
 void RuntimeModeController::SetPerformanceStats(const PerformanceStats& stats) {
     performanceStats_ = stats;
+    FrameTimer::GetInstance().SetBulletCounts(stats.playerBulletCount, stats.enemyBulletCount);
 }
 
 float RuntimeModeController::GetDesiredRenderScale() const {
@@ -397,4 +476,5 @@ void RuntimeModeController::SetMode(RuntimeMode mode) {
     mode_ = RuntimeMode::Game;
     RequestWindowFullscreen(true);
 #endif
+    FrameTimer::GetInstance().SetBulletMeasurementGameMode(IsGameMode());
 }

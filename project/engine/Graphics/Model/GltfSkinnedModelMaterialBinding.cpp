@@ -1,6 +1,7 @@
 #include "GltfSkinnedModelMaterialLoader.h"
 
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/FrameTimer.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "ModelCommon.h"
 
@@ -322,6 +323,7 @@ bool Model::DrawIndexRangesWithMaterials(
             2,
             textureManager->GetSrvHandleGPU(
                 binding.baseColorTextureIndex));
+        FrameTimer::GetInstance().CountBulletDraw();
         commandList->DrawIndexedInstanced(
             range.indexCount,
             1,

@@ -549,6 +549,12 @@
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerBulletManagerFanCharge.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerFanChargeAttack.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -1195,6 +1201,9 @@
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerFanChargeAttack.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>

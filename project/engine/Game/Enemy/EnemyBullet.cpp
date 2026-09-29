@@ -78,6 +78,8 @@ EnemyBullet::~EnemyBullet() = default;
 
 bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     initialized_ = false;
+    radiusObject_.reset();
+    radiusModel_ = nullptr;
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     currentTime_ = 0.0f;
@@ -104,19 +106,6 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object_->SetCamera(camera_);
     object_->SetEnvironmentMapEnabled(false);
 
-    radiusObject_ = std::make_unique<Object3d>();
-    radiusObject_->Initialize(object3dCommon_);
-    if (radiusObject_->IsValid()) {
-        radiusObject_->SetCamera(camera_);
-        radiusObject_->SetEnvironmentMapEnabled(false);
-        radiusModel_ = ModelManager::GetInstance()->CreateSphere("EnemyBulletRadiusSphere", 12);
-        radiusObject_->SetModel(radiusModel_);
-    } else {
-        Logger::Log("[EnemyBullet] Radius Object3d initialize failed; radius debug disabled");
-        radiusObject_.reset();
-        radiusModel_ = nullptr;
-    }
-
     LoadModel();
     initialized_ = true;
     isActive_ = true;
@@ -124,9 +113,6 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     deathReason_ = "生存中";
     UpdateObjectTransform();
     object_->Update();
-    if (radiusObject_ && radiusObject_->IsValid()) {
-        radiusObject_->Update();
-    }
     return true;
 }
 void EnemyBullet::Finalize() {
@@ -157,9 +143,6 @@ void EnemyBullet::Update(float deltaTime) {
     position_ = AddVector3(position_, ScaleVector3(velocity_, safeDeltaTime));
     UpdateObjectTransform();
     object_->Update();
-    if (radiusObject_ && radiusObject_->IsValid()) {
-        radiusObject_->Update();
-    }
 }
 
 void EnemyBullet::Draw() {
@@ -172,10 +155,36 @@ void EnemyBullet::Draw() {
 }
 
 void EnemyBullet::DrawRadius() {
-    if (!initialized_ || !object3dCommon_ || !radiusObject_ || !radiusObject_->IsValid() || !radiusModel_ || !isActive_ || isDead_) {
+    if (!initialized_ || !object3dCommon_ || !camera_ || !isActive_ || isDead_) {
         return;
     }
 
+    // Managers call this only while collision-radius visualization is enabled.
+    // Keep the object across visibility toggles; ModelManager owns the shared sphere.
+    if (!radiusObject_) {
+        radiusObject_ = std::make_unique<Object3d>();
+        radiusObject_->Initialize(object3dCommon_);
+        if (!radiusObject_->IsValid()) {
+            Logger::Log("[EnemyBullet] Radius Object3d initialize failed; radius debug disabled");
+            radiusObject_.reset();
+            return;
+        }
+        radiusObject_->SetCamera(camera_);
+        radiusObject_->SetEnvironmentMapEnabled(false);
+        ModelManager* modelManager = ModelManager::GetInstance();
+        radiusModel_ = modelManager->FindModel("EnemyBulletRadiusSphere");
+        if (!radiusModel_) {
+            radiusModel_ = modelManager->CreateSphere("EnemyBulletRadiusSphere", 12);
+        }
+        radiusObject_->SetModel(radiusModel_);
+    }
+
+    // Read the current collision state immediately before drawing, including
+    // the first visible frame after an OFF period or a radius edit.
+    radiusObject_->SetTranslate(position_);
+    radiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
+    radiusObject_->SetScale({ radius_, radius_, radius_ });
+    radiusObject_->Update();
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
     radiusObject_->Draw();
 }
@@ -254,9 +263,6 @@ void EnemyBullet::DrawImGui() {
     UpdateObjectTransform();
     if (object_ && object_->IsValid()) {
         object_->Update();
-    }
-    if (radiusObject_ && radiusObject_->IsValid()) {
-        radiusObject_->Update();
     }
 #endif
 }
@@ -384,10 +390,5 @@ void EnemyBullet::UpdateObjectTransform() {
         modelRotationOffset_);
     object_->SetRotate(visualModelRotation_);
     object_->SetScale(scale_);
-    if (radiusObject_ && radiusObject_->IsValid()) {
-        radiusObject_->SetTranslate(position_);
-        radiusObject_->SetRotate({ 0.0f, 0.0f, 0.0f });
-        radiusObject_->SetScale({ radius_, radius_, radius_ });
-    }
 }
 
