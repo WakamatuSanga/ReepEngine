@@ -3,6 +3,7 @@
 #ifdef USE_IMGUI
 #include "DirectXCommon.h"
 #include "RuntimeModeController.h"
+#include "SceneManager.h"
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "externals/imgui/imgui.h"
@@ -142,6 +143,7 @@ void ImGuiManager::BeginDockSpace_() {
 	const bool drawDebugUi = !runtimeModeController || runtimeModeController->ShouldDrawDebugUi();
 
 #ifdef IMGUI_HAS_DOCK
+	const bool fullscreenScene = SceneManager::GetInstance()->UsesFullscreenScenePresentationForNextUpdate();
 	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
 	ImGuiWindowFlags windowFlags =
 		ImGuiWindowFlags_MenuBar |
@@ -153,7 +155,8 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoNavFocus;
 
-	if (!drawDebugUi && runtimeModeController && runtimeModeController->ShouldKeepDockSpaceAlive()) {
+	if (fullscreenScene || (!drawDebugUi && runtimeModeController && runtimeModeController->ShouldKeepDockSpaceAlive())) {
+		// Keep the editor layout, but do not cover the scene with host or dock-node backgrounds.
 		dockspaceFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
 		windowFlags |= ImGuiWindowFlags_NoBackground;
 	} else if (enableDockSpacePassthrough_) {

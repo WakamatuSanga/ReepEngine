@@ -54,6 +54,7 @@ public:
     // ボタン押下/トリガ
     bool MouseDown(MouseButton button) const;
     bool MouseTrigger(MouseButton button) const;
+    void SuppressLeftMouseUntilRelease() { suppressLeftMouse_ = true; }
 
     // 移動量（相対値：前フレームからの差分）
     LONG  MouseDeltaX() const;  // +: 右,  -: 左
@@ -97,6 +98,7 @@ private:
 
     // --- マウス ---
     ComPtr<IDirectInputDevice8> mouse_;
+    bool suppressLeftMouse_ = false;
     DIMOUSESTATE2 mouseNow_ = {}; // 今回
     DIMOUSESTATE2 mousePrev_ = {}; // 前回
 

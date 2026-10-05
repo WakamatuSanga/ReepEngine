@@ -1,6 +1,4 @@
 #include "PlayerJetExhaustController.h"
-#include "BoostController.h"
-#include "Player.h"
 #include "PlayerJetExhaustBeamCore.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/SrvManager.h"
@@ -18,12 +16,6 @@
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
     constexpr float kPi = 3.14159265358979323846f;
-    struct VisualBasis {
-        Vector3 right{ 1.0f, 0.0f, 0.0f };
-        Vector3 up{ 0.0f, 1.0f, 0.0f };
-        Vector3 forward{ 0.0f, 0.0f, 1.0f };
-    };
-
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
     }
@@ -48,10 +40,6 @@ namespace {
         return { value.x / length, value.y / length, value.z / length };
     }
 
-    float LerpFloat(float start, float end, float t) {
-        return start + (end - start) * t;
-    }
-
     Vector4 ScaleColor(const Vector4& value, float brightness) {
         return {
             std::clamp(value.x * brightness, 0.0f, 4.0f),
@@ -67,15 +55,6 @@ namespace {
         const float horizontal = std::sqrt(normalized.x * normalized.x + normalized.z * normalized.z);
         const float pitch = std::atan2(-normalized.y, horizontal);
         return { pitch, yaw, 0.0f };
-    }
-
-    VisualBasis MakeBasisFromRotation(const Vector3& rotation, const Vector3& fallbackForward) {
-        const Matrix4x4 matrix = MatrixMath::MakeAffine({ 1.0f, 1.0f, 1.0f }, rotation, { 0.0f, 0.0f, 0.0f });
-        VisualBasis basis;
-        basis.right = Normalize({ matrix.m[0][0], matrix.m[0][1], matrix.m[0][2] }, { 1.0f, 0.0f, 0.0f });
-        basis.up = Normalize({ matrix.m[1][0], matrix.m[1][1], matrix.m[1][2] }, { 0.0f, 1.0f, 0.0f });
-        basis.forward = Normalize({ matrix.m[2][0], matrix.m[2][1], matrix.m[2][2] }, fallbackForward);
-        return basis;
     }
 
     void ApplyModelMaterial(Model* model, const Vector4& color) {
@@ -214,7 +193,7 @@ bool PlayerJetExhaustController::Initialize(
     boostController_ = boostController;
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
-    if (!object3dCommon_ || !camera_ || !player_ || !dxCommon_ || !srvManager_) {
+    if (!object3dCommon_ || !camera_ || !dxCommon_ || !srvManager_) {
         loadStatus_ = "Missing dependencies";
         return false;
     }
@@ -236,6 +215,8 @@ bool PlayerJetExhaustController::Initialize(
 }
 
 void PlayerJetExhaustController::Finalize() {
+    displayOpacity_ = 1.0f;
+    displayLocalParticles_ = false;
     nozzleDebugObject_.reset();
     directionDebugObject_.reset();
     nozzleDebugModel_ = nullptr;
@@ -302,57 +283,6 @@ bool PlayerJetExhaustController::LoadPreset() {
     return true;
 }
 
-void PlayerJetExhaustController::Update(float deltaTime) {
-    ++updateCount_;
-    if (!particleSystem_ || !player_ || !camera_) {
-        return;
-    }
-
-    const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
-    const float targetBoostPower = boostController_ ? std::clamp(boostController_->GetCurrentBoostPower(), 0.0f, 1.0f) : 0.0f;
-    const float smoothT = std::clamp(safeDeltaTime * boostSmoothSpeed_, 0.0f, 1.0f);
-    smoothedBoostPower_ = LerpFloat(smoothedBoostPower_, targetBoostPower, smoothT);
-
-    currentLengthMultiplier_ = LerpFloat(1.0f, boostLengthMultiplier_, smoothedBoostPower_);
-    currentSpeedMultiplier_ = LerpFloat(1.0f, boostSpeedMultiplier_, smoothedBoostPower_);
-    currentSpawnRateMultiplier_ = LerpFloat(1.0f, boostSpawnRateMultiplier_, smoothedBoostPower_);
-    currentBrightness_ = brightness_ * LerpFloat(1.0f, boostBrightnessMultiplier_, smoothedBoostPower_);
-
-    const VisualBasis basis = MakeBasisFromRotation(player_->GetVisualModelRotation(), player_->GetBaseForward());
-    currentNozzlePosition_ = AddVector3(
-        AddVector3(
-            AddVector3(player_->GetWorldPosition(), ScaleVector3(basis.forward, -nozzleBackOffset_)),
-            ScaleVector3(basis.up, nozzleUpOffset_)),
-        ScaleVector3(basis.right, nozzleSideOffset_));
-    currentExhaustDirection_ = invertExhaustDirection_ ? basis.forward : NegateVector3(basis.forward);
-    currentExhaustDirection_ = Normalize(currentExhaustDirection_, NegateVector3(player_->GetBaseForward()));
-    const bool shouldEmit = enableJetExhaust_ && (!hideWhenPlayerDead_ || isPlayerAlive_);
-    if (beamCore_) {
-        beamCore_->Update(
-            currentNozzlePosition_,
-            currentExhaustDirection_,
-            basis.right,
-            camera_,
-            smoothedBoostPower_,
-            safeDeltaTime,
-            shouldEmit);
-    }
-
-    ApplyRuntimeSettings(safeDeltaTime);
-    particleSystem_->SetDeltaTime(safeDeltaTime);
-    particleSystem_->SetParticleInfluenceEnabled(false);
-    particleSystem_->SetRailParticleFlow(
-        affectedByRailFlow_,
-        camera_->GetTranslate(),
-        currentExhaustDirection_,
-        exhaustSpeed_ * currentSpeedMultiplier_,
-        railFlowScale_,
-        24.0f,
-        8.0f);
-    particleSystem_->Update(camera_);
-    UpdateDebugObjects();
-}
-
 void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
     NormalizeFlameRanges();
     if (particleSystem_) {
@@ -360,7 +290,7 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
         particleSystem_->SetRuntimeParticleLimits(maxActiveExhaustParticles_, maxEmitPerFrame_);
         particleSystem_->SetCounterReadbackEnabled(autoReadbackPoolCounters_);
     }
-    const bool shouldEmit = enableJetExhaust_ && (!hideWhenPlayerDead_ || isPlayerAlive_);
+    const bool shouldEmit = enableJetExhaust_ && displayOpacity_ > 0.0f && (!hideWhenPlayerDead_ || isPlayerAlive_);
     const bool shouldEmitOuterParticles = shouldEmit && (!beamCore_ || beamCore_->IsOuterParticlesEnabled());
     const float coreSpeed = exhaustSpeed_ * currentSpeedMultiplier_;
     const float outerSpeed = outerExhaustSpeed_ * currentSpeedMultiplier_;
@@ -396,6 +326,14 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
         outerSpeed * 1.15f,
         affectedByRailFlow_,
         railFlowScale_);
+    // UpdateParticle uses these type colours for existing particles too, so the
+    // display fade includes the entire trail, not just newly emitted particles.
+    coreType.baseColor.w *= displayOpacity_;
+    coreType.startColor.w *= displayOpacity_;
+    coreType.endColor.w *= displayOpacity_;
+    outerType.baseColor.w *= displayOpacity_;
+    outerType.startColor.w *= displayOpacity_;
+    outerType.endColor.w *= displayOpacity_;
     particleSystem_->SetParticleTypeRuntime(0, coreType);
     particleSystem_->SetParticleTypeRuntime(1, outerType);
 
@@ -435,7 +373,7 @@ void PlayerJetExhaustController::DrawLayer(bool afterCloudLayer) {
     }
 
     const float brightnessScale = afterCloudLayer ? afterCloudBrightnessScale_ : 1.0f;
-    const float alphaScale = afterCloudLayer ? afterCloudAlphaScale_ : 1.0f;
+    const float alphaScale = (afterCloudLayer ? afterCloudAlphaScale_ : 1.0f) * displayOpacity_;
     if (beamCore_) {
         beamCore_->Draw(camera_, brightnessScale, alphaScale);
     }

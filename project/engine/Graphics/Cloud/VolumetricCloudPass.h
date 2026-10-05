@@ -60,6 +60,8 @@ public:
 public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
     ProjectedBounds BuildProjectedBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
+    ProjectedBounds BuildTitleBackgroundBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
+    void ConfigureStillTitleBackground();
     void Render(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds);
     void DrawImGui();
 

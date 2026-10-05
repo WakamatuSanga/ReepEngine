@@ -486,6 +486,9 @@
     <ClCompile Include="engine\Game\Player\PlayerTransform.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerUpdate.cpp">
+      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -702,6 +705,13 @@
     <ClCompile Include="SceneManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="TitleMissilePresentation.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="TitleCloudTransition.cpp" />
+    <ClCompile Include="TitleSortieEffects.cpp" />
+    <ClCompile Include="TitleLogoController.cpp" />
+    <ClCompile Include="GameScenePresentation.cpp" />
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -1319,6 +1329,14 @@
     <ClInclude Include="SceneManager.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="TitleMissilePresentation.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="TitleCloudTransition.h" />
+    <ClInclude Include="TitleSortieEffects.h" />
+    <ClInclude Include="TitleLogoController.h" />
+    <ClInclude Include="TitleLaunchSequence.h" />
+    <ClInclude Include="TitleWaitingAircraft.h" />
     <ClInclude Include="TitleScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

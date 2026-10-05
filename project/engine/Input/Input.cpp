@@ -129,6 +129,8 @@ void Input::Update()
         if (FAILED(hr)) { std::memset(&mouseNow_, 0, sizeof(mouseNow_)); }
     }
 
+    if ((mouseNow_.rgbButtons[MouseLeft] & 0x80) == 0) suppressLeftMouse_ = false;
+
     // ---- パッド ----
     padPrev_ = padNow_;
     if (gamepad_) {
@@ -160,11 +162,13 @@ bool Input::TriggerKey(BYTE keyNumber) const
 
 bool Input::MouseDown(MouseButton button) const
 {
+    if (button == MouseLeft && suppressLeftMouse_) return false;
     return (mouseNow_.rgbButtons[button] & 0x80) != 0;
 }
 
 bool Input::MouseTrigger(MouseButton button) const
 {
+    if (button == MouseLeft && suppressLeftMouse_) return false;
     const bool prev = (mousePrev_.rgbButtons[button] & 0x80) != 0;
     const bool curr = (mouseNow_.rgbButtons[button] & 0x80) != 0;
     return (!prev && curr);

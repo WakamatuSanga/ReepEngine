@@ -229,12 +229,12 @@ void GpuParticleSystem::ResetParticlePool() {
 	GpuParticle::RequestInitialize(state_);
 }
 
-void GpuParticleSystem::Update(const Camera* camera) {
+void GpuParticleSystem::Update(const Camera* camera, const Matrix4x4* particleToWorld) {
 	if (!isInitialized_) {
 		return;
 	}
 
-	renderer_->UpdateView(camera);
+	renderer_->UpdateView(camera, particleToWorld);
 	state_.deltaTime = std::clamp(state_.deltaTime, 0.0f, 1.0f / 15.0f);
 	state_.lastRequestedEmitCount = 0;
 	state_.lastActualEmitCount = 0;

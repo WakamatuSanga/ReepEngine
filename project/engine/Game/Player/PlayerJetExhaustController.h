@@ -31,6 +31,11 @@ public:
         SrvManager* srvManager);
     void Finalize();
     void Update(float deltaTime);
+    // Display-only callers may initialize with a null Player; no gameplay input is used.
+    void UpdateDisplay(float deltaTime, const Transform& transform, float referenceModelScale,
+        float displayBoost = 0.0f, float opacity = 1.0f, bool nozzleLocalParticles = false);
+    void SetDisplayCamera(Camera* camera) { if (!player_) camera_ = camera; }
+    void ResetDisplayState();
     void Draw();
     void DrawAfterCloud();
     void DrawImGui();
@@ -39,6 +44,8 @@ public:
     void SetDebugVisualsEnabled(bool isEnabled) { debugVisualsEnabled_ = isEnabled; }
 
 private:
+    void UpdateVisualPose(float deltaTime, const Vector3& position, const Vector3& rotation,
+        const Vector3& forward, const Vector3& nozzleScale, float boostPower);
     bool LoadPreset();
     void ApplyRuntimeSettings(float deltaTime);
     void UpdateDebugObjects();
@@ -121,6 +128,8 @@ private:
     float outerParticleAlphaScale_ = 0.38f;
 
     float smoothedBoostPower_ = 0.0f;
+    float displayOpacity_ = 1.0f;
+    bool displayLocalParticles_ = false;
     float currentLengthMultiplier_ = 1.0f;
     float currentSpeedMultiplier_ = 1.0f;
     float currentSpawnRateMultiplier_ = 1.0f;

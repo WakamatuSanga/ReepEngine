@@ -9,6 +9,7 @@
 class Camera;
 class DirectXCommon;
 class GpuParticleResources;
+struct Matrix4x4;
 namespace GpuParticle {
 struct ParticleDebugInfo;
 struct ParticleType;
@@ -21,7 +22,7 @@ public:
 	bool Initialize(DirectXCommon* dxCommon);
 	void RefreshParticleTypeTextures(GpuParticle::State& state);
 	void ReloadParticleTypeTextures(GpuParticle::State& state);
-	void UpdateView(const Camera* camera);
+	void UpdateView(const Camera* camera, const Matrix4x4* particleToWorld = nullptr);
 	void Draw(ID3D12GraphicsCommandList* commandList, GpuParticleResources& resources, const GpuParticle::State& state);
 	uint32_t GetTextureIndex() const { return particleTextureIndex_; }
 	uint32_t GetFallbackTextureDescriptorIndex() const { return fallbackTextureDescriptorIndex_; }

@@ -83,3 +83,25 @@ Vector3 CloudVolume::Normalize(const Vector3& value)
         value.z * inverseLength
     };
 }
+
+CloudVolume::Parameters CloudVolume::RecommendedDefaults() {
+    CloudVolume::Parameters parameters{};
+    parameters.center = { 0.0f, 4.5f, 8.0f };
+    parameters.halfExtents = { 12.0f, 4.5f, 12.0f };
+    parameters.density = 0.416f;
+    parameters.absorption = 1.67f;
+    parameters.windDirection = { 1.0f, 0.0f, 0.25f };
+    parameters.windSpeed = 0.15f;
+    parameters.sunDirection = { 0.35f, -1.0f, 0.15f };
+    parameters.lightAbsorption = 0.75f;
+    parameters.color = { 250.0f / 255.0f, 252.0f / 255.0f, 1.0f, 1.0f };
+    parameters.noiseScale = 0.086f;
+    parameters.detailNoiseScale = 0.010f;
+    parameters.detailWeight = 0.14f;
+    parameters.edgeFade = 0.148f;
+    parameters.ambientLighting = 0.02f;
+    parameters.sunIntensity = 1.03f;
+    parameters.viewStepCount = 256;
+    parameters.lightStepCount = 8;
+    return parameters;
+}
