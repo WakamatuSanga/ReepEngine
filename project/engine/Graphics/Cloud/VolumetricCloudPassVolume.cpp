@@ -5,6 +5,63 @@
 
 #include <algorithm>
 
+void VolumetricCloudPass::ConfigureStillTitleBackground() {
+    // Only called on the title's own pass. Keep gameplay presets untouched.
+    cloudResolutionScale_ = 0.5f;
+    enableCloudFlow_ = false;
+    cloudBaseFlowSpeed_ = 0.0f;
+    currentCloudFlowSpeed_ = 0.0f;
+    useBoostFlowMultiplier_ = false;
+    externalBoostExtraFlowSpeed_ = 0.0f;
+    cloudFlowPhase_ = previousCloudFlowPhase_ = 0.0f;
+    farCloudFlowSpeed_ = 0.0f;
+    cloudSeaFlowSpeed_ = 0.0f;
+    // Static world noise, rather than noise coordinates locked to the turning camera.
+    cloudSeaUseCameraRelative_ = false;
+    // Restore the background bank from before the foreground fill adjustment.
+    cloudHeightOffset_ = -47.3f;
+    SetCameraForwardTunnelSettings(true, 188.0f, 40.0f, 1.0f);
+}
+
+void VolumetricCloudPass::ConfigureTitleForegroundCopy(
+    const Camera* camera, const CloudVolume* source, CloudVolume* copy) {
+    if (!source || !copy) return;
+    ConfigureStillTitleBackground();
+    const auto bounds = ResolveCloudVolume(camera, source);
+    copy->GetParameters() = source->GetParameters();
+    copy->GetParameters().center = bounds.center;
+    copy->GetParameters().halfExtents = bounds.halfExtents;
+    // Keep the source noise and physical dimensions. The lower-screen copy is
+    // viewed at a grazing angle: the background's 10.6-unit boundary fade erased
+    // nearly the entire visible slice. Use a shorter, still smooth edge here.
+    copy->GetParameters().edgeFade = 0.02f;
+    copy->GetParameters().density *= 2.0f;
+    volumeEdgeFadeDistance_ = 1.0f;
+    SetCameraForwardTunnelSettings(false, 188.0f, 40.0f, 1.0f);
+    // Only the original instance draws the distant sky layers.
+    useCameraRelativeCloudVolume_ = false;
+    enableFarCloudLayer_ = false;
+    enableCloudSeaLayer_ = false;
+    enableGameplayObjectPreserve_ = false;
+    SetCloudInfluenceEnabled(false);
+}
+
+VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildTitleBackgroundBounds(
+    const Camera* camera, const CloudVolume* cloudVolume) const {
+    ProjectedBounds result = BuildProjectedBounds(camera, cloudVolume);
+    // The same shader also draws independent sky planes ABOVE the volume AABB.
+    // Its box-only scissor/cull is not a valid bound for those background layers.
+    if (camera && cloudVolume && (enableFarCloudLayer_ || enableCloudSeaLayer_)) {
+        result.isVisible = true;
+        result.isPassSkipped = !isEnabled_ || forceMode_ == ForceMode::ForceSkip;
+        result.useFullScreenScissor = true;
+        result.scissorRect = MakeFullScreenScissor();
+        result.scissorAreaRatio = 1.0f;
+        result.isFullScreenFallback = true;
+    }
+    return result;
+}
+
 VolumetricCloudPass::ResolvedCloudVolume VolumetricCloudPass::ResolveCloudVolume(
     const Camera* camera,
     const CloudVolume* cloudVolume) const

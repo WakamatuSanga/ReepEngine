@@ -18,6 +18,11 @@ public:
     ~PlayerSonicBoostRingController();
 
     bool Initialize(DirectXCommon* dxCommon, Camera* camera, Player* player, BoostController* boostController);
+    // Display-only instance: no player, boost input, or automatic emission.
+    bool InitializeDisplay(DirectXCommon* dxCommon, Camera* camera);
+    void EmitDisplayRing(const Vector3& center, const Vector3& normal,
+        const Vector3& velocity, float lifetime, float startRadius, float endRadius,
+        float thickness, float brightness, float alpha);
     void Finalize();
     void Update(float deltaTime);
     void Draw();

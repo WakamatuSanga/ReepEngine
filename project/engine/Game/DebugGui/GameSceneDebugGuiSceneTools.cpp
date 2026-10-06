@@ -72,27 +72,7 @@ namespace {
         { "Strong", 1u, 0.65f, 0.06f, { 1.0f, 0.4f, 0.0f, 1.0f } },
         { "Dramatic", 1u, 0.82f, 0.08f, { 0.4f, 0.9f, 1.0f, 1.0f } },
     };
-    CloudVolume::Parameters MakeRecommendedCloudParameters() {
-        CloudVolume::Parameters parameters{};
-        parameters.center = { 0.0f, 4.5f, 8.0f };
-        parameters.halfExtents = { 12.0f, 4.5f, 12.0f };
-        parameters.density = 0.416f;
-        parameters.absorption = 1.67f;
-        parameters.windDirection = { 1.0f, 0.0f, 0.25f };
-        parameters.windSpeed = 0.15f;
-        parameters.sunDirection = { 0.35f, -1.0f, 0.15f };
-        parameters.lightAbsorption = 0.75f;
-        parameters.color = { 250.0f / 255.0f, 252.0f / 255.0f, 1.0f, 1.0f };
-        parameters.noiseScale = 0.086f;
-        parameters.detailNoiseScale = 0.010f;
-        parameters.detailWeight = 0.14f;
-        parameters.edgeFade = 0.148f;
-        parameters.ambientLighting = 0.02f;
-        parameters.sunIntensity = 1.03f;
-        parameters.viewStepCount = 256;
-        parameters.lightStepCount = 8;
-        return parameters;
-    }
+
 }
 void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, VolumetricCloudPass* volumetricCloudPass) {
 #ifdef USE_IMGUI
@@ -172,7 +152,7 @@ void GameSceneDebugGui::DrawSceneToolWindows(DirectXCommon* dxCommon, Volumetric
             }
         }
         if (ImGui::Button("雲プリセットを初期化 (Reset Cloud Preset)")) {
-            cloudParams = MakeRecommendedCloudParameters();
+            cloudParams = CloudVolume::RecommendedDefaults();
             if (volumetricCloudPass) {
                 volumetricCloudPass->ResetCloudDefaults();
             }

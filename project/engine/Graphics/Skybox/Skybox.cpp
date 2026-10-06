@@ -21,6 +21,7 @@ void Skybox::SetTexture(const std::string& filePath) {
 }
 
 void Skybox::Update() {
+    transformationMatrixData_->blueFraming = { blueFramingStrength_, 0.0f, 0.0f, 0.0f };
     if (camera_) {
         Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
         transformationMatrixData_->WVP = Multipty(worldMatrix, camera_->GetViewProjectionMatrix());
@@ -77,4 +78,5 @@ void Skybox::CreateTransformationMatrixResource() {
     transformationMatrixResource_ = skyboxCommon_->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
     transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData_));
     transformationMatrixData_->WVP = MakeIdentity4x4();
+    transformationMatrixData_->blueFraming = {};
 }

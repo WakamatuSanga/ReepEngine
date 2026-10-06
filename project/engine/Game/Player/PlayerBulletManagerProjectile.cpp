@@ -5,6 +5,14 @@
 #include "Engine/Utility/Logger.h"
 #include <algorithm>
 
+void PlayerBulletManager::PrepareForPresentation() {
+    // SpawnBullet first initializes the default model, then applies modelPath_.
+    // Both go through the same cache/texture path as live shots. No bullet,
+    // runtime ID, exhaust emitter, input, timer or shot counter is touched.
+    EnemyBullet::PrepareSharedVisualResources();
+    EnemyBullet::PrepareSharedVisualResources(modelPath_);
+}
+
 EnemyBullet* PlayerBulletManager::SpawnBullet(
     const Vector3& position, const Vector3& velocity, int damage) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerSpawnMs);

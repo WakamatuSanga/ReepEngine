@@ -68,17 +68,23 @@ bool GpuParticleRenderer::IsUsingFallbackTexture(const GpuParticle::ParticleType
 	return particleType.texturePath.empty() || static_cast<uint32_t>((std::max)(particleType.textureIndex, 0)) == fallbackTextureDescriptorIndex_;
 }
 
-void GpuParticleRenderer::UpdateView(const Camera* camera) {
+void GpuParticleRenderer::UpdateView(const Camera* camera, const Matrix4x4* particleToWorld) {
 	if (!camera || !perViewData_) {
 		return;
 	}
 
 	Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
+	if (particleToWorld) {
+		// Rigid local particle frame. Billboard offsets must use that same frame.
+		billboardMatrix = MatrixMath::Multipty(billboardMatrix, MatrixMath::Inverse(*particleToWorld));
+	}
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
 	perViewData_->billboardMatrix = billboardMatrix;
-	perViewData_->viewProjection = camera->GetViewProjectionMatrix();
+	perViewData_->viewProjection = particleToWorld
+		? MatrixMath::Multipty(*particleToWorld, camera->GetViewProjectionMatrix())
+		: camera->GetViewProjectionMatrix();
 }
 
 void GpuParticleRenderer::Draw(ID3D12GraphicsCommandList* commandList, GpuParticleResources& resources, const GpuParticle::State& state) {

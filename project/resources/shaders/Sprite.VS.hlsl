@@ -21,5 +21,6 @@ VertexShaderOutput main(VertexShaderInput input)
 	// 座標変換
     output.position = mul(input.position, gTransformationMatrix.WVP);
     output.texcoord = input.texcoord;
+    output.localPosition = input.position.xy;
     return output;
 }

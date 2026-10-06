@@ -79,6 +79,7 @@ public:
     ~PlayerBulletManager();
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player);
+    void PrepareForPresentation();
     void Finalize();
     void Update(float deltaTime);
     void Draw();

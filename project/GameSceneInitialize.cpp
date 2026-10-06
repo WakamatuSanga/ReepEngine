@@ -61,31 +61,6 @@
 #include "Engine/Level/LevelSceneRuntime.h"
 #include <utility>
 
-namespace {
-    CloudVolume::Parameters MakeRecommendedCloudParameters() {
-        CloudVolume::Parameters parameters{};
-        parameters.center = { 0.0f, 4.5f, 8.0f };
-        parameters.halfExtents = { 12.0f, 4.5f, 12.0f };
-        parameters.density = 0.416f;
-        parameters.absorption = 1.67f;
-        parameters.windDirection = { 1.0f, 0.0f, 0.25f };
-        parameters.windSpeed = 0.15f;
-        parameters.sunDirection = { 0.35f, -1.0f, 0.15f };
-        parameters.lightAbsorption = 0.75f;
-        parameters.color = { 250.0f / 255.0f, 252.0f / 255.0f, 1.0f, 1.0f };
-        parameters.noiseScale = 0.086f;
-        parameters.detailNoiseScale = 0.010f;
-        parameters.detailWeight = 0.14f;
-        parameters.edgeFade = 0.148f;
-        parameters.ambientLighting = 0.02f;
-        parameters.sunIntensity = 1.03f;
-        parameters.viewStepCount = 256;
-        parameters.lightStepCount = 8;
-        return parameters;
-    }
-
-}
-
 void GameScene::InitializeSceneResources() {
     auto modelManager = ModelManager::GetInstance();
     auto texManager = TextureManager::GetInstance();
@@ -101,12 +76,13 @@ void GameScene::InitializeSceneResources() {
     camera_ = std::make_unique<Camera>();
     camera_->SetTranslate({ 0.0f, 2.0f, -10.0f });
     camera_->SetRotate({ 0.1f, 0.0f, 0.0f });
+    camera_->Update();
 
     gpuParticleSystem_ = std::make_unique<GpuParticleSystem>();
     gpuParticleSystem_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
 
     cloudVolume_ = std::make_unique<CloudVolume>();
-    cloudVolume_->GetParameters() = MakeRecommendedCloudParameters();
+    cloudVolume_->GetParameters() = CloudVolume::RecommendedDefaults();
 
     skybox_ = std::make_unique<Skybox>();
     skybox_->Initialize(MyGame::GetInstance()->GetSkyboxCommon());

@@ -507,3 +507,32 @@ void PlayerSonicBoostRingController::DrawImGui() {
     ImGui::End();
 #endif
 }
+
+bool PlayerSonicBoostRingController::InitializeDisplay(DirectXCommon* dxCommon, Camera* camera) {
+    Finalize();
+    if (!dxCommon || !camera) return false;
+    camera_ = camera;
+    time_ = 0.0f;
+    wasBoosting_ = false;
+    ringSpawnTimer_ = 0.0f;
+    renderer_ = std::make_unique<PlayerJetExhaustBeamRenderer>();
+    initialized_ = renderer_->Initialize(dxCommon, true);
+    return initialized_;
+}
+
+void PlayerSonicBoostRingController::EmitDisplayRing(const Vector3& center, const Vector3& normal,
+    const Vector3& velocity, float lifetime, float startRadius, float endRadius,
+    float thickness, float brightness, float alpha) {
+    if (!initialized_ || player_ || boostController_ || !rings_.empty()) return;
+    SonicBoostRing ring;
+    ring.center = center;
+    ring.normal = Normalize(normal, { 0.0f, 0.0f, 1.0f });
+    ring.velocity = velocity;
+    ring.lifetime = (std::max)(lifetime, 0.01f);
+    ring.startRadius = (std::max)(startRadius, 0.01f);
+    ring.endRadius = (std::max)(endRadius, ring.startRadius);
+    ring.thickness = (std::max)(thickness, 0.005f);
+    ring.brightness = (std::max)(brightness, 0.0f);
+    ring.alpha = Saturate(alpha);
+    rings_.push_back(ring);
+}

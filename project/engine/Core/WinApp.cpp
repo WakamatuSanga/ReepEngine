@@ -11,6 +11,25 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
 // ウィンドウプロシージャ
 // --------------------
 LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+    auto* app = reinterpret_cast<WinApp*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+    if (msg == WM_NCCREATE) {
+        app = static_cast<WinApp*>(reinterpret_cast<CREATESTRUCT*>(lparam)->lpCreateParams);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(app));
+    }
+    // Reuse dispatched input: DirectInput reacquisition alone cannot distinguish
+    // an activation click from a button held in another window.
+    if (app) {
+        if (msg == WM_LBUTTONDOWN && GetForegroundWindow() == hwnd) {
+            app->clientLeftClick_ = true;
+            app->clientLeftClickPosition_ = {
+                static_cast<SHORT>(LOWORD(lparam)), static_cast<SHORT>(HIWORD(lparam)) };
+        } else if (msg == WM_KILLFOCUS ||
+            (msg == WM_ACTIVATE && LOWORD(wparam) == WA_INACTIVE) ||
+            (msg == WM_ACTIVATEAPP && !wparam) || msg == WM_NCDESTROY) {
+            app->clientLeftClick_ = false;
+        }
+    }
+    if (msg == WM_NCDESTROY) SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
 
 #ifdef USE_IMGUI
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
@@ -53,7 +72,7 @@ void WinApp::Initialize() {
         wrc.bottom - wrc.top,
         nullptr, nullptr,
         wc.hInstance,
-        nullptr);
+        this);
 
     assert(hwnd != nullptr);
 
@@ -143,19 +162,24 @@ int32_t WinApp::GetClientHeight() const {
 
 bool WinApp::ProcessMessage()
 {
+    clientLeftClick_ = false;
     MSG msg{};
 
-    // メッセージが来ていたら処理
-    if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+    // Drain activation and click messages before ImGui/Input/scene update.
+    // Processing just one message could defer the activation click for frames.
+    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        if (msg.message == WM_QUIT) return true;
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
-    // アプリ終了メッセージかどうか
-    if (msg.message == WM_QUIT) {
-        return true;
-    }
     return false;
+}
+
+bool WinApp::WasLeftClickInClient() const {
+    RECT client{};
+    return clientLeftClick_ && hwnd && GetForegroundWindow() == hwnd &&
+        GetClientRect(hwnd, &client) && PtInRect(&client, clientLeftClickPosition_);
 }
 
 
@@ -166,6 +190,8 @@ bool WinApp::ProcessMessage()
 void WinApp::Finalize() {
 
     if (hwnd) {
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
+        clientLeftClick_ = false;
         //CloseWindow(hwnd); // もともと main.cpp の最後にあったやつ
         hwnd = nullptr;
     }

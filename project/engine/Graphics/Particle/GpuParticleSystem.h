@@ -37,7 +37,7 @@ public:
 	void SetCounterReadbackEnabled(bool enabled);
 	void RequestCounterReadback();
 	void ResetParticlePool();
-	void Update(const Camera* camera);
+	void Update(const Camera* camera, const Matrix4x4* particleToWorld = nullptr);
 	void Draw();
 	void DrawImGui();
 	uint32_t GetActiveCountEstimate() const { return state_.activeCountEstimate; }

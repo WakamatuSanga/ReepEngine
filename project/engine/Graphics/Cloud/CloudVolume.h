@@ -35,6 +35,7 @@ public:
 
 public:
     CloudVolume();
+    static Parameters RecommendedDefaults();
 
     void Update(float deltaTime);
 

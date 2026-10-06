@@ -116,7 +116,9 @@ void MyGame::Draw() {
         dxCommon_->CopyRenderTextureToSwapChain();
         dxCommon_->PrepareRenderTextureForImGui();
         imguiManager_->Draw();
+        SceneManager::GetInstance()->DrawTransitionOverlay();
         dxCommon_->RestoreRenderTextureAfterImGui();
     }
     dxCommon_->PostDraw();
+    SceneManager::GetInstance()->OnFramePresented();
 }

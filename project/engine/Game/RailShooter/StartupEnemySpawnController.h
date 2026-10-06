@@ -29,11 +29,8 @@ private:
     LevelSceneRuntime* levelSceneRuntime_ = nullptr;
     const Camera* camera_ = nullptr;
 
-#ifdef USE_IMGUI
+    // Diagnostic spawn is opt-in in every build; saved waves provide gameplay enemies.
     bool enableStartupEnemySpawn_ = false;
-#else
-    bool enableStartupEnemySpawn_ = true;
-#endif
     bool spawnOnGameStart_ = true;
     bool hasSpawned_ = false;
     float spawnDelay_ = 0.2f;

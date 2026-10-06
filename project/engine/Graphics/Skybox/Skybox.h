@@ -14,6 +14,7 @@ public:
 
     struct TransformationMatrix {
         Matrix4x4 WVP;
+        Vector4 blueFraming{}; // x: title-only strength, zero keeps the original sky.
     };
 
 public:
@@ -26,6 +27,7 @@ public:
     void SetTextureIndex(uint32_t textureIndex) { textureIndex_ = textureIndex; }
     void SetScale(const Vector3& scale) { transform_.scale = scale; }
     void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
+    void SetBlueFramingStrength(float strength) { blueFramingStrength_ = strength; }
 
 private:
     void CreateVertexResource();
@@ -34,6 +36,7 @@ private:
 private:
     SkyboxCommon* skyboxCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    float blueFramingStrength_ = 0.0f;
 
     Transform transform_{ {100.0f, 100.0f, 100.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
     uint32_t textureIndex_ = 0;

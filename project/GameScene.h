@@ -81,6 +81,7 @@ public:
     void Update() override;
     void Draw() override;
     void Finalize() override;
+    void PrepareForPresentation() override;
 
 private:
     friend class GameSceneDebugGui;

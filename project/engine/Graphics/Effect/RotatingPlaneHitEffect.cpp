@@ -62,7 +62,8 @@ void RotatingPlaneHitEffect::Initialize(Object3dCommon* object3dCommon, Camera* 
         planes_.push_back(std::move(plane));
     }
 
-    Play();
+    // Prepare resources only. Gameplay events and the preview button start playback.
+    Stop();
 }
 
 void RotatingPlaneHitEffect::Play() {

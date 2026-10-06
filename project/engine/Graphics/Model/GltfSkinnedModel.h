@@ -65,6 +65,7 @@ public:
     void DispatchComputeSkinning(ID3D12GraphicsCommandList* commandList);
     void SetUseComputeOutputVertices(bool enabled);
     void SetJointWarning(const std::vector<int>& jointIndices, float strength);
+    void SetOpacity(float opacity);
 
     Model* GetModel() const { return model_.get(); }
     bool IsValid() const { return model_ != nullptr; }

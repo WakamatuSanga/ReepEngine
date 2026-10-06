@@ -4,6 +4,7 @@
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <cassert>
+#include <algorithm>
 
 using namespace MatrixMath;
 
@@ -48,12 +49,27 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
     materialData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     materialData_->enableLighting = false;
     materialData_->uvTransform = MakeIdentity4x4();
+    SetWhiteGradient({});
 
     // 4. トランスフォーム用定数バッファ
     transformationMatrixResource_ = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
     transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData_));
     transformationMatrixData_->WVP = MakeIdentity4x4();
     transformationMatrixData_->World = MakeIdentity4x4();
+}
+
+void Sprite::SetWhiteGradient(const WhiteGradientSettings& settings) {
+    assert(materialData_);
+    materialData_->gradientStartColor = { settings.startColor.x, settings.startColor.y, settings.startColor.z, 0.0f };
+    materialData_->gradientEndColor = { settings.endColor.x, settings.endColor.y, settings.endColor.z, 0.0f };
+    materialData_->gradientPoints = { settings.startPoint.x, settings.startPoint.y, settings.endPoint.x, settings.endPoint.y };
+    materialData_->whiteSelection = {
+        std::clamp(settings.brightnessThreshold, 0.0f, 1.0f),
+        std::clamp(settings.saturationThreshold, 0.0f, 1.0f),
+        (std::max)(settings.brightnessSoftness, 0.0001f),
+        (std::max)(settings.saturationSoftness, 0.0001f) };
+    materialData_->gradientControl = { settings.enabled ? 1.0f : 0.0f,
+        std::clamp(settings.strength, 0.0f, 1.0f), 0.0f, 0.0f };
 }
 
 void Sprite::SetTexture(const std::string& filePath)

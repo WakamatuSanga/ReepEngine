@@ -44,7 +44,8 @@ void RingEffect::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object3d_->SetRingInnerColor({ 1.0f, 1.0f, 1.0f, 1.0f });
     object3d_->SetRingOuterColor(settings_.color);
 
-    Play();
+    // Prepare resources only. Gameplay events and the preview button start playback.
+    Stop();
 }
 
 void RingEffect::Play() {
