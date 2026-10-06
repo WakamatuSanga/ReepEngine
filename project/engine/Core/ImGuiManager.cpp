@@ -7,6 +7,7 @@
 #include "SrvManager.h"
 #include "WinApp.h"
 #include "externals/imgui/imgui.h"
+#include "externals/imgui/imgui_internal.h"
 #include "externals/imgui/imgui_impl_dx12.h"
 #include "externals/imgui/imgui_impl_win32.h"
 
@@ -174,6 +175,14 @@ void ImGuiManager::BeginDockSpace_() {
 
 	ImGui::Begin("Main DockSpace", nullptr, windowFlags);
 	ImGui::PopStyleVar(3);
+
+	if (fullscreenScene) {
+		// KeepAliveOnly does not create the usual central-node passthrough hole.
+		// Let the fullscreen title receive clicks below the live menu bar, while
+		// other ImGui windows/popups keep their normal mouse capture behavior.
+		ImGuiWindow* host = ImGui::GetCurrentWindow();
+		ImGui::SetWindowHitTestHole(host, host->InnerRect.Min, host->InnerRect.GetSize());
+	}
 
 	if (ImGui::BeginMenuBar()) {
 		if (ImGui::BeginMenu("Window")) {

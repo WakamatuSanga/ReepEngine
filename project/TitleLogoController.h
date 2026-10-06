@@ -22,9 +22,11 @@ public:
     // Pure title layout, in the Sprite canvas coordinate system; trail/text/aircraft order.
     static std::array<LayerPose, 3> CalculateLayout(double time, double fadeElapsed,
         float width, float height);
+    static LayerPose CalculateStartPromptLayout(float width, float height, float opacity);
 private:
     SpriteCommon* common_ = nullptr; // Owned by MyGame.
     std::array<std::unique_ptr<Sprite>, 3> sprites_;
+    std::unique_ptr<Sprite> startPrompt_;
     double elapsed_ = 0.0;
     double fadeElapsed_ = -1.0;
 };

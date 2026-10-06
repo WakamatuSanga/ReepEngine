@@ -2,10 +2,26 @@
 #include "Matrix4x4.h"
 #include <Windows.h>
 #include "SpriteCommon.h"
+#include <cstddef>
 
 // スプライト1枚分
 class Sprite {
 public:
+    // Colors and brightness are linear RGB; points are in the local [0,1] rectangle.
+    struct WhiteGradientSettings {
+        bool enabled = false;
+        Vector3 startColor{ 1.0f, 1.0f, 1.0f };
+        Vector3 endColor{ 1.0f, 1.0f, 1.0f };
+        Vector2 startPoint{ 0.5f, 0.0f };
+        Vector2 endPoint{ 0.5f, 1.0f };
+        float strength = 1.0f;
+        float brightnessThreshold = 0.5f;
+        float saturationThreshold = 0.5f;
+        float brightnessSoftness = 0.2f;
+        float saturationSoftness = 0.2f;
+    };
+    void SetWhiteGradient(const WhiteGradientSettings& settings);
+
     // 初期化（SpriteCommon を受け取る）
     void Initialize(SpriteCommon* spriteCommon);
 
@@ -70,12 +86,23 @@ private:
     D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
     D3D12_INDEX_BUFFER_VIEW  indexBufferView_{};
 
-    struct Material {
+    struct alignas(16) Material {
         Vector4 color;
         int32_t enableLighting;
         float   padding[3];
         Matrix4x4 uvTransform;
+        Vector4 gradientStartColor;
+        Vector4 gradientEndColor;
+        Vector4 gradientPoints; // xy: start, zw: end
+        Vector4 whiteSelection; // brightness, saturation, their transition half-widths
+        Vector4 gradientControl; // enabled, strength, reserved, reserved
     };
+    static_assert(offsetof(Material, gradientStartColor) == 96);
+    static_assert(offsetof(Material, gradientEndColor) == 112);
+    static_assert(offsetof(Material, gradientPoints) == 128);
+    static_assert(offsetof(Material, whiteSelection) == 144);
+    static_assert(offsetof(Material, gradientControl) == 160);
+    static_assert(sizeof(Material) == 176);
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;

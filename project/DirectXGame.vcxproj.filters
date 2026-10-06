@@ -711,6 +711,8 @@
     <ClCompile Include="TitleCloudTransition.cpp" />
     <ClCompile Include="TitleSortieEffects.cpp" />
     <ClCompile Include="TitleLogoController.cpp" />
+    <ClCompile Include="TitleForegroundPresentation.cpp" />
+    <ClCompile Include="TitleForegroundPose.cpp" />
     <ClCompile Include="GameScenePresentation.cpp" />
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
@@ -1335,6 +1337,9 @@
     <ClInclude Include="TitleCloudTransition.h" />
     <ClInclude Include="TitleSortieEffects.h" />
     <ClInclude Include="TitleLogoController.h" />
+    <ClInclude Include="TitleForegroundPresentation.h" />
+    <ClInclude Include="TitleForegroundMotion.h" />
+    <ClInclude Include="TitleForegroundPose.h" />
     <ClInclude Include="TitleLaunchSequence.h" />
     <ClInclude Include="TitleWaitingAircraft.h" />
     <ClInclude Include="TitleScene.h">

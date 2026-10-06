@@ -8,6 +8,7 @@
 #include "TitleSortieEffects.h"
 #include "TitleLogoController.h"
 #include "TitleWaitingAircraft.h"
+#include "TitleForegroundPresentation.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -69,6 +70,7 @@ void TitleScene::Initialize() {
     skybox_->SetCamera(camera_.get());
     skybox_->SetScale({ 100.0f, 100.0f, 100.0f });
     skybox_->SetTexture("resources/skybox/skybox.dds");
+    skybox_->SetBlueFramingStrength(0.16f);
 
     cloudVolume_ = std::make_unique<CloudVolume>();
     cloudVolume_->GetParameters() = CloudVolume::RecommendedDefaults();
@@ -102,10 +104,14 @@ void TitleScene::Initialize() {
             exhaust_.reset();
         }
     }
+    foreground_ = std::make_unique<TitleForegroundPresentation>();
+    if (!foreground_->Initialize(modelManager->GetModelCommon(), game->GetObject3dCommon(),
+        camera_.get(), cloudVolume_.get())) foreground_.reset();
     UpdateDisplay(0.0f);
 }
 
 void TitleScene::Finalize() {
+    foreground_.reset();
     logo_.reset();
     sortieEffects_.reset();
     if (exhaust_) exhaust_->Finalize();
@@ -143,6 +149,7 @@ void TitleScene::UpdateDisplay(float deltaTime) {
         camera_->SetRotate(orbit.rotate);
     }
     camera_->Update();
+
     // Freeze both wind displacement AND raw time used by the far-cloud/sea noise.
     if (cloudVolume_) cloudVolume_->Update(0.0f);
     if (skybox_) {
@@ -163,14 +170,20 @@ void TitleScene::UpdateDisplay(float deltaTime) {
             sequence_.phase == TitleLaunchSequence::Phase::Fly || sequence_.phase == TitleLaunchSequence::Phase::Cover
                 ? 1.0f : 0.0f, 1.0f, true);
     }
+    if (foreground_) foreground_->Update(deltaTime, aircraftStart_);
     if (sortieEffects_) sortieEffects_->Update(deltaTime,
         aircraft_ ? &aircraft_->GetTransform() : nullptr,
         sequence_.phase == TitleLaunchSequence::Phase::Fly, aircraftVisibility_, sequence_.GetFlightProgress());
 }
 void TitleScene::Update() {
     Input* input = MyGame::GetInstance()->GetInput();
-    if (sequence_.phase == TitleLaunchSequence::Phase::Idle && input && input->MouseTrigger(Input::MouseLeft)) {
+    bool startClicked = input && input->MouseLeftClientTrigger();
+#ifdef USE_IMGUI
+    startClicked = startClicked && !ImGui::GetIO().WantCaptureMouse;
+#endif
+    if (sequence_.phase == TitleLaunchSequence::Phase::Idle && startClicked) {
         if (aircraft_) aircraftStart_ = aircraft_->GetTransform();
+        if (foreground_) foreground_->BeginDeparture();
         sequence_.Start(aircraftStart_.rotate.y);
         input->SuppressLeftMouseUntilRelease();
     }
@@ -206,6 +219,7 @@ void TitleScene::Draw() {
         aircraft_->Draw();
     }
     if (exhaust_ && aircraftVisibility_ > 0.0f) exhaust_->Draw();
+    if (foreground_) foreground_->DrawTentacles();
     if (cloudPass_ && cloudVolume_) {
         auto* dx = MyGame::GetInstance()->GetDxCommon();
         const auto bounds = cloudPass_->BuildTitleBackgroundBounds(camera_.get(), cloudVolume_.get());
@@ -218,6 +232,7 @@ void TitleScene::Draw() {
             dx->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
         }
     }
+    if (foreground_) foreground_->DrawClouds();
     if (exhaust_ && aircraftVisibility_ > 0.0f) {
         exhaust_->DrawAfterCloud();
     }

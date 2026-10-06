@@ -1,9 +1,21 @@
 #include "GltfSkinnedModel.h"
 #include "Model.h"
+#include "GltfSkinnedModelMaterialData.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+
+void GltfSkinnedModel::SetOpacity(float opacity) {
+    if (!materialState_) return;
+    opacity = std::isfinite(opacity) ? std::clamp(opacity, 0.0f, 1.0f) : 0.0f;
+    for (auto& material : materialState_->materials) {
+        if (material.mappedMaterial) {
+            static_cast<Model::Material*>(material.mappedMaterial)->color.w =
+                material.data.baseColorFactor.w * opacity;
+        }
+    }
+}
 
 void GltfSkinnedModel::SetJointWarning(
     const std::vector<int>& jointIndices, float strength) {

@@ -31,3 +31,13 @@ void Camera::Update() {
 	// ビュープロジェクション行列 (合成)
 	viewProjectionMatrix_ = Multipty(viewMatrix_, projectionMatrix_);
 }
+
+void Camera::SetRenderCoordinateFrame(const Camera& source, const Matrix4x4& frameToWorld) {
+	*this = source;
+	viewMatrix_ = Multipty(frameToWorld, source.GetViewMatrix());
+	projectionMatrix_ = source.GetProjectionMatrix();
+	viewProjectionMatrix_ = Multipty(viewMatrix_, projectionMatrix_);
+	worldMatrix_ = Inverse(viewMatrix_);
+	transform_.translate = { worldMatrix_.m[3][0], worldMatrix_.m[3][1], worldMatrix_.m[3][2] };
+	viewTranslationOffset_ = {};
+}

@@ -174,6 +174,10 @@ bool Input::MouseTrigger(MouseButton button) const
     return (!prev && curr);
 }
 
+bool Input::MouseLeftClientTrigger() const {
+    return !suppressLeftMouse_ && winApp_ && winApp_->WasLeftClickInClient();
+}
+
 LONG Input::MouseDeltaX() const { return mouseNow_.lX; }
 LONG Input::MouseDeltaY() const { return mouseNow_.lY; }
 LONG Input::MouseWheelDelta() const { return mouseNow_.lZ; }

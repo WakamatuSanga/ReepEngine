@@ -47,7 +47,8 @@ void CylinderEffect::Initialize(Object3dCommon* object3dCommon, Camera* camera) 
     cylinder_->SetCamera(camera);
     cylinder_->SetEnvironmentMapEnabled(false);
 
-    Play();
+    // Prepare resources only. Gameplay events and the preview button start playback.
+    Stop();
 }
 
 void CylinderEffect::Play() {

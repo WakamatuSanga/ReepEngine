@@ -24,6 +24,8 @@ public:
     bool IsFullscreen() const { return isFullscreen_; }
     int32_t GetClientWidth() const;
     int32_t GetClientHeight() const;
+    // A new press delivered to this window's client area in the current message pump.
+    bool WasLeftClickInClient() const;
 
     // getter
     HWND      GetHwnd()      const { return hwnd; }
@@ -36,4 +38,6 @@ private:
     LONG_PTR windowedStyle_ = WS_OVERLAPPEDWINDOW;
     LONG_PTR windowedExStyle_ = 0;
     bool isFullscreen_ = false;
+    bool clientLeftClick_ = false;
+    POINT clientLeftClickPosition_{};
 };

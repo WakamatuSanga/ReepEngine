@@ -54,6 +54,7 @@ public:
     // ボタン押下/トリガ
     bool MouseDown(MouseButton button) const;
     bool MouseTrigger(MouseButton button) const;
+    bool MouseLeftClientTrigger() const;
     void SuppressLeftMouseUntilRelease() { suppressLeftMouse_ = true; }
 
     // 移動量（相対値：前フレームからの差分）

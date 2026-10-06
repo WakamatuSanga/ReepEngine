@@ -8,10 +8,10 @@ namespace TitleWaitingAircraft {
     constexpr float kDepth = 8.0f;
     constexpr Vector3 kHullMin{ -0.790591f, -0.232374f, -0.947587f };
     constexpr Vector3 kHullMax{ 0.790639f, 0.233814f, 0.946203f };
-    constexpr float kOrbitRadius = 12.5f; // Room for the rear exhaust at the 75% composition.
+    constexpr float kOrbitRadius = 12.5f / 1.4f; // Enlarge the projected aircraft, not its model.
     constexpr float kLaunchRadius = 8.0f; // Preserve the existing rear launch composition.
     constexpr float kOrbitPitch = 0.261799388f; // 15-degree elevation above the aircraft.
-    constexpr float kOrbitScreenY = 0.75f;
+    constexpr float kOrbitScreenY = 0.70f;
 
     inline Transform MakeOrbitCamera(const Vector3& center, float yaw,
         float aspect, float fov, float aircraftScale, float alignmentProgress = 0.0f) {
@@ -32,7 +32,7 @@ namespace TitleWaitingAircraft {
         const float radius = launchRadius + (idleRadius - launchRadius) * remaining;
         const float elevation = kOrbitPitch * remaining;
         // Aim above the center without changing the aircraft's world pose. The
-        // camera-to-aircraft elevation stays 15 degrees; its image center is at 75%.
+        // camera-to-aircraft elevation stays 15 degrees; its image center is at 70%.
         const float framingAngle = std::atan((2.0f * kOrbitScreenY - 1.0f) * std::tan(fov * 0.5f));
         const float pitch = elevation - framingAngle * remaining;
         return { { 1, 1, 1 }, { pitch, yaw, 0 },

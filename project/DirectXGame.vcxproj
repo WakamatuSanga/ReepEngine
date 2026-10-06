@@ -432,6 +432,8 @@
     <ClCompile Include="TitleCloudTransition.cpp" />
     <ClCompile Include="TitleSortieEffects.cpp" />
     <ClCompile Include="TitleLogoController.cpp" />
+    <ClCompile Include="TitleForegroundPresentation.cpp" />
+    <ClCompile Include="TitleForegroundPose.cpp" />
     <ClCompile Include="GameScenePresentation.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="TitleMissilePresentation.cpp" />
@@ -621,6 +623,9 @@
     <ClInclude Include="TitleCloudTransition.h" />
     <ClInclude Include="TitleSortieEffects.h" />
     <ClInclude Include="TitleLogoController.h" />
+    <ClInclude Include="TitleForegroundPresentation.h" />
+    <ClInclude Include="TitleForegroundMotion.h" />
+    <ClInclude Include="TitleForegroundPose.h" />
     <ClInclude Include="TitleLaunchSequence.h" />
     <ClInclude Include="TitleWaitingAircraft.h" />
     <ClInclude Include="TitleScene.h" />
@@ -810,6 +815,18 @@
              Condition="!Exists('$(TargetDir)')" />
     <Copy SourceFiles="@(DxcRuntimeDll)"
           DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+  <!-- Keep executable-directory launches on the same saved stage as project-directory launches. -->
+  <Target Name="CopySavedStageData" AfterTargets="Build">
+    <ItemGroup>
+      <SavedStageJson Include="$(ProjectDir)resources\level_editor\level_editor.json" />
+      <SavedWaveJson Include="$(ProjectDir)resources\waves\**\*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SavedStageJson)"
+          DestinationFolder="$(TargetDir)resources\level_editor\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(SavedWaveJson)"
+          DestinationFiles="@(SavedWaveJson->'$(TargetDir)resources\waves\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
   </Target>
   <ImportGroup Label="ExtensionTargets">

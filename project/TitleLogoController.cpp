@@ -41,6 +41,21 @@ void TitleLogoController::Initialize(SpriteCommon* common) {
     // Trim only empty margins via UVs; keep the supplied artwork and aspect ratio.
     sprites_[1]->SetTextureLeftTop({ 104.0f, 96.0f });
     sprites_[1]->SetTextureSize({ 1736.0f, 568.0f });
+    Sprite::WhiteGradientSettings lettering;
+    lettering.enabled = true;
+    lettering.startColor = { 1.0f, 1.0f, 1.0f };
+    lettering.endColor = { 0.015f, 0.14f, 0.40f }; // Linear sea blue.
+    lettering.startPoint = { 0.5f, 0.10f };
+    lettering.endPoint = { 0.5f, 0.95f };
+    lettering.strength = 0.85f;
+    lettering.brightnessThreshold = 0.50f;
+    lettering.saturationThreshold = 0.50f;
+    lettering.brightnessSoftness = 0.20f;
+    lettering.saturationSoftness = 0.20f;
+    sprites_[1]->SetWhiteGradient(lettering);
+    startPrompt_ = std::make_unique<Sprite>();
+    startPrompt_->Initialize(common_);
+    startPrompt_->SetTexture("resources/ui/titleLogo/ClicktoStart.png");
 }
 
 void TitleLogoController::Update(float deltaTime, bool starting) {
@@ -55,7 +70,7 @@ std::array<TitleLogoController::LayerPose, 3> TitleLogoController::CalculateLayo
     double time, double fadeElapsed, float width, float height) {
     const float scale = (std::max)(0.0001f, (std::min)(width * 0.60f / 1320.0f, height * 0.48f / 550.0f));
     const float pixels = height / 1080.0f;
-    const Vector2 root{ width * 0.525f, height * 0.32f + 4.0f * pixels * Wave(time, 6.0) };
+    const Vector2 root{ width * 0.525f, height * 0.29f + 4.0f * pixels * Wave(time, 6.0) };
     const float angle = 0.6f * kDegrees * Wave(time, 10.0);
     const float planeAngle = 0.3f * kDegrees * Wave(time, 3.8);
     const Vector2 planeSize{ 260.0f, 260.0f * 1024.0f / 1536.0f };
@@ -85,6 +100,16 @@ std::array<TitleLogoController::LayerPose, 3> TitleLogoController::CalculateLayo
     }};
 }
 
+TitleLogoController::LayerPose TitleLogoController::CalculateStartPromptLayout(
+    float width, float height, float opacity) {
+    // Visible ink (alpha >= 16): [102, 2072) x [218, 515) in the 2172 x 724 PNG.
+    // Keep the entire original texture, including faint edge alpha outside these bounds.
+    // Cap the height at the 16:9 composition so ultrawide screens do not crowd the aircraft.
+    const float scale = (std::min)(width * 0.24f, height * (16.0f / 9.0f) * 0.24f) / 1970.0f;
+    return { { width * 0.5f - 1087.0f * scale, height * 0.86f - 366.5f * scale },
+        { 2172.0f * scale, 724.0f * scale }, 0.0f, opacity };
+}
+
 void TitleLogoController::Draw() {
     if (!common_ || fadeElapsed_ >= kFadeSeconds) return;
     auto* dx = common_->GetDxCommon();
@@ -105,7 +130,7 @@ void TitleLogoController::Draw() {
     const auto layout = CalculateLayout(elapsed_, fadeElapsed_, width, height);
     // Title-only linear RGB tints. Alpha remains 1 for text/aircraft until the click fade;
     // PNG edge alpha and the original assets are untouched. No scene exposure change.
-    constexpr Vector3 tints[]{ { 1, 1, 1 }, { 0.90f, 0.94f, 1.0f }, { 0.70f, 0.78f, 0.88f } };
+    constexpr Vector3 tints[]{ { 1, 1, 1 }, { 1, 1, 1 }, { 0.62f, 0.70f, 0.81f } };
     for (size_t i = 0; i < sprites_.size(); ++i) {
         sprites_[i]->SetPosition(layout[i].position);
         sprites_[i]->SetSize(layout[i].size);
@@ -114,5 +139,11 @@ void TitleLogoController::Draw() {
         sprites_[i]->Update();
         sprites_[i]->Draw();
     }
+    const auto prompt = CalculateStartPromptLayout(width, height, layout[1].opacity);
+    startPrompt_->SetPosition(prompt.position);
+    startPrompt_->SetSize(prompt.size);
+    startPrompt_->SetColor({ 1.0f, 1.0f, 1.0f, prompt.opacity });
+    startPrompt_->Update();
+    startPrompt_->Draw();
     cmd->RSSetViewports(1, &backBuffer);
 }

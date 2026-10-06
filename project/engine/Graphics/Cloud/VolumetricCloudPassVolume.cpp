@@ -18,6 +18,32 @@ void VolumetricCloudPass::ConfigureStillTitleBackground() {
     cloudSeaFlowSpeed_ = 0.0f;
     // Static world noise, rather than noise coordinates locked to the turning camera.
     cloudSeaUseCameraRelative_ = false;
+    // Restore the background bank from before the foreground fill adjustment.
+    cloudHeightOffset_ = -47.3f;
+    SetCameraForwardTunnelSettings(true, 188.0f, 40.0f, 1.0f);
+}
+
+void VolumetricCloudPass::ConfigureTitleForegroundCopy(
+    const Camera* camera, const CloudVolume* source, CloudVolume* copy) {
+    if (!source || !copy) return;
+    ConfigureStillTitleBackground();
+    const auto bounds = ResolveCloudVolume(camera, source);
+    copy->GetParameters() = source->GetParameters();
+    copy->GetParameters().center = bounds.center;
+    copy->GetParameters().halfExtents = bounds.halfExtents;
+    // Keep the source noise and physical dimensions. The lower-screen copy is
+    // viewed at a grazing angle: the background's 10.6-unit boundary fade erased
+    // nearly the entire visible slice. Use a shorter, still smooth edge here.
+    copy->GetParameters().edgeFade = 0.02f;
+    copy->GetParameters().density *= 2.0f;
+    volumeEdgeFadeDistance_ = 1.0f;
+    SetCameraForwardTunnelSettings(false, 188.0f, 40.0f, 1.0f);
+    // Only the original instance draws the distant sky layers.
+    useCameraRelativeCloudVolume_ = false;
+    enableFarCloudLayer_ = false;
+    enableCloudSeaLayer_ = false;
+    enableGameplayObjectPreserve_ = false;
+    SetCloudInfluenceEnabled(false);
 }
 
 VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildTitleBackgroundBounds(

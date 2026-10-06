@@ -10,6 +10,7 @@ class Object3d;
 class PlayerJetExhaustController;
 class TitleSortieEffects;
 class TitleLogoController;
+class TitleForegroundPresentation;
 class Skybox;
 class CloudVolume;
 class VolumetricCloudPass;
@@ -33,6 +34,7 @@ private:
     std::unique_ptr<PlayerJetExhaustController> exhaust_;
     std::unique_ptr<TitleSortieEffects> sortieEffects_;
     std::unique_ptr<TitleLogoController> logo_;
+    std::unique_ptr<TitleForegroundPresentation> foreground_;
     std::unique_ptr<Skybox> skybox_;
     std::unique_ptr<CloudVolume> cloudVolume_;
     std::unique_ptr<VolumetricCloudPass> cloudPass_;

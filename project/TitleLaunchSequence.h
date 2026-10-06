@@ -6,9 +6,8 @@
 class TitleLaunchSequence {
 public:
     enum class Phase { Idle, Align, Fly, Cover };
-    static constexpr float kOrbitSeconds = 30.0f;
-    static constexpr float kAlignSeconds = 0.8f;
-    static constexpr float kAlignAngularSpeed = 1.570796327f; // About 90 degrees/second.
+    static constexpr float kOrbitSeconds = 60.0f;
+    static constexpr float kAlignSeconds = 0.45f;
     static constexpr float kFlySeconds = 0.8f;
     static constexpr float kInitialYaw = 0.70f;
     static constexpr float kFlightDistance = 36.0f;
@@ -20,7 +19,7 @@ public:
         elapsed = 0.0f;
         startYaw = yaw;
         turnAngle = std::remainder(aircraftYaw - startYaw, kTwoPi);
-        alignDuration = (std::max)(kAlignSeconds, 1.5f * std::abs(turnAngle) / kAlignAngularSpeed + 0.2f);
+        alignDuration = kAlignSeconds; // Bounded wait even at the opposite heading.
     }
     void Update(float dt) {
         dt = (std::max)(0.0f, dt);

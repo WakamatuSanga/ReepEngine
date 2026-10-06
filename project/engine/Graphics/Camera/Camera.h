@@ -7,6 +7,8 @@ public:
 
 	// 更新
 	void Update();
+	// Render the same image/depth in another coordinate frame (no source camera mutation).
+	void SetRenderCoordinateFrame(const Camera& source, const Matrix4x4& frameToWorld);
 
 	// セッター
 	void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
