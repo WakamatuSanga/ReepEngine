@@ -52,7 +52,8 @@ struct ParticleType
     uint emissionByChargeRate;
     uint chargeGatherTargetMode;
     float3 chargeGatherTargetOffset;
-    float2 padding2;
+    float streakLength;
+    float streakWidth;
 };
 
 struct EmitterInfo
@@ -195,6 +196,15 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     if (gEmitterInfo.emitterShape == 2u)
     {
         velocityDirection = SafeNormalize(emitterOffset + emitterForward * 0.25f, emitterForward);
+    }
+    if (particleType.streakLength > 0.0f) {
+        // The existing box dimensions describe a thin elliptical shell for wind.
+        const float angle = Random01(baseSeed ^ 0x68bc21ebu) * 6.28318530718f;
+        const float radius = RandomRange(baseSeed ^ 0x02e5be93u, 0.85f, 1.15f);
+        emitterOffset = float3(cos(angle) * gEmitterInfo.emitterBoxSize.x * 0.5f * radius,
+            sin(angle) * gEmitterInfo.emitterBoxSize.y * 0.5f * radius,
+            RandomRange(baseSeed ^ 0x9e3779b9u, -0.5f, 0.5f) * gEmitterInfo.emitterBoxSize.z);
+        velocityDirection = emitterForward;
     }
     float colorRate = Random01(baseSeed ^ 0x3f6e4a1bu);
     float3 colorJitter = useRandom

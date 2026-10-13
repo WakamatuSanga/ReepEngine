@@ -10,19 +10,19 @@
 class AimCorridorTargetingController;
 class AimCorridorVisualController;
 class Camera;
+class CameraShakeController;
 class EnemyBullet;
 class GameViewport;
 class LockedWingMissileExhaustController;
 class Object3dCommon;
 class Player;
-class PlayerFanChargeAttack;
-struct PlayerFanChargeTrajectory;
 class PlayerLockOnTargetProvider;
 class ProjectileRailMotionAdapter;
 enum class PlayerLockOnTargetKind : uint8_t;
 
 class PlayerBulletManager {
 public:
+    void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     enum class AimMode {
         CameraForward,
         MouseRay,
@@ -38,7 +38,6 @@ public:
     enum class PlayerProjectileType : uint8_t {
         NormalShot,
         LockedWingShot,
-        FanChargeShot,
     };
 
     enum class PlayerProjectileKillReason : uint8_t {
@@ -106,7 +105,7 @@ public:
         int* damage,
         float* lastDistance,
         float* lastRadiusSum,
-        float* lastBulletRadius);
+        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr);
     bool CheckHitAndKillFirstSphere(
         const Vector3& center,
         float radius,
@@ -114,18 +113,13 @@ public:
         int* damage,
         float* lastDistance,
         float* lastRadiusSum,
-        float* lastBulletRadius);
+        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr);
     std::vector<PlayerBulletCollisionSnapshot> GetActiveCollisionSnapshots() const;
     bool TryKillProjectileByRuntimeId(
         std::uint64_t runtimeId,
         PlayerProjectileKillReason reason);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
-    float GetChargeTime() const { return chargeTime_; }
-    float GetMaxChargeTime() const { return maxChargeTime_; }
-    float GetChargeRate() const { return chargeRate_; }
-    bool IsChargeMax() const { return isChargeMax_; }
-    bool IsChargeInputHeld() const { return lastLeftClickHeld_; }
     size_t GetFiredBulletCount() const { return firedBulletCount_; }
     const Vector3& GetLastAimPoint() const { return lastAimPoint_; }
     const Vector3& GetLastAimDirection() const { return lastAimDirection_; }
@@ -135,7 +129,6 @@ public:
 private:
     enum class LockedWingShotResult : uint8_t {
         NotRequested,
-        FallbackToNormal,
         Spawned,
         SpawnFailed,
     };
@@ -215,7 +208,6 @@ private:
         PlayerBulletInstance& operator=(PlayerBulletInstance&&) noexcept;
         std::unique_ptr<EnemyBullet> bullet;
         std::unique_ptr<LockedWingLaunchState> lockedWingLaunch;
-        std::unique_ptr<PlayerFanChargeTrajectory> fanTrajectory;
         uint64_t runtimeId = 0;
         int damage = 1;
         PlayerProjectileType projectileType = PlayerProjectileType::NormalShot;
@@ -250,10 +242,6 @@ private:
     void UpdateCameraVelocity(float deltaTime);
     void UpdateViewportDebugState();
     void ApplyModelRotationOffsetToBullets();
-    bool UpdateChargeState(float deltaTime, bool inputBlocked);
-    void ResetFanCharge();
-    void FireFanChargeVolley();
-    void UpdateFanChargeShot(PlayerBulletInstance& instance, float deltaTime);
     Vector3 ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward);
     Vector3 ResolveFinalShotDirection(
         const Vector3& muzzleWorldPosition,
@@ -265,11 +253,11 @@ private:
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    CameraShakeController* cameraShakeController_ = nullptr;
     Player* player_ = nullptr;
     GameViewport* gameViewport_ = nullptr;
     ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::unique_ptr<LockedWingMissileExhaustController> lockedWingMissileExhaustController_;
-    std::unique_ptr<PlayerFanChargeAttack> fanChargeAttack_;
     const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     AimCorridorVisualController* aimCorridorVisualController_ = nullptr;
     AimCorridorTargetingController* aimCorridorTargetingController_ = nullptr;
@@ -301,9 +289,6 @@ private:
     float muzzleOffset_ = 0.5f;
     float aimDistance_ = 30.0f;
     float inheritCameraVelocityFactor_ = 0.5f;
-    float chargeTime_ = 0.0f;
-    float maxChargeTime_ = 1.5f;
-    float chargeRate_ = 0.0f;
     float lastShotDirectionLength_ = 0.0f;
     int bulletDamage_ = 1;
     int selectedBulletIndex_ = -1;
@@ -316,12 +301,13 @@ private:
     bool useLightweightBulletVisual_ = false;
     bool autoRemoveDeadBullets_ = true;
     bool inheritCameraVelocity_ = true;
-    bool enableChargeFeedbackInput_ = true;
-    bool isChargeMax_ = false;
     bool mouseInGameView_ = false;
     bool hasPreviousCameraPosition_ = false;
     bool lastLeftClickPressed_ = false;
     bool lastLeftClickHeld_ = false;
+    bool lastRightClickPressed_ = false;
+    bool normalShotInputArmed_ = false;
+    bool missileInputArmed_ = false;
     bool lastCanFire_ = false;
     bool lastImGuiTextInputActive_ = false;
     bool aimRuntimeStateInitialized_ = false;
@@ -377,7 +363,6 @@ private:
     size_t rightLockedWingShotCount_ = 0;
     size_t lockedWingTargetInvalidFallbackCount_ = 0;
     size_t lockedWingSpawnFailureCount_ = 0;
-    size_t lockedWingNormalFallbackCount_ = 0;
     size_t lockedWingAlternationErrorCount_ = 0;
     size_t lockedWingEjectionDropStartCount_ = 0;
     size_t lockedWingPreIgnitionHoldStartCount_ = 0;

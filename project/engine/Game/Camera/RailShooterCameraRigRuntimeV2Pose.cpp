@@ -1,12 +1,15 @@
 #include "RailShooterCameraRig.h"
 
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/BoostController.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/RailShooter/RailPathRuntimeV2.h"
 #include "Engine/Game/RailShooter/RailPathRuntimeV2Adapter.h"
 #include "Engine/Level/LevelRailRuntime.h"
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -254,4 +257,94 @@ float RailShooterCameraRig::ComputePitchDegrees(const Vector3& forward) {
     const Vector3 safe = Normalize(forward, { 0.0f, 0.0f, 1.0f });
     const float horizontal = std::sqrt(safe.x * safe.x + safe.z * safe.z);
     return std::atan2(-safe.y, horizontal) * kRadiansToDegrees;
+}
+
+bool RailShooterCameraRig::UsesGameplayComposition() const {
+    // Rail advancement is optional. Game Mode owns this same render camera
+    // even when no rail exists, is disabled, or cannot be evaluated.
+    return gameModeActive_ && player_ && camera_;
+}
+
+bool RailShooterCameraRig::IsGameplayPresentationActive() const {
+    // Midboss combat can retain its FOV framing without owning normal input/attitude.
+    return presentationOverrideActive_ || presentationReturnActive_;
+}
+
+void RailShooterCameraRig::UpdatePlayerFollow(float deltaTime) {
+    if (!UsesGameplayComposition()) {
+        playerFollowInitialized_ = false;
+        if (camera_) camera_->SetViewRotationOffset({});
+        return;
+    }
+    const bool presentation = IsGameplayPresentationActive();
+    const Vector2 offset = player_->GetPresentationOffset();
+    const Vector2 followTarget = presentationOverrideActive_ ? offset : Vector2{};
+    Vector2 input = presentation ? Vector2{} : player_->GetMoveInput();
+    const float length = (std::max)(1.0f, std::sqrt(input.x * input.x + input.y * input.y));
+    input.x /= length;
+    input.y /= length;
+    if (!playerFollowInitialized_) {
+        playerFollowOffset_ = followTarget;
+        playerLookInput_ = {};
+        playerFollowInitialized_ = true;
+    }
+    const float dt = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+    const float alpha = 1.0f - std::exp(-dt / (std::max)(playerLookTime_, 0.001f));
+    playerLookInput_.x += (input.x - playerLookInput_.x) * alpha;
+    playerLookInput_.y += (input.y - playerLookInput_.y) * alpha;
+    // Normal XY movement never translates the camera. Dedicated framing owns its
+    // existing follow; its return blends in the same filter until it releases.
+    if (presentation) {
+        const float followAlpha = 1.0f - std::exp(-dt / playerFollowTime_);
+        playerFollowOffset_.x += (followTarget.x - playerFollowOffset_.x) * followAlpha;
+        playerFollowOffset_.y += (followTarget.y - playerFollowOffset_.y) * followAlpha;
+        if (presentationReturnActive_ && std::fabs(playerFollowOffset_.x) < 0.00001f
+            && std::fabs(playerFollowOffset_.y) < 0.00001f) {
+            presentationReturnActive_ = false;
+            playerFollowOffset_ = {};
+        }
+    } else {
+        playerFollowOffset_ = {};
+    }
+    ApplyToCamera(dt);
+}
+
+bool RailShooterCameraRig::BuildGameplayVisualPose([[maybe_unused]] float followDeltaTime) {
+    if (!UsesGameplayComposition()) return false;
+    const Vector3 anchor = Add(Add(currentPosition_, Scale(currentUp_, cameraHeightOffset_)),
+        Scale(currentForward_, player_->GetDistanceFromCamera()));
+    player_->SetBaseMode(Player::BaseMode::Rail);
+    player_->SetExternalBasePosition(anchor);
+    player_->SetExternalBaseForward(currentForward_);
+    player_->SetExternalBaseUp(currentUp_);
+
+    const float aspect = (std::max)(0.1f, camera_->GetAspectRatio());
+    const float distanceScale = (std::max)(1.0f, (16.0f / 9.0f) / aspect);
+    const float distance = gameplayCameraDistance_ * distanceScale;
+    const float height = gameplayCameraHeight_ * distanceScale;
+    const Vector3 basePosition = Add(Add(anchor, Scale(currentForward_, -distance)), Scale(currentUp_, height));
+    gameplayReferenceFrame_ = MatrixMath::MakeIdentity4x4();
+    const Vector3 axes[] = { currentRight_, currentUp_, currentForward_, basePosition };
+    for (int row = 0; row < 4; ++row) {
+        gameplayReferenceFrame_.m[row][0] = axes[row].x;
+        gameplayReferenceFrame_.m[row][1] = axes[row].y;
+        gameplayReferenceFrame_.m[row][2] = axes[row].z;
+    }
+    constexpr float radians = 3.14159265358979323846f / 180.0f;
+    const float yawLimit = std::clamp(gameplayCameraYawDegrees_, 0.0f, 2.0f);
+    const float pitchLimit = std::clamp(gameplayCameraPitchLimitDegrees_, 0.0f, 1.0f);
+    player_->SetGameplayMovementViewport(distance, height, camera_->GetFovY(), aspect,
+        (yawLimit + 0.5f) * radians, (pitchLimit + 0.5f) * radians);
+
+    visualCameraPosition_ = Add(Add(basePosition, Scale(currentRight_, playerFollowOffset_.x)),
+        Scale(currentUp_, playerFollowOffset_.y));
+    const float pitch = gameplayCameraPitchDegrees_ * radians;
+    visualCameraForward_ = Normalize(Add(Scale(currentForward_, std::cos(pitch)),
+        Scale(currentUp_, -std::sin(pitch))), currentForward_);
+    gameplayCameraRotation_ = { ComputePitchDegrees(visualCameraForward_) * radians,
+        std::atan2(visualCameraForward_.x, visualCameraForward_.z), 0.0f };
+    camera_->SetViewRotationOffset({ -playerLookInput_.y * pitchLimit * radians,
+        playerLookInput_.x * yawLimit * radians, 0.0f });
+    cameraLookTarget_ = Add(visualCameraPosition_, Scale(visualCameraForward_, cameraLookDistance_));
+    return true;
 }

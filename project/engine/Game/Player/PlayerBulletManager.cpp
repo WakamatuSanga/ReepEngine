@@ -1,6 +1,6 @@
 #include "PlayerBulletManager.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
-#include "PlayerFanChargeAttack.h"
 #include "MyGame.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Core/GameViewport.h"
@@ -90,8 +90,12 @@ PlayerBulletManager::PlayerBulletManager() = default;
 
 PlayerBulletManager::~PlayerBulletManager() = default;
 
+PlayerBulletManager::PlayerBulletInstance::PlayerBulletInstance() = default;
+PlayerBulletManager::PlayerBulletInstance::~PlayerBulletInstance() = default;
+PlayerBulletManager::PlayerBulletInstance::PlayerBulletInstance(PlayerBulletInstance&&) noexcept = default;
+PlayerBulletManager::PlayerBulletInstance& PlayerBulletManager::PlayerBulletInstance::operator=(PlayerBulletInstance&&) noexcept = default;
+
 void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player) {
-    fanChargeAttack_ = std::make_unique<PlayerFanChargeAttack>();
     ClearAimCorridorContext();
     object3dCommon_ = object3dCommon;
     camera_ = camera;
@@ -114,6 +118,7 @@ void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* cam
 }
 
 void PlayerBulletManager::Finalize() {
+    cameraShakeController_ = nullptr;
     DeleteAllBullets();
     ClearAimCorridorContext();
     if (lockedWingMissileExhaustController_) {
@@ -133,11 +138,15 @@ void PlayerBulletManager::Update(float deltaTime) {
     UpdateCameraVelocity(safeDeltaTime);
     UpdateViewportDebugState();
     UpdateLockedWingShotDiagnostics();
-    fireTimer_ = (std::min)(fireInterval_, fireTimer_ + safeDeltaTime);
+    // Keep fractional interval remainder during continuous fire.
+    // Physics clamps its step separately; low FPS must not slow the fire clock.
+    fireInterval_ = std::isfinite(fireInterval_) ? (std::max)(0.01f, fireInterval_) : 0.16f;
+    fireTimer_ += std::isfinite(deltaTime) ? (std::max)(0.0f, deltaTime) : 0.0f;
 
     inputBlockedReason_ = "None";
     lastLeftClickPressed_ = false;
     lastLeftClickHeld_ = false;
+    lastRightClickPressed_ = false;
     lastCanFire_ = false;
     lastImGuiTextInputActive_ = false;
     Input* input = MyGame::GetInstance()->GetInput();
@@ -146,31 +155,43 @@ void PlayerBulletManager::Update(float deltaTime) {
     } else {
         lastLeftClickPressed_ = input->MouseTrigger(Input::MouseLeft);
         lastLeftClickHeld_ = input->MouseDown(Input::MouseLeft);
+        lastRightClickPressed_ = input->MouseTrigger(Input::MouseRight);
     }
 
     bool inputBlocked = true;
     if (input) {
         inputBlocked = ShouldBlockFireInput();
     }
-    const bool chargeBurstFrame = UpdateChargeState(safeDeltaTime, !input || inputBlocked);
-
-    if (!inputBlocked && input && !chargeBurstFrame) {
+    if (inputBlocked || !input || !input->IsMouseStateValid()) {
+        normalShotInputArmed_ = false;
+        missileInputArmed_ = false;
+    } else {
+        // A blocked/held button must be released before it can attack again.
+        if (!lastLeftClickHeld_) normalShotInputArmed_ = true;
+        if (!input->MouseDown(Input::MouseRight)) missileInputArmed_ = true;
+    }
+    const bool firing = !inputBlocked && input && normalShotInputArmed_ && lastLeftClickHeld_;
+    if (!firing || lastLeftClickPressed_) {
+        fireTimer_ = (std::min)(fireInterval_, fireTimer_);
+    }
+    if (firing) {
         lastCanFire_ = fireTimer_ >= fireInterval_;
-        if (lastLeftClickPressed_ && lastCanFire_) {
+        while (fireTimer_ >= fireInterval_) {
             FireFromPlayer();
-            fireTimer_ = 0.0f;
+            fireTimer_ -= fireInterval_;
             lastCanFire_ = false;
         }
     }
+    if (!inputBlocked && input && missileInputArmed_ && lastRightClickPressed_) {
+        TrySpawnLockedWingShot();
+    }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
-            // Fan shots keep their launch-time world path; never retarget with the rail/cursor.
-            if (projectileRailMotionAdapter_ && !instance.fanTrajectory) {
+            if (projectileRailMotionAdapter_) {
                 projectileRailMotionAdapter_->ApplyToProjectile(
                     *instance.bullet, ProjectileRailMotionAdapter::ProjectileKind::Player);
             }
             UpdateLockedWingShot(instance, safeDeltaTime);
-            UpdateFanChargeShot(instance, safeDeltaTime);
             instance.bullet->Update(safeDeltaTime);
             UpdateLockedWingMissileExhaust(instance);
             if (projectileRailMotionAdapter_ && instance.bullet->IsDead()) {
@@ -226,11 +247,8 @@ void PlayerBulletManager::DrawImGui() {
         lastLeftClickPressed_ ? "true" : "false",
         lastLeftClickHeld_ ? "true" : "false");
     ImGui::Text("Can Fire Now: %s", lastCanFire_ ? "true" : "false");
-    ImGui::SeparatorText("チャージ表示用入力 (Charge Feedback Source)");
-    ImGui::Checkbox("Enable Charge Feedback Input", &enableChargeFeedbackInput_);
-    ImGui::DragFloat("Max Charge Time", &maxChargeTime_, 0.01f, 0.05f, 5.0f, "%.2f");
-    ImGui::Text("Charge Time / Rate: %.2f / %.2f", chargeTime_, chargeRate_);
-    ImGui::Text("Is Charge Max: %s", isChargeMax_ ? "true" : "false");
+    ImGui::Text("Right Click Pressed: %s", lastRightClickPressed_ ? "true" : "false");
+    ImGui::TextDisabled("Hold left: normal fire / Press right: locked missile");
     DrawAimImGui();
     DrawLockedWingShotImGui();
     ImGui::SeparatorText("プレイヤー弾モデル向き補正 (Player Bullet Model Rotation Offset)");
@@ -287,7 +305,8 @@ void PlayerBulletManager::DrawImGui() {
     ImGui::SeparatorText("弾パラメータ (Bullet)");
     ImGui::DragFloat("Bullet Speed", &bulletSpeed_, 0.1f, 0.0f, 200.0f, "%.2f");
     ImGui::DragFloat("Bullet Radius", &bulletRadius_, 0.01f, 0.001f, 20.0f, "%.3f");
-    ImGui::DragInt("Bullet Damage", &bulletDamage_, 1.0f, 1, 999);
+    ImGui::Text("Normal Bullet Damage: 1");
+    ImGui::DragInt("Missile Damage (Boss)", &bulletDamage_, 1.0f, 1, 999);
     ImGui::DragFloat("Fire Interval", &fireInterval_, 0.01f, 0.01f, 5.0f, "%.2f");
     ImGui::DragFloat("Bullet Life Time", &bulletLifeTime_, 0.05f, 0.1f, 30.0f, "%.2f");
     ImGui::Checkbox("Show Bullet Collision Radius", &showBulletCollisionRadius_);
@@ -353,7 +372,8 @@ void PlayerBulletManager::SetUseLightweightBulletVisual(bool useLightweightVisua
 }
 
 void PlayerBulletManager::DeleteAllBullets() {
-    ResetFanCharge();
+    normalShotInputArmed_ = false;
+    missileInputArmed_ = false;
     if (lockedWingMissileExhaustController_) {
         lockedWingMissileExhaustController_->Reset(false);
     }
@@ -386,12 +406,6 @@ void PlayerBulletManager::FireFromPlayer() {
         return;
     }
 
-    const LockedWingShotResult lockedWingResult = TrySpawnLockedWingShot();
-    if (lockedWingResult == LockedWingShotResult::Spawned
-        || lockedWingResult == LockedWingShotResult::SpawnFailed) {
-        return;
-    }
-
     const Vector3 cameraForward = GetCameraForward(*camera_);
     const Vector3 initialDirection = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
     const Vector3 startPosition = AddVector3(
@@ -419,7 +433,8 @@ void PlayerBulletManager::FireFromPlayer() {
     currentBulletRotation_ = AddVector3(
         AddVector3(MakeRotationFromForward(lastVisualDirection_), defaultRotation_),
         playerBulletModelRotationOffset_);
-    if (EnemyBullet* bullet = SpawnBullet(startPosition, velocity, bulletDamage_)) {
+    if (EnemyBullet* bullet = SpawnBullet(startPosition, velocity, 1)) {
+        if (cameraShakeController_) cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Shot);
         RecordAimShot();
         if (projectileRailMotionAdapter_) {
             projectileRailMotionAdapter_->RecordShot(
@@ -522,6 +537,10 @@ bool PlayerBulletManager::ShouldBlockFireInput() {
     }
     if (!player_ || !camera_) {
         inputBlockedReason_ = "Player or Camera is missing";
+        return true;
+    }
+    if (!player_->IsEnabled() || !aimPlayerAlive_) {
+        inputBlockedReason_ = "Player is inactive";
         return true;
     }
     return false;

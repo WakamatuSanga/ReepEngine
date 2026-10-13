@@ -4,6 +4,7 @@
 #include <string>
 
 class Camera;
+class CameraShakeController;
 class GpuParticleEffectPlayer;
 class Player;
 class PrimitiveEffectSystem;
@@ -15,6 +16,7 @@ public:
 
     void Initialize(PrimitiveEffectSystem* primitiveEffectSystem, GpuParticleEffectPlayer* gpuParticleEffectPlayer, Player* player);
     void Finalize();
+    void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     void Update(float deltaTime, const Camera* camera);
     void Draw();
     void DrawImGui();
@@ -49,6 +51,7 @@ private:
     PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
     GpuParticleEffectPlayer* gpuParticleEffectPlayer_ = nullptr;
     Player* player_ = nullptr;
+    CameraShakeController* cameraShakeController_ = nullptr;
     Vector3 lastEffectPosition_{ 0.0f, 0.0f, 0.0f };
     std::string lastEffectType_ = "None";
     std::string lastEffectResult_ = "Not initialized";

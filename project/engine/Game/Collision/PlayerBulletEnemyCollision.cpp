@@ -1,4 +1,5 @@
 #include "PlayerBulletEnemyCollision.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
@@ -32,6 +33,7 @@ void PlayerBulletEnemyCollision::Initialize(
 }
 
 void PlayerBulletEnemyCollision::Finalize() {
+    cameraShakeController_ = nullptr;
     bulletManager_ = nullptr;
     enemyManager_ = nullptr;
     combatEffectController_ = nullptr;
@@ -67,6 +69,7 @@ void PlayerBulletEnemyCollision::Update() {
 
         Vector3 hitPosition{};
         int damage = 0;
+        auto projectileType = PlayerBulletManager::PlayerProjectileType::NormalShot;
         float lastBulletRadius = 0.0f;
         float lastDistance = -1.0f;
         float lastRadiusSum = 0.0f;
@@ -80,7 +83,7 @@ void PlayerBulletEnemyCollision::Update() {
                 &damage,
                 &lastDistance,
                 &lastRadiusSum,
-                &lastBulletRadius)
+                &lastBulletRadius, &projectileType)
             : bulletManager_->CheckHitAndKillFirstSphere(
                 enemy->GetPosition(),
                 enemyRadius,
@@ -88,7 +91,7 @@ void PlayerBulletEnemyCollision::Update() {
                 &damage,
                 &lastDistance,
                 &lastRadiusSum,
-                &lastBulletRadius);
+                &lastBulletRadius, &projectileType);
         if (!hit) {
             if (lastDistance_ < 0.0f || (lastDistance >= 0.0f && lastDistance < lastDistance_)) {
                 lastDistance_ = lastDistance;
@@ -99,6 +102,10 @@ void PlayerBulletEnemyCollision::Update() {
             continue;
         }
 
+        // Only ordinary enemies use this collision path; Kraken keeps its damage settings.
+        if (projectileType == PlayerBulletManager::PlayerProjectileType::LockedWingShot) {
+            damage = (std::max)(damage, enemy->GetHp());
+        }
         const bool wasDeadBeforeDamage = enemy->IsDead();
         enemy->Damage((std::max)(1, damage));
         lastHitResult_ = true;
@@ -112,6 +119,9 @@ void PlayerBulletEnemyCollision::Update() {
         ++hitCount_;
 
         const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
+        if (isLethalHit && cameraShakeController_) {
+            cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::EnemyDefeat);
+        }
         if (combatEffectController_ && playCombatEffect_) {
             combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition, isLethalHit);
         }

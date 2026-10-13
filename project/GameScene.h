@@ -35,6 +35,7 @@ class EventActionDispatcher;
 class GameOverFlowController;
 class GpuParticleEffectPlayer;
 class GpuParticleSystem;
+class GameplaySpeedLineController;
 class InfluenceFieldManager;
 class GameViewport;
 class GameSceneDebugGui;
@@ -48,8 +49,6 @@ class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerBarrelRollRingController;
 class PlayerBulletCancelEffectController;
-class PlayerChargeFeedbackController;
-class PlayerChargeGatherEffectController;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
 class PlayerLockOnTargetProvider;
@@ -115,6 +114,7 @@ private:
     std::unique_ptr<Object3d> object3dSphere_; // 球用
     std::unique_ptr<PrimitiveEffectSystem> primitiveEffectSystem_;
     std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
+    std::unique_ptr<GameplaySpeedLineController> gameplaySpeedLineController_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<RuntimeModeController> runtimeModeController_;
     std::unique_ptr<GameViewport> gameViewport_;
@@ -133,8 +133,6 @@ private:
     std::unique_ptr<PlayerBarrelRollRingController> playerBarrelRollRingController_;
     std::unique_ptr<PlayerBulletCancelEffectController> playerBulletCancelEffectController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
-    std::unique_ptr<PlayerChargeFeedbackController> playerChargeFeedbackController_;
-    std::unique_ptr<PlayerChargeGatherEffectController> playerChargeGatherEffectController_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;

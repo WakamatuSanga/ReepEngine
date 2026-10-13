@@ -47,6 +47,7 @@ void AimCorridorTargetingController::Finalize() {
 }
 
 void AimCorridorTargetingController::Reset() {
+    heldLocks_.clear();
     candidateTargetId_.clear();
     lockedTargetId_.clear();
     bestCandidateId_.clear();
@@ -112,6 +113,7 @@ void AimCorridorTargetingController::Update(float scaledDeltaTime, float unscale
         && targetProvider_ && camera_ && visualController_
         && visualController_->IsVisible() && visualController_->IsGameModeActive();
     if (!canTarget) {
+        heldLocks_.clear();
         if (HasCandidate() || HasLockedTarget()) {
             ClearTarget(false, "照準機能が無効");
         }
@@ -126,9 +128,11 @@ void AimCorridorTargetingController::Update(float scaledDeltaTime, float unscale
 
     ProjectTargets();
     if (!visibleRect_.valid) {
+        heldLocks_.clear();
         ClearTarget(false, "メイン照準矩形が無効");
     } else {
         UpdateSelection(safeScaledDeltaTime);
+        UpdateHeldLocks();
     }
     PublishVisualState(safeUnscaledDeltaTime);
 }
@@ -145,6 +149,56 @@ bool AimCorridorTargetingController::TryGetLockedTargetSnapshot(
 void AimCorridorTargetingController::Draw() {
     if (markerRenderer_) {
         markerRenderer_->Draw();
+    }
+    for (const HeldLock& lock : heldLocks_) {
+        lock.marker->Draw();
+    }
+}
+
+bool AimCorridorTargetingController::IsTargetHeld(const std::string& targetId) const {
+    return std::any_of(heldLocks_.begin(), heldLocks_.end(), [&](const HeldLock& lock) {
+        return lock.targetId == targetId;
+    });
+}
+
+void AimCorridorTargetingController::UpdateHeldLocks() {
+    // Keep completed locks while aiming at the next target. Invalid/dead targets
+    // still disappear through the existing projection and provider checks.
+    std::erase_if(heldLocks_, [&](const HeldLock& lock) {
+        return FindProjectedTarget(lock.targetId) == nullptr;
+    });
+    if (HasLockedTarget() && !IsTargetHeld(lockedTargetId_)) {
+        HeldLock lock;
+        lock.targetId = lockedTargetId_;
+        lock.marker = std::make_unique<AimCorridorTargetMarkerRenderer>();
+        lock.marker->Initialize(dxCommon_, camera_);
+        heldLocks_.push_back(std::move(lock));
+    }
+}
+
+std::vector<PlayerLockOnTargetSnapshot>
+AimCorridorTargetingController::GetLockedTargetSnapshots() const {
+    std::vector<PlayerLockOnTargetSnapshot> result;
+    if (!targetProvider_ || !gameModeActive_ || !playerAlive_ || !enabled_) {
+        return result;
+    }
+    for (const HeldLock& lock : heldLocks_) {
+        PlayerLockOnTargetSnapshot target{};
+        if (FindProjectedTarget(lock.targetId)
+            && targetProvider_->TryGetTargetSnapshot(lock.targetId, target)
+            && target.valid && target.alive && target.targetable) {
+            result.push_back(std::move(target));
+        }
+    }
+    return result;
+}
+
+void AimCorridorTargetingController::ReleaseFiredTarget(const std::string& targetId) {
+    std::erase_if(heldLocks_, [&](const HeldLock& lock) {
+        return lock.targetId == targetId;
+    });
+    if (candidateTargetId_ == targetId) {
+        ClearTarget(false, "ミサイル発射後にロック解除");
     }
 }
 

@@ -180,7 +180,7 @@ void Player::Update(float deltaTime) {
     }
 
     UpdateWorldPosition();
-    UpdateCenterVisibilityAssist(safeDeltaTime);
+    if (!normalFlightPresentation_) UpdateCenterVisibilityAssist(safeDeltaTime);
     if (actionController_) {
         actionController_->Update(
             safeDeltaTime,
@@ -189,10 +189,17 @@ void Player::Update(float deltaTime) {
     }
     UpdateVisualTilt(safeDeltaTime);
     UpdateObjectTransform();
-    object_->Update();
-    if (hitRadiusObject_) {
-        hitRadiusObject_->Update();
+    if (!normalFlightPresentation_) {
+        object_->Update();
+        if (hitRadiusObject_) hitRadiusObject_->Update();
     }
+}
+
+void Player::RefreshCameraPresentation(float deltaTime) {
+    // Object3d caches WVP in Update, so commit it only after the final camera.
+    UpdateCenterVisibilityAssist(deltaTime);
+    if (object_) object_->Update();
+    if (hitRadiusObject_) hitRadiusObject_->Update();
 }
 
 void Player::Draw() {
@@ -389,6 +396,12 @@ void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController)
         hitRadius_ = 0.45f;
     }
     ImGui::DragFloat2("Local Offset", &localOffsetX_, 0.03f, -50.0f, 50.0f, "%.2f");
+    if (normalFlightPresentation_) {
+        const Vector2 visible = GetPresentationOffset();
+        ImGui::Text("Visible XY: %.3f, %.3f", visible.x, visible.y);
+        ImGui::Text("Fixed-frame bounds X: %.3f..%.3f Y: %.3f..%.3f",
+            gameplayMovementMin_.x, gameplayMovementMax_.x, gameplayMovementMin_.y, gameplayMovementMax_.y);
+    }
     localOffsetX_ = std::clamp(localOffsetX_, -moveLimitX_, moveLimitX_);
     localOffsetY_ = std::clamp(localOffsetY_, -moveLimitY_, moveLimitY_);
     ImGui::DragFloat3("Model Scale", &modelScale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
@@ -532,6 +545,20 @@ void Player::LoadModel() {
         loadStatus_ = "Player model missing. Using fallback box.";
     }
 
+    visualBoundsValid_ = model_ && !model_->GetVertices().empty();
+    visualModelRadius_ = 0.0f;
+    if (visualBoundsValid_) {
+        const auto& first = model_->GetVertices().front().position;
+        visualBoundsMin_ = visualBoundsMax_ = { first.x, first.y, first.z };
+        for (const auto& vertex : model_->GetVertices()) {
+            const auto& p = vertex.position;
+            visualModelRadius_ = (std::max)(visualModelRadius_, std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z));
+            visualBoundsMin_ = { (std::min)(visualBoundsMin_.x, p.x),
+                (std::min)(visualBoundsMin_.y, p.y), (std::min)(visualBoundsMin_.z, p.z) };
+            visualBoundsMax_ = { (std::max)(visualBoundsMax_.x, p.x),
+                (std::max)(visualBoundsMax_.y, p.y), (std::max)(visualBoundsMax_.z, p.z) };
+        }
+    }
     if (object_) {
         object_->SetModel(model_);
     }

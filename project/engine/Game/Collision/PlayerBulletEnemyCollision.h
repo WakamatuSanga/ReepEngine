@@ -4,6 +4,7 @@
 #include <string>
 
 class EnemyManager;
+class CameraShakeController;
 class PlayerBulletManager;
 class CombatEffectController;
 class EnemyDefeatEffectController;
@@ -19,6 +20,7 @@ public:
         EnemyManager* enemyManager,
         CombatEffectController* combatEffectController);
     void Finalize();
+    void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     void SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller);
     void SetImpactDistortionController(ImpactDistortionController* controller);
     void Update();
@@ -26,6 +28,7 @@ public:
 
 private:
     PlayerBulletManager* bulletManager_ = nullptr;
+    CameraShakeController* cameraShakeController_ = nullptr;
     EnemyManager* enemyManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
     EnemyDefeatEffectController* enemyDefeatEffectController_ = nullptr;

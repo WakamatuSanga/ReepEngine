@@ -45,6 +45,7 @@ void AimCorridorTargetingController::DrawImGui() {
 
     if (ImGui::CollapsingHeader("基本設定##TargetingBasics", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Checkbox("照準・ロック機能を有効化##TargetingEnabled", &enabled_);
+        ImGui::Text("保持中のロック数: %zu", heldLocks_.size());
         ImGui::Text("ゲームモード有効: %s", gameModeActive_ ? "はい" : "いいえ");
         ImGui::Text("カメラ有効: %s", camera_ ? "はい" : "いいえ");
         ImGui::Text("対象プロバイダー接続: %s", targetProvider_ ? "はい" : "いいえ");

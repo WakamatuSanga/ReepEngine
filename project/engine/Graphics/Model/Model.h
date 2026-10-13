@@ -92,6 +92,7 @@ public:
     void ClearIndexDrawMaterialBindings();
     void DrawPbrMaterialImGui();
     size_t GetVertexCount() const { return modelData_.vertices.size(); }
+    const std::vector<VertexData>& GetVertices() const { return modelData_.vertices; }
     size_t GetIndexCount() const { return modelData_.indices.size(); }
     size_t GetMaterialCount() const { return 1; }
 

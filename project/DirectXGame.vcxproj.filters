@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="ソース ファイル">
@@ -426,6 +426,9 @@
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp">
       <Filter>ソース ファイル\engine\Game\Collision</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\GameplaySpeedLineController.cpp">
+      <Filter>ソース ファイル\engine\Game\Effect</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
@@ -513,12 +516,6 @@
     <ClCompile Include="engine\Game\Player\PlayerDamageFeedbackController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
-    <ClCompile Include="engine\Game\Player\PlayerChargeFeedbackController.cpp">
-      <Filter>ソース ファイル\engine\Game\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp">
-      <Filter>ソース ファイル\engine\Game\Player</Filter>
-    </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -551,12 +548,6 @@
     </ClCompile>
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\Game\Player\PlayerBulletManagerFanCharge.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\Game\Player\PlayerFanChargeAttack.cpp">
-      <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
@@ -1130,6 +1121,9 @@
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h">
       <Filter>ヘッダー ファイル\engine\Game\Collision</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Effect\GameplaySpeedLineController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
@@ -1205,17 +1199,8 @@
     <ClInclude Include="engine\Game\Player\PlayerDamageFeedbackController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
-    <ClInclude Include="engine\Game\Player\PlayerChargeFeedbackController.h">
-      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h">
-      <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
-    </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerActionController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\Game\Player\PlayerFanChargeAttack.h">
-      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>

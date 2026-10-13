@@ -44,7 +44,6 @@ void RuntimeModeController::Update(Input* input) {
     }
 #else
     mode_ = RuntimeMode::Game;
-    RequestWindowFullscreen(true);
 #endif
 }
 

@@ -13,10 +13,12 @@
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterController.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GameplaySpeedLineController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
@@ -35,8 +37,6 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
-#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
-#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
@@ -240,14 +240,23 @@ void GameScene::UpdateSceneRuntime() {
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
     PreUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
+    const bool dedicatedCameraPresentation = isDeathSequenceActive ||
+        (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive());
     if (railShooterCameraRig_) {
-        railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode);
+        railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), isGameMode,
+            dedicatedCameraPresentation,
+            isDeathSequenceActive || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->ShouldSuppressPlayerAttitude()));
         railShooterCameraRig_->Update(gameplayDeltaTime);
     }
+    if (cameraShakeController_) {
+        cameraShakeController_->SetGameplayEventsEnabled(isGameMode && !dedicatedCameraPresentation
+            && !(railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive()));
+    }
+    const bool gameplayCameraFollow = railShooterCameraRig_ && railShooterCameraRig_->UsesGameplayComposition();
     if (projectileRailMotionAdapter_) {
         projectileRailMotionAdapter_->BeginFrame(!isDeathSequenceActive);
     }
-    if (cameraShakeController_) {
+    if (cameraShakeController_ && !gameplayCameraFollow) {
         cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
     }
     if (levelSceneRuntime_) {
@@ -260,7 +269,7 @@ void GameScene::UpdateSceneRuntime() {
             !shouldDrawLevelDebug || (railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPreviewModeEnabled()));
     }
     camera_->Update();
-    if (playerRailController_) {
+    if (playerRailController_ && !gameplayCameraFollow) {
         playerRailController_->Update(gameplayDeltaTime);
     }
     if (!playerRailFlightVisualTiltController_ && player_ && railShooterCameraRig_) {
@@ -284,6 +293,18 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (player_) {
         player_->Update(gameplayDeltaTime);
+    }
+    // Finalize the render camera after movement, before exhaust, reticle, locks
+    // and shots consume it. The rail itself is advanced only once above.
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->UpdatePlayerFollow(gameplayDeltaTime);
+    }
+    if (cameraShakeController_ && gameplayCameraFollow) {
+        cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
+    }
+    camera_->Update();
+    if (player_ && gameplayCameraFollow) {
+        player_->RefreshCameraPresentation(gameplayDeltaTime);
     }
     if (playerDamageFeedbackController_) {
         playerDamageFeedbackController_->Update(unscaledDeltaTime);
@@ -329,12 +350,6 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerBulletManager_) {
         playerBulletManager_->Update(gameplayDeltaTime);
-    }
-    if (playerChargeFeedbackController_) {
-        playerChargeFeedbackController_->Update(effectDeltaTime);
-    }
-    if (playerChargeGatherEffectController_) {
-        playerChargeGatherEffectController_->Update(effectDeltaTime);
     }
     if (startupEnemySpawnController_) {
         startupEnemySpawnController_->Update(gameplayDeltaTime);
@@ -403,6 +418,12 @@ void GameScene::UpdateSceneRuntime() {
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
     PostWaveUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
+    if (gameplaySpeedLineController_) {
+        gameplaySpeedLineController_->Update(effectDeltaTime, isGameMode
+            && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())
+            && !(krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())
+            && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle);
+    }
     if (enemyLaserTelegraphController_) {
         enemyLaserTelegraphController_->Update(gameplayDeltaTime);
     }
@@ -558,6 +579,7 @@ void GameScene::UpdateSceneRuntime() {
         stats.playerBulletCount = playerBulletManager_ ? playerBulletManager_->GetActiveCount() : 0;
         stats.primitiveEffectCount = primitiveEffectSystem_ ? primitiveEffectSystem_->GetEffectCount() : 0;
         stats.gpuParticleActiveEstimate =
+            (gameplaySpeedLineController_ ? gameplaySpeedLineController_->GetActiveParticleEstimate() : 0u) +
             (gpuParticleSystem_ ? gpuParticleSystem_->GetActiveCountEstimate() : 0u) +
             (gpuParticleEffectPlayer_ ? gpuParticleEffectPlayer_->GetActiveParticleEstimate() : 0u);
         runtimeModeController_->SetPerformanceStats(stats);

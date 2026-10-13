@@ -19,11 +19,12 @@ void Camera::Update() {
 	worldMatrix_ = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
 
 	// 描画専用OffsetはGameplay Cameraの物理座標を変更しない。
-	Matrix4x4 viewWorldMatrix = worldMatrix_;
-	viewWorldMatrix.m[3][0] += viewTranslationOffset_.x;
-	viewWorldMatrix.m[3][1] += viewTranslationOffset_.y;
-	viewWorldMatrix.m[3][2] += viewTranslationOffset_.z;
-	viewMatrix_ = Inverse(viewWorldMatrix);
+	// Local cosmetic rotation affects rendering only. Aim/movement keep worldMatrix_.
+	viewWorldMatrix_ = Multipty(MakeAffine({ 1, 1, 1 }, viewRotationOffset_, {}), worldMatrix_);
+	viewWorldMatrix_.m[3][0] += viewTranslationOffset_.x;
+	viewWorldMatrix_.m[3][1] += viewTranslationOffset_.y;
+	viewWorldMatrix_.m[3][2] += viewTranslationOffset_.z;
+	viewMatrix_ = Inverse(viewWorldMatrix_);
 
 	// プロジェクション行列
 	projectionMatrix_ = PerspectiveFov(fovY_, aspectRatio_, nearClip_, farClip_);
@@ -38,6 +39,8 @@ void Camera::SetRenderCoordinateFrame(const Camera& source, const Matrix4x4& fra
 	projectionMatrix_ = source.GetProjectionMatrix();
 	viewProjectionMatrix_ = Multipty(viewMatrix_, projectionMatrix_);
 	worldMatrix_ = Inverse(viewMatrix_);
+	viewWorldMatrix_ = worldMatrix_;
 	transform_.translate = { worldMatrix_.m[3][0], worldMatrix_.m[3][1], worldMatrix_.m[3][2] };
 	viewTranslationOffset_ = {};
+	viewRotationOffset_ = {};
 }

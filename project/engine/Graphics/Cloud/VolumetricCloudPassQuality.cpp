@@ -69,10 +69,11 @@ void VolumetricCloudPass::ApplyUserPreferredCloudPreset()
     enableCloudFlow_ = true;
     cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
     invertCloudFlowDirection_ = false;
-    cloudBaseFlowSpeed_ = 20.0f;
+    cloudBaseFlowSpeed_ = 20.0f / 3.0f;
+    farCloudFlowSpeed_ = 0.35f / 3.0f;
     useBoostFlowMultiplier_ = true;
     externalFlowMultiplier_ = 1.0f;
-    currentCloudFlowSpeed_ = 20.0f;
+    currentCloudFlowSpeed_ = cloudBaseFlowSpeed_;
     useCameraRelativeCloudVolume_ = true;
     cloudNearDistance_ = -5.0f;
     cloudFarDistance_ = 250.0f;
@@ -108,7 +109,7 @@ void VolumetricCloudPass::ApplyUserPreferredCloudPreset()
     cloudSeaWidth_ = 360.0f;
     cloudSeaDepth_ = 320.0f;
     cloudSeaAlpha_ = 0.42f;
-    cloudSeaFlowSpeed_ = 8.9f;
+    cloudSeaFlowSpeed_ = 8.9f / 3.0f;
     cloudSeaNoiseScale_ = 0.045f;
     cloudSeaSoftness_ = 0.38f;
     cloudSeaColor_ = { 230.0f / 255.0f, 242.0f / 255.0f, 1.0f, 1.0f };

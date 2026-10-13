@@ -20,7 +20,7 @@ void RailShooterCameraRig::ApplyInitialCameraFromLevel() {
         lastInitialCameraResult_ = "Camera is missing.";
         return;
     }
-    if (IsCameraRigActive()) {
+    if (IsCameraRigActive() || (UsesGameplayComposition() && gameplayBaseInitialized_)) {
         lastInitialCameraResult_ = "Rail走行中のためInitial Camera適用を停止しました。";
         return;
     }
@@ -43,6 +43,8 @@ void RailShooterCameraRig::ApplyInitialCameraFromLevel() {
     camera_->Update();
 
     CaptureCameraPose();
+    gameplayBaseInitialized_ = false;
+    playerFollowInitialized_ = false;
     CaptureDebugHomeCamera();
     lastInitialCameraResult_ = "Applied camera_start: " +
         (cameraStart->name.empty() ? cameraStart->id : cameraStart->name);

@@ -264,7 +264,7 @@ void AimCorridorTargetingController::ProjectTargets() {
         }
         if (krakenDiagnostic ? target.overlapsVisibleRect : target.overlapsSoftRect) {
             ++candidateCount_;
-            if (target.score < bestScore) {
+            if (!IsTargetHeld(target.runtimeId) && target.score < bestScore) {
                 bestScore = target.score;
                 bestCandidateId_ = target.runtimeId;
                 bestCandidateScore_ = target.score;

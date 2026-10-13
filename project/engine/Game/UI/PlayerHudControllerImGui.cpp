@@ -38,15 +38,7 @@ void PlayerHudController::DrawImGui() {
     ImGui::TextWrapped("Last HUD Event: %s", lastHudEvent_);
 
     ImGui::SeparatorText("判定確認 (Event / Priority)");
-    ImGui::Text("Raw Charge Input Held: %s", rawChargeInputHeld_ ? "true" : "false");
-    ImGui::Text("Raw Charge Time: %.3f", rawChargeTime_);
-    ImGui::Text("Raw Charge Rate: %.3f", rawChargeRate_);
-    ImGui::Text("Visual Charge Rate: %.3f", visualChargeRate_);
     ImGui::Text("Context Fill Rate: %.3f", contextFillRate_);
-    ImGui::DragFloat("HUD Charge Start Delay", &hudChargeStartDelay_, 0.01f, 0.0f, 2.0f, "%.2f");
-    ImGui::Text("Is Charge UI Active: %s", isChargeUiActive_ ? "true" : "false");
-    ImGui::Text("Charge Dead Zone Active: %s", chargeDeadZoneActive_ ? "true" : "false");
-    ImGui::Text("Using Raw Charge Rate For Draw: %s", usingRawChargeRateForDraw_ ? "true" : "false");
     ImGui::Text("Fired Bullet Count: %zu", bulletManager_ ? bulletManager_->GetFiredBulletCount() : 0);
     ImGui::Text("Previous Fired Bullet Count: %zu", previousShotCount_);
     ImGui::Text("Shot Event This Frame: %s", shotEventThisFrame_ ? "true" : "false");
@@ -74,19 +66,11 @@ void PlayerHudController::DrawImGui() {
     ImGui::DragFloat("HP Frame Alpha", &hpFrameAlpha_, 0.01f, 0.0f, 1.5f, "%.2f");
     ImGui::DragFloat("HP Highlight Alpha", &hpHighlightAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
 
-    ImGui::SeparatorText("Charge Visual");
-    ImGui::Text("Charge Max: %s", (bulletManager_ && bulletManager_->IsChargeMax()) ? "true" : "false");
-    ImGui::Text("Charge Max Pulse Value: %.2f", chargeMaxPulseValue_);
-    ImGui::DragFloat("Charge Max Pulse Rate", &chargeMaxPulseRate_, 0.05f, 0.1f, 10.0f, "%.2f");
-    ImGui::DragFloat("Charge Fill Alpha", &chargeFillAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::DragFloat("Charge Frame Alpha", &chargeFrameAlpha_, 0.01f, 0.0f, 1.5f, "%.2f");
+    ImGui::SeparatorText("Shot Visual");
+    ImGui::DragFloat("Shot Fill Alpha", &shotFillAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
+    ImGui::DragFloat("Shot Frame Alpha", &shotFrameAlpha_, 0.01f, 0.0f, 1.5f, "%.2f");
     ImGui::DragFloat("Leading Edge Width", &leadingEdgeWidth_, 0.25f, 1.0f, 12.0f, "%.1f");
     ImGui::DragFloat("Leading Edge Alpha", &leadingEdgeAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
-    if (ImGui::Button("Test Charge Max Visual")) {
-        visualChargeRate_ = 1.0f;
-        contextFillRate_ = 1.0f;
-        ForceHud(HudMode::HpAndCharge, ContextType::Charge, "Debug Charge Max Visual");
-    }
 
     ImGui::SeparatorText("Boost Visual");
     ImGui::Text("Boost Active Pulse Value: %.2f", boostActivePulseValue_);
@@ -107,11 +91,11 @@ void PlayerHudController::DrawImGui() {
     ImGui::SeparatorText("Context / Draw Diagnostics");
     ImGui::Text("Context Switch Pulse Timer: %.2f", contextSwitchPulseTimer_);
     if (ImGui::Button("Test Context Switch")) {
-        const ContextType next = activeContextType_ == ContextType::Charge ? ContextType::Boost : ContextType::Charge;
-        ForceHud(next == ContextType::Charge ? HudMode::HpAndCharge : HudMode::HpAndBoost, next, "Debug Context Switch");
+        const ContextType next = activeContextType_ == ContextType::Shot ? ContextType::Boost : ContextType::Shot;
+        ForceHud(next == ContextType::Shot ? HudMode::HpAndShot : HudMode::HpAndBoost, next, "Debug Context Switch");
     }
     ImGui::Text("HP Draw Count: %u", hpDrawCount_);
-    ImGui::Text("Charge Context Draw Count: %u", chargeContextDrawCount_);
+    ImGui::Text("Shot Context Draw Count: %u", shotContextDrawCount_);
     ImGui::Text("Boost Context Draw Count: %u", boostContextDrawCount_);
     ImGui::Text("Both Context Drawn Same Frame: %s", bothContextDrawnSameFrame_ ? "true" : "false");
 
@@ -144,9 +128,8 @@ void PlayerHudController::DrawImGui() {
     if (ImGui::Button("Test Normal Shot Pulse")) {
         shotContextTimer_ = shotContextMinimumDuration_;
         shotPulseTimer_ = shotPulseDuration_;
-        visualChargeRate_ = 0.0f;
         contextFillRate_ = 0.0f;
-        ForceHud(HudMode::HpAndCharge, ContextType::Charge, "Debug Normal Shot Pulse");
+        ForceHud(HudMode::HpAndShot, ContextType::Shot, "Debug Normal Shot Pulse");
     }
     if (ImGui::Button("Clear Visual Test State")) {
         debugHpOverride_ = -1;
@@ -154,7 +137,6 @@ void PlayerHudController::DrawImGui() {
         hpDamageAnimTimer_ = 0.0f;
         boostReadyPulseTimer_ = 0.0f;
         contextSwitchPulseTimer_ = 0.0f;
-        visualChargeRate_ = 0.0f;
         contextFillRate_ = 0.0f;
     }
     if (ImGui::Button("Reset HUD")) {
@@ -166,12 +148,12 @@ void PlayerHudController::DrawImGui() {
     ImGui::DragFloat2("HP Size", &hpWidth_, 1.0f, 1.0f, 1000.0f, "%.0f");
     ImGui::DragFloat("Segment Gap", &hpSegmentGap_, 0.5f, 0.0f, 40.0f, "%.1f");
     ImGui::DragFloat("Frame Thickness", &frameThickness_, 0.25f, 1.0f, 12.0f, "%.1f");
-    ImGui::DragFloat("Charge Bottom Margin", &chargeContextBottomMargin_, 1.0f, 0.0f, 400.0f, "%.0f");
+    ImGui::DragFloat("Shot Bottom Margin", &shotContextBottomMargin_, 1.0f, 0.0f, 400.0f, "%.0f");
     ImGui::DragFloat("Boost Bottom Margin", &boostContextBottomMargin_, 1.0f, 0.0f, 400.0f, "%.0f");
-    ImGui::DragFloat2("Charge Context Size", &chargeContextWidth_, 1.0f, 2.0f, 1000.0f, "%.0f");
+    ImGui::DragFloat2("Shot Context Size", &shotContextWidth_, 1.0f, 2.0f, 1000.0f, "%.0f");
     ImGui::DragFloat2("Boost Context Size", &boostContextWidth_, 1.0f, 2.0f, 1000.0f, "%.0f");
     ImGui::DragFloat("Context Background Alpha", &contextBackgroundAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::ColorEdit4("Charge Color", &chargeColor_.x);
+    ImGui::ColorEdit4("Shot Color", &shotColor_.x);
     ImGui::ColorEdit4("Boost Color", &boostColor_.x);
     ImGui::ColorEdit4("Boost Cooldown Color", &boostCooldownColor_.x);
 

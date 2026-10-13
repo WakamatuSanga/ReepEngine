@@ -86,14 +86,14 @@ VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(c
     const ResolvedCloudVolume resolvedVolume = ResolveCloudVolume(camera, cloudVolume);
     const bool disableDistanceLod = (forceMode_ == ForceMode::ForceMaxQuality);
     const float lodFactorScale = (forceMode_ == ForceMode::ForceAggressiveLod) ? 1.75f : 1.0f;
-    const float entryDistance = ComputeDistanceToAabb(camera->GetTranslate(), resolvedVolume);
+    const float entryDistance = ComputeDistanceToAabb(camera->GetViewTranslate(), resolvedVolume);
     float densityScale = 1.0f;
     ComputeDistanceLodScales(entryDistance, resolvedVolume, lodFactorScale, disableDistanceLod, result.currentViewStepScale, densityScale);
     result.currentLightStepScale = result.currentViewStepScale;
     result.estimatedViewSteps = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.viewStepCount, 1u)) * result.currentViewStepScale + 0.5f));
     result.estimatedLightSteps = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.lightStepCount, 1u)) * result.currentLightStepScale + 0.5f));
 
-    result.isCameraInsideCloud = ContainsPoint(resolvedVolume, camera->GetTranslate());
+    result.isCameraInsideCloud = ContainsPoint(resolvedVolume, camera->GetViewTranslate());
     if (result.isCameraInsideCloud) {
         result.isVisible = true;
         result.useFullScreenScissor = true;
@@ -451,7 +451,8 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     const CloudVolume::Parameters& parameters = cloudVolume->GetParameters();
 
     constantData_->inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
-    constantData_->cameraPosition = camera->GetTranslate();
+    // Ray origin and inverse projection must include the same framing/shake offset.
+    constantData_->cameraPosition = camera->GetViewTranslate();
     const ResolvedCloudVolume resolvedVolume = ResolveCloudVolume(camera, cloudVolume);
 
     constantData_->volumeCenter = resolvedVolume.center;
@@ -485,49 +486,7 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         static_cast<float>(renderHeight)
     };
 
-    Vector3 flowDirection = ResolveCloudFlowDirection(camera);
-    currentCloudFlowDirection_ = flowDirection;
-
-    const float boostExtraSpeed = useBoostFlowMultiplier_ ? std::clamp(externalBoostExtraFlowSpeed_, 0.0f, 30.0f) : 0.0f;
-    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ + boostExtraSpeed : 0.0f;
-
-    const float elapsedTime = cloudVolume->GetElapsedTime();
-    float deltaTime = 0.0f;
-    if (std::isfinite(elapsedTime)) {
-        if (hasPreviousCloudElapsedTime_) {
-            deltaTime = elapsedTime - previousCloudElapsedTime_;
-            if (deltaTime < 0.0f) {
-                cloudFlowPhase_ = 0.0f;
-                previousCloudFlowPhase_ = 0.0f;
-                cloudFlowPhaseIncreasing_ = true;
-                cloudFlowPhaseDecreasedWarning_ = false;
-                deltaTime = 0.0f;
-            }
-        }
-        previousCloudElapsedTime_ = elapsedTime;
-        hasPreviousCloudElapsedTime_ = true;
-    }
-    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 30.0f);
-    previousCloudFlowPhase_ = cloudFlowPhase_;
-    cloudFlowPhase_ += currentCloudFlowSpeed_ * safeDeltaTime;
-    if (!std::isfinite(cloudFlowPhase_)) {
-        cloudFlowPhase_ = previousCloudFlowPhase_;
-    }
-    cloudFlowPhaseIncreasing_ = cloudFlowPhase_ + 0.0001f >= previousCloudFlowPhase_;
-    if (!cloudFlowPhaseIncreasing_) {
-        cloudFlowPhaseDecreasedWarning_ = true;
-    }
-
-    constantData_->cloudFlowDirectionSpeed = {
-        flowDirection.x,
-        flowDirection.y,
-        flowDirection.z,
-        currentCloudFlowSpeed_
-    };
-    constantData_->cloudTime = cloudFlowPhase_;
-    constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
-    constantData_->cloudRawTime = std::isfinite(elapsedTime) ? elapsedTime : 0.0f;
-    constantData_->padding4 = 0.0f;
+    UpdateCloudFlow(camera, cloudVolume);
     constantData_->nearCameraFade = {
         nearFadeStart_,
         (std::max)(nearFadeStart_ + 0.001f, nearFadeEnd_),

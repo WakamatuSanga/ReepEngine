@@ -287,7 +287,8 @@ void AimCorridorVisualController::SyncWorldPlacement(float unscaledDeltaTime) {
     playerRenderPosition_ = freezePlayerPositionForDebug_ ? frozenPlayerRenderPosition_ : livePlayerRenderPosition;
     aimOrigin_ = Add(
         Add(
-            Add(playerRenderPosition_, Scale(cameraRight_, originOffset_.x)),
+            Add(freezePlayerPositionForDebug_ ? playerRenderPosition_ : player_->GetAimControlWorldPosition(),
+                Scale(cameraRight_, originOffset_.x)),
             Scale(cameraUp_, originOffset_.y)),
         Scale(cameraForward_, originOffset_.z));
 

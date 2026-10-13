@@ -120,6 +120,9 @@ RailShooterCameraRig::RailShooterCameraRig() = default;
 RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
+    presentationReturnActive_ = false;
+    gameplayBaseInitialized_ = false;
+    playerFollowInitialized_ = false;
     externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
     camera_ = camera;
@@ -133,6 +136,7 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    if (camera_) camera_->SetViewRotationOffset({});
     externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
     ClearRuntimeV2ForceTests();
@@ -149,15 +153,23 @@ void RailShooterCameraRig::Finalize() {
 void RailShooterCameraRig::Update(float deltaTime) {
     railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
     if (autoApplyInitialCameraOnLoad_ && !hasAppliedInitialCameraOnce_ &&
-        !IsCameraRigActive() && levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
+        !gameplayBaseInitialized_ && !IsCameraRigActive() && levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
         ApplyInitialCameraFromLevel();
         hasAppliedInitialCameraOnce_ = true;
     } else if (levelSceneRuntime_ && !levelSceneRuntime_->HasEngineCameraStart()) {
         hasAppliedInitialCameraOnce_ = false;
     }
+    if (UsesGameplayComposition() && !gameplayBaseInitialized_) {
+        if (!IsCameraRigActive() || (mode_ == Mode::Rail && !currentEvaluationValid_)) {
+            // Initialize/initial-camera loading already captured the logical
+            // basis. The live camera may now contain editor or visual offsets.
+            currentPosition_ = AddVector3(currentPosition_, ScaleVector3(currentUp_, -cameraHeightOffset_));
+        }
+        gameplayBaseInitialized_ = true;
+    }
     if (!IsCameraRigActive()) {
         currentEvaluationValid_ = false;
-        if (wasCameraRigActive_ && restoreCameraOnDisable_) {
+        if (wasCameraRigActive_ && restoreCameraOnDisable_ && !UsesGameplayComposition()) {
             RestoreDebugHomeCamera();
         }
         if (wasCameraRigActive_) {
@@ -166,10 +178,11 @@ void RailShooterCameraRig::Update(float deltaTime) {
             ClearRuntimeV2ForceTests();
         }
         wasCameraRigActive_ = false;
+        if (UsesGameplayComposition()) ApplyToCamera();
         return;
     }
 
-    if (!wasCameraRigActive_ && mode_ != Mode::Rail) {
+    if (!wasCameraRigActive_ && mode_ != Mode::Rail && !UsesGameplayComposition()) {
         SaveDebugHomeCameraIfNeeded();
         CaptureCameraPose();
     }
@@ -199,7 +212,8 @@ void RailShooterCameraRig::Update(float deltaTime) {
         break;
     }
 
-    if (IsCameraRigActive() && mode_ != Mode::Rail && mode_ != Mode::Disabled) {
+    if (UsesGameplayComposition() ||
+        (IsCameraRigActive() && mode_ != Mode::Rail && mode_ != Mode::Disabled)) {
         ApplyToCamera();
     }
 }
@@ -400,7 +414,7 @@ void RailShooterCameraRig::UpdateRailFinishedStraight(float deltaTime) {
     BuildBasis(currentForward_, currentUp_, currentRight_, currentUp_);
 }
 
-void RailShooterCameraRig::ApplyToCamera() {
+void RailShooterCameraRig::ApplyToCamera(float followDeltaTime) {
     if (!camera_) {
         return;
     }
@@ -414,7 +428,8 @@ void RailShooterCameraRig::ApplyToCamera() {
 
     visualCameraPosition_ = currentPosition_;
     visualCameraForward_ = currentForward_;
-    if (!BuildRuntimeV2VisualPose() && enableAngledPlayerCamera_) {
+    const bool gameplayComposition = BuildGameplayVisualPose(followDeltaTime);
+    if (!gameplayComposition && !BuildRuntimeV2VisualPose() && enableAngledPlayerCamera_) {
         visualCameraPosition_ = AddVector3(
             AddVector3(currentPosition_, ScaleVector3(currentUp_, cameraHeightOffset_)),
             ScaleVector3(currentRight_, cameraSideOffset_));
@@ -441,7 +456,8 @@ void RailShooterCameraRig::ApplyToCamera() {
     }
 
     camera_->SetTranslate(visualCameraPosition_);
-    camera_->SetRotate(MakeCameraRotationFromForward(visualCameraForward_));
+    camera_->SetRotate(gameplayComposition
+        ? gameplayCameraRotation_ : MakeCameraRotationFromForward(visualCameraForward_));
 }
 
 void RailShooterCameraRig::CaptureCameraPose() {
@@ -476,6 +492,8 @@ void RailShooterCameraRig::RestoreDebugHomeCamera() {
     camera_->SetRotate(savedCameraRotation_);
     camera_->Update();
     CaptureCameraPose();
+    gameplayBaseInitialized_ = false;
+    playerFollowInitialized_ = false;
 }
 
 void RailShooterCameraRig::SaveDebugHomeCameraIfNeeded() {
@@ -515,7 +533,10 @@ void RailShooterCameraRig::ResetCameraRig() {
     ResetBoostRailSpeedState();
     ResetRuntimeV2PoseState(false);
     ClearRuntimeV2ForceTests();
-    CaptureCameraPose();
+    if (!UsesGameplayComposition()) {
+        CaptureCameraPose();
+        gameplayBaseInitialized_ = false;
+    }
 }
 
 void RailShooterCameraRig::ResetCameraRigAndRestoreCamera() {
@@ -591,7 +612,7 @@ void RailShooterCameraRig::StopRail() {
     ClearRuntimeV2ForceTests();
     if (restoreCameraOnStop_) {
         RestoreDebugHomeCamera();
-    } else {
+    } else if (!UsesGameplayComposition()) {
         CaptureCameraPose();
     }
     wasCameraRigActive_ = false;

@@ -128,7 +128,7 @@ void BoostController::DrawImGui() {
     ImGui::Text("Target Cloud Boost Extra Speed: %.2f", targetCloudBoostExtraSpeed_);
     ImGui::Text("Current Cloud Boost Extra Speed: %.2f", currentCloudBoostExtraSpeed_);
     ImGui::Text("Current Cloud Flow Speed: %.2f", currentCloudFlowSpeed);
-    ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase);
+    ImGui::Text("Cloud Flow Phase / Current Speed Segment: %.3f", cloudFlowPhase);
     ImGui::Text("Equivalent Cloud Flow Multiplier: %.2f", GetCloudFlowMultiplier());
     ImGui::Text("Target Equivalent Multiplier: %.2f", targetCloudFlowMultiplier_);
     ImGui::DragFloat("Visual Speed Multiplier", &boostVisualSpeedMultiplier_, 0.05f, 1.0f, 10.0f, "%.2f");

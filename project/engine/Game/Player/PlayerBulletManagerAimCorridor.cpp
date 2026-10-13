@@ -130,14 +130,16 @@ void PlayerBulletManager::SetAimRuntimeContext(
     aimRuntimeStateInitialized_ = true;
 
     if (enteringGameMode || respawned) {
-        ResetFanCharge();
+        normalShotInputArmed_ = false;
+        missileInputArmed_ = false;
         aimMode_ = AimMode::AimCorridor;
         debugAimModeForced_ = false;
         ResetAimDiagnostics();
         ResetLockedWingShotState(true);
     }
     if (leavingGameMode) {
-        ResetFanCharge();
+        normalShotInputArmed_ = false;
+        missileInputArmed_ = false;
         ClearLockedWingShotForceState();
         lockedTargetValidation_ = {};
     }
@@ -146,12 +148,14 @@ void PlayerBulletManager::SetAimRuntimeContext(
         debugAimModeForced_ = false;
     }
     if (!playerAlive) {
-        ResetFanCharge();
+        normalShotInputArmed_ = false;
+        missileInputArmed_ = false;
     }
 }
 
 void PlayerBulletManager::ClearAimCorridorContext() {
-    ResetFanCharge();
+    normalShotInputArmed_ = false;
+    missileInputArmed_ = false;
     aimCorridorVisualController_ = nullptr;
     aimCorridorTargetingController_ = nullptr;
     targetProvider_ = nullptr;

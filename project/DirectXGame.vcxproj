@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -156,6 +156,7 @@
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGuiSceneTools.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
+    <ClCompile Include="engine\Game\Effect\GameplaySpeedLineController.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatSlowMotionController.cpp" />
     <ClCompile Include="engine\Game\Effect\ImpactDistortionController.cpp" />
@@ -185,8 +186,6 @@
     <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerDamageFeedbackController.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerChargeFeedbackController.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp" />
@@ -199,8 +198,6 @@
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp" />
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerBulletManagerFanCharge.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerFanChargeAttack.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerRuntimeIdKill.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
@@ -460,6 +457,7 @@
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h" />
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
+    <ClInclude Include="engine\Game\Effect\GameplaySpeedLineController.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
     <ClInclude Include="engine\Game\Effect\CombatSlowMotionController.h" />
     <ClInclude Include="engine\Game\Effect\ImpactDistortionController.h" />
@@ -485,11 +483,8 @@
     <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerDamageFeedbackController.h" />
-    <ClInclude Include="engine\Game\Player\PlayerChargeFeedbackController.h" />
-    <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
-    <ClInclude Include="engine\Game\Player\PlayerFanChargeAttack.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.h" />
     <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />

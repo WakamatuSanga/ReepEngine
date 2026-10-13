@@ -148,6 +148,12 @@ void Player::SetRailFlightVisualBankRadians(float radians) {
     railFlightVisualBankRadians_ = std::isfinite(radians) ? radians : 0.0f;
 }
 
+bool Player::GetVisualModelBounds(Vector3& minimum, Vector3& maximum) const {
+    minimum = visualBoundsMin_;
+    maximum = visualBoundsMax_;
+    return visualBoundsValid_;
+}
+
 Vector3 Player::TransformVisualModelPointToWorld(const Vector3& modelLocalPoint) const {
     const Matrix4x4 world = MatrixMath::MakeAffine(
         modelScale_, visualFinalRotation_, worldPosition_);
@@ -180,25 +186,73 @@ void Player::ResetPosition() {
     localOffsetY_ = 0.0f;
 }
 
+void Player::SetGameplayMovementViewport(float distance, float height, float fovY, float aspect,
+    float yawMarginRadians, float pitchMarginRadians) {
+    // A sphere around the actual mesh contains every attitude and full barrel roll.
+    // Frustum plane support is independent of the current render camera/roll phase.
+    const float scale = (std::max)({ std::fabs(modelScale_.x), std::fabs(modelScale_.y), std::fabs(modelScale_.z) });
+    const float radius = visualModelRadius_ * scale;
+    // Reserve 4% for simultaneous yaw/pitch composition and rasterization.
+    const float tanY = std::tan((std::max)(0.01f, fovY * 0.5f - pitchMarginRadians)) * 0.96f;
+    const float halfX = std::atan(std::tan(fovY * 0.5f) * aspect);
+    const float tanX = std::tan((std::max)(0.01f, halfX - yawMarginRadians)) * 0.96f;
+    const float roomX = (std::max)(0.0f, distance * tanX - radius * std::sqrt(1.0f + tanX * tanX));
+    const float roomY = (std::max)(0.0f, distance * tanY - radius * std::sqrt(1.0f + tanY * tanY));
+    gameplayMovementMin_ = { -roomX, height - roomY };
+    gameplayMovementMax_ = { roomX, height + roomY };
+    gameplayMovementViewportValid_ = true;
+}
+
+Vector2 Player::GetPresentationOffset() const {
+    if (!normalFlightPresentation_ || !gameplayMovementViewportValid_) return { localOffsetX_, localOffsetY_ };
+    const auto map = [](float input, float limit, float minimum, float maximum) {
+        float neutral = std::clamp(0.0f, minimum, maximum);
+        if (neutral == minimum && maximum > minimum) neutral += (maximum - minimum) * 0.20f;
+        if (neutral == maximum && maximum > minimum) neutral -= (maximum - minimum) * 0.20f;
+        const float value = std::clamp(input / (std::max)(limit, 0.001f), -1.0f, 1.0f);
+        return value < 0.0f ? neutral + value * (neutral - minimum) : neutral + value * (maximum - neutral);
+    };
+    return { map(localOffsetX_, moveLimitX_, gameplayMovementMin_.x, gameplayMovementMax_.x),
+        map(localOffsetY_, moveLimitY_, gameplayMovementMin_.y, gameplayMovementMax_.y) };
+}
+
+Vector3 Player::GetAimControlWorldPosition() const {
+    if (!normalFlightPresentation_ || !gameplayMovementViewportValid_) return worldPosition_;
+    const Vector3 up = Normalize(externalBaseUp_, { 0, 1, 0 });
+    const Vector3 right = Normalize({ up.y * baseForward_.z - up.z * baseForward_.y,
+        up.z * baseForward_.x - up.x * baseForward_.z,
+        up.x * baseForward_.y - up.y * baseForward_.x }, { 1, 0, 0 });
+    // Retain the former 85% positional follow's 15% aim displacement and all
+    // original input/lead limits, independently of the visible movement envelope.
+    return Add(Add(basePosition_, Scale(right, localOffsetX_ * 0.15f)), Scale(up, localOffsetY_ * 0.15f));
+}
+
 void Player::UpdateWorldPosition() {
     if (!camera_) return;
 
     const Vector3 cameraPosition = camera_->GetTranslate();
-    const Vector3 cameraRight = GetCameraRight(*camera_);
-    const Vector3 cameraUp = GetCameraUp(*camera_);
+    Vector3 cameraRight = GetCameraRight(*camera_);
+    Vector3 cameraUp = GetCameraUp(*camera_);
     const Vector3 cameraForward = GetCameraForward(*camera_);
 
     if (baseMode_ == BaseMode::Rail && hasExternalBase_) {
         basePosition_ = externalBasePosition_;
         baseForward_ = Normalize(externalBaseForward_, cameraForward);
+        // Gameplay movement follows the rail frame, never the cosmetic camera bank.
+        if (normalFlightPresentation_) {
+            cameraUp = Normalize(externalBaseUp_, { 0.0f, 1.0f, 0.0f });
+            cameraRight = Normalize({
+                cameraUp.y * baseForward_.z - cameraUp.z * baseForward_.y,
+                cameraUp.z * baseForward_.x - cameraUp.x * baseForward_.z,
+                cameraUp.x * baseForward_.y - cameraUp.y * baseForward_.x }, cameraRight);
+        }
     } else {
         basePosition_ = Add(cameraPosition, Scale(cameraForward, distanceFromCamera_));
         baseForward_ = cameraForward;
     }
 
-    worldPosition_ = Add(
-        Add(basePosition_, Scale(cameraRight, localOffsetX_)),
-        Scale(cameraUp, localOffsetY_));
+    const Vector2 offset = GetPresentationOffset();
+    worldPosition_ = Add(Add(basePosition_, Scale(cameraRight, offset.x)), Scale(cameraUp, offset.y));
 }
 
 void Player::UpdateCenterVisibilityAssist(float deltaTime) {
@@ -246,8 +300,6 @@ void Player::ApplyModelAlpha(float alpha) {
 }
 
 void Player::UpdateObjectTransform() {
-    if (!object_) return;
-
     visualBaseRotation_ = MakeRotationFromForward(baseForward_);
     const Vector3 existingFinalRotation = Add(
         Add(
@@ -257,7 +309,18 @@ void Player::UpdateObjectTransform() {
             currentVisualTilt_),
         GetActionVisualRotationOffset());
     visualFinalRotation_ = existingFinalRotation;
-    if (std::fabs(railFlightVisualBankRadians_) > 0.000001f) {
+    if (normalFlightPresentation_) {
+        // Compose local attitude before rail orientation; Euler addition would
+        // reverse the bank on rails pointing back along the world Z axis.
+        const Matrix4x4 modelRotation = MakeEulerRotation(
+            Add(GetModelForwardAxisOffset(modelForwardAxis_), modelRotationOffset_));
+        // Roll about the local nose before applying movement attitude. Adding
+        // the roll to Euler Z after yaw/pitch makes the nose orbit during a roll.
+        const Matrix4x4 attitude = MatrixMath::Multipty(
+            MakeEulerRotation(GetActionVisualRotationOffset()), MakeEulerRotation(currentVisualTilt_));
+        visualFinalRotation_ = ExtractEulerXYZ(MatrixMath::Multipty(
+            MatrixMath::Multipty(modelRotation, attitude), MakeEulerRotation(visualBaseRotation_)));
+    } else if (std::fabs(railFlightVisualBankRadians_) > 0.000001f) {
         const Matrix4x4 existingRotation = MakeEulerRotation(existingFinalRotation);
         const Matrix4x4 railBankRotation =
             MakeAxisAngleRotation(baseForward_, railFlightVisualBankRadians_);
@@ -265,6 +328,7 @@ void Player::UpdateObjectTransform() {
             MatrixMath::Multipty(existingRotation, railBankRotation));
     }
 
+    if (!object_) return;
     object_->SetTranslate(worldPosition_);
     object_->SetRotate(visualFinalRotation_);
     object_->SetScale(modelScale_);
@@ -277,12 +341,26 @@ void Player::UpdateObjectTransform() {
 
 void Player::UpdateVisualTilt(float deltaTime) {
     Vector3 targetTilt{};
-    if (enableVisualTilt_ && lastInputApplied_) {
+    if (normalFlightPresentation_) {
+        if (enableVisualTilt_ && !normalFlightSuppressed_) {
+            const Vector2 input = GetMoveInput();
+            const float length = (std::max)(1.0f, std::sqrt(input.x * input.x + input.y * input.y));
+            const float x = input.x / length;
+            const float y = input.y / length;
+            targetTilt = { -y * 10.0f * kPi / 180.0f, x * 12.0f * kPi / 180.0f,
+                -x * 20.0f * kPi / 180.0f };
+            // Rail bank yields to directional input instead of stacking two banks.
+            targetTilt.z += railFlightVisualBankRadians_ * (1.0f - std::fabs(x));
+            targetTilt.z = std::clamp(targetTilt.z, -20.0f * kPi / 180.0f, 20.0f * kPi / 180.0f);
+        }
+    } else if (enableVisualTilt_ && lastInputApplied_) {
         targetTilt.x = -lastRawMoveInput_.y * visualPitchTiltAmount_;
         targetTilt.z = -lastRawMoveInput_.x * visualRollTiltAmount_;
     }
 
-    const float t = std::clamp(deltaTime * visualTiltSmoothSpeed_, 0.0f, 1.0f);
+    const float t = normalFlightPresentation_
+        ? 1.0f - std::exp(-(std::max)(0.0f, deltaTime) * visualTiltSmoothSpeed_)
+        : std::clamp(deltaTime * visualTiltSmoothSpeed_, 0.0f, 1.0f);
     currentVisualTilt_ = {
         Lerp(currentVisualTilt_.x, targetTilt.x, t),
         Lerp(currentVisualTilt_.y, targetTilt.y, t),

@@ -1,5 +1,6 @@
 #include "GameScene.h"
 #include "MyGame.h"
+#include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Core/SrvManager.h"
@@ -11,6 +12,7 @@
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/DebugGui/GameSceneDebugGui.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GameplaySpeedLineController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/GpuParticleEffectPlayer.h"
@@ -29,8 +31,6 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
-#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
-#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerRailController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
@@ -225,10 +225,6 @@ void GameScene::InitializeSceneResources() {
     playerBulletManager_ = std::make_unique<PlayerBulletManager>();
     playerBulletManager_->Initialize(object3dCommon, camera_.get(), player_.get());
     playerBulletManager_->SetGameViewport(gameViewport_.get());
-    playerChargeFeedbackController_ = std::make_unique<PlayerChargeFeedbackController>();
-    playerChargeFeedbackController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get(), player_.get(), playerBulletManager_.get());
-    playerChargeGatherEffectController_ = std::make_unique<PlayerChargeGatherEffectController>();
-    playerChargeGatherEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get(), player_.get(), playerBulletManager_.get());
     gpuParticleEffectPlayer_ = std::make_unique<GpuParticleEffectPlayer>();
     gpuParticleEffectPlayer_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
     combatEffectController_ = std::make_unique<CombatEffectController>();
@@ -262,6 +258,9 @@ void GameScene::InitializeSceneResources() {
     player_->SetBarrelRollSlowMotionController(combatSlowMotionController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
+    playerBulletManager_->SetCameraShakeController(cameraShakeController_.get());
+    combatEffectController_->SetCameraShakeController(cameraShakeController_.get());
+    enemyDefeatEffectController_->SetCameraShakeController(cameraShakeController_.get());
     postEffectController_ = std::make_unique<PostEffectController>();
     postEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), spriteCommon);
     warningUIController_ = std::make_unique<WarningUIController>();
@@ -277,6 +276,7 @@ void GameScene::InitializeSceneResources() {
     enemyAttackController_->Initialize(enemyManager_.get(), enemyBulletManager_.get(), player_.get(), playerDeathSequenceController_.get(), camera_.get());
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
+    playerBulletEnemyCollision_->SetCameraShakeController(cameraShakeController_.get());
     playerBulletEnemyCollision_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
     playerBulletEnemyCollision_->SetImpactDistortionController(impactDistortionController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
@@ -294,6 +294,10 @@ void GameScene::InitializeSceneResources() {
     railShooterCameraRig_ = std::make_unique<RailShooterCameraRig>();
     railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
     railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
+    gameplaySpeedLineController_ = std::make_unique<GameplaySpeedLineController>();
+    gameplaySpeedLineController_->Initialize(MyGame::GetInstance()->GetDxCommon(),
+        SrvManager::GetInstance(), camera_.get(), railShooterCameraRig_.get(), boostController_.get());
+    MyGame::GetInstance()->GetVolumetricCloudPass()->SetFlowReferenceRig(railShooterCameraRig_.get());
     railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();

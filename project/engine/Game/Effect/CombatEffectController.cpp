@@ -1,4 +1,5 @@
 #include "CombatEffectController.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 
 #include "GpuParticleEffectPlayer.h"
 #include "Engine/Game/Player/Player.h"
@@ -52,6 +53,7 @@ void CombatEffectController::Initialize(
 }
 
 void CombatEffectController::Finalize() {
+    cameraShakeController_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     gpuParticleEffectPlayer_ = nullptr;
     player_ = nullptr;
@@ -283,6 +285,9 @@ void CombatEffectController::PlayExplosion(const Vector3& position, const char* 
         result += gpuParticleEffectPlayer_ ? "GPU Explosion requested " : "GPU player missing ";
     }
 
+    if (playedSomething && cameraShakeController_) {
+        cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Explosion);
+    }
     RecordEffect(effectType, position, playedSomething ? result.c_str() : "No explosion effect enabled");
 }
 

@@ -78,6 +78,8 @@ struct ParticleType {
 	float influenceResponseScale = 1.0f;
 	bool affectedByRailFlow = false;
 	float railFlowScale = 1.0f;
+	float streakLength = 0.0f;
+	float streakWidth = 0.01f;
 	bool affectedByChargeGather = false;
 	float chargeGatherStrength = 0.0f;
 	float chargeGatherKillRadius = 0.15f;
@@ -130,7 +132,8 @@ struct ParticleTypeForGPU {
 	uint32_t emissionByChargeRate;
 	uint32_t chargeGatherTargetMode;
 	Vector3 chargeGatherTargetOffset;
-	float padding2[2];
+	float streakLength;
+	float streakWidth;
 };
 static_assert(sizeof(ParticleTypeForGPU) == 208, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
@@ -155,6 +158,7 @@ static_assert(offsetof(ParticleTypeForGPU, affectedByChargeGather) == 152, "affe
 static_assert(offsetof(ParticleTypeForGPU, chargeGatherStrength) == 156, "chargeGatherStrength offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, chargeGatherTargetMode) == 184, "chargeGatherTargetMode offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, chargeGatherTargetOffset) == 188, "chargeGatherTargetOffset offset must match HLSL ParticleType.");
+static_assert(offsetof(ParticleTypeForGPU, streakLength) == 200, "streakLength offset must match HLSL ParticleType.");
 
 enum class EmitterShape : uint32_t {
 	Sphere = 0,
@@ -247,6 +251,7 @@ struct RecycleInfo {
 struct PerView {
 	Matrix4x4 viewProjection;
 	Matrix4x4 billboardMatrix;
+	Vector4 cameraPosition;
 };
 
 struct ParticleDebugInfo {

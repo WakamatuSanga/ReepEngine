@@ -74,7 +74,13 @@ public:
 
     void Initialize(Camera* camera, LevelRailRuntime* railRuntime);
     void SetLevelSceneRuntime(const LevelSceneRuntime* levelSceneRuntime);
-    void SetRuntimeContext(Player* player, BoostController* boostController, bool gameModeActive);
+    void SetRuntimeContext(Player* player, BoostController* boostController, bool gameModeActive,
+        bool presentationOverrideActive = false, bool suppressPlayerAttitude = false);
+    bool UsesGameplayComposition() const;
+    const Vector3& GetBaseForward() const { return currentForward_; }
+    const Matrix4x4& GetGameplayReferenceFrame() const { return gameplayReferenceFrame_; }
+    bool IsGameplayPresentationActive() const;
+    void UpdatePlayerFollow(float deltaTime);
     void Finalize();
     void Update(float deltaTime);
     void DrawImGui();
@@ -119,7 +125,7 @@ private:
     void UpdateRailBlend(float deltaTime);
     void UpdateRailFinishedStraight(float deltaTime);
     void ApplyInitialCameraFromLevel();
-    void ApplyToCamera();
+    void ApplyToCamera(float followDeltaTime = 0.0f);
     void CaptureCameraPose();
     void CaptureDebugHomeCamera();
     void RestoreDebugHomeCamera();
@@ -140,6 +146,7 @@ private:
     bool ApplyRuntimeV2Pose(
         const LevelRailEvaluation& legacyEvaluation, float deltaTime, bool loopEnabled);
     bool BuildRuntimeV2VisualPose();
+    bool BuildGameplayVisualPose(float followDeltaTime);
     void ResetRuntimeV2PoseState(bool clearRuntime);
     void ForceResyncRuntimeV2Pose();
     void InvalidateProjectileRailContinuity();
@@ -180,6 +187,21 @@ private:
     Vector3 lastBlendTargetRailPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 visualCameraPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 visualCameraForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 gameplayCameraRotation_{};
+    Matrix4x4 gameplayReferenceFrame_{};
+    Vector2 playerFollowOffset_{};
+    Vector2 playerLookInput_{};
+    bool playerFollowInitialized_ = false;
+    bool gameplayBaseInitialized_ = false;
+    bool presentationOverrideActive_ = false;
+    bool presentationReturnActive_ = false;
+    float gameplayCameraDistance_ = 1.68f;
+    float gameplayCameraHeight_ = 0.18f;
+    float gameplayCameraPitchDegrees_ = 0.0f;
+    float playerFollowTime_ = 0.12f;
+    float playerLookTime_ = 0.18f;
+    float gameplayCameraYawDegrees_ = 2.0f;
+    float gameplayCameraPitchLimitDegrees_ = 1.0f;
     size_t currentSegmentIndex_ = 0;
     size_t selectedRailPointCount_ = 0;
     size_t selectedRailSampledPointCount_ = 0;

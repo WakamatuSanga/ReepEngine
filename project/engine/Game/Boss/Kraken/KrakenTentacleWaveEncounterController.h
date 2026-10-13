@@ -44,6 +44,15 @@ public:
     void DrawImGui();
 
     bool IsControllingKraken() const;
+    bool IsCameraFramingActive() const { return fovOverrideActive_; }
+    bool IsDedicatedCameraPresentationActive() const {
+        return state_ == KrakenTentacleWaveEncounterState::Starting
+            || state_ == KrakenTentacleWaveEncounterState::Defeating
+            || (IsCameraFramingActive() && state_ != KrakenTentacleWaveEncounterState::Active);
+    }
+    bool ShouldSuppressPlayerAttitude() const {
+        return IsCameraFramingActive() && state_ != KrakenTentacleWaveEncounterState::Active;
+    }
     KrakenTentacleWaveEncounterState GetState() const { return state_; }
 
 private:

@@ -2,8 +2,10 @@
 
 #include "CloudVolume.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 
 #include <algorithm>
+#include <cmath>
 
 void VolumetricCloudPass::ConfigureStillTitleBackground() {
     // Only called on the title's own pass. Keep gameplay presets untouched.
@@ -14,6 +16,8 @@ void VolumetricCloudPass::ConfigureStillTitleBackground() {
     useBoostFlowMultiplier_ = false;
     externalBoostExtraFlowSpeed_ = 0.0f;
     cloudFlowPhase_ = previousCloudFlowPhase_ = 0.0f;
+    accumulatedFlowOffset_ = {};
+    accumulatedLayerFlowOffsets_ = {};
     farCloudFlowSpeed_ = 0.0f;
     cloudSeaFlowSpeed_ = 0.0f;
     // Static world noise, rather than noise coordinates locked to the turning camera.
@@ -79,7 +83,7 @@ VolumetricCloudPass::ResolvedCloudVolume VolumetricCloudPass::ResolveCloudVolume
         return resolved;
     }
 
-    const Vector3 cameraPosition = camera->GetTranslate();
+    const Vector3 cameraPosition = camera->GetViewTranslate();
     const Vector3 cameraForward = GetCameraForward(camera);
     const float behindDistance = (std::max)(0.0f, cloudBehindCameraDistance_);
     const float nearDistance = (std::min)(cloudNearDistance_, -behindDistance);
@@ -115,7 +119,10 @@ VolumetricCloudPass::ResolvedCloudVolume VolumetricCloudPass::ResolveCloudVolume
 
 Vector3 VolumetricCloudPass::ResolveCloudFlowDirection(const Camera* camera) const
 {
-    const Vector3 cameraForward = GetCameraForward(camera);
+    // Flow follows progression, not the cosmetic follow/look/bank camera.
+    // The render camera remains authoritative for volume placement and depth.
+    const Vector3 cameraForward = flowReferenceRig_ && flowReferenceRig_->UsesGameplayComposition()
+        ? flowReferenceRig_->GetBaseForward() : GetCameraForward(camera);
     Vector3 direction = fixedCloudFlowDirection_;
 
     switch (cloudFlowDirectionMode_) {
@@ -204,4 +211,72 @@ std::array<Vector3, 8> VolumetricCloudPass::GetCorners(const ResolvedCloudVolume
         Vector3{ min.x, max.y, max.z },
         Vector3{ max.x, max.y, max.z }
     };
+}
+
+void VolumetricCloudPass::UpdateCloudFlow(const Camera* camera, const CloudVolume* cloudVolume)
+{
+    Vector3 flowDirection = ResolveCloudFlowDirection(camera);
+    currentCloudFlowDirection_ = flowDirection;
+
+    const float boostExtraSpeed = useBoostFlowMultiplier_ ? std::clamp(externalBoostExtraFlowSpeed_, 0.0f, 30.0f) : 0.0f;
+    const float previousSpeed = currentCloudFlowSpeed_;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ + boostExtraSpeed : 0.0f;
+
+    const float elapsedTime = cloudVolume->GetElapsedTime();
+    float deltaTime = 0.0f;
+    if (std::isfinite(elapsedTime)) {
+        if (hasPreviousCloudElapsedTime_) {
+            deltaTime = elapsedTime - previousCloudElapsedTime_;
+            if (deltaTime < 0.0f) {
+                accumulatedFlowOffset_ = {};
+                accumulatedLayerFlowOffsets_ = {};
+                cloudFlowPhase_ = 0.0f;
+                previousCloudFlowPhase_ = 0.0f;
+                cloudFlowPhaseIncreasing_ = true;
+                cloudFlowPhaseDecreasedWarning_ = false;
+                deltaTime = 0.0f;
+            }
+        }
+        previousCloudElapsedTime_ = elapsedTime;
+        hasPreviousCloudElapsedTime_ = true;
+    }
+    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 30.0f);
+    // Rebase the scalar speed segment, retaining the integrated noise position.
+    // Neither a speed edit nor a turn may rotate/re-scale past travel.
+    if (currentCloudFlowSpeed_ != previousSpeed) cloudFlowPhase_ = 0.0f;
+    previousCloudFlowPhase_ = cloudFlowPhase_;
+    cloudFlowPhase_ += currentCloudFlowSpeed_ * safeDeltaTime;
+    if (!std::isfinite(cloudFlowPhase_)) {
+        cloudFlowPhase_ = previousCloudFlowPhase_;
+    }
+    cloudFlowPhaseIncreasing_ = cloudFlowPhase_ + 0.0001f >= previousCloudFlowPhase_;
+    if (!cloudFlowPhaseIncreasing_) {
+        cloudFlowPhaseDecreasedWarning_ = true;
+    }
+
+    const float travel = currentCloudFlowSpeed_ * safeDeltaTime;
+    accumulatedFlowOffset_.x += flowDirection.x * travel;
+    accumulatedFlowOffset_.y += flowDirection.y * travel;
+    accumulatedFlowOffset_.z += flowDirection.z * travel;
+    const float horizontalLength = std::hypot(flowDirection.x, flowDirection.z);
+    const Vector2 horizontal = horizontalLength > 0.0001f
+        ? Vector2{ flowDirection.x / horizontalLength, flowDirection.z / horizontalLength }
+        : Vector2{ 0.0f, -1.0f };
+    accumulatedLayerFlowOffsets_.x += horizontal.x * farCloudFlowSpeed_ * safeDeltaTime;
+    accumulatedLayerFlowOffsets_.y += horizontal.y * farCloudFlowSpeed_ * safeDeltaTime;
+    accumulatedLayerFlowOffsets_.z += horizontal.x * cloudSeaFlowSpeed_ * safeDeltaTime;
+    accumulatedLayerFlowOffsets_.w += horizontal.y * cloudSeaFlowSpeed_ * safeDeltaTime;
+    constantData_->accumulatedFlowOffset = {
+        accumulatedFlowOffset_.x, accumulatedFlowOffset_.y, accumulatedFlowOffset_.z, 0.0f };
+    constantData_->accumulatedLayerFlowOffsets = accumulatedLayerFlowOffsets_;
+    constantData_->cloudFlowDirectionSpeed = {
+        flowDirection.x,
+        flowDirection.y,
+        flowDirection.z,
+        currentCloudFlowSpeed_
+    };
+    constantData_->cloudTime = cloudFlowPhase_;
+    constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
+    constantData_->cloudRawTime = std::isfinite(elapsedTime) ? elapsedTime : 0.0f;
+    constantData_->padding4 = 0.0f;
 }

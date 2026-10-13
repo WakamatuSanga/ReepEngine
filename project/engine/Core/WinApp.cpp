@@ -31,6 +31,13 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
     }
     if (msg == WM_NCDESTROY) SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
 
+    // Window shortcut shared by every scene; ignore key-repeat and inactive input.
+    if (app && msg == WM_KEYDOWN && wparam == VK_F11 &&
+        GetForegroundWindow() == hwnd && (lparam & (1LL << 30)) == 0) {
+        app->ToggleFullscreen();
+        return 0;
+    }
+
 #ifdef USE_IMGUI
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam)) {
         return true;

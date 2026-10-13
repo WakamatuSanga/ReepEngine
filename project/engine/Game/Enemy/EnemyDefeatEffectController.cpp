@@ -1,4 +1,5 @@
 #include "EnemyDefeatEffectController.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Game/Player/PlayerJetExhaustBeamRenderer.h"
@@ -153,6 +154,7 @@ bool EnemyDefeatEffectController::Initialize(DirectXCommon* dxCommon, Camera* ca
 }
 
 void EnemyDefeatEffectController::Finalize() {
+    cameraShakeController_ = nullptr;
     initialized_ = false;
     effects_.clear();
     renderer_.reset();
@@ -236,6 +238,10 @@ EnemyDefeatEffectController::TrySpawnDefeatEffect(
     ++spawnedThisFrame_;
     activeEffectCount_ = CountActiveEffects();
     lastEffectPosition_ = position;
+    if (cameraShakeController_) {
+        cameraShakeController_->RequestGameplayShake(scale >= 2.0f
+            ? CameraShakeController::GameplayEvent::Explosion : CameraShakeController::GameplayEvent::EnemyDefeat);
+    }
     return EnemyDefeatEffectSpawnResult::Spawned;
 }
 

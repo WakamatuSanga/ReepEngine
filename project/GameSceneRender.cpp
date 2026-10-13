@@ -4,6 +4,7 @@
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GameplaySpeedLineController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -17,8 +18,6 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
-#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
-#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
@@ -126,9 +125,6 @@ void GameScene::DrawSceneRender() {
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->Draw();
     }
-    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
-        playerChargeFeedbackController_->Draw();
-    }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->Draw();
     }
@@ -150,6 +146,9 @@ void GameScene::DrawSceneRender() {
         }
     }
 
+    if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        gameplaySpeedLineController_->Draw();
+    }
     if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
     }
@@ -161,12 +160,6 @@ void GameScene::DrawSceneRender() {
     }
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
-    }
-    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
-        playerChargeFeedbackController_->DrawAfterCloud();
-    }
-    if (playerChargeGatherEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
-        playerChargeGatherEffectController_->Draw();
     }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();

@@ -73,11 +73,12 @@ void GpuParticleRenderer::UpdateView(const Camera* camera, const Matrix4x4* part
 		return;
 	}
 
-	Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
+	Matrix4x4 billboardMatrix = camera->GetViewWorldMatrix();
 	if (particleToWorld) {
 		// Rigid local particle frame. Billboard offsets must use that same frame.
 		billboardMatrix = MatrixMath::Multipty(billboardMatrix, MatrixMath::Inverse(*particleToWorld));
 	}
+	perViewData_->cameraPosition = { billboardMatrix.m[3][0], billboardMatrix.m[3][1], billboardMatrix.m[3][2], 1.0f };
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;

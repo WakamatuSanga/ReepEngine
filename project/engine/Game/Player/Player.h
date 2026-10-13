@@ -36,6 +36,7 @@ public:
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
     void Update(float deltaTime);
+    void RefreshCameraPresentation(float deltaTime);
     void Draw();
     void DrawImGui(PlayerDamageFeedbackController* damageFeedbackController = nullptr);
 
@@ -63,6 +64,16 @@ public:
     Vector3 GetVisualDisplayForward() const;
     Vector3 GetActionVisualRotationOffset() const;
     void SetRailFlightVisualBankRadians(float radians);
+    void SetNormalFlightPresentation(bool enabled, bool suppressed) {
+        normalFlightPresentation_ = enabled;
+        normalFlightSuppressed_ = suppressed;
+    }
+    void SetGameplayMovementViewport(float distance, float height, float fovY, float aspect,
+        float yawMarginRadians, float pitchMarginRadians);
+    Vector2 GetPresentationOffset() const;
+    Vector3 GetAimControlWorldPosition() const;
+    float GetDistanceFromCamera() const { return distanceFromCamera_; }
+    bool GetVisualModelBounds(Vector3& minimum, Vector3& maximum) const;
     float GetRailFlightVisualBankRadians() const { return railFlightVisualBankRadians_; }
     bool IsEnabled() const { return enablePlayer_; }
     float GetEventTriggerRadius() const { return eventTriggerRadius_; }
@@ -111,6 +122,12 @@ private:
     Vector3 visualBaseRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 visualFinalRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 currentVisualTilt_{ 0.0f, 0.0f, 0.0f };
+    Vector3 visualBoundsMin_{};
+    Vector3 visualBoundsMax_{};
+    bool visualBoundsValid_ = false;
+    float visualModelRadius_ = 0.0f;
+    bool normalFlightPresentation_ = false;
+    bool normalFlightSuppressed_ = false;
     float railFlightVisualBankRadians_ = 0.0f;
     ModelForwardAxis modelForwardAxis_ = ModelForwardAxis::PositiveZ;
     float localOffsetX_ = 0.0f;
@@ -118,6 +135,9 @@ private:
     float moveLimitX_ = 2.5f;
     float moveLimitY_ = 1.4f;
     float moveSpeed_ = 3.0f;
+    Vector2 gameplayMovementMin_{};
+    Vector2 gameplayMovementMax_{};
+    bool gameplayMovementViewportValid_ = false;
     float distanceFromCamera_ = 3.0f;
     float eventTriggerRadius_ = 0.25f;
     float hitRadius_ = 0.30f;

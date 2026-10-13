@@ -11,6 +11,7 @@ class Camera;
 class CloudVolume;
 class DirectXCommon;
 class SrvManager;
+class RailShooterCameraRig;
 
 class VolumetricCloudPass {
 public:
@@ -73,6 +74,7 @@ public:
     void SetForceMode(ForceMode mode) { forceMode_ = mode; }
     ForceMode GetForceMode() const { return forceMode_; }
     void SetExternalFlowMultiplier(float multiplier);
+    void SetFlowReferenceRig(const RailShooterCameraRig* rig) { flowReferenceRig_ = rig; }
     void SetExternalBoostExtraFlowSpeed(float extraSpeed);
     void SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count);
     void SetCloudInfluenceEnabled(bool enabled);
@@ -149,6 +151,8 @@ private:
         Vector4 influenceSettings;
         Vector4 cameraTunnelStartLength;
         Vector4 cameraTunnelDirectionRadius;
+        Vector4 accumulatedFlowOffset;
+        Vector4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
     };
 
     struct CloudCompositeConstants {
@@ -188,6 +192,7 @@ private:
     void CreateCloudBuffer(uint32_t width, uint32_t height);
     ResolvedCloudVolume ResolveCloudVolume(const Camera* camera, const CloudVolume* cloudVolume) const;
     Vector3 ResolveCloudFlowDirection(const Camera* camera) const;
+    void UpdateCloudFlow(const Camera* camera, const CloudVolume* cloudVolume);
 
     static Vector3 Normalize(const Vector3& value);
     static Vector4 TransformPoint(const Vector3& value, const Matrix4x4& matrix);
@@ -267,6 +272,9 @@ private:
     float externalBoostExtraFlowSpeed_ = 0.0f;
     float currentCloudFlowSpeed_ = 0.35f;
     float cloudFlowPhase_ = 0.0f;
+    const RailShooterCameraRig* flowReferenceRig_ = nullptr;
+    Vector3 accumulatedFlowOffset_{};
+    Vector4 accumulatedLayerFlowOffsets_{};
     float previousCloudElapsedTime_ = 0.0f;
     float previousCloudFlowPhase_ = 0.0f;
     bool hasPreviousCloudElapsedTime_ = false;

@@ -213,8 +213,8 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.emissionByChargeRate = source.emissionByChargeRate ? 1u : 0u;
 		destination.chargeGatherTargetMode = source.chargeGatherTargetMode;
 		destination.chargeGatherTargetOffset = source.chargeGatherTargetOffset;
-		destination.padding2[0] = 0.0f;
-		destination.padding2[1] = 0.0f;
+		destination.streakLength = std::clamp(source.streakLength, 0.0f, 10.0f);
+		destination.streakWidth = std::clamp(source.streakWidth, 0.001f, 1.0f);
 	}
 }
 

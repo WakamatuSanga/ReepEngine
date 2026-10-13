@@ -447,7 +447,7 @@ void VolumetricCloudPass::DrawImGui()
     ImGui::Text("Base Cloud Flow Speed: %.2f", cloudBaseFlowSpeed_);
     ImGui::Text("Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
     ImGui::Text("現在の流速 (Cloud Flow Current Speed): %.2f", currentCloudFlowSpeed_);
-    ImGui::Text("Cloud Flow Phase / Accumulated Distance: %.3f", cloudFlowPhase_);
+    ImGui::Text("Cloud Flow Phase / Current Speed Segment: %.3f", cloudFlowPhase_);
     ImGui::Text("Cloud Flow Phase Increasing: %s", cloudFlowPhaseIncreasing_ ? "true" : "false");
     if (cloudFlowPhaseDecreasedWarning_) {
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.15f, 1.0f), "Warning: Cloud flow phase decreased. This may cause rewind.");

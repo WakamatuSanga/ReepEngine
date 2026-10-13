@@ -52,7 +52,8 @@ struct ParticleType
     uint emissionByChargeRate;
     uint chargeGatherTargetMode;
     float3 chargeGatherTargetOffset;
-    float2 padding2;
+    float streakLength;
+    float streakWidth;
 };
 
 struct InitializeInfo
