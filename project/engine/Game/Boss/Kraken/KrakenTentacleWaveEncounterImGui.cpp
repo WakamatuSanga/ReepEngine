@@ -1,3 +1,4 @@
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "KrakenTentacleWaveEncounterController.h"
 
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
@@ -58,10 +59,10 @@ const char* KrakenStateText(KrakenTentacleMidbossState state) {
 
 void KrakenTentacleWaveEncounterController::DrawImGui() {
 #ifdef USE_IMGUI
-    if (!ImGui::Begin(
+    if (!DebugUiWorkspace::BeginPanel(
             "クラーケン中ボス ウェーブ4連携"
             "###KrakenTentacleWave4Encounter")) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -443,6 +444,6 @@ void KrakenTentacleWaveEncounterController::DrawImGui() {
         ImGui::TextWrapped("最後の警告: %s", lastWarning_.c_str());
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

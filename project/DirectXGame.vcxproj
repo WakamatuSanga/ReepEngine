@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -20,6 +20,7 @@
     <ProjectGuid>{9648aa1c-0973-4002-93a8-71bdafbae28a}</ProjectGuid>
     <RootNamespace>DirectXGame</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -156,6 +157,7 @@
     <ClCompile Include="engine\Game\DebugGui\GameSceneDebugGuiSceneTools.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerBulletEnemyCollision.cpp" />
     <ClCompile Include="engine\Game\Collision\PlayerEnemyBulletCollision.cpp" />
+    <ClCompile Include="engine\Game\Effect\GameplaySpeedLineController.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatSlowMotionController.cpp" />
     <ClCompile Include="engine\Game\Effect\ImpactDistortionController.cpp" />
@@ -172,8 +174,12 @@
     <ClCompile Include="engine\Game\Enemy\EnemyManager.cpp" />
     <ClCompile Include="engine\Game\Field\InfluenceFieldManager.cpp" />
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
+    <ClCompile Include="engine\Game\GameState\StageStartSequenceController.cpp" />
+    <ClCompile Include="engine\Game\GameState\StageCombatState.cpp" />
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\BoostController.cpp" />
+    <ClCompile Include="engine\Game\Player\FlightTuning.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerAfterimageController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerTransform.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp" />
@@ -185,8 +191,6 @@
     <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerDamageFeedbackController.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerChargeFeedbackController.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerChargeGatherEffectController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerActionController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManager.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerAimCorridor.cpp" />
@@ -199,8 +203,6 @@
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustController.cpp" />
     <ClCompile Include="engine\Game\Player\LockedWingMissileExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerProjectile.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerBulletManagerFanCharge.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerFanChargeAttack.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerCollision.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletManagerRuntimeIdKill.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerRailController.cpp" />
@@ -271,6 +273,7 @@
     <ClCompile Include="engine\Graphics\Effect\RotatingPlaneHitEffect.cpp" />
     <ClCompile Include="engine\Core\D3DResourceLeakChecker.cpp" />
     <ClCompile Include="engine\Core\DirectXCommon.cpp" />
+    <ClCompile Include="engine\Core\GpuTimestampProfiler.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
@@ -388,6 +391,7 @@
     <ClCompile Include="engine\Graphics\Model\GltfSkeletonLoader.cpp" />
     <ClCompile Include="engine\Graphics\Model\GltfNodeTransformParser.cpp" />
     <ClCompile Include="engine\Core\ImGuiManager.cpp" />
+    <ClCompile Include="engine\Core\DebugUiWorkspace.cpp" />
     <ClCompile Include="engine\Input\Input.cpp" />
     <ClCompile Include="engine\Utility\Logger.cpp" />
     <ClCompile Include="engine\Graphics\Model\Model.cpp" />
@@ -438,8 +442,12 @@
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="TitleMissilePresentation.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudSettings.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\CloudResolutionComparison.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassQuality.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassDiagnostics.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp" />
     <ClCompile Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.cpp" />
     <ClCompile Include="engine\Core\WinApp.cpp" />
@@ -460,6 +468,7 @@
     <ClInclude Include="engine\Game\DebugGui\GameSceneDebugGui.h" />
     <ClInclude Include="engine\Game\Collision\PlayerBulletEnemyCollision.h" />
     <ClInclude Include="engine\Game\Collision\PlayerEnemyBulletCollision.h" />
+    <ClInclude Include="engine\Game\Effect\GameplaySpeedLineController.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h" />
     <ClInclude Include="engine\Game\Effect\CombatSlowMotionController.h" />
     <ClInclude Include="engine\Game\Effect\ImpactDistortionController.h" />
@@ -475,8 +484,12 @@
     <ClInclude Include="engine\Game\Field\InfluenceField.h" />
     <ClInclude Include="engine\Game\Field\InfluenceFieldManager.h" />
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
+    <ClInclude Include="engine\Game\GameState\StageStartSequenceController.h" />
+    <ClInclude Include="engine\Game\GameState\StageCombatState.h" />
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
     <ClInclude Include="engine\Game\Player\BoostController.h" />
+    <ClInclude Include="engine\Game\Player\FlightTuning.h" />
+    <ClInclude Include="engine\Game\Player\PlayerAfterimageController.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h" />
@@ -485,11 +498,8 @@
     <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletCancelEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerDamageFeedbackController.h" />
-    <ClInclude Include="engine\Game\Player\PlayerChargeFeedbackController.h" />
-    <ClInclude Include="engine\Game\Player\PlayerChargeGatherEffectController.h" />
     <ClInclude Include="engine\Game\Player\PlayerActionController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManager.h" />
-    <ClInclude Include="engine\Game\Player\PlayerFanChargeAttack.h" />
     <ClInclude Include="engine\Game\Player\PlayerBulletManagerLockedWingHomingMath.h" />
     <ClInclude Include="engine\Game\Player\LockedWingMissileExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerRailController.h" />
@@ -540,6 +550,7 @@
     <ClInclude Include="engine\Graphics\Effect\RotatingPlaneHitEffect.h" />
     <ClInclude Include="engine\Core\D3DResourceLeakChecker.h" />
     <ClInclude Include="engine\Core\DirectXCommon.h" />
+    <ClInclude Include="engine\Core\GpuTimestampProfiler.h" />
     <ClInclude Include="externals\imgui\imconfig.h" />
     <ClInclude Include="externals\imgui\ImGuizmo.h" />
     <ClInclude Include="externals\imgui\imgui.h" />
@@ -571,6 +582,7 @@
     <ClInclude Include="engine\Graphics\Model\GltfNodeTransformParser.h" />
     <ClInclude Include="engine\Graphics\Model\GltfSkeletonLoader.h" />
     <ClInclude Include="engine\Core\ImGuiManager.h" />
+    <ClInclude Include="engine\Core\DebugUiWorkspace.h" />
     <ClInclude Include="engine\Input\Input.h" />
     <ClInclude Include="engine\Scene\IScene.h" />
     <ClInclude Include="engine\Utility\Logger.h" />
@@ -631,6 +643,9 @@
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="TitleMissilePresentation.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h" />
+    <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudSettings.h" />
+    <ClInclude Include="engine\Graphics\Cloud\CloudResolutionComparison.h" />
+    <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.h" />
     <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h" />
     <ClInclude Include="engine\Core\WinApp.h" />
   </ItemGroup>

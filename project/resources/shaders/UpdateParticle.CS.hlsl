@@ -52,7 +52,8 @@ struct ParticleType
     uint emissionByChargeRate;
     uint chargeGatherTargetMode;
     float3 chargeGatherTargetOffset;
-    float2 padding2;
+    float streakLength;
+    float streakWidth;
 };
 
 struct UpdateInfo
@@ -296,6 +297,16 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
 
     const float3 railFlowVelocity = GetRailFlowVelocity(particleType);
     particle.translate += (particle.velocity + railFlowVelocity) * gUpdateInfo.deltaTime;
+    if (particleType.streakLength > 0.0f && particleType.affectedByRailFlow != 0u
+        && gUpdateInfo.railFlowSettings.x > 0.5f) {
+        const float3 forward = -SafeNormalize(gUpdateInfo.railFlowDirectionSpeed.xyz, float3(0, 0, -1));
+        const float depth = dot(particle.translate - gUpdateInfo.railFlowCameraPosition.xyz, forward);
+        if (depth < -gUpdateInfo.railFlowSettings.w || depth > gUpdateInfo.railFlowSettings.z) {
+            RecycleParticle(particleIndex, particle);
+            gParticles[particleIndex] = particle;
+            return;
+        }
+    }
     ResolvePlaneCollision(particleIndex, particleType, particle);
     particle.currentTime = min(particle.currentTime, particle.lifeTime);
     const float lifeRate = saturate(particle.currentTime / max(particle.lifeTime, 0.0001f));

@@ -1,7 +1,8 @@
-#include "TextureManager.h"
+﻿#include "TextureManager.h"
 #include <cassert>
 #include <cctype>
 #include <filesystem>
+#include <stdexcept>
 
 std::unique_ptr<TextureManager> TextureManager::instance_ = nullptr;
 
@@ -28,6 +29,11 @@ void TextureManager::Finalize() {
     srvManager_ = nullptr;
 }
 
+bool TextureManager::IsLoaded(const std::string& filePath) const {
+    return std::any_of(textureDatas.begin(), textureDatas.end(),
+        [&](const TextureData& data) { return data.filePath == filePath; });
+}
+
 void TextureManager::LoadTexture(const std::string& filePath) {
     assert(dxCommon_);
 
@@ -38,10 +44,9 @@ void TextureManager::LoadTexture(const std::string& filePath) {
         return;
     }
 
-    assert(srvManager_->CanAllocate());
+    if (!srvManager_->CanAllocate()) throw std::runtime_error("Texture descriptor capacity: " + filePath);
 
-    textureDatas.resize(textureDatas.size() + 1);
-    TextureData& textureData = textureDatas.back();
+    TextureData textureData{};
     textureData.filePath = filePath;
 
     std::wstring wFilePath = StringUtility::ConvertString(filePath);
@@ -56,7 +61,7 @@ void TextureManager::LoadTexture(const std::string& filePath) {
             DirectX::DDS_FLAGS_NONE,
             &textureData.metadata,
             ddsImage);
-        assert(SUCCEEDED(hr));
+        if (FAILED(hr)) throw std::runtime_error("Texture decode/mipmap failed: " + filePath);
 
         textureData.metadata = ddsImage.GetMetadata();
         textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
@@ -68,7 +73,7 @@ void TextureManager::LoadTexture(const std::string& filePath) {
             DirectX::WIC_FLAGS_FORCE_SRGB,
             &textureData.metadata,
             image);
-        assert(SUCCEEDED(hr));
+        if (FAILED(hr)) throw std::runtime_error("Texture decode/mipmap failed: " + filePath);
 
         DirectX::ScratchImage mipImages{};
         hr = DirectX::GenerateMipMaps(
@@ -78,7 +83,7 @@ void TextureManager::LoadTexture(const std::string& filePath) {
             DirectX::TEX_FILTER_SRGB,
             0,
             mipImages);
-        assert(SUCCEEDED(hr));
+        if (FAILED(hr)) throw std::runtime_error("Texture decode/mipmap failed: " + filePath);
 
         textureData.metadata = mipImages.GetMetadata();
         textureData.resource = dxCommon_->CreateTextureResource(textureData.metadata);
@@ -104,6 +109,7 @@ void TextureManager::LoadTexture(const std::string& filePath) {
             static_cast<UINT>(textureData.metadata.mipLevels)
         );
     }
+    textureDatas.push_back(std::move(textureData));
 }
 
 void TextureManager::ReleaseIntermediateResources() {

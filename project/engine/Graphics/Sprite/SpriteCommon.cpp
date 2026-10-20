@@ -13,7 +13,7 @@ void SpriteCommon::Initialize(DirectXCommon* dxCommon)
 	CreateGraphicsPipelineState();
 }
 
-void SpriteCommon::CommonDrawSetting()
+void SpriteCommon::CommonDrawSetting(bool compositeAlpha)
 {
 	assert(dxCommon_);
 	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
@@ -21,7 +21,7 @@ void SpriteCommon::CommonDrawSetting()
 	// RootSignature設定
 	commandList->SetGraphicsRootSignature(rootSignature_.Get());
 	// PSO設定
-	commandList->SetPipelineState(pipelineState_.Get());
+	commandList->SetPipelineState(compositeAlpha ? compositeAlphaPipelineState_.Get() : pipelineState_.Get());
 	// プリミティブ形状設定
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
@@ -57,7 +57,7 @@ void SpriteCommon::CreateRootSignature()
 
 
 	// サンプラー設定
-	D3D12_STATIC_SAMPLER_DESC staticSamplers[1]{};
+	D3D12_STATIC_SAMPLER_DESC staticSamplers[2]{};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 	staticSamplers[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	staticSamplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -66,6 +66,12 @@ void SpriteCommon::CreateRootSignature()
 	staticSamplers[0].MaxLOD = D3D12_FLOAT32_MAX;
 	staticSamplers[0].ShaderRegister = 0;
 	staticSamplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    staticSamplers[1] = staticSamplers[0];
+    staticSamplers[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    staticSamplers[1].ShaderRegister = 1;
 
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -157,4 +163,8 @@ void SpriteCommon::CreateGraphicsPipelineState()
 
 	hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pipelineState_));
 	assert(SUCCEEDED(hr));
+    // Preserve opacity from the opaque backing underneath translucent cloud PNGs.
+    psoDesc.BlendState.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&compositeAlphaPipelineState_));
+    assert(SUCCEEDED(hr));
 }

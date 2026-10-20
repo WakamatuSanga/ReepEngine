@@ -1,3 +1,4 @@
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -8,6 +9,7 @@
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Input/Input.h"
 #include "PlayerActionController.h"
+#include "PlayerAfterimageController.h"
 #include "MyGame.h"
 #include <algorithm>
 #include <array>
@@ -93,7 +95,11 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     hitRadiusObject_->SetModel(hitRadiusModel_);
     actionController_ = std::make_unique<PlayerActionController>();
     actionController_->Initialize(object3dCommon_, camera_);
+    afterimages_ = std::make_unique<PlayerAfterimageController>();
+    afterimages_->Initialize(object3dCommon_, camera_);
     LoadModel();
+    displayTranslationOffset_ = {};
+    displayRotationActive_ = false;
     ResetPosition();
     UpdateWorldPosition();
     UpdateObjectTransform();
@@ -102,6 +108,7 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
 }
 
 void Player::Finalize() {
+    afterimages_.reset();
     if (actionController_) {
         actionController_->Finalize();
     }
@@ -180,7 +187,7 @@ void Player::Update(float deltaTime) {
     }
 
     UpdateWorldPosition();
-    UpdateCenterVisibilityAssist(safeDeltaTime);
+    if (!normalFlightPresentation_) UpdateCenterVisibilityAssist(safeDeltaTime);
     if (actionController_) {
         actionController_->Update(
             safeDeltaTime,
@@ -189,10 +196,28 @@ void Player::Update(float deltaTime) {
     }
     UpdateVisualTilt(safeDeltaTime);
     UpdateObjectTransform();
-    object_->Update();
-    if (hitRadiusObject_) {
-        hitRadiusObject_->Update();
+    if (afterimages_ && !normalFlightPresentation_) afterimages_->Update(safeDeltaTime,
+        flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_, IsBarrelRolling(), model_,
+        { modelScale_, visualFinalRotation_, worldPosition_ });
+    if (!normalFlightPresentation_) {
+        object_->Update();
+        if (hitRadiusObject_) hitRadiusObject_->Update();
     }
+}
+
+void Player::RefreshCameraPresentation(float deltaTime) {
+    // Commit the final unshaken pilot pose before shots, collision and exhaust.
+    UpdateWorldPosition();
+    UpdateObjectTransform();
+    if (afterimages_) {
+        afterimages_->Update(deltaTime, flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_,
+            IsBarrelRolling(), model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+        afterimages_->RefreshCamera();
+    }
+    // Object3d caches WVP in Update, so commit it only after the final camera.
+    UpdateCenterVisibilityAssist(deltaTime);
+    if (object_) object_->Update();
+    if (hitRadiusObject_) hitRadiusObject_->Update();
 }
 
 void Player::Draw() {
@@ -210,11 +235,20 @@ void Player::Draw() {
     }
 }
 
+void Player::DrawAfterimages() { if (afterimages_) afterimages_->Draw(); }
+void Player::ClearFlightTransient() {
+    SetBoostTrajectory(0, {}, 0, {});
+    if (afterimages_) afterimages_->Update(0, false, false, model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+}
+uint32_t Player::GetAfterimageDrawCount() const { return afterimages_ ? afterimages_->GetDrawCount() : 0; }
+void Player::SetCameraShakeController(CameraShakeController* controller) {
+    if (actionController_) actionController_->SetCameraShakeController(controller);
+}
 void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤー情報 (Player Debug)###プレイヤー確認 (Player Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤー情報 (Player Debug)###プレイヤー確認 (Player Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -389,6 +423,12 @@ void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController)
         hitRadius_ = 0.45f;
     }
     ImGui::DragFloat2("Local Offset", &localOffsetX_, 0.03f, -50.0f, 50.0f, "%.2f");
+    if (normalFlightPresentation_) {
+        const Vector2 visible = GetPresentationOffset();
+        ImGui::Text("Visible XY: %.3f, %.3f", visible.x, visible.y);
+        ImGui::Text("Fixed-frame bounds X: %.3f..%.3f Y: %.3f..%.3f",
+            gameplayMovementMin_.x, gameplayMovementMax_.x, gameplayMovementMin_.y, gameplayMovementMax_.y);
+    }
     localOffsetX_ = std::clamp(localOffsetX_, -moveLimitX_, moveLimitX_);
     localOffsetY_ = std::clamp(localOffsetY_, -moveLimitY_, moveLimitY_);
     ImGui::DragFloat3("Model Scale", &modelScale_.x, 0.01f, 0.001f, 20.0f, "%.3f");
@@ -412,7 +452,7 @@ void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController)
         visualFinalRotation_.x,
         visualFinalRotation_.y,
         visualFinalRotation_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #else
     (void)damageFeedbackController;
 #endif
@@ -532,6 +572,20 @@ void Player::LoadModel() {
         loadStatus_ = "Player model missing. Using fallback box.";
     }
 
+    visualBoundsValid_ = model_ && !model_->GetVertices().empty();
+    visualModelRadius_ = 0.0f;
+    if (visualBoundsValid_) {
+        const auto& first = model_->GetVertices().front().position;
+        visualBoundsMin_ = visualBoundsMax_ = { first.x, first.y, first.z };
+        for (const auto& vertex : model_->GetVertices()) {
+            const auto& p = vertex.position;
+            visualModelRadius_ = (std::max)(visualModelRadius_, std::sqrt(p.x * p.x + p.y * p.y + p.z * p.z));
+            visualBoundsMin_ = { (std::min)(visualBoundsMin_.x, p.x),
+                (std::min)(visualBoundsMin_.y, p.y), (std::min)(visualBoundsMin_.z, p.z) };
+            visualBoundsMax_ = { (std::max)(visualBoundsMax_.x, p.x),
+                (std::max)(visualBoundsMax_.y, p.y), (std::max)(visualBoundsMax_.z, p.z) };
+        }
+    }
     if (object_) {
         object_->SetModel(model_);
     }

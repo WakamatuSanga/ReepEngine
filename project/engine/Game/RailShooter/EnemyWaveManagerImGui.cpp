@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyWaveManager.h"
 #include <algorithm>
 #include <cctype>
@@ -42,8 +43,8 @@ namespace {
 void EnemyWaveManager::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵ウェーブデバッグ###Enemy Wave Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵ウェーブデバッグ###Enemy Wave Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -167,6 +168,6 @@ void EnemyWaveManager::DrawImGui() {
         ImGui::TreePop();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

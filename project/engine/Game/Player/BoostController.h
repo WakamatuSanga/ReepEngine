@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstdint>
 #include <string>
@@ -29,7 +29,12 @@ public:
     void Initialize(VolumetricCloudPass* cloudPass);
     void Finalize();
     void Update(float deltaTime);
+    void BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay, float realDeltaTime = -1.0f);
+    void RefreshPresentation();
+    void Cancel();
+    float GetTimeScale() const { return currentTimeScale_; }
     void DrawImGui();
+    void DrawEvadeSettingsImGui();
 
     void SetGameViewInputActive(bool isActive) { gameViewInputActive_ = isActive; }
     void SetCloudPass(VolumetricCloudPass* cloudPass) { cloudPass_ = cloudPass; }
@@ -38,6 +43,9 @@ public:
     State GetState() const { return state_; }
     bool IsBoosting() const { return state_ == State::Boosting; }
     bool IsCoolingDown() const { return state_ == State::Cooldown; }
+    bool IsEvadeActive() const { return IsBoosting() && currentTimeScale_ < 0.9999f; }
+    float GetCooldownRemaining() const { return boostCooldownTimer_; }
+    float GetCooldownDuration() const { return boostCooldown_; }
     float GetCurrentBoostPower() const { return currentBoostPower_; }
     float GetCloudFlowMultiplier() const;
     float GetCurrentCloudBoostExtraSpeed() const { return currentCloudBoostExtraSpeed_; }
@@ -75,8 +83,11 @@ private:
     bool lastCanBoost_ = false;
 
     float boostDuration_ = 1.4f;
-    float boostCooldown_ = 1.5f;
+    float boostCooldown_ = 3.0f;
     float boostTimer_ = 0.0f;
+    float startSide_ = 1.0f;
+    float startX_ = 0.0f;
+    float currentTimeScale_ = 1.0f;
     float boostCooldownTimer_ = 0.0f;
     float boostCloudFlowMultiplier_ = 2.0f;
     float boostVisualSpeedMultiplier_ = 2.0f;

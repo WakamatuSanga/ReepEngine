@@ -24,7 +24,8 @@ public:
     ~LevelSceneRuntime();
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
-    void Update();
+    void Update(float gameDeltaTime = -1.0f);
+    bool PrepareForPresentation(); // Rebuild only; no events, clocks or rail advance.
     void Draw();
     void DrawImGui();
     void SetGameViewRect(float x, float y, float width, float height);
@@ -65,7 +66,7 @@ private:
     void LoadJsonFromBuffer();
     void SetPathBufferText(const std::string& text);
     void RequestRebuild(const std::string& applySource);
-    void RebuildDebugObjects();
+    void RebuildDebugObjects(bool updateRuntime = true);
     bool ShouldHideRailDebug() const;
     bool ShouldHideRailPoints() const;
     bool ShouldHideEventDebug() const;
@@ -91,6 +92,7 @@ private:
     bool pauseLiveApply_ = false;
     bool rebuildOnlyWhenJsonChanged_ = true;
     bool rebuildDirty_ = false;
+    bool sceneLoaded_ = false;
     bool cameraRigActiveForDebug_ = false;
     bool hideRailDebugWhileCameraRigActive_ = true;
     bool hideRailPointsWhileCameraRigActive_ = true;

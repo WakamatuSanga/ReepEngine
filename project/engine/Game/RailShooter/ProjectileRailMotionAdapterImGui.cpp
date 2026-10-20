@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "ProjectileRailMotionAdapter.h"
 
 #ifdef USE_IMGUI
@@ -19,9 +20,9 @@ void ProjectileRailMotionAdapter::DrawImGui(
     size_t playerActiveCount,
     size_t enemyActiveCount) {
 #ifdef USE_IMGUI
-    if (!ImGui::Begin(
+    if (!DebugUiWorkspace::BeginPanel(
             "レール弾道整合性デバッグ###ProjectileRailMotionDebug")) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -155,7 +156,7 @@ void ProjectileRailMotionAdapter::DrawImGui(
         ClearForcedStates();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #else
     (void)playerActiveCount;
     (void)enemyActiveCount;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <array>
 #include <cstddef>
@@ -74,9 +74,18 @@ public:
 
     void Initialize(Camera* camera, LevelRailRuntime* railRuntime);
     void SetLevelSceneRuntime(const LevelSceneRuntime* levelSceneRuntime);
-    void SetRuntimeContext(Player* player, BoostController* boostController, bool gameModeActive);
+    void SetRuntimeContext(Player* player, BoostController* boostController, bool gameModeActive,
+        bool presentationOverrideActive = false, bool suppressPlayerAttitude = false);
+    bool UsesGameplayComposition() const;
+    const Vector3& GetBaseForward() const { return currentForward_; }
+    const Matrix4x4& GetGameplayReferenceFrame() const { return gameplayReferenceFrame_; }
+    bool IsGameplayPresentationActive() const;
+    void SetStageStartPresentationActive(bool active) { stageStartPresentationActive_ = active; }
+    void UpdatePlayerFollow(float deltaTime, float unscaledDeltaTime = -1.0f);
+    void ResetGameplayInputHistory(bool resetRotation = true);
     void Finalize();
     void Update(float deltaTime);
+    void PrepareForPresentation();
     void DrawImGui();
 
     bool IsCameraRigActive() const;
@@ -100,6 +109,8 @@ public:
     float GetBoostRailSpeedMultiplier() const;
     float GetEffectiveRailSpeed() const;
     float GetRailDistance() const;
+    float GetStageRailProgress() const { return railT_; }
+    bool HasStageRailProgress() const { return IsCameraRigActive() && GetActiveRailTotalLength() > 0.001f; }
     float GetLastRailAdvance() const;
 
 private:
@@ -119,7 +130,7 @@ private:
     void UpdateRailBlend(float deltaTime);
     void UpdateRailFinishedStraight(float deltaTime);
     void ApplyInitialCameraFromLevel();
-    void ApplyToCamera();
+    void ApplyToCamera(float followDeltaTime = 0.0f);
     void CaptureCameraPose();
     void CaptureDebugHomeCamera();
     void RestoreDebugHomeCamera();
@@ -140,6 +151,7 @@ private:
     bool ApplyRuntimeV2Pose(
         const LevelRailEvaluation& legacyEvaluation, float deltaTime, bool loopEnabled);
     bool BuildRuntimeV2VisualPose();
+    bool BuildGameplayVisualPose(float followDeltaTime);
     void ResetRuntimeV2PoseState(bool clearRuntime);
     void ForceResyncRuntimeV2Pose();
     void InvalidateProjectileRailContinuity();
@@ -150,6 +162,7 @@ private:
     float GetActiveRailTotalLength() const;
     static float ComputePitchDegrees(const Vector3& forward);
 
+    bool stageStartPresentationActive_ = false;
     Camera* camera_ = nullptr;
     LevelRailRuntime* railRuntime_ = nullptr;
     const LevelSceneRuntime* levelSceneRuntime_ = nullptr;
@@ -180,6 +193,29 @@ private:
     Vector3 lastBlendTargetRailPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 visualCameraPosition_{ 0.0f, 0.0f, -10.0f };
     Vector3 visualCameraForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 gameplayCameraRotation_{};
+    Matrix4x4 gameplayReferenceFrame_{};
+    Vector2 playerFollowOffset_{};
+    Vector2 playerLookInput_{};
+    struct PilotInputSample { double time = 0; Vector2 input{}; };
+    std::array<PilotInputSample, 128> pilotInputHistory_{};
+    size_t pilotHistoryBegin_ = 0;
+    size_t pilotHistoryCount_ = 0;
+    double pilotInputClock_ = 0;
+    Vector2 pilotLastInput_{};
+    Vector2 pilotDelayedInput_{};
+    bool playerFollowInitialized_ = false;
+    bool gameplayBaseInitialized_ = false;
+    bool presentationOverrideActive_ = false;
+    bool presentationReturnActive_ = false;
+    float gameplayCameraDistance_ = 1.68f;
+    float gameplayBaseFovY_ = 0.45f;
+    float gameplayCameraHeight_ = 0.18f;
+    float gameplayCameraPitchDegrees_ = 0.0f;
+    float playerFollowTime_ = 0.12f;
+    float playerLookTime_ = 0.18f;
+    float gameplayCameraYawDegrees_ = 2.0f;
+    float gameplayCameraPitchLimitDegrees_ = 1.0f;
     size_t currentSegmentIndex_ = 0;
     size_t selectedRailPointCount_ = 0;
     size_t selectedRailSampledPointCount_ = 0;

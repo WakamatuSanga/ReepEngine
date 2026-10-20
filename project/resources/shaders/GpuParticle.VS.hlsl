@@ -56,6 +56,20 @@ VertexShaderOutput main(uint vertexId : SV_VertexID, uint instanceId : SV_Instan
 
     float3 localPosition = float3(kPositions[vertexId] * particleScale, 0.0f);
     float3 billboardOffset = mul(float4(localPosition, 0.0f), gPerView.billboardMatrix).xyz;
+    if (particleType.streakLength > 0.0f)
+    {
+        float3 axis = particle.velocity / max(length(particle.velocity), 0.0001f);
+        float3 side = cross(axis, gPerView.cameraPosition.xyz - particle.translate);
+        side = dot(side, side) > 0.000001f ? normalize(side) : gPerView.billboardMatrix[0].xyz;
+        billboardOffset = (side * kPositions[vertexId].x * particleType.streakWidth
+            + axis * kPositions[vertexId].y * particleType.streakLength) * particleScale;
+        const float4 centerClip = mul(float4(particle.translate, 1.0f), gPerView.viewProjection);
+        const float2 ndc = centerClip.xy / max(centerClip.w, 0.0001f);
+        const float age = saturate(particle.currentTime / max(particle.lifeTime, 0.0001f));
+        // Wind stays at the viewport rim; the combat/aim corridor stays readable.
+        particleColor.a *= smoothstep(0.45f, 0.65f, max(abs(ndc.x), abs(ndc.y)))
+            * smoothstep(0.0f, 0.08f, age) * (1.0f - smoothstep(0.65f, 1.0f, age));
+    }
     float4 worldPosition = float4(particle.translate + billboardOffset, 1.0f);
 
     VertexShaderOutput output;

@@ -1,4 +1,4 @@
-#include "Sprite.hlsli"
+﻿#include "Sprite.hlsli"
 
 struct Material
 {
@@ -11,6 +11,7 @@ struct Material
     float4 gradientPoints;
     float4 whiteSelection;
     float4 gradientControl;
+    float4 textureAlphaScale;
 };
 // b0: マテリアル
 ConstantBuffer<Material> gMaterial : register(b0);
@@ -18,6 +19,7 @@ ConstantBuffer<Material> gMaterial : register(b0);
 // t0: テクスチャ
 Texture2D<float32_t4> gTexture : register(t0);
 SamplerState gSampler : register(s0);
+SamplerState gClampSampler : register(s1);
 
 struct PixelShaderOutput
 {
@@ -32,7 +34,9 @@ PixelShaderOutput main(VertexShaderOutput input)
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
 	
 	// テクスチャサンプリング
-    float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
+    float32_t4 textureColor = gMaterial.gradientControl.w > 0.5f
+        ? gTexture.Sample(gClampSampler, transformedUV.xy)
+        : gTexture.Sample(gSampler, transformedUV.xy);
 
     if (gMaterial.gradientControl.x > 0.5f)
     {
@@ -54,6 +58,18 @@ PixelShaderOutput main(VertexShaderOutput input)
 	
 	// 色合成
     output.color = gMaterial.color * textureColor;
+    if (gMaterial.textureAlphaScale.w > 0.5f)
+    {
+        // Straight-alpha HUD PNG: green detail and dark blue panels retain
+        // their original per-pixel opacity; default multipliers are both 1.
+        output.color.a *= textureColor.g > 0.2f ? gMaterial.textureAlphaScale.y : gMaterial.textureAlphaScale.x;
+    }
 	
+    if (gMaterial.gradientControl.z > 0.0f)
+    {
+        float edge = gMaterial.gradientControl.z;
+        output.color.a *= smoothstep(0.0f, edge, input.localPosition.y)
+            * smoothstep(0.0f, edge, 1.0f - input.localPosition.y);
+    }
     return output;
 }

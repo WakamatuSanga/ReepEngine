@@ -5,7 +5,7 @@ struct CloudPassConstants
 {
     float4x4 inverseViewProjection;
     float3 cameraPosition;
-    float padding0;
+    uint volumeShapeMode; // C++ offset 76; legacy/title always zero.
     float3 volumeCenter;
     float density;
     float3 volumeHalfExtents;
@@ -51,6 +51,8 @@ struct CloudPassConstants
     float4 influenceSettings; // x:count y:enableCloudClear z:enableTunnel w:tunnelClearStrength
     float4 cameraTunnelStartLength; // xyz:start w:length
     float4 cameraTunnelDirectionRadius; // xyz:direction w:radius
+    float4 accumulatedFlowOffset;
+    float4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -162,6 +164,17 @@ float FBM(float3 p)
     return value;
 }
 
+// Same four existing ValueNoise evaluations and frequencies as FBM; stronger
+// first octave rounds the lobe without adding fine-grained noise evaluations.
+float VolumeShapeNoise(float3 p)
+{
+    if (gCloudPass.volumeShapeMode == 0u) return FBM(p);
+    return ValueNoise3D(p) * 0.625f
+        + ValueNoise3D(p * 2.0f) * 0.21875f
+        + ValueNoise3D(p * 4.0f) * 0.0703125f
+        + ValueNoise3D(p * 8.0f) * 0.0234375f;
+}
+
 float ComputeDistanceLodFactor(float entryDistance)
 {
     float volumeRadius = max(length(gCloudPass.volumeHalfExtents), 0.0001f);
@@ -261,13 +274,13 @@ float ComputeCloudDensity(float3 worldPosition)
     float3 flowOffset = 0.0f;
     if (gCloudPass.enableCloudFlow != 0u)
     {
-        flowOffset = gCloudPass.cloudFlowDirectionSpeed.xyz * gCloudPass.cloudTime;
+        flowOffset = gCloudPass.accumulatedFlowOffset.xyz;
     }
 
     float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
     float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f - flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
 
-    float baseNoise = FBM(baseNoisePosition);
+    float baseNoise = VolumeShapeNoise(baseNoisePosition);
     float detailNoise = FBM(detailNoisePosition);
     float bottomDetailMultiplier = 1.0f;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
@@ -277,6 +290,16 @@ float ComputeCloudDensity(float3 worldPosition)
     }
     float shape = baseNoise - detailNoise * bottomDetailMultiplier * gCloudPass.detailWeight - 0.40f;
     float noiseMask = saturate(shape * 2.5f);
+    if (gCloudPass.volumeShapeMode != 0u)
+    {
+        // Continuous core/shell mapping. Keep a low-opacity tail so thin wisps
+        // are not removed by turning the density into a binary threshold.
+        float height = saturate((worldPosition.y - layerBottomY) / max(layerTopY - layerBottomY, 0.001f));
+        float signal = shape + 0.40f - smoothstep(0.30f, 1.0f, height) * 0.28f;
+        float core = smoothstep(0.38f, 0.50f, signal);
+        float wisp = saturate((signal - 0.31f) / 0.20f) * 0.025f;
+        noiseMask = core + (1.0f - core) * wisp;
+    }
 
     float density = noiseMask * edgeMask * heightMask * gCloudPass.density * gCloudPass.cloudColor.a;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
@@ -323,9 +346,8 @@ float4 ComputeFarCloudLayer(float2 uv, float3 rayDirection, float depth)
     }
 
     float3 farPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
-    float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
     float scale = max(gCloudPass.farCloudLayer.w, 0.00001f);
-    float2 cloudUv = farPosition.xz * scale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.farCloudLayerExtra.y * scale;
+    float2 cloudUv = (farPosition.xz - gCloudPass.accumulatedLayerFlowOffsets.xy) * scale;
     float noiseA = FBM(float3(cloudUv, 6.37f));
     float noiseB = FBM(float3(cloudUv * 2.73f + 13.17f, 3.19f));
     float noiseValue = noiseA * 0.62f + noiseB * 0.38f;
@@ -357,8 +379,9 @@ float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
     }
 
     float3 seaPosition = gCloudPass.cameraPosition + rayDirection * distanceToPlane;
-    float2 flowDirection = SafeNormalize2(gCloudPass.cloudFlowDirectionSpeed.xz, float2(0.0f, -1.0f));
-    float2 forward2 = -flowDirection;
+    // Placement/noise coordinates keep using the final render-camera frame.
+    // Only the accumulated flow displacement uses the progression direction.
+    float2 forward2 = SafeNormalize2(gCloudPass.cameraTunnelDirectionRadius.xz, float2(0.0f, 1.0f));
     float2 right2 = float2(forward2.y, -forward2.x);
     float2 local = seaPosition.xz - gCloudPass.cameraPosition.xz;
     float forwardDistance = dot(local, forward2);
@@ -372,7 +395,7 @@ float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
     float2 cameraRelativeUv = float2(rightDistance, forwardDistance);
     float2 noiseSource = lerp(seaPosition.xz, cameraRelativeUv, saturate(gCloudPass.cloudSeaFlow.y));
     float noiseScale = max(gCloudPass.cloudSeaShape.z, 0.0001f);
-    float2 seaUv = noiseSource * noiseScale - flowDirection * gCloudPass.cloudRawTime * gCloudPass.cloudSeaFlow.x * noiseScale;
+    float2 seaUv = (noiseSource - gCloudPass.accumulatedLayerFlowOffsets.zw) * noiseScale;
     float noiseA = FBM(float3(seaUv, 11.23f));
     float noiseB = FBM(float3(seaUv * 2.41f + 23.7f, 4.91f));
     float noiseValue = noiseA * 0.68f + noiseB * 0.32f;

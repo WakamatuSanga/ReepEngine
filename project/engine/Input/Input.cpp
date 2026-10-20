@@ -123,9 +123,12 @@ void Input::Update()
 
     // ---- マウス ----
     mousePrev_ = mouseNow_;
+    mouseStateWasValid_ = mouseStateValid_;
+    mouseStateValid_ = false;
     if (mouse_) {
         mouse_->Acquire();
         HRESULT hr = mouse_->GetDeviceState(sizeof(mouseNow_), &mouseNow_);
+        mouseStateValid_ = SUCCEEDED(hr);
         if (FAILED(hr)) { std::memset(&mouseNow_, 0, sizeof(mouseNow_)); }
     }
 

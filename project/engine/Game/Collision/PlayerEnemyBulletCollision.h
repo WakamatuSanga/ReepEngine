@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
 
 class EnemyBulletManager;
 class Player;
+class BoostController;
 class CombatEffectController;
 class CombatSlowMotionController;
 class ImpactDistortionController;
@@ -27,10 +28,14 @@ public:
     void SetDamageFeedbackController(PlayerDamageFeedbackController* controller);
     void Finalize();
     void Update();
+    void SetEvadeController(BoostController* controller) { evadeController_ = controller; }
     void DrawImGui();
 
 private:
     Player* player_ = nullptr;
+    BoostController* evadeController_ = nullptr;
+    Vector3 previousPlayerPosition_{};
+    bool hasPreviousPlayerPosition_ = false;
     EnemyBulletManager* bulletManager_ = nullptr;
     PlayerDeathSequenceController* deathSequence_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;

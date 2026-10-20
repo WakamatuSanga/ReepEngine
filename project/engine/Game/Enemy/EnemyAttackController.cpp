@@ -1,4 +1,5 @@
-﻿#include "EnemyAttackController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "EnemyAttackController.h"
 #include "Enemy.h"
 #include "EnemyBulletManager.h"
 #include "EnemyManager.h"
@@ -111,8 +112,8 @@ void EnemyAttackController::Update(float deltaTime) {
 void EnemyAttackController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 320.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵攻撃確認 (Enemy Attack Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵攻撃確認 (Enemy Attack Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -134,7 +135,7 @@ void EnemyAttackController::DrawImGui() {
         FireFromActiveEnemies();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

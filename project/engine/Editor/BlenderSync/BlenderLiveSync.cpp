@@ -1,4 +1,5 @@
-﻿#include "BlenderLiveSync.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "BlenderLiveSync.h"
 #include "BlenderLauncher.h"
 #include "BlenderUdpReceiver.h"
 #include "Engine/Level/LevelSceneLoader.h"
@@ -59,8 +60,8 @@ void BlenderLiveSync::DrawImGui() {
 
     const BlenderUdpReceiverStatus& status = receiver_->GetStatus();
     ImGui::SetNextWindowSize(ImVec2(680.0f, 720.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ブレンダーライブ同期 (Blender Live Sync)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ブレンダーライブ同期 (Blender Live Sync)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -171,7 +172,7 @@ void BlenderLiveSync::DrawImGui() {
     ImGui::TextUnformatted(lastJsonPreview_.empty() ? "(none)" : lastJsonPreview_.c_str());
     ImGui::EndChild();
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

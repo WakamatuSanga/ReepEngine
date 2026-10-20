@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Player/Player.h"
@@ -73,6 +74,10 @@ void EnemyManager::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     camera_ = camera;
 }
 
+bool EnemyManager::PrepareForPresentation() {
+    return object3dCommon_ && camera_ && Enemy::PrepareSharedVisualResources();
+}
+
 void EnemyManager::Finalize() {
     DeleteAllEnemies();
     object3dCommon_ = nullptr;
@@ -103,8 +108,8 @@ void EnemyManager::Draw() {
 void EnemyManager::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵確認 (Enemy Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵確認 (Enemy Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -216,7 +221,7 @@ void EnemyManager::DrawImGui() {
         }
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

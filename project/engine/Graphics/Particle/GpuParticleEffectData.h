@@ -57,6 +57,8 @@ inline void NormalizeParticleEffectType(ParticleType& type) {
 	type.collisionDamping = std::clamp(type.collisionDamping, 0.0f, 2.0f);
 	type.influenceResponseScale = std::clamp(type.influenceResponseScale, 0.0f, 10.0f);
 	type.railFlowScale = std::clamp(type.railFlowScale, 0.0f, 10.0f);
+	type.streakLength = std::clamp(type.streakLength, 0.0f, 10.0f);
+	type.streakWidth = std::clamp(type.streakWidth, 0.001f, 1.0f);
 	type.chargeGatherStrength = (std::max)(type.chargeGatherStrength, 0.0f);
 	type.chargeGatherKillRadius = (std::max)(type.chargeGatherKillRadius, 0.001f);
 	type.chargeGatherSwirlStrength = (std::max)(type.chargeGatherSwirlStrength, 0.0f);

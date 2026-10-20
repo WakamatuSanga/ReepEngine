@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "GpuParticleTypes.h"
 
@@ -27,6 +27,7 @@ public:
 	bool SetEmitterRuntime(size_t index, const GpuParticle::Emitter& emitter);
 	bool SetParticleTypeRuntime(size_t index, const GpuParticle::ParticleType& type);
 	void SetDeltaTime(float deltaTime);
+    bool SetAfterCloudRendering();
 	void SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count);
 	void SetParticleInfluenceEnabled(bool enabled);
 	void SetParticleInfluenceResponseScale(float scale);
@@ -43,9 +44,11 @@ public:
 	uint32_t GetActiveCountEstimate() const { return state_.activeCountEstimate; }
 	uint32_t GetPoolCapacity() const { return GpuParticle::kParticleCount; }
 	const GpuParticle::State& GetState() const { return state_; }
-	bool IsInitialized() const { return isInitialized_; }
+    bool IsInitialized() const { return isInitialized_; }
+    static void SetSimulationPaused(bool paused) { simulationPaused_ = paused; }
 
 private:
+    inline static bool simulationPaused_ = false;
 	uint32_t EstimateActiveParticleCount() const;
 
 	DirectXCommon* dxCommon_ = nullptr;

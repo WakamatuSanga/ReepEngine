@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Matrix4x4.h"
 #include <Windows.h>
 #include "SpriteCommon.h"
@@ -21,6 +21,11 @@ public:
         float saturationSoftness = 0.2f;
     };
     void SetWhiteGradient(const WhiteGradientSettings& settings);
+    // Opt-in: existing sprites keep their logical canvas and wrapping sampler.
+    void SetCanvasSize(const Vector2& size) { canvasSize_ = size; }
+    void SetTextureSampling(bool clamp, float verticalEdgeFade = 0.0f);
+    // Opt-in UI texture opacity separation; existing sprites use the original sample unchanged.
+    void SetTextureAlphaScale(float panel, float detail);
 
     // 初期化（SpriteCommon を受け取る）
     void Initialize(SpriteCommon* spriteCommon);
@@ -95,14 +100,16 @@ private:
         Vector4 gradientEndColor;
         Vector4 gradientPoints; // xy: start, zw: end
         Vector4 whiteSelection; // brightness, saturation, their transition half-widths
-        Vector4 gradientControl; // enabled, strength, reserved, reserved
+        Vector4 gradientControl; // enabled, strength, edge fade, clamp sampler
+        Vector4 textureAlphaScale; // panel, detail, reserved, enabled
     };
     static_assert(offsetof(Material, gradientStartColor) == 96);
     static_assert(offsetof(Material, gradientEndColor) == 112);
     static_assert(offsetof(Material, gradientPoints) == 128);
     static_assert(offsetof(Material, whiteSelection) == 144);
     static_assert(offsetof(Material, gradientControl) == 160);
-    static_assert(sizeof(Material) == 176);
+    static_assert(offsetof(Material, textureAlphaScale) == 176);
+    static_assert(sizeof(Material) == 192);
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;
@@ -121,6 +128,7 @@ private:
     Vector2 position_ = { 0.0f, 0.0f };
     Vector2 size_ = { 640.0f, 360.0f };
     float   rotation_ = 0.0f;
+    Vector2 canvasSize_{};
 
     uint32_t textureIndex_ = 0;
 };

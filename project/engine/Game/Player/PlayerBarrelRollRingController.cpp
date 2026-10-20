@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBarrelRollRingController.h"
 
 #include "PlayerJetExhaustBeamRenderer.h"
@@ -205,8 +206,8 @@ void PlayerBarrelRollRingController::DrawLayer(bool afterCloudLayer) {
 void PlayerBarrelRollRingController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Player Roll Effect Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Player Roll Effect Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
     ImGui::Checkbox("Enable Barrel Roll Rings", &enableBarrelRollRings_);
@@ -227,7 +228,7 @@ void PlayerBarrelRollRingController::DrawImGui() {
     ImGui::Text("Active Roll Rings: %d", activeRingCount_);
     ImGui::Text("Dropped Roll Rings: %llu", static_cast<unsigned long long>(droppedRingCount_));
     ImGui::Text("Last Center: %.2f, %.2f, %.2f", lastSpawnCenter_.x, lastSpawnCenter_.y, lastSpawnCenter_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "DirectXCommon.h"
 #include <memory>
+#include <vector>
 
 class SrvManager {
     friend struct std::default_delete<SrvManager>;
@@ -10,6 +11,8 @@ public:
 
     void Initialize(DirectXCommon* dxCommon);
     uint32_t Allocate();
+    void Release(uint32_t index, uint64_t generation);
+    uint64_t GetGeneration() const { return generation_; }
     bool CanAllocate() const;
     void CreateCBV(uint32_t cbvIndex, ID3D12Resource* pResource, UINT sizeInBytes);
     void CreateSRVforStructuredBuffer(uint32_t srvIndex, ID3D12Resource* pResource, UINT numElements, UINT structureByteStride);
@@ -33,4 +36,6 @@ private:
 
     DirectXCommon* dxCommon_ = nullptr;
     uint32_t useIndex_ = 0;
+    uint64_t generation_ = 0;
+    std::vector<uint32_t> releasedIndices_;
 };

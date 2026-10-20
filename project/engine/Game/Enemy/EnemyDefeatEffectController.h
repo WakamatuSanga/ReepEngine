@@ -7,6 +7,7 @@
 #include <vector>
 
 class Camera;
+class CameraShakeController;
 class DirectXCommon;
 class PlayerJetExhaustBeamRenderer;
 
@@ -27,6 +28,7 @@ public:
 
     bool Initialize(DirectXCommon* dxCommon, Camera* camera);
     void Finalize();
+    void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     void BeginFrame();
     void Update(float deltaTime);
     void Draw();
@@ -58,6 +60,7 @@ private:
     std::unique_ptr<PlayerJetExhaustBeamRenderer> renderer_;
     std::vector<DefeatEffect> effects_;
     Camera* camera_ = nullptr;
+    CameraShakeController* cameraShakeController_ = nullptr;
     bool initialized_ = false;
     bool enableDefeatEffect_ = true;
     bool drawAfterCloud_ = true;

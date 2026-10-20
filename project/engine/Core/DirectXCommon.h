@@ -7,6 +7,8 @@
 #include <wrl.h>
 
 #include <array>
+#include <memory>
+class GpuTimestampProfiler;
 #include <cstdint>
 #include <string>
 #include <chrono>
@@ -62,7 +64,9 @@ public:
         std::array<float, 4> outlineColor = { 0.0f, 0.0f, 0.0f, 1.0f };
     };
 
-    DirectXCommon() = default;
+    DirectXCommon();
+    GpuTimestampProfiler& GetGpuProfiler() { return *gpuProfiler_; }
+    const GpuTimestampProfiler& GetGpuProfiler() const { return *gpuProfiler_; }
     ~DirectXCommon();
 
     // DirectX の初期化 / 終了
@@ -218,6 +222,7 @@ private:
     HANDLE fixedFpsTimer_ = nullptr;
 
 private:
+    std::unique_ptr<GpuTimestampProfiler> gpuProfiler_;
     // WindowsAPI
     WinApp* winApp = nullptr;
     SrvManager* srvManager_ = nullptr;

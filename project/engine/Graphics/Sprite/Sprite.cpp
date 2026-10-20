@@ -1,4 +1,4 @@
-#include "Sprite.h"
+﻿#include "Sprite.h"
 #include "SpriteCommon.h"
 #include "Matrix4x4.h"
 #include "Engine/Core/WinApp.h"
@@ -50,6 +50,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
     materialData_->enableLighting = false;
     materialData_->uvTransform = MakeIdentity4x4();
     SetWhiteGradient({});
+    materialData_->textureAlphaScale = {1, 1, 0, 0};
 
     // 4. トランスフォーム用定数バッファ
     transformationMatrixResource_ = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
@@ -70,6 +71,11 @@ void Sprite::SetWhiteGradient(const WhiteGradientSettings& settings) {
         (std::max)(settings.saturationSoftness, 0.0001f) };
     materialData_->gradientControl = { settings.enabled ? 1.0f : 0.0f,
         std::clamp(settings.strength, 0.0f, 1.0f), 0.0f, 0.0f };
+}
+
+void Sprite::SetTextureSampling(bool clamp, float verticalEdgeFade) {
+    materialData_->gradientControl.z = std::clamp(verticalEdgeFade, 0.0f, 0.5f);
+    materialData_->gradientControl.w = clamp ? 1.0f : 0.0f;
 }
 
 void Sprite::SetTexture(const std::string& filePath)
@@ -94,8 +100,8 @@ void Sprite::Update() {
     Matrix4x4 vp = Orthographic(
         0.0f,
         0.0f,
-        static_cast<float>(WinApp::kClientWidth),
-        static_cast<float>(WinApp::kClientHeight),
+        canvasSize_.x > 0 ? canvasSize_.x : static_cast<float>(WinApp::kClientWidth),
+        canvasSize_.y > 0 ? canvasSize_.y : static_cast<float>(WinApp::kClientHeight),
         0.0f,
         1.0f);
     Matrix4x4 wvp = Multipty(world, vp);
@@ -159,4 +165,8 @@ void Sprite::Draw() {
 
     // 描画
     commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+
+void Sprite::SetTextureAlphaScale(float panel, float detail) {
+    materialData_->textureAlphaScale = {std::clamp(panel, 0.0f, 3.0f), std::clamp(detail, 0.0f, 1.0f), 0, 1};
 }

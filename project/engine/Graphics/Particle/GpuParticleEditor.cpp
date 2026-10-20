@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "GpuParticleEditor.h"
 
 #include "GpuParticleEffectSerializer.h"
@@ -368,7 +369,7 @@ void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResource
 	ClampSelection(selectedEmitterIndex_, state.emitters);
 	ClampSelection(selectedParticleTypeIndex_, state.particleTypes);
 
-	if (ImGui::Begin("GPUパーティクルエディタ (GPU Particle Editor)")) {
+	if (DebugUiWorkspace::BeginPanel("GPUパーティクルエディタ (GPU Particle Editor)")) {
 		bool needsPreviewRefresh = false;
 		bool particleTypesChanged = false;
 
@@ -639,7 +640,7 @@ void GpuParticleEditor::DrawImGui(GpuParticle::State& state, GpuParticleResource
 			}
 		}
 	}
-	ImGui::End();
+	DebugUiWorkspace::EndPanel();
 #else
 	(void)state;
 	(void)resources;

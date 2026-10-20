@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerJetExhaustController.h"
 
 #include "PlayerJetExhaustBeamCore.h"
@@ -13,8 +14,8 @@
 void PlayerJetExhaustController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(500.0f, 720.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤージェット排気確認 (Player Jet Exhaust Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤージェット排気確認 (Player Jet Exhaust Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -149,6 +150,6 @@ void PlayerJetExhaustController::DrawImGui() {
     ImGui::Checkbox("Rail相対流れを受ける (Affected By Rail Flow)", &affectedByRailFlow_);
     ImGui::DragFloat("Rail Flow Scale", &railFlowScale_, 0.01f, 0.0f, 5.0f, "%.2f");
     ImGui::Text("Update Count: %llu", static_cast<unsigned long long>(updateCount_));
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

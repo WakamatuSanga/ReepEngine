@@ -84,6 +84,21 @@ Vector3 CloudVolume::Normalize(const Vector3& value)
     };
 }
 
+CloudVolume::Parameters CloudVolume::GetAppearanceCandidateParameters(bool lighting) const {
+    Parameters result = parameters_;
+    // Low-frequency lobes with a weaker, medium-scale erosion component.
+    result.noiseScale = 0.085f;
+    result.detailNoiseScale = 0.17f;
+    result.detailWeight = 0.10f;
+    result.edgeFade = 0.07f;
+    if (lighting) {
+        result.ambientLighting = 0.30f;
+        result.sunIntensity = 0.72f;
+        result.lightAbsorption = 0.35f;
+    }
+    return result;
+}
+
 CloudVolume::Parameters CloudVolume::RecommendedDefaults() {
     CloudVolume::Parameters parameters{};
     parameters.center = { 0.0f, 4.5f, 8.0f };

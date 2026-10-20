@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "WarningUIController.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
@@ -251,8 +252,8 @@ void WarningUIController::Draw() {
 void WarningUIController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(470.0f, 700.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("WARNING UI?? (Warning UI Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("WARNING UI?? (Warning UI Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -337,7 +338,7 @@ void WarningUIController::DrawImGui() {
     ImGui::Text("Last Show Duration: %.2f", lastShowDuration_);
     ImGui::Text("Show Count: %llu", static_cast<unsigned long long>(showCount_));
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

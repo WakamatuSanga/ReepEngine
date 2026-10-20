@@ -1,4 +1,6 @@
-﻿#include "CameraShakeController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "CameraShakeController.h"
+#include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include <algorithm>
 #include <cmath>
@@ -28,12 +30,17 @@ CameraShakeController::CameraShakeController() = default;
 CameraShakeController::~CameraShakeController() = default;
 
 void CameraShakeController::Initialize() {
+    SetGameplayEventsEnabled(false);
+    currentRotationOffset_ = {};
+    hasAppliedRotation_ = false;
+    rotationClock_ = 0.0f;
     isPlaying_ = false;
     hasAppliedOffset_ = false;
     currentOffset_ = { 0.0f, 0.0f, 0.0f };
 }
 
 void CameraShakeController::Finalize() {
+    SetGameplayEventsEnabled(false);
     isPlaying_ = false;
     hasAppliedOffset_ = false;
     currentOffset_ = { 0.0f, 0.0f, 0.0f };
@@ -44,6 +51,8 @@ void CameraShakeController::BeginFrame(Camera* camera) {
 }
 
 void CameraShakeController::Start(float duration, float amplitude, float frequency) {
+    // Dedicated translation shakes have priority over ordinary gameplay events.
+    SetGameplayEventsEnabled(false);
     duration_ = (std::max)(0.01f, duration);
     amplitude_ = (std::max)(0.0f, amplitude);
     frequency_ = (std::max)(0.1f, frequency);
@@ -59,6 +68,7 @@ void CameraShakeController::UpdateAndApply(float deltaTime, Camera* camera, bool
 
     if (!isPlaying_) {
         currentOffset_ = { 0.0f, 0.0f, 0.0f };
+        UpdateGameplayShake(deltaTime, camera);
         return;
     }
 
@@ -90,17 +100,75 @@ void CameraShakeController::Reset(Camera* camera) {
     RemoveAppliedOffset(camera);
     isPlaying_ = false;
     elapsedTime_ = 0.0f;
+    SetGameplayEventsEnabled(false);
+}
+
+void CameraShakeController::SetGameplayEventsEnabled(bool enabled) {
+    gameplayEventsEnabled_ = enabled && !isPlaying_;
+    if (!gameplayEventsEnabled_) {
+        shotPulse_ = {};
+        impactPulse_ = {};
+        shotCooldown_ = impactCooldown_ = rotationAmplitude_ = 0.0f;
+    }
+}
+
+void CameraShakeController::RequestGameplayShake(GameplayEvent event) {
+    if (!gameplayEventsEnabled_ || isPlaying_) return;
+    if (event == GameplayEvent::Shot) {
+        // At most 12.5 Hz, including simultaneous missiles. Never stack shots.
+        if (shotCooldown_ > 0.0f) return;
+        shotPulse_ = { 0.0f, 0.08f, 0.04f };
+        shotCooldown_ = 0.08f;
+        return;
+    }
+    const auto& tuning = FlightTuning::Get();
+    const float amplitude = event == GameplayEvent::Explosion ? 0.5f
+        : event == GameplayEvent::BulletCancel ? tuning.cancelAmplitude : tuning.defeatAmplitude;
+    const float duration = event == GameplayEvent::Explosion ? 0.20f
+        : event == GameplayEvent::BulletCancel ? tuning.cancelDuration : tuning.defeatDuration;
+    // Defeat + explosion and multiple simultaneous defeats share one pulse.
+    if (impactCooldown_ > 0.0f && amplitude <= impactPulse_.amplitudeDegrees) return;
+    impactPulse_ = { 0.0f, duration, amplitude };
+    impactCooldown_ = 0.05f;
+}
+
+void CameraShakeController::UpdateGameplayShake(float deltaTime, Camera* camera) {
+    const float dt = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+    shotCooldown_ = (std::max)(0.0f, shotCooldown_ - dt);
+    impactCooldown_ = (std::max)(0.0f, impactCooldown_ - dt);
+    rotationClock_ = std::fmod(rotationClock_ + dt, 1000.0f);
+    const auto envelope = [dt](RotationPulse& pulse) {
+        pulse.age += dt;
+        if (pulse.duration <= 0.0f || pulse.age >= pulse.duration) return 0.0f;
+        const float t = std::clamp(pulse.age / pulse.duration, 0.0f, 1.0f);
+        const float attack = std::clamp(pulse.age / 0.012f, 0.0f, 1.0f);
+        return pulse.amplitudeDegrees * attack * attack * (3.0f - 2.0f * attack)
+            * (1.0f - t * t * (3.0f - 2.0f * t));
+    };
+    const float target = gameplayEventsEnabled_
+        ? (std::max)(envelope(shotPulse_), envelope(impactPulse_)) : 0.0f;
+    rotationAmplitude_ += (target - rotationAmplitude_) * (1.0f - std::exp(-dt / 0.012f));
+    if (target == 0.0f && rotationAmplitude_ < 0.00001f) rotationAmplitude_ = 0.0f;
+    const float phase = rotationClock_ * 24.0f * kPi * 2.0f;
+    const float amplitude = std::clamp(rotationAmplitude_, 0.0f, FlightTuning::Get().shakeLimit) * kPi / 180.0f;
+    // sqrt(2) normalization bounds the combined pitch/yaw vector at the configured cap.
+    currentRotationOffset_ = { std::sin(phase * 1.17f) * amplitude * 0.70710678f,
+        std::sin(phase * 1.71f) * amplitude * 0.70710678f, 0.0f };
+    camera->SetViewRotationOffset(AddVector3(camera->GetViewRotationOffset(), currentRotationOffset_));
+    hasAppliedRotation_ = true;
 }
 
 void CameraShakeController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("カメラシェイク確認 (Camera Shake Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("カメラシェイク確認 (Camera Shake Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
     ImGui::Text("Playing: %s", isPlaying_ ? "true" : "false");
+    ImGui::Text("通常イベント振幅: %.4f度 / 上限 %.2f度", rotationAmplitude_, FlightTuning::Get().shakeLimit);
+    ImGui::Text("撃破・弾無効化の調整は飛行調整へ。");
     ImGui::DragFloat("Shake Duration", &duration_, 0.05f, 0.01f, 10.0f, "%.2f");
     ImGui::DragFloat("Shake Amplitude", &amplitude_, 0.005f, 0.0f, 5.0f, "%.3f");
     ImGui::DragFloat("Shake Frequency", &frequency_, 0.1f, 0.1f, 100.0f, "%.1f");
@@ -109,11 +177,16 @@ void CameraShakeController::DrawImGui() {
         Start(duration_, amplitude_, frequency_);
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
 void CameraShakeController::RemoveAppliedOffset(Camera* camera) {
+    if (camera && hasAppliedRotation_) {
+        camera->SetViewRotationOffset(SubtractVector3(camera->GetViewRotationOffset(), currentRotationOffset_));
+        currentRotationOffset_ = {};
+        hasAppliedRotation_ = false;
+    }
     if (!camera || !hasAppliedOffset_) {
         return;
     }

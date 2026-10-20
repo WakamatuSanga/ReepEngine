@@ -1,4 +1,6 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyDefeatEffectController.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Game/Player/PlayerJetExhaustBeamRenderer.h"
@@ -153,6 +155,7 @@ bool EnemyDefeatEffectController::Initialize(DirectXCommon* dxCommon, Camera* ca
 }
 
 void EnemyDefeatEffectController::Finalize() {
+    cameraShakeController_ = nullptr;
     initialized_ = false;
     effects_.clear();
     renderer_.reset();
@@ -236,6 +239,9 @@ EnemyDefeatEffectController::TrySpawnDefeatEffect(
     ++spawnedThisFrame_;
     activeEffectCount_ = CountActiveEffects();
     lastEffectPosition_ = position;
+    if (cameraShakeController_) {
+        if (scale >= 2.0f) cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Explosion);
+    }
     return EnemyDefeatEffectSpawnResult::Spawned;
 }
 
@@ -301,8 +307,8 @@ void EnemyDefeatEffectController::DrawLayer(bool afterCloudLayer) {
 void EnemyDefeatEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Enemy Defeat Effect Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Enemy Defeat Effect Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -334,7 +340,7 @@ void EnemyDefeatEffectController::DrawImGui() {
     ImGui::Text("Dropped Count: %llu", static_cast<unsigned long long>(droppedEffectCount_));
     ImGui::Text("Spawned This Frame: %d", spawnedThisFrame_);
     ImGui::Text("Last Defeated Position: %.2f, %.2f, %.2f", lastEffectPosition_.x, lastEffectPosition_.y, lastEffectPosition_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

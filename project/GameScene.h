@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Scene/IScene.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -35,6 +35,7 @@ class EventActionDispatcher;
 class GameOverFlowController;
 class GpuParticleEffectPlayer;
 class GpuParticleSystem;
+class GameplaySpeedLineController;
 class InfluenceFieldManager;
 class GameViewport;
 class GameSceneDebugGui;
@@ -48,8 +49,6 @@ class PlayerBulletEnemyCollision;
 class PlayerBulletManager;
 class PlayerBarrelRollRingController;
 class PlayerBulletCancelEffectController;
-class PlayerChargeFeedbackController;
-class PlayerChargeGatherEffectController;
 class PlayerEnemyBulletCollision;
 class PlayerJetExhaustController;
 class PlayerLockOnTargetProvider;
@@ -69,6 +68,8 @@ class ScreenSpaceFakeShadowPass;
 class SkinningEditor;
 class Skybox;
 class StartupEnemySpawnController;
+class StageStartSequenceController;
+class StageCombatState;
 class Sprite;
 class WarningUIController;
 struct Skeleton;
@@ -82,9 +83,18 @@ public:
     void Draw() override;
     void Finalize() override;
     void PrepareForPresentation() override;
+    void OnPresentationRevealed() override;
+    void OnFramePresented() override;
+    void DrawOverlay() override;
+    bool UsesFullscreenScenePresentation() const override;
+    bool BlocksDebugUiForPresentation() const override;
 
 private:
     friend class GameSceneDebugGui;
+    bool presentationPrepared_ = false;
+    std::unique_ptr<StageStartSequenceController> stageStart_;
+    std::unique_ptr<StageCombatState> stageCombatState_;
+    void UpdateStageStartPresentation();
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();
@@ -115,6 +125,7 @@ private:
     std::unique_ptr<Object3d> object3dSphere_; // 球用
     std::unique_ptr<PrimitiveEffectSystem> primitiveEffectSystem_;
     std::unique_ptr<GpuParticleSystem> gpuParticleSystem_;
+    std::unique_ptr<GameplaySpeedLineController> gameplaySpeedLineController_;
     std::unique_ptr<SkinningEditor> skinningEditor_;
     std::unique_ptr<RuntimeModeController> runtimeModeController_;
     std::unique_ptr<GameViewport> gameViewport_;
@@ -133,8 +144,6 @@ private:
     std::unique_ptr<PlayerBarrelRollRingController> playerBarrelRollRingController_;
     std::unique_ptr<PlayerBulletCancelEffectController> playerBulletCancelEffectController_;
     std::unique_ptr<PlayerBulletManager> playerBulletManager_;
-    std::unique_ptr<PlayerChargeFeedbackController> playerChargeFeedbackController_;
-    std::unique_ptr<PlayerChargeGatherEffectController> playerChargeGatherEffectController_;
     std::unique_ptr<GpuParticleEffectPlayer> gpuParticleEffectPlayer_;
     std::unique_ptr<CombatEffectController> combatEffectController_;
     std::unique_ptr<CombatSlowMotionController> combatSlowMotionController_;

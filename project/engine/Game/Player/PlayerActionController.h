@@ -5,6 +5,7 @@
 #include <string>
 
 class Camera;
+class CameraShakeController;
 class CombatEffectController;
 class CombatSlowMotionController;
 class EnemyBulletManager;
@@ -30,6 +31,7 @@ public:
     void SetDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
     void SetSlowMotionController(CombatSlowMotionController* slowMotionController);
+    void SetCameraShakeController(CameraShakeController* controller) { shake_ = controller; }
     void SetDebugVisualsEnabled(bool isEnabled);
     void Update(float deltaTime, bool canUseInput, const Vector3& playerPosition);
     void DrawDebugVisuals();
@@ -53,6 +55,7 @@ private:
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    CameraShakeController* shake_ = nullptr;
     EnemyBulletManager* enemyBulletManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
     PlayerBarrelRollRingController* rollRingController_ = nullptr;

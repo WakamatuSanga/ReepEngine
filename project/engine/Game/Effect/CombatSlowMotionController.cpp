@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "CombatSlowMotionController.h"
 
 #ifdef USE_IMGUI
@@ -105,8 +106,8 @@ void CombatSlowMotionController::TriggerBulletCancelSlowMotion(int cancelCount) 
 void CombatSlowMotionController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 320.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Combat Slow Motion Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Combat Slow Motion Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -137,7 +138,7 @@ void CombatSlowMotionController::DrawImGui() {
     ImGui::DragFloat("Cooldown", &cooldown_, 0.005f, 0.0f, 1.0f, "%.3f");
     ImGui::DragFloat("Max Extend Time", &maxExtendTime_, 0.005f, 0.05f, 1.0f, "%.3f");
     ImGui::DragInt("Min Cancel Count", &minCancelCount_, 1.0f, 1, 16);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

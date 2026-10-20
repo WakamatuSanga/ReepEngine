@@ -1,14 +1,26 @@
 #include "RailShooterCameraRig.h"
 
 #include "Engine/Game/Player/BoostController.h"
+#include "Engine/Game/Player/Player.h"
 
 #include <algorithm>
 #include <cmath>
 
 void RailShooterCameraRig::SetRuntimeContext(
-    Player* player, BoostController* boostController, bool gameModeActive) {
+    Player* player, BoostController* boostController, bool gameModeActive,
+    bool presentationOverrideActive, bool suppressPlayerAttitude) {
+    if (presentationOverrideActive_ != presentationOverrideActive) ResetGameplayInputHistory(false);
     player_ = player;
     boostController_ = boostController;
+    if (presentationOverrideActive_ && !presentationOverrideActive) presentationReturnActive_ = true;
+    if (presentationOverrideActive) presentationReturnActive_ = false;
+    presentationOverrideActive_ = presentationOverrideActive;
+    if (player_) {
+        player_->SetNormalFlightPresentation(gameModeActive && camera_,
+            suppressPlayerAttitude);
+        player_->SetFlightEffectsActive(gameModeActive && camera_ &&
+            !presentationOverrideActive_ && !presentationReturnActive_);
+    }
     boostControllerActive_ = boostController_ != nullptr;
     if (!runtimeContextInitialized_) {
         gameModeActive_ = gameModeActive;
@@ -19,6 +31,11 @@ void RailShooterCameraRig::SetRuntimeContext(
 
     InvalidateProjectileRailContinuity();
     gameModeActive_ = gameModeActive;
+    ResetGameplayInputHistory();
+    playerFollowInitialized_ = false;
+    presentationReturnActive_ = false;
+    // Keep the logical gameplay basis across editor/Game Mode switches.
+    // Only an explicit camera reset or initialization replaces that basis.
     ClearRuntimeV2ForceTests();
     ResetBoostRailSpeedState();
     hasPreviousRailForward_ = false;

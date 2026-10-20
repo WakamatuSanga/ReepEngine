@@ -14,6 +14,7 @@ public:
         kMultiply, // 乗算
         kScreen,   // スクリーン
         kNone,     // なし
+        kGhost,    // depth-test only, preserve destination alpha, one scene RTV
         kCountOf,
     };
 

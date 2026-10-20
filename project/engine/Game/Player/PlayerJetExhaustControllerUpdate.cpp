@@ -1,4 +1,4 @@
-#include "PlayerJetExhaustController.h"
+﻿#include "PlayerJetExhaustController.h"
 #include "BoostController.h"
 #include "Player.h"
 #include "PlayerJetExhaustBeamCore.h"
@@ -67,19 +67,33 @@ void PlayerJetExhaustController::UpdateDisplay(float deltaTime, const Transform&
     float referenceModelScale, float displayBoost, float opacity, bool nozzleLocalParticles) {
     if (referenceModelScale <= 0.0f) return;
     displayOpacity_ = std::clamp(opacity, 0.0f, 1.0f);
-    displayLocalParticles_ = nozzleLocalParticles && !player_;
+    displayLocalParticles_ = nozzleLocalParticles;
     const Vector3 scale = { transform.scale.x / referenceModelScale,
         transform.scale.y / referenceModelScale, transform.scale.z / referenceModelScale };
     UpdateVisualPose(deltaTime, transform.translate, transform.rotate, { 0.0f, 0.0f, 1.0f }, scale, displayBoost);
 }
 
 void PlayerJetExhaustController::ResetDisplayState() {
-    if (player_) return;
-    // Reuse resources; clear waiting particles before relocating behind the camera.
+    // Presentation owners call this only while hidden, including the gameplay entry.
+    // Keep the preset and GPU allocations; retire just this exhaust's transient state.
     if (particleSystem_) particleSystem_->ResetParticlePool();
+    if (beamCore_) beamCore_->ResetDisplayHistory();
     smoothedBoostPower_ = 0.0f;
     displayOpacity_ = 1.0f;
     displayLocalParticles_ = false;
+}
+
+PlayerJetExhaustController::DisplayBounds PlayerJetExhaustController::GetUnboostedDisplayBounds() const {
+    const float nozzle = std::fabs(nozzleBackOffset_) + std::fabs(nozzleUpOffset_) + std::fabs(nozzleSideOffset_);
+    const auto beam = beamCore_ ? beamCore_->GetUnboostedDisplayBounds() : Vector2{};
+    // Conservative reach of the existing unboosted outer-flame cone, including
+    // maximum lifetime/speed and every billboard corner; no preset is modified.
+    const bool outer = !beamCore_ || beamCore_->IsOuterParticlesEnabled();
+    const float travel = outer ? outerExhaustSpeed_ * 1.15f * outerLifeTimeMax_ + emitterConeHeight_ * 1.1f : 0.0f;
+    const float billboard = outer ? (std::max)(outerStartSize_, outerEndSize_) * outerParticleScale_ * 0.707107f : 0.0f;
+    const float angle = coneAngleDegrees_ * 1.1f * 3.14159265358979323846f / 180.0f;
+    const float radial = travel * std::tan(angle) + billboard;
+    return {nozzle + (std::max)(beam.x, travel + billboard), nozzle + (std::max)(beam.y, radial)};
 }
 
 void PlayerJetExhaustController::UpdateVisualPose(float deltaTime, const Vector3& position,
@@ -131,7 +145,7 @@ void PlayerJetExhaustController::UpdateVisualPose(float deltaTime, const Vector3
         24.0f,
         8.0f);
     if (displayLocalParticles_) {
-        // Only title waiting/departure opts in. All existing particles retain
+        // Title and the stage-start lateral pass opt in. All particles retain
         // their nozzle-relative position/velocity instead of the old camera yaw.
         const auto& emitters = particleSystem_->GetState().emitters;
         for (size_t i = 0; i < emitters.size(); ++i) {

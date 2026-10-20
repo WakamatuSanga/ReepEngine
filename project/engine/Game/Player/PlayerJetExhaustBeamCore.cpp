@@ -1,4 +1,4 @@
-#include "PlayerJetExhaustBeamCore.h"
+﻿#include "PlayerJetExhaustBeamCore.h"
 
 #include "PlayerJetExhaustBeamRenderer.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -104,6 +104,19 @@ void PlayerJetExhaustBeamCore::Update(
 
     BuildBeamVertices(side, upLike);
     BuildGlowVertices(ExtractCameraRight(camera), ExtractCameraUp(camera));
+}
+
+void PlayerJetExhaustBeamCore::ResetDisplayHistory() {
+    beamVertices_.clear();
+    glowVertices_.clear();
+    exhaustEnabled_ = false;
+    time_ = 0;
+}
+
+Vector2 PlayerJetExhaustBeamCore::GetUnboostedDisplayBounds() const {
+    return {(std::max)(enableBeamCore_ ? baseBeamLength_ : 0.0f, enableNozzleGlow_ ? nozzleGlowSize_ : 0.0f),
+        (std::max)(enableBeamCore_ ? (std::max)(beamStartWidth_, beamEndWidth_) : 0.0f,
+            enableNozzleGlow_ ? nozzleGlowSize_ : 0.0f)};
 }
 
 void PlayerJetExhaustBeamCore::Draw(const Camera* camera, float brightnessScale, float alphaScale) {

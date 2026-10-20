@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "RailShooterCameraRig.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -111,8 +112,8 @@ namespace {
 void RailShooterCameraRig::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 520.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -126,6 +127,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Checkbox("CameraRig中はEvent Debugを隠す (Hide Event Debug While Camera Rig Active)", &hideEventDebugWhileActive_);
 
     ImGui::SeparatorText("Camera Composition Debug");
+    ImGui::Text("通常カメラの操縦回転・余白は飛行調整で変更します。");
     ImGui::Checkbox("斜め上カメラを使う (Enable Angled Player Camera)", &enableAngledPlayerCamera_);
     ImGui::Checkbox("見た目用Camera Forwardのみ変更 (Use Visual Camera Forward Only)", &useVisualCameraForwardOnly_);
     ImGui::Checkbox("Camera Composition Debug表示 (Show Camera Composition Debug)", &showCameraCompositionDebug_);
@@ -379,7 +381,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Text("Saved Position: %.3f, %.3f, %.3f", savedCameraPosition_.x, savedCameraPosition_.y, savedCameraPosition_.z);
     ImGui::Text("Saved Rotation: %.3f, %.3f, %.3f", savedCameraRotation_.x, savedCameraRotation_.y, savedCameraRotation_.z);
     DrawRuntimeV2TrialImGui();
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

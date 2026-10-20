@@ -4,6 +4,61 @@
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <regex>
+#include <string>
+
+namespace {
+template<class F> void LayoutFields(TitleForegroundLayoutSettings& settings, F visit) {
+    for (size_t i = 0; i < settings.sides.size(); ++i) {
+        auto& s = settings.sides[i];
+        const std::string prefix = i == 0 ? "left" : "right";
+        visit(prefix+"CenterX", s.centerX, i == 0 ? 0.03f : 0.88f, i == 0 ? 0.12f : 0.97f);
+        visit(prefix+"RootY", s.rootY, 1.04f, 1.20f);
+        visit(prefix+"Height", s.height, 0.88f, 1.15f);
+        visit(prefix+"Width", s.width, 0.65f, 1.10f);
+        visit(prefix+"Yaw", s.yaw, -1.2f, 1.2f);
+        visit(prefix+"Lean", s.lean, -0.06f, 0.06f);
+    }
+}
+}
+TitleForegroundLayoutSettings& GetTitleForegroundLayoutSettings() {
+    static TitleForegroundLayoutSettings settings;
+    return settings;
+}
+bool LoadTitleForegroundLayoutSettings(const char* path) {
+    std::ifstream file(path);
+    if (!file) return false;
+    const std::string json((std::istreambuf_iterator<char>(file)), {});
+    if (json.find('{') == std::string::npos) return false;
+    TitleForegroundLayoutSettings next;
+    bool valid = true;
+    LayoutFields(next, [&](const std::string& key, float& value, float low, float high) {
+        const std::regex pattern("\"" + key + "\"\\s*:\\s*(-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)");
+        std::smatch match;
+        if (std::regex_search(json, match, pattern)) {
+            try { const float v = std::stof(match[1].str()); if (std::isfinite(v)) value = std::clamp(v, low, high); }
+            catch (...) { valid = false; }
+        }
+    });
+    if (valid) GetTitleForegroundLayoutSettings() = next;
+    return valid;
+}
+bool SaveTitleForegroundLayoutSettings(const char* path) {
+    std::error_code error;
+    const auto parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty()) std::filesystem::create_directories(parent, error);
+    if (error) return false;
+    std::ofstream file(path);
+    if (!file) return false;
+    file.precision(9);
+    file << "{\n  \"version\": 1";
+    LayoutFields(GetTitleForegroundLayoutSettings(), [&](const std::string& key, float& v, float, float) { file << ",\n  \"" << key << "\": " << v; });
+    file << "\n}\n";
+    return static_cast<bool>(file);
+}
 
 Vector3 PlaceTitleForegroundCloud(const Camera& camera, const Transform& aircraft, const Vector3& halfExtents) {
     using namespace TitleForegroundMotion;
@@ -62,19 +117,43 @@ bool BuildTitleForegroundPose(Skeleton& skeleton, const std::vector<Transform>& 
         r.z += offset.localEulerOffsetRadians.z;
     }
     const float height = 2.0f * kDepth * std::tan(fov * 0.5f);
-    // Source mesh is approximately 10.8 units tall. Roots remain below the frame.
-    const float scale = kHeight * height / 10.8f;
+    // Preserve height on narrow screens; compress only the title's horizontal cross-section.
+    const float aspectWidth = (std::min)(1.0f, (std::max)(aspect, 0.1f) / (16.0f/9.0f));
+    const auto& layout = GetTitleForegroundLayoutSettings();
     for (size_t chain = 0; chain < chains.size(); ++chain) {
         if (chains[chain].joints.empty()) return false;
         auto& root = skeleton.joints[chains[chain].joints.front()];
         // Unused chains are wholly below the frustum; no bind data/mesh edits.
         root.localTranslate = { 0.0f, -1000.0f, kDepth };
-        root.localScale = { scale, scale, scale };
+        root.localScale = { 1, 1, 1 };
         if (chain != 0 && chain != 3) continue;
         const int side = chain == 0 ? 0 : 1;
-        root.localTranslate = { (CenterX(time, side) - 0.5f) * height * aspect,
-            (0.5f - kRootY - (1.0f - rise[side]) * kStorageDrop) * height, kDepth };
+        const auto& settings = layout.sides[side];
+        const float scale = settings.height * height / 10.8f;
+        root.localScale = { scale, scale, scale };
+        root.localRotate.y += settings.yaw;
+        root.localRotate.z += settings.lean;
+        root.localTranslate = { (settings.centerX + SwayX(time, side) - 0.5f) * height * aspect,
+            (0.5f - settings.rootY - (1.0f - rise[side]) * kStorageDrop) * height, kDepth };
     }
     UpdateSkeletonWorldTransforms(skeleton);
+    // Width is a title camera-space adjustment, applied after the rest-bone
+    // orientation and sway. Scaling bone-local axes also shortens the tips.
+    // Keep each root fixed and update the matrices consumed by skinning together.
+    for (int side = 0; side < 2; ++side) {
+        const auto& chain = chains[side == 0 ? 0 : 3];
+        const float rootX = skeleton.joints[chain.joints.front()].worldTranslate.x;
+        const float width = layout.sides[side].width * aspectWidth;
+        const auto adjustment = MatrixMath::Multipty(
+            MatrixMath::Multipty(MatrixMath::MakeTranslate({ -rootX, 0, 0 }),
+                MatrixMath::MakeScale({ width, 1, 1 })),
+            MatrixMath::MakeTranslate({ rootX, 0, 0 }));
+        for (const auto index : chain.joints) {
+            auto& joint = skeleton.joints[index];
+            joint.skeletonSpaceMatrix = MatrixMath::Multipty(joint.skeletonSpaceMatrix, adjustment);
+            joint.worldMatrix = joint.skeletonSpaceMatrix;
+            joint.worldTranslate = { joint.worldMatrix.m[3][0], joint.worldMatrix.m[3][1], joint.worldMatrix.m[3][2] };
+        }
+    }
     return true;
 }

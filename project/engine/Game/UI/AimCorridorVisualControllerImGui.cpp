@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "AimCorridorVisualController.h"
 
 #include "AimCorridorVisualRenderer.h"
@@ -9,8 +10,8 @@
 void AimCorridorVisualController::DrawImGui() {
 #ifdef USE_IMGUI
     // Aim CorridorのImGuiは、表示文言を日本語、隠しIDを英語で統一する。
-    if (!ImGui::Begin("エイムコリドー表示デバッグ###AimCorridorVisualDebug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("エイムコリドー表示デバッグ###AimCorridorVisualDebug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -401,6 +402,6 @@ void AimCorridorVisualController::DrawImGui() {
         }
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

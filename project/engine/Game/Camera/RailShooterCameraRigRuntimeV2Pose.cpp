@@ -1,12 +1,16 @@
 #include "RailShooterCameraRig.h"
 
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/FlightTuning.h"
+#include "Engine/Game/Player/BoostController.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/RailShooter/RailPathRuntimeV2.h"
 #include "Engine/Game/RailShooter/RailPathRuntimeV2Adapter.h"
 #include "Engine/Level/LevelRailRuntime.h"
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -254,4 +258,147 @@ float RailShooterCameraRig::ComputePitchDegrees(const Vector3& forward) {
     const Vector3 safe = Normalize(forward, { 0.0f, 0.0f, 1.0f });
     const float horizontal = std::sqrt(safe.x * safe.x + safe.z * safe.z);
     return std::atan2(-safe.y, horizontal) * kRadiansToDegrees;
+}
+
+bool RailShooterCameraRig::UsesGameplayComposition() const {
+    // Rail advancement is optional. Game Mode owns this same render camera
+    // even when no rail exists, is disabled, or cannot be evaluated.
+    return gameModeActive_ && player_ && camera_;
+}
+
+bool RailShooterCameraRig::IsGameplayPresentationActive() const {
+    // Midboss combat can retain its FOV framing without owning normal input/attitude.
+    return stageStartPresentationActive_ || presentationOverrideActive_ || presentationReturnActive_;
+}
+
+void RailShooterCameraRig::ResetGameplayInputHistory(bool resetRotation) {
+    pilotHistoryBegin_ = pilotHistoryCount_ = 0;
+    pilotInputClock_ = 0;
+    pilotLastInput_ = pilotDelayedInput_ = {};
+    if (resetRotation) playerLookInput_ = {};
+}
+
+void RailShooterCameraRig::UpdatePlayerFollow(float deltaTime, float unscaledDeltaTime) {
+    if (!UsesGameplayComposition()) {
+        playerFollowInitialized_ = false;
+        ResetGameplayInputHistory();
+        if (camera_) camera_->SetViewRotationOffset({});
+        return;
+    }
+    const bool presentation = IsGameplayPresentationActive();
+    const Vector2 offset = player_->GetPresentationOffset();
+    const Vector2 followTarget = presentationOverrideActive_ ? offset : Vector2{};
+    Vector2 input = presentation ? Vector2{} : player_->GetMoveInput();
+    const float length = (std::max)(1.0f, std::sqrt(input.x * input.x + input.y * input.y));
+    input.x /= length;
+    input.y /= length;
+    if (!playerFollowInitialized_) {
+        playerFollowOffset_ = followTarget;
+        ResetGameplayInputHistory();
+        playerFollowInitialized_ = true;
+    }
+    const float dt = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+    const auto& tuning = FlightTuning::Get();
+    const float elapsed = unscaledDeltaTime < 0 ? deltaTime : unscaledDeltaTime;
+    const float realDt = std::isfinite(elapsed) ? (std::max)(0.0f, elapsed) : 0.0f;
+    if (std::fabs(input.x) < 0.04f) input.x = 0;
+    if (std::fabs(input.y) < 0.04f) input.y = 0;
+    // Store input transitions, bounded independently of frame rate. Integrate
+    // the response in real time, splitting frames at delayed transition times.
+    const bool suspended = presentation || !player_->UsesWASDInput() || dt <= 0 || realDt <= 0;
+    if (suspended) {
+        ResetGameplayInputHistory(dt <= 0 || realDt <= 0);
+        input = {};
+    }
+    if (input.x != pilotLastInput_.x || input.y != pilotLastInput_.y) {
+        if (pilotHistoryCount_ == pilotInputHistory_.size()) {
+            pilotHistoryBegin_ = (pilotHistoryBegin_ + 1) % pilotInputHistory_.size();
+            --pilotHistoryCount_;
+        }
+        pilotInputHistory_[(pilotHistoryBegin_ + pilotHistoryCount_) % pilotInputHistory_.size()] =
+            { pilotInputClock_, input };
+        ++pilotHistoryCount_;
+        pilotLastInput_ = input;
+    }
+    const double frameEnd = pilotInputClock_ + realDt;
+    const auto filter = [this, &tuning](double seconds) {
+        const float duration = static_cast<float>((std::max)(0.0, seconds));
+        playerLookInput_.x += (pilotDelayedInput_.x - playerLookInput_.x) *
+            (1.0f - std::exp(-duration / (std::max)(.001f, tuning.cameraRollTime)));
+        playerLookInput_.y += (pilotDelayedInput_.y - playerLookInput_.y) *
+            (1.0f - std::exp(-duration / (std::max)(.001f, tuning.cameraPitchTime)));
+    };
+    while (pilotHistoryCount_ > 0) {
+        const auto& sample = pilotInputHistory_[pilotHistoryBegin_];
+        const double activation = (std::max)(pilotInputClock_, sample.time + tuning.cameraInputDelay);
+        if (activation > frameEnd) break;
+        filter(activation - pilotInputClock_);
+        pilotInputClock_ = activation;
+        pilotDelayedInput_ = sample.input;
+        pilotHistoryBegin_ = (pilotHistoryBegin_ + 1) % pilotInputHistory_.size();
+        --pilotHistoryCount_;
+    }
+    filter(frameEnd - pilotInputClock_);
+    pilotInputClock_ = frameEnd;
+    // Normal XY movement never translates the camera. Dedicated framing owns its
+    // existing follow; its return blends in the same filter until it releases.
+    if (presentation) {
+        const float followAlpha = 1.0f - std::exp(-dt / playerFollowTime_);
+        playerFollowOffset_.x += (followTarget.x - playerFollowOffset_.x) * followAlpha;
+        playerFollowOffset_.y += (followTarget.y - playerFollowOffset_.y) * followAlpha;
+        if (presentationReturnActive_ && std::fabs(playerFollowOffset_.x) < 0.00001f
+            && std::fabs(playerFollowOffset_.y) < 0.00001f) {
+            presentationReturnActive_ = false;
+            playerFollowOffset_ = {};
+        }
+    } else {
+        playerFollowOffset_ = {};
+    }
+    ApplyToCamera(dt);
+}
+
+bool RailShooterCameraRig::BuildGameplayVisualPose([[maybe_unused]] float followDeltaTime) {
+    if (!UsesGameplayComposition()) return false;
+    const Vector3 anchor = Add(Add(currentPosition_, Scale(currentUp_, cameraHeightOffset_)),
+        Scale(currentForward_, player_->GetDistanceFromCamera()));
+    player_->SetBaseMode(Player::BaseMode::Rail);
+    player_->SetExternalBasePosition(anchor);
+    player_->SetExternalBaseForward(currentForward_);
+    player_->SetExternalBaseUp(currentUp_);
+
+    const float aspect = (std::max)(0.1f, camera_->GetAspectRatio());
+    const float distanceScale = (std::max)(1.0f, (16.0f / 9.0f) / aspect);
+    const auto& tuning = FlightTuning::Get();
+    const float distance = tuning.cameraDistance * distanceScale;
+    const float height = gameplayCameraHeight_ * distanceScale;
+    const Vector3 basePosition = Add(Add(anchor, Scale(currentForward_, -distance)), Scale(currentUp_, height));
+    gameplayReferenceFrame_ = MatrixMath::MakeIdentity4x4();
+    const Vector3 axes[] = { currentRight_, currentUp_, currentForward_, basePosition };
+    for (int row = 0; row < 4; ++row) {
+        gameplayReferenceFrame_.m[row][0] = axes[row].x;
+        gameplayReferenceFrame_.m[row][1] = axes[row].y;
+        gameplayReferenceFrame_.m[row][2] = axes[row].z;
+    }
+    constexpr float radians = 3.14159265358979323846f / 180.0f;
+    const float renderFov = 2.0f * std::atan(std::tan(gameplayBaseFovY_ * 0.5f) * tuning.viewExpansion);
+    if (!IsGameplayPresentationActive()) camera_->SetFovY(renderFov);
+    // Full logical Gameplay projection, never the shaken final view matrix.
+    player_->SetGameplayMovementViewport(distance, height, renderFov, aspect, 0, 0);
+
+    visualCameraPosition_ = Add(Add(basePosition, Scale(currentRight_, playerFollowOffset_.x)),
+        Scale(currentUp_, playerFollowOffset_.y));
+    const float pitch = gameplayCameraPitchDegrees_ * radians;
+    visualCameraForward_ = Normalize(Add(Scale(currentForward_, std::cos(pitch)),
+        Scale(currentUp_, -std::sin(pitch))), currentForward_);
+    gameplayCameraRotation_ = { ComputePitchDegrees(visualCameraForward_) * radians,
+        std::atan2(visualCameraForward_.x, visualCameraForward_.z), 0.0f };
+    const Vector3 pilotRotation{ -playerLookInput_.y * tuning.cameraPitch,
+        0.0f, playerLookInput_.x * tuning.cameraRoll };
+    camera_->SetViewRotationOffset(pilotRotation);
+    // Presentation mapping keeps fixed normalized controls at the visible edges.
+    // This explicit, unshaken pose precedes event shake; bounds remain logical.
+    player_->SetGameplayViewportPose(MatrixMath::MakeAffine({ 1, 1, 1 },
+        gameplayCameraRotation_, basePosition), pilotRotation);
+    cameraLookTarget_ = Add(visualCameraPosition_, Scale(visualCameraForward_, cameraLookDistance_));
+    return true;
 }

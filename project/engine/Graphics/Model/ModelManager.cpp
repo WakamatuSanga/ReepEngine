@@ -13,6 +13,7 @@ ModelManager* ModelManager::GetInstance()
 
 void ModelManager::Initialize(DirectXCommon* dxCommon)
 {
+    models_.clear(); // Device initialization starts a fresh cache, unlike scene re-entry.
     modelCommon_ = std::make_unique<ModelCommon>();
     modelCommon_->Initialize(dxCommon);
 }

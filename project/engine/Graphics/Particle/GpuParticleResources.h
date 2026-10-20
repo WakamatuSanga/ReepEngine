@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 #include <d3d12.h>
 #include <wrl.h>
 
@@ -13,6 +14,7 @@ struct State;
 
 class GpuParticleResources {
 public:
+    ~GpuParticleResources();
 	bool Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const GpuParticle::State& state);
 	void UploadParticleTypes(const GpuParticle::State& state);
 
@@ -36,6 +38,9 @@ public:
 	bool HasDeadListCounter() const { return deadListCounterResource_ != nullptr; }
 
 private:
+    uint32_t AllocateDescriptor();
+    uint64_t descriptorGeneration_ = 0;
+    std::vector<uint32_t> descriptors_;
 	bool CreateParticleResources(const GpuParticle::State& state);
 	bool CreateFreeListResources();
 	bool CreateDeadListResources();

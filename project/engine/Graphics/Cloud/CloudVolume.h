@@ -36,6 +36,8 @@ public:
 public:
     CloudVolume();
     static Parameters RecommendedDefaults();
+    // Effective material only: never copies or rewinds elapsed time / wind.
+    Parameters GetAppearanceCandidateParameters(bool lighting) const;
 
     void Update(float deltaTime);
 

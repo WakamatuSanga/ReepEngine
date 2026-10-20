@@ -1,5 +1,7 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PostEffectController.h"
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Graphics/Sprite/SpriteCommon.h"
@@ -49,6 +51,7 @@ void PostEffectController::Initialize(DirectXCommon* dxCommon, SpriteCommon* spr
 }
 
 void PostEffectController::Finalize() {
+    RestoreBoostVignette();
     RestoreGrayscale();
     RestoreBoostRadialBlur();
     flashSprite_.reset();
@@ -57,19 +60,19 @@ void PostEffectController::Finalize() {
     spriteCommon_ = nullptr;
 }
 
-void PostEffectController::Update(float deltaTime) {
+void PostEffectController::Update(float deltaTime, float unscaledDeltaTime) {
     if (diagnosticSuppressed_ || !enabled_) {
         flashActive_ = false;
         fadeActive_ = false;
         grayscaleActive_ = false;
         RestoreGrayscale();
         RestoreBoostRadialBlur();
-        currentBoostEffectIntensity_ = 0.0f;
+        ClearBoostEffects();
         return;
     }
 
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
-    UpdateBoostPostEffect(safeDeltaTime);
+    UpdateBoostPostEffect(unscaledDeltaTime < 0 ? safeDeltaTime : unscaledDeltaTime);
     if (flashActive_) {
         flashElapsed_ += safeDeltaTime;
         flashActive_ = flashElapsed_ < flashDuration_;
@@ -121,8 +124,8 @@ void PostEffectController::Draw() {
 void PostEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 340.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ポストエフェクト確認 (PostEffect Controller Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ポストエフェクト確認 (PostEffect Controller Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -205,7 +208,7 @@ void PostEffectController::DrawImGui() {
     ImGui::Text("Current Boost Effect Intensity: %.3f", currentBoostEffectIntensity_);
     ImGui::Text("Current Boost Effect Center: %.2f, %.2f", currentBoostCenterX_, currentBoostCenterY_);
     ImGui::TextWrapped("Boost PostEffect Reason: %s", boostPostEffectReason_.c_str());
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
@@ -267,6 +270,19 @@ void PostEffectController::PlayFadeBlack() {
 }
 
 void PostEffectController::UpdateBoostPostEffect(float deltaTime) {
+    const float targetVignette = enableBoostPostEffect_ ? requestedBoostPower_ : 0;
+    currentVignettePower_ += (targetVignette - currentVignettePower_) * (1 - std::exp(-deltaTime / .055f));
+    if (dxCommon_ && currentVignettePower_ > .001f) {
+        auto& params = dxCommon_->GetPostEffectParameters();
+        if (!boostVignetteSaved_) {
+            previousVignetteEnabled_ = params.vignetteEnabled;
+            previousVignetteIntensity_ = params.vignetteIntensity;
+            boostVignetteSaved_ = true;
+        }
+        params.vignetteEnabled = 1;
+        params.vignetteIntensity = (std::max)(previousVignetteEnabled_ ? previousVignetteIntensity_ : 0,
+            FlightTuning::Get().vignette * currentVignettePower_);
+    } else RestoreBoostVignette();
     const float targetIntensity = (enableBoostPostEffect_ && requestedBoostPower_ > boostEffectStartThreshold_)
         ? requestedBoostPower_ * std::clamp(maxBoostEffectIntensity_, 0.0f, 1.0f)
         : 0.0f;
@@ -313,6 +329,19 @@ void PostEffectController::ApplyBoostRadialBlur(float strength) {
     boostPostEffectReason_ = requestedBoostCenterValid_ ? "Boost radial blur active" : "Boost radial blur active with center fallback";
 }
 
+void PostEffectController::ClearBoostEffects() {
+    requestedBoostPower_ = currentVignettePower_ = currentBoostEffectIntensity_ = 0;
+    RestoreBoostVignette();
+    RestoreBoostRadialBlur();
+}
+void PostEffectController::RestoreBoostVignette() {
+    if (dxCommon_ && boostVignetteSaved_) {
+        auto& params = dxCommon_->GetPostEffectParameters();
+        params.vignetteEnabled = previousVignetteEnabled_;
+        params.vignetteIntensity = previousVignetteIntensity_;
+    }
+    boostVignetteSaved_ = false;
+}
 void PostEffectController::RestoreBoostRadialBlur() {
     if (!dxCommon_ || !boostRadialSaved_) {
         boostRadialSaved_ = false;

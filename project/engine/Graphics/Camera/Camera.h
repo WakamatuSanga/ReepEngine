@@ -16,6 +16,7 @@ public:
 	void SetViewTranslationOffset(const Vector3& offset) {
 		viewTranslationOffset_ = offset;
 	}
+	void SetViewRotationOffset(const Vector3& offset) { viewRotationOffset_ = offset; }
 	void SetFovY(float fovY) { fovY_ = fovY; }
 	void SetAspectRatio(float aspectRatio) { aspectRatio_ = aspectRatio; }
 	void SetNearClip(float nearClip) { nearClip_ = nearClip; }
@@ -23,6 +24,8 @@ public:
 
 	// ゲッター
 	const Matrix4x4& GetWorldMatrix() const { return worldMatrix_; }
+	const Matrix4x4& GetViewWorldMatrix() const { return viewWorldMatrix_; }
+	const Vector3& GetViewRotationOffset() const { return viewRotationOffset_; }
 	const Matrix4x4& GetViewMatrix() const { return viewMatrix_; }
 	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }
 	const Matrix4x4& GetViewProjectionMatrix() const { return viewProjectionMatrix_; }
@@ -45,10 +48,12 @@ public:
 private:
 	Transform transform_;
 	Matrix4x4 worldMatrix_;
+	Matrix4x4 viewWorldMatrix_;
 	Matrix4x4 viewMatrix_;
 	Matrix4x4 projectionMatrix_;
 	Matrix4x4 viewProjectionMatrix_;
 	Vector3 viewTranslationOffset_{};
+	Vector3 viewRotationOffset_{};
 
 	float fovY_;
 	float aspectRatio_;

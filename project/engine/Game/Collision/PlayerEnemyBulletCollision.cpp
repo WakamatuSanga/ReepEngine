@@ -1,4 +1,6 @@
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerEnemyBulletCollision.h"
+#include "Engine/Game/Player/BoostController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -27,6 +29,7 @@ void PlayerEnemyBulletCollision::Initialize(
     deathSequence_ = deathSequence;
     combatEffectController_ = combatEffectController;
     lastBlockedReason_ = "Initialized";
+    hasPreviousPlayerPosition_ = false;
 }
 
 void PlayerEnemyBulletCollision::Finalize() {
@@ -38,6 +41,8 @@ void PlayerEnemyBulletCollision::Finalize() {
     slowMotionController_ = nullptr;
     impactDistortionController_ = nullptr;
     damageFeedbackController_ = nullptr;
+    evadeController_ = nullptr;
+    hasPreviousPlayerPosition_ = false;
 }
 
 void PlayerEnemyBulletCollision::SetBulletCancelEffectController(PlayerBulletCancelEffectController* controller) {
@@ -75,6 +80,12 @@ void PlayerEnemyBulletCollision::Update() {
     }
 
     lastPlayerPosition_ = player_->GetWorldPosition();
+    const bool evading = evadeController_ && evadeController_->IsEvadeActive();
+    bulletManager_->EvaluateEvade(hasPreviousPlayerPosition_ ? previousPlayerPosition_ : lastPlayerPosition_,
+        lastPlayerPosition_, player_->GetHitRadius(), evading);
+    previousPlayerPosition_ = lastPlayerPosition_;
+    hasPreviousPlayerPosition_ = true;
+    if (evading) { lastBlockedReason_ = "スロー回避中：敵弾ダメージなし"; return; }
     lastPlayerHitRadius_ = player_->GetHitRadius();
     lastPlayerDamageReduction_ = player_->GetDamageReduction();
     if (bulletManager_->CheckHitAndKillFirstSphere(
@@ -83,7 +94,7 @@ void PlayerEnemyBulletCollision::Update() {
         &lastHitPosition_,
         &lastDistance_,
         &lastRadiusSum_,
-        &lastBulletRadius_)) {
+        &lastBulletRadius_, player_->IsInvincible())) {
         lastHit_ = true;
         ++hitCount_;
         if (player_->IsInvincible()) {
@@ -132,8 +143,8 @@ void PlayerEnemyBulletCollision::Update() {
 void PlayerEnemyBulletCollision::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(340.0f, 240.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Player被弾確認 (Player Enemy Bullet Collision)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Player被弾確認 (Player Enemy Bullet Collision)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -156,7 +167,7 @@ void PlayerEnemyBulletCollision::DrawImGui() {
     ImGui::Text("Last Hit Position: %.2f, %.2f, %.2f", lastHitPosition_.x, lastHitPosition_.y, lastHitPosition_.z);
     ImGui::TextWrapped("Blocked Reason: %s", lastBlockedReason_);
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

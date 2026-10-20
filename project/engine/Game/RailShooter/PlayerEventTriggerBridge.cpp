@@ -1,4 +1,5 @@
-﻿#include "PlayerEventTriggerBridge.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "PlayerEventTriggerBridge.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Level/LevelEventRuntime.h"
 
@@ -41,8 +42,8 @@ void PlayerEventTriggerBridge::Update() {
 void PlayerEventTriggerBridge::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤーイベント判定確認 (Player Event Trigger Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤーイベント判定確認 (Player Event Trigger Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -59,7 +60,7 @@ void PlayerEventTriggerBridge::DrawImGui() {
         ImGui::Text("Is Player Inside EventFlag: %s", eventRuntime_->IsPlayerInsideEventFlag() ? "true" : "false");
         ImGui::TextWrapped("Last Triggered By: %s", eventRuntime_->GetLastTriggeredBy().c_str());
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

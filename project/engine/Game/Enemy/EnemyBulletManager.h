@@ -1,6 +1,7 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -8,6 +9,7 @@ class Camera;
 class EnemyBullet;
 class Object3dCommon;
 class ProjectileRailMotionAdapter;
+class StageCombatState;
 
 class EnemyBulletManager {
 public:
@@ -16,6 +18,7 @@ public:
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
+    bool PrepareForPresentation();
     void Update(float deltaTime);
     void Draw();
     void DrawImGui();
@@ -32,7 +35,9 @@ public:
     size_t ClearBulletsInRadius(const Vector3& center, float radius);
     size_t ClearBulletsInRadius(const Vector3& center, float radius, std::vector<Vector3>* clearedPositions, size_t maxRecordedPositions);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition);
-    bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius);
+    bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius, bool playerCanceled = false);
+    void SetCombatState(StageCombatState* state) { combatState_ = state; }
+    void EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
 
@@ -42,6 +47,8 @@ private:
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    StageCombatState* combatState_ = nullptr;
+    uint64_t nextCombatLifetimeId_ = 0;
     ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
     std::vector<std::unique_ptr<EnemyBullet>> bullets_;
     int selectedBulletIndex_ = -1;

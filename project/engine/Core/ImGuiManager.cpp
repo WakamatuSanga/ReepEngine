@@ -1,8 +1,9 @@
-#include "ImGuiManager.h"
+﻿#include "ImGuiManager.h"
 
 #ifdef USE_IMGUI
 #include "DirectXCommon.h"
 #include "RuntimeModeController.h"
+#include "DebugUiWorkspace.h"
 #include "SceneManager.h"
 #include "SrvManager.h"
 #include "WinApp.h"
@@ -37,6 +38,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	DebugUiWorkspace::Initialize();
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -117,6 +119,7 @@ void ImGuiManager::Finalize() {
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	DebugUiWorkspace::Shutdown();
 #endif
 }
 
@@ -143,6 +146,7 @@ void ImGuiManager::BeginDockSpace_() {
 	const RuntimeModeController* runtimeModeController = RuntimeModeController::GetActiveController();
 	const bool drawDebugUi = !runtimeModeController || runtimeModeController->ShouldDrawDebugUi();
 
+	const bool cinematic = SceneManager::GetInstance()->BlocksDebugUiForNextUpdate();
 #ifdef IMGUI_HAS_DOCK
 	const bool fullscreenScene = SceneManager::GetInstance()->UsesFullscreenScenePresentationForNextUpdate();
 	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
@@ -156,6 +160,7 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoNavFocus;
 
+	if (cinematic) windowFlags &= ~ImGuiWindowFlags_MenuBar;
 	if (fullscreenScene || (!drawDebugUi && runtimeModeController && runtimeModeController->ShouldKeepDockSpaceAlive())) {
 		// Keep the editor layout, but do not cover the scene with host or dock-node backgrounds.
 		dockspaceFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
@@ -184,12 +189,13 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGui::SetWindowHitTestHole(host, host->InnerRect.Min, host->InnerRect.GetSize());
 	}
 
-	if (ImGui::BeginMenuBar()) {
-		if (ImGui::BeginMenu("Window")) {
+	if (!cinematic && ImGui::BeginMenuBar()) {
+		DebugUiWorkspace::DrawMenu(drawDebugUi);
+		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
-				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+				ImGui::MenuItem("ImGuiデモ", nullptr, &showDemoWindow_);
 				ImGui::Separator();
-				ImGui::MenuItem("DockSpace Passthrough", nullptr, &enableDockSpacePassthrough_);
+				ImGui::MenuItem("中央を透過", nullptr, &enableDockSpacePassthrough_);
 			} else {
 				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
 			}
@@ -203,10 +209,11 @@ void ImGuiManager::BeginDockSpace_() {
 	ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
 	ImGui::End();
 #else
-	if (ImGui::BeginMainMenuBar()) {
-		if (ImGui::BeginMenu("Window")) {
+	if (!cinematic && ImGui::BeginMainMenuBar()) {
+		DebugUiWorkspace::DrawMenu(drawDebugUi);
+		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
-				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+				ImGui::MenuItem("ImGuiデモ", nullptr, &showDemoWindow_);
 			} else {
 				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
 			}
@@ -218,7 +225,7 @@ void ImGuiManager::BeginDockSpace_() {
 	}
 #endif
 
-	if (drawDebugUi && showDemoWindow_) {
+	if (!cinematic && drawDebugUi && showDemoWindow_) {
 		ImGui::ShowDemoWindow(&showDemoWindow_);
 	}
 }

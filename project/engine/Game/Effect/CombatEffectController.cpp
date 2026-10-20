@@ -1,4 +1,6 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "CombatEffectController.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 
 #include "GpuParticleEffectPlayer.h"
 #include "Engine/Game/Player/Player.h"
@@ -51,7 +53,16 @@ void CombatEffectController::Initialize(
     lastEffectResult_ = (primitiveEffectSystem_ || gpuParticleEffectPlayer_) ? "Initialized" : "Effect systems missing";
 }
 
+bool CombatEffectController::PrepareForPresentation() {
+    if (!enableCombatEffects_ || !enableGpuParticleEffects_) return true;
+    if (!gpuParticleEffectPlayer_) return false;
+    // small_explosion is currently reachable only from the debug preview button.
+    return (!enableHitSparks_ || gpuParticleEffectPlayer_->PrepareEffect(hitSparksJsonPath_))
+        && (!enableDeathExplosion_ || gpuParticleEffectPlayer_->PrepareEffect(deathExplosionJsonPath_));
+}
+
 void CombatEffectController::Finalize() {
+    cameraShakeController_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     gpuParticleEffectPlayer_ = nullptr;
     player_ = nullptr;
@@ -72,8 +83,8 @@ void CombatEffectController::Draw() {
 void CombatEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(440.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("戦闘エフェクト確認 (Combat Effect Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("戦闘エフェクト確認 (Combat Effect Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -147,7 +158,7 @@ void CombatEffectController::DrawImGui() {
         gpuParticleEffectPlayer_->DrawImGui();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
@@ -283,6 +294,9 @@ void CombatEffectController::PlayExplosion(const Vector3& position, const char* 
         result += gpuParticleEffectPlayer_ ? "GPU Explosion requested " : "GPU player missing ";
     }
 
+    if (playedSomething && cameraShakeController_) {
+        cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Explosion);
+    }
     RecordEffect(effectType, position, playedSomething ? result.c_str() : "No explosion effect enabled");
 }
 

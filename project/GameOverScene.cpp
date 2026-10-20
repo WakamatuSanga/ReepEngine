@@ -1,4 +1,4 @@
-#include "GameOverScene.h"
+﻿#include "GameOverScene.h"
 #include "MyGame.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
@@ -13,6 +13,7 @@
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #endif
 
 namespace {
@@ -97,10 +98,11 @@ void GameOverScene::Initialize() {
 
 void GameOverScene::Update() {
 #ifdef USE_IMGUI
-    ImGui::Begin("GameOver Scene");
-    ImGui::Text("Left click to return Title.");
-    ImGui::Text("gameover.png: %s", hasGameOverTexture_ ? "loaded" : "missing fallback");
-    ImGui::End();
+    const DebugUiWorkspace::Panel panels[]{ { "gameover", "GameOverの状態", DebugUiWorkspace::Category::Game, [this] {
+        ImGui::TextUnformatted("ゲーム画面を左クリックするとタイトルへ戻ります。");
+        ImGui::Text("gameover.png: %s", hasGameOverTexture_ ? "読込済み" : "代替画像");
+    } } };
+    DebugUiWorkspace::Draw(panels);
 #endif
 
     Input* input = MyGame::GetInstance()->GetInput();

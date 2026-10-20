@@ -1,4 +1,5 @@
-﻿#include "LevelSceneRuntime.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "LevelSceneRuntime.h"
 #include "LevelEventConnectionVisualizer.h"
 #include "BlenderRailPipelineVerification.h"
 #include "LevelEventDebugView.h"
@@ -185,7 +186,13 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     LoadJsonFromBuffer();
 }
 
-void LevelSceneRuntime::Update() {
+bool LevelSceneRuntime::PrepareForPresentation() {
+    if (!sceneLoaded_) return false;
+    if (rebuildDirty_) RebuildDebugObjects(false);
+    return !rebuildDirty_;
+}
+
+void LevelSceneRuntime::Update(float gameDeltaTime) {
     ++frameCounter_;
 
     if (rebuildDirty_ && !freezeDebugObjects_) {
@@ -199,7 +206,7 @@ void LevelSceneRuntime::Update() {
     if (eventRuntime_) { eventRuntime_->Update(frameCounter_); }
     if (railDebugVisualizer_) { railDebugVisualizer_->Update(frameCounter_); }
     if (railRuntime_) {
-        railRuntime_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime(), frameCounter_);
+        railRuntime_->Update(gameDeltaTime < 0 ? FrameTimer::GetInstance().GetGameplayDeltaTime() : gameDeltaTime, frameCounter_);
     }
 }
 
@@ -244,8 +251,8 @@ void LevelSceneRuntime::DrawImGui() {
     }
 
     ImGui::SetNextWindowSize(ImVec2(560.0f, 620.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("レベルエディタ確認 (Level Editor Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("レベルエディタ確認 (Level Editor Debug)")) {
+        DebugUiWorkspace::EndPanel();
         if (railRuntime_) {
             railRuntime_->DrawRuntimeV2ImGui();
         }
@@ -361,7 +368,7 @@ void LevelSceneRuntime::DrawImGui() {
         ImGui::TreePop();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
     if (railRuntime_) {
         railRuntime_->DrawRuntimeV2ImGui();
     }
@@ -401,6 +408,7 @@ void LevelSceneRuntime::ApplySceneData(
     const std::string& statusMessage,
     const std::string& sourceName) {
     sceneData_ = sceneData;
+    sceneLoaded_ = true;
     lastLoadStatus_ = statusMessage;
     lastResolvedPath_ = sourceName;
     selectedObjectIndex_ = -1;
@@ -461,6 +469,7 @@ void LevelSceneRuntime::LoadJsonFromBuffer() {
 
     jsonPath_ = jsonPathBuffer_.data();
     LevelSceneLoader::LoadResult result = loader_->LoadFromFile(jsonPath_, sceneData_);
+    sceneLoaded_ = result.success;
     lastLoadStatus_ = result.message;
     lastResolvedPath_ = result.resolvedPath;
     selectedObjectIndex_ = -1;
@@ -516,7 +525,7 @@ void LevelSceneRuntime::RequestRebuild(const std::string& applySource) {
     lastApplySource_ = applySource;
 }
 
-void LevelSceneRuntime::RebuildDebugObjects() {
+void LevelSceneRuntime::RebuildDebugObjects(bool updateRuntime) {
     rebuildDirty_ = false;
     lastApplySource_ = pendingRebuildSource_.empty() ? lastApplySource_ : pendingRebuildSource_;
     pendingRebuildSource_.clear();
@@ -567,13 +576,13 @@ void LevelSceneRuntime::RebuildDebugObjects() {
     if (objectActionVisualizer_) {
         objectActionVisualizer_->Update(frameCounter_);
     }
-    if (eventRuntime_) {
+    if (updateRuntime && eventRuntime_) {
         eventRuntime_->Update(frameCounter_);
     }
     if (railDebugVisualizer_) {
         railDebugVisualizer_->Update(frameCounter_);
     }
-    if (railRuntime_) {
+    if (updateRuntime && railRuntime_) {
         railRuntime_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime(), frameCounter_);
     }
 }

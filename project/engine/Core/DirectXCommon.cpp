@@ -1,5 +1,6 @@
 #include "DirectXCommon.h"
 #include "FrameTimer.h"
+#include "GpuTimestampProfiler.h"
 
 #include <cassert>
 #include <algorithm>
@@ -23,6 +24,8 @@
 #pragma comment(lib, "dxcompiler.lib")
 
 using namespace Microsoft::WRL;
+
+DirectXCommon::DirectXCommon() : gpuProfiler_(std::make_unique<GpuTimestampProfiler>()) {}
 
 // ======================================
 // 深度ステンシル用テクスチャ生成ヘルパ
@@ -155,6 +158,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
     assert(postEffectResource_);
     assert(postEffectData_);
 
+    const auto postToken = gpuProfiler_->Begin(commandList.Get(), GpuTimestampProfiler::Stage::Post, {});
     D3D12_RESOURCE_BARRIER barrier{};
     *postEffectData_ = postEffectParameters_;
     const PostEffectParameters scenePostEffectParameters = postEffectParameters_;
@@ -227,6 +231,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
     *postEffectData_ = scenePostEffectParameters;
     TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    gpuProfiler_->End(commandList.Get(), postToken);
 }
 
 // --------------------
@@ -267,6 +272,10 @@ void DirectXCommon::Initialize(WinApp* winApp)
     InitializeRenderTargetView(); // RTV
     InitializeDepthStencilView(); // DSV
     CreateFence();                // フェンス
+    // Renderer reinitialization follows its existing queue-finished lifetime contract.
+    // Query slots must never migrate to another device/queue/fence.
+    gpuProfiler_ = std::make_unique<GpuTimestampProfiler>();
+    gpuProfiler_->Initialize(device.Get(), commandQueue.Get(), fence.Get());
     InitializeViewport();         // ビューポート
     InitializeScissorRect();      // シザー矩形
     CreateDXCCompiler();          // DXC コンパイラ
@@ -307,6 +316,10 @@ void DirectXCommon::Finalize()
 // --------------------
 void DirectXCommon::PreDraw()
 {
+    // The ordinary game starts timestamps before Update's GPU dispatches.
+    // Draw-only presentation/tests can begin here without starting a second span.
+    if (!gpuProfiler_->HasBegunFrame()) gpuProfiler_->BeginFrame(commandList.Get(), renderTextureWidth_, renderTextureHeight_);
+    gpuProfiler_->SetFrameOutputSize(renderTextureWidth_, renderTextureHeight_);
     assert(renderTextureResource_);
     assert(normalTextureResource_);
     D3D12_CPU_DESCRIPTOR_HANDLE sceneRTVHandle = renderTextureRTVHandle_;
@@ -368,6 +381,8 @@ void DirectXCommon::PostDraw()
         barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         commandList->ResourceBarrier(1, &barrier);
 
+        gpuProfiler_->Resolve(commandList.Get());
+
         // コマンドリストを閉じて実行
         hr = commandList->Close();
         assert(SUCCEEDED(hr));
@@ -388,6 +403,7 @@ void DirectXCommon::PostDraw()
         ++fenceValue;
         hr = commandQueue->Signal(fence.Get(), fenceValue);
         assert(SUCCEEDED(hr));
+        if (SUCCEEDED(hr)) gpuProfiler_->OnSubmitted(fenceValue);
 
         if (fence->GetCompletedValue() < fenceValue) {
             hr = fence->SetEventOnCompletion(fenceValue, fenceEvent);

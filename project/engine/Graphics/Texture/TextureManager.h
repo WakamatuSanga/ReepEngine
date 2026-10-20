@@ -19,6 +19,7 @@ public:
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
     void Finalize();
 
+    bool IsLoaded(const std::string& filePath) const;
     void LoadTexture(const std::string& filePath);
     uint32_t GetTextureIndexByFilePath(const std::string& filePath);
     D3D12_GPU_DESCRIPTOR_HANDLE GetSrvHandleGPU(uint32_t textureIndex);

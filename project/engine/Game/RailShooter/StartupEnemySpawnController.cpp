@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "StartupEnemySpawnController.h"
 
 #include "Engine/Game/Enemy/EnemyManager.h"
@@ -104,8 +105,8 @@ void StartupEnemySpawnController::Update(float deltaTime) {
 void StartupEnemySpawnController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 320.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("開幕敵出現確認 (Startup Enemy Spawn Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("開幕敵出現確認 (Startup Enemy Spawn Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -148,7 +149,7 @@ void StartupEnemySpawnController::DrawImGui() {
     ImGui::TextWrapped("Last Spawn Result: %s", lastSpawnResult_.c_str());
     ImGui::Text("Spawn Count: %zu", spawnCount_);
     ImGui::Text("Failed Spawn Count: %zu", failedSpawnCount_);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

@@ -116,6 +116,12 @@ void AimCorridorTargetingController::UpdateSelection(float scaledDeltaTime) {
     }
 
     if (lockState_ == AimLockState::Locked) {
+        if (IsTargetHeld(current->runtimeId)) {
+            if (const ProjectedTarget* next = FindBestCandidate()) {
+                SwitchCandidate(*next, "成立済みロックを保持して次の候補を取得");
+                return;
+            }
+        }
         lockedHoldElapsed_ += scaledDeltaTime;
         lockedTargetId_ = current->runtimeId;
         lockedTargetWorldPosition_ = current->worldPosition;
@@ -184,7 +190,7 @@ void AimCorridorTargetingController::PublishVisualState(float unscaledDeltaTime)
     }
 
     const bool markerVisible = gameModeActive_ && playerAlive_ && currentTargetValid_
-        && publishedLockState == AimLockState::Locked;
+        && publishedLockState == AimLockState::Locked && !IsTargetHeld(candidateTargetId_);
     if (markerRenderer_) {
         markerRenderer_->Update(
             unscaledDeltaTime,
@@ -192,5 +198,11 @@ void AimCorridorTargetingController::PublishVisualState(float unscaledDeltaTime)
             currentTarget_.markerWorldPosition,
             currentTarget_.screenRadius,
             currentTarget_.cameraDepth);
+    }
+    for (const HeldLock& lock : heldLocks_) {
+        if (const ProjectedTarget* target = FindProjectedTarget(lock.targetId)) {
+            lock.marker->Update(unscaledDeltaTime, true, target->markerWorldPosition,
+                target->screenRadius, target->cameraDepth);
+        }
     }
 }

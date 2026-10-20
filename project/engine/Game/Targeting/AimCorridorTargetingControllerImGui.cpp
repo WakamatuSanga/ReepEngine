@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
@@ -36,15 +37,16 @@ namespace {
 void AimCorridorTargetingController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(470.0f, 720.0f), ImGuiCond_FirstUseEver);
-    const bool panelVisible = ImGui::Begin(
+    const bool panelVisible = DebugUiWorkspace::BeginPanel(
         "エイムコリドー照準・ロックデバッグ###AimCorridorTargetingDebug");
     if (!panelVisible) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
     if (ImGui::CollapsingHeader("基本設定##TargetingBasics", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Checkbox("照準・ロック機能を有効化##TargetingEnabled", &enabled_);
+        ImGui::Text("保持中のロック数: %zu", heldLocks_.size());
         ImGui::Text("ゲームモード有効: %s", gameModeActive_ ? "はい" : "いいえ");
         ImGui::Text("カメラ有効: %s", camera_ ? "はい" : "いいえ");
         ImGui::Text("対象プロバイダー接続: %s", targetProvider_ ? "はい" : "いいえ");
@@ -161,7 +163,7 @@ void AimCorridorTargetingController::DrawImGui() {
             Reset();
         }
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImDrawList* drawList = ImGui::GetForegroundDrawList();

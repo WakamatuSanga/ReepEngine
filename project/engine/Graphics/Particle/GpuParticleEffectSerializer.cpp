@@ -614,6 +614,10 @@ private:
 				if (!ParseFloat(type.influenceResponseScale)) {
 					return false;
 				}
+            } else if (key == "streakLength") {
+                if (!ParseFloat(type.streakLength)) return false;
+            } else if (key == "streakWidth") {
+                if (!ParseFloat(type.streakWidth)) return false;
 			} else if (key == "affectedByRailFlow") {
 				if (!ParseBool(type.affectedByRailFlow)) {
 					return false;
@@ -921,6 +925,8 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"collisionDamping\": " << type.collisionDamping << ",\n";
 			stream << "      \"affectedByInfluenceField\": " << ToJsonBool(type.affectedByInfluenceField) << ",\n";
 			stream << "      \"influenceResponseScale\": " << type.influenceResponseScale << ",\n";
+			stream << "      \"streakLength\": " << type.streakLength << ",\n";
+			stream << "      \"streakWidth\": " << type.streakWidth << ",\n";
 			stream << "      \"affectedByRailFlow\": " << ToJsonBool(type.affectedByRailFlow) << ",\n";
 			stream << "      \"railFlowScale\": " << type.railFlowScale << ",\n";
 			stream << "      \"affectedByChargeGather\": " << ToJsonBool(type.affectedByChargeGather) << ",\n";

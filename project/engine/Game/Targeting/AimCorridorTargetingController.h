@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 
@@ -36,6 +36,7 @@ public:
     void Reset();
     void SetGameModeActive(bool active);
     void SetPlayerAlive(bool alive);
+    void SetLockAmmoAvailable(bool available);
     void Update(float scaledDeltaTime, float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
@@ -50,12 +51,20 @@ public:
     const Vector3& GetLockedTargetWorldPosition() const { return lockedTargetWorldPosition_; }
     const Vector3& GetLockedTargetAimPosition() const { return lockedTargetAimPosition_; }
     bool TryGetLockedTargetSnapshot(PlayerLockOnTargetSnapshot& outSnapshot) const;
+    std::vector<PlayerLockOnTargetSnapshot> GetLockedTargetSnapshots() const;
+    void ReleaseFiredTarget(const std::string& targetId);
     bool IsUsingTargetProvider(
         const PlayerLockOnTargetProvider* provider) const {
         return provider != nullptr && targetProvider_ == provider;
     }
 
 private:
+    struct HeldLock {
+        std::string targetId;
+        std::unique_ptr<AimCorridorTargetMarkerRenderer> marker;
+    };
+    bool IsTargetHeld(const std::string& targetId) const;
+    void UpdateHeldLocks();
     struct ScreenRect {
         Vector2 center{};
         Vector2 halfSize{};
@@ -140,6 +149,7 @@ private:
     Camera* camera_ = nullptr;
     AimCorridorVisualController* visualController_ = nullptr;
     std::unique_ptr<AimCorridorTargetMarkerRenderer> markerRenderer_;
+    std::vector<HeldLock> heldLocks_;
 
     std::vector<PlayerLockOnTargetSnapshot> targetSnapshots_;
     std::vector<ProjectedTarget> projectedTargets_;
@@ -197,5 +207,6 @@ private:
     bool enabled_ = true;
     bool gameModeActive_ = false;
     bool playerAlive_ = true;
+    bool lockAmmoAvailable_ = true;
     bool initialized_ = false;
 };

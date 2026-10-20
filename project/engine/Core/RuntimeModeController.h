@@ -81,7 +81,8 @@ public:
     void RequestWindowFullscreen(bool fullscreen);
     void SetPerformanceStats(const PerformanceStats& stats);
     float GetDesiredRenderScale() const;
-    bool ShouldAutoApplyGameModePerformancePreset() const { return autoApplyGameModePerformancePreset_; }
+    bool ShouldAutoApplyGameModePerformancePreset() const { return autoApplyGameModePerformancePreset_ && !cloudComparisonActive_; }
+    void SetCloudComparisonActive(bool active) { cloudComparisonActive_ = active; }
     const ShadowLikeDebugSettings& GetShadowLikeDebugSettings() const { return shadowLikeDebugSettings_; }
 
     static RuntimeModeController* GetActiveController();
@@ -112,6 +113,7 @@ private:
     bool requestedWindowFullscreen_ = false;
     bool useGameModeRenderScale_ = true;
     bool autoApplyGameModePerformancePreset_ = false;
+    bool cloudComparisonActive_ = false;
     bool preserveCameraPoseOnModeSwitch_ = true;
     bool cameraModeSwitchChangedThisFrame_ = false;
     bool cameraProjectionUpdatedOnModeSwitch_ = false;

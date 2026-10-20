@@ -1,4 +1,4 @@
-#include "GpuParticleEffectPlayer.h"
+﻿#include "GpuParticleEffectPlayer.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/SrvManager.h"
@@ -6,6 +6,7 @@
 #include "Engine/Graphics/Particle/GpuParticleEffectData.h"
 #include "Engine/Graphics/Particle/GpuParticleEffectSerializer.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
+#include "Engine/Graphics/Texture/TextureManager.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -20,6 +21,7 @@ struct GpuParticleEffectPlayer::EffectInstance {
     std::unique_ptr<GpuParticleSystem> system;
     std::string status = "Not loaded";
     bool loaded = false;
+    bool playing = false;
 };
 
 GpuParticleEffectPlayer::GpuParticleEffectPlayer() = default;
@@ -27,6 +29,10 @@ GpuParticleEffectPlayer::GpuParticleEffectPlayer() = default;
 GpuParticleEffectPlayer::~GpuParticleEffectPlayer() = default;
 
 bool GpuParticleEffectPlayer::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager) {
+    if (isInitialized_ && dxCommon_ == dxCommon && srvManager_ == srvManager
+        && srvManager && descriptorGeneration_ == srvManager->GetGeneration()) return true;
+    Finalize();
+    descriptorGeneration_ = srvManager ? srvManager->GetGeneration() : 0;
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
     isInitialized_ = dxCommon_ && srvManager_;
@@ -36,6 +42,8 @@ bool GpuParticleEffectPlayer::Initialize(DirectXCommon* dxCommon, SrvManager* sr
 
 void GpuParticleEffectPlayer::Finalize() {
     effects_.clear();
+    activeParticleEstimate_ = 0;
+    playCount_ = missingJsonCount_ = failedPlayCount_ = 0;
     dxCommon_ = nullptr;
     srvManager_ = nullptr;
     isInitialized_ = false;
@@ -44,7 +52,7 @@ void GpuParticleEffectPlayer::Finalize() {
 void GpuParticleEffectPlayer::Update(float deltaTime, const Camera* camera) {
     activeParticleEstimate_ = 0;
     for (const std::unique_ptr<EffectInstance>& instance : effects_) {
-        if (!instance || !instance->system || !instance->loaded) {
+        if (!instance || !instance->system || !instance->loaded || !instance->playing) {
             continue;
         }
         instance->system->SetDeltaTime(deltaTime);
@@ -55,7 +63,7 @@ void GpuParticleEffectPlayer::Update(float deltaTime, const Camera* camera) {
 
 void GpuParticleEffectPlayer::Draw() {
     for (const std::unique_ptr<EffectInstance>& instance : effects_) {
-        if (!instance || !instance->system || !instance->loaded) {
+        if (!instance || !instance->system || !instance->loaded || !instance->playing) {
             continue;
         }
         instance->system->Draw();
@@ -91,9 +99,16 @@ bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& jsonPat
         return false;
     }
 
+    instance->playing = true;
     ++playCount_;
     RecordResult(jsonPath, position, "Played GPU particle effect");
     return true;
+}
+
+bool GpuParticleEffectPlayer::PrepareEffect(const std::string& jsonPath) {
+    if (!isInitialized_ || jsonPath.empty()) return false;
+    EffectInstance* instance = FindOrCreateInstance(jsonPath);
+    return instance && (instance->loaded || LoadInstance(*instance));
 }
 
 bool GpuParticleEffectPlayer::ReloadEffect(const std::string& jsonPath) {
@@ -148,11 +163,7 @@ GpuParticleEffectPlayer::EffectInstance* GpuParticleEffectPlayer::FindOrCreateIn
     auto instance = std::make_unique<EffectInstance>();
     instance->path = jsonPath;
     instance->system = std::make_unique<GpuParticleSystem>();
-    if (!instance->system->Initialize(dxCommon_, srvManager_)) {
-        instance->status = "Failed to initialize GpuParticleSystem";
-        effects_.push_back(std::move(instance));
-        return effects_.back().get();
-    }
+    if (!instance->system->Initialize(dxCommon_, srvManager_)) return nullptr;
 
     effects_.push_back(std::move(instance));
     return effects_.back().get();
@@ -176,6 +187,11 @@ bool GpuParticleEffectPlayer::LoadInstance(EffectInstance& instance) {
         return false;
     }
 
+    for (const auto& type : instance.data.particleTypes) {
+        if (!type.texturePath.empty()) TextureManager::GetInstance()->LoadTexture(type.texturePath);
+    }
+    instance.system->ApplyEffectData(instance.data); // textures and upload buffers only; no emission
+    instance.playing = false;
     instance.loaded = true;
     instance.status = "Loaded";
     return true;

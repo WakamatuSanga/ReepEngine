@@ -81,7 +81,7 @@ public:
     // 生成済みのModelDataを直接渡す用
     void Initialize(ModelCommon* modelCommon, const ModelData& modelData);
 
-    void Draw();
+    void Draw(D3D12_GPU_VIRTUAL_ADDRESS materialOverride = 0);
     void SetVertices(const std::vector<VertexData>& vertices);
     void SetVertexBufferViewOverride(const D3D12_VERTEX_BUFFER_VIEW* vertexBufferView);
     void ClearVertexBufferViewOverride();
@@ -92,6 +92,7 @@ public:
     void ClearIndexDrawMaterialBindings();
     void DrawPbrMaterialImGui();
     size_t GetVertexCount() const { return modelData_.vertices.size(); }
+    const std::vector<VertexData>& GetVertices() const { return modelData_.vertices; }
     size_t GetIndexCount() const { return modelData_.indices.size(); }
     size_t GetMaterialCount() const { return 1; }
 

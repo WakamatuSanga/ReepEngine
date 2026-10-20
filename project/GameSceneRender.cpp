@@ -1,9 +1,12 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "MyGame.h"
+#include "Engine/Game/GameState/StageStartSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
+#include "Engine/Game/Effect/GameplaySpeedLineController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -17,8 +20,6 @@
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
-#include "Engine/Game/Player/PlayerChargeFeedbackController.h"
-#include "Engine/Game/Player/PlayerChargeGatherEffectController.h"
 #include "Engine/Game/Player/PlayerJetExhaustController.h"
 #include "Engine/Game/Player/PlayerSonicBoostRingController.h"
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
@@ -45,11 +46,15 @@ void GameScene::DrawSceneRender() {
     auto volumetricCloudPass = MyGame::GetInstance()->GetVolumetricCloudPass();
     auto particleManager = ParticleManager::GetInstance();
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
+    const bool stageStartActive = stageStart_ && stageStart_->IsActive();
+    const bool aircraftVisible = !stageStartActive || stageStart_->IsAircraftVisible();
     const bool shouldDrawDebugVisuals =
-        runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+        !stageStartActive && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
         runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
+    auto& profiler = dxCommon->GetGpuProfiler();
+    const auto mainToken = profiler.Begin(dxCommon->GetCommandList(), GpuTimestampProfiler::Stage::MainScene, {});
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
         skybox_->Draw();
@@ -86,7 +91,7 @@ void GameScene::DrawSceneRender() {
     if (shouldDrawDebugVisuals && levelSceneRuntime_) {
         levelSceneRuntime_->Draw();
     }
-    if (player_) {
+    if (player_ && aircraftVisible) {
         player_->Draw();
     }
     if (playerBulletManager_) {
@@ -105,7 +110,7 @@ void GameScene::DrawSceneRender() {
         influenceFieldManager_->DrawDebug();
     }
     DrawKrakenTentacleMidboss();
-    if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+    if (!stageStartActive && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }
     if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
@@ -114,7 +119,7 @@ void GameScene::DrawSceneRender() {
     if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         combatEffectController_->Draw();
     }
-    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->Draw();
     }
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
@@ -126,13 +131,12 @@ void GameScene::DrawSceneRender() {
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->Draw();
     }
-    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
-        playerChargeFeedbackController_->Draw();
-    }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->Draw();
     }
 
+    profiler.End(commandList, mainToken);
+    if (volumetricCloudPass) volumetricCloudPass->MarkGpuScene();
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
             dxCommon->TransitionDepthBuffer(
@@ -147,10 +151,24 @@ void GameScene::DrawSceneRender() {
             D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV = dxCommon->GetRenderTextureRTV();
             D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = dxCommon->GetDepthStencilView();
             commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, &depthStencilView);
+        } else {
+            volumetricCloudPass->RecordGpuSkipped(!volumetricCloudPass->IsEnabled() || volumetricCloudPass->GetForceMode() == VolumetricCloudPass::ForceMode::ForceSkip);
         }
+    } else if (volumetricCloudPass) {
+        volumetricCloudPass->RecordGpuSkipped(true);
     }
 
-    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
+    if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        gameplaySpeedLineController_->Draw();
+    }
+    if (player_ && !shadowDebugSettings.disableEffects) {
+        auto rtv = dxCommon->GetRenderTextureRTV();
+        auto dsv = dxCommon->GetDepthStencilView();
+        dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+        player_->DrawAfterimages();
+    }
+    if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
     }
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
@@ -161,12 +179,6 @@ void GameScene::DrawSceneRender() {
     }
     if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
-    }
-    if (playerChargeFeedbackController_ && !shadowDebugSettings.disableEffects) {
-        playerChargeFeedbackController_->DrawAfterCloud();
-    }
-    if (playerChargeGatherEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
-        playerChargeGatherEffectController_->Draw();
     }
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();
@@ -179,27 +191,25 @@ void GameScene::DrawSceneRender() {
         gpuParticleSystem_->Draw();
     }
 
-    if (isParticleVisible_ && !shadowDebugSettings.disableEffects) {
+    if (!stageStartActive && isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
     }
 
     if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
         impactDistortionController_->Draw();
     }
-    if (aimCorridorVisualController_) {
+    if (!stageStartActive && aimCorridorVisualController_) {
         aimCorridorVisualController_->Draw();
     }
-    if (aimCorridorTargetingController_) {
+    if (!stageStartActive && aimCorridorTargetingController_) {
         aimCorridorTargetingController_->Draw();
     }
 
     spriteCommon->CommonDrawSetting();
-    if (playerDamageFeedbackController_) {
+    if (!stageStartActive && playerDamageFeedbackController_) {
         playerDamageFeedbackController_->Draw();
     }
-    if (playerHudController_) {
-        playerHudController_->Draw();
-    }
+    // HUD is composited in DrawOverlay after world post effects, before cloud transitions.
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }
@@ -212,4 +222,5 @@ void GameScene::DrawSceneRender() {
     if (warningUIController_) {
         warningUIController_->Draw();
     }
+    profiler.End(commandList, afterToken);
 }

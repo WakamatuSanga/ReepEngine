@@ -23,6 +23,7 @@ public:
     void DrawImGui();
 
     bool PlayGpuParticleEffectAt(const std::string& jsonPath, const Vector3& position);
+    bool PrepareEffect(const std::string& jsonPath);
     bool ReloadEffect(const std::string& jsonPath);
 
     const std::string& GetLastEffectPath() const { return lastEffectPath_; }
@@ -52,4 +53,5 @@ private:
     uint64_t failedPlayCount_ = 0;
     uint32_t activeParticleEstimate_ = 0;
     bool isInitialized_ = false;
+    uint64_t descriptorGeneration_ = 0;
 };

@@ -1,4 +1,4 @@
-#include "EnemyWaveManager.h"
+﻿#include "EnemyWaveManager.h"
 #include "Engine/Game/UI/WarningUIController.h"
 
 #include <algorithm>
@@ -158,6 +158,7 @@ void EnemyWaveManager::UpdateWaveProgression(float deltaTime) {
             continue;
         }
 
+        completedStageWaves_.insert(wave.waveId);
         activeWave.completionQueued = true;
         activeWave.stopped = true;
         lastCompletedWaveId_ = wave.waveId;
@@ -264,4 +265,18 @@ const char* EnemyWaveManager::ToWaveEndReasonText(WaveEnemyEndReason reason) {
     default:
         return "Unknown";
     }
+}
+
+float EnemyWaveManager::GetStageProgress() const {
+    std::unordered_set<std::string> seen;
+    std::string next = autoStartWaveId_;
+    size_t completed = 0;
+    while (!next.empty()) {
+        if (!seen.insert(next).second) return static_cast<float>(completed) / static_cast<float>(seen.size() + 1);
+        const auto it = waveIndexById_.find(next);
+        if (it == waveIndexById_.end() || it->second >= waves_.size()) return static_cast<float>(completed) / static_cast<float>(seen.size() + 1);
+        if (completedStageWaves_.contains(next)) ++completed;
+        next = waves_[it->second].nextWaveId;
+    }
+    return seen.empty() ? 0.0f : static_cast<float>(completed) / static_cast<float>(seen.size());
 }

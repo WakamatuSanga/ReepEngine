@@ -55,6 +55,7 @@ public:
     bool MouseDown(MouseButton button) const;
     bool MouseTrigger(MouseButton button) const;
     bool MouseLeftClientTrigger() const;
+    bool IsMouseStateValid() const { return mouseStateValid_ && mouseStateWasValid_; }
     void SuppressLeftMouseUntilRelease() { suppressLeftMouse_ = true; }
 
     // 移動量（相対値：前フレームからの差分）
@@ -100,6 +101,8 @@ private:
     // --- マウス ---
     ComPtr<IDirectInputDevice8> mouse_;
     bool suppressLeftMouse_ = false;
+    bool mouseStateValid_ = false;
+    bool mouseStateWasValid_ = false;
     DIMOUSESTATE2 mouseNow_ = {}; // 今回
     DIMOUSESTATE2 mousePrev_ = {}; // 前回
 

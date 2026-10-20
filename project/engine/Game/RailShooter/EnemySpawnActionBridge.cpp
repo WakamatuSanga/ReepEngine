@@ -1,4 +1,5 @@
-﻿#include "EnemySpawnActionBridge.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "EnemySpawnActionBridge.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -48,8 +49,8 @@ void EnemySpawnActionBridge::Finalize() {
 void EnemySpawnActionBridge::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵出現アクション接続 (Enemy Spawn Action Bridge Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵出現アクション接続 (Enemy Spawn Action Bridge Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -75,7 +76,7 @@ void EnemySpawnActionBridge::DrawImGui() {
         }
         ImGui::TreePop();
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

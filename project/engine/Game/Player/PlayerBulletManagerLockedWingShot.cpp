@@ -1,4 +1,6 @@
-#include "PlayerBulletManager.h"
+﻿#include "PlayerBulletManager.h"
+#include "Engine/Game/GameState/StageCombatState.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
 
 #include "Engine/Game/Enemy/EnemyBullet.h"
@@ -202,41 +204,40 @@ PlayerBulletManager::TrySpawnLockedWingShot() {
 
     const bool forcedTest =
         lockedWingForceTestPending_ && !aimGameModeActive_;
-    if (!forcedTest) {
-        if (!aimGameModeActive_ || !aimPlayerAlive_
-            || aimMode_ != AimMode::AimCorridor
-            || !aimCorridorTargetingController_
-            || aimCorridorTargetingController_->GetLockState()
-                != AimCorridorTargetingController::AimLockState::Locked) {
-            return LockedWingShotResult::NotRequested;
-        }
-
-        lockedTargetValidation_ = ValidateLockedTarget();
-        if (!lockedTargetValidation_.valid) {
-            ++lockedWingTargetInvalidFallbackCount_;
-            ++lockedWingNormalFallbackCount_;
-            lastLockedWingStatus_ =
-                "ロック対象が発射時点で無効なため、通常弾へ戻しました";
-            return LockedWingShotResult::FallbackToNormal;
-        }
-    } else {
-        lockedTargetValidation_ = ValidateLockedTarget();
-    }
-
-    const WingSide launchWing =
-        forcedTest ? forcedLockedShotWing_ : nextLockedShotWing_;
-    const std::string targetId = lockedTargetValidation_.valid
-        ? lockedTargetValidation_.targetId
-        : std::string{};
     if (forcedTest) {
+        lockedTargetValidation_ = ValidateLockedTarget();
         lockedWingForceTestPending_ = false;
+        return SpawnLockedWingShot(forcedLockedShotWing_,
+            lockedTargetValidation_.valid ? lockedTargetValidation_.targetId : std::string{}, true);
     }
-    return SpawnLockedWingShot(launchWing, targetId, forcedTest);
+    if (!aimGameModeActive_ || !aimPlayerAlive_ || !player_ || !camera_
+        || aimMode_ != AimMode::AimCorridor || !aimCorridorTargetingController_) {
+        return LockedWingShotResult::NotRequested;
+    }
+    const auto targets = aimCorridorTargetingController_->GetLockedTargetSnapshots();
+    LockedWingShotResult result = LockedWingShotResult::NotRequested;
+    for (const auto& target : targets) {
+        const Matrix4x4& world = camera_->GetWorldMatrix();
+        const Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
+        if (Dot(Subtract(target.worldPosition, camera_->GetTranslate()), forward) <= 0.0f) {
+            ++lockedWingTargetInvalidFallbackCount_;
+            continue;
+        }
+        const auto shot = SpawnLockedWingShot(nextLockedShotWing_, target.id, false);
+        if (shot == LockedWingShotResult::Spawned) {
+            aimCorridorTargetingController_->ReleaseFiredTarget(target.id);
+            result = shot;
+        } else if (result != LockedWingShotResult::Spawned) {
+            result = shot;
+        }
+    }
+    return result;
 }
 
 PlayerBulletManager::LockedWingShotResult
 PlayerBulletManager::SpawnLockedWingShot(
     WingSide wing, const std::string& targetId, bool forcedTest) {
+    if (lockAmmo_ <= 0) return LockedWingShotResult::SpawnFailed;
     if (!player_ || !camera_ || !std::isfinite(bulletSpeed_)) {
         ++lockedWingSpawnFailureCount_;
         lastLockedWingStatus_ =
@@ -325,6 +326,8 @@ PlayerBulletManager::SpawnLockedWingShot(
         ? "デバッグテスト用ミサイルを分離しました"
         : "ロック対象を確認し、翼下ミサイルを分離しました";
 
+    --lockAmmo_;
+    if (aimCorridorTargetingController_) aimCorridorTargetingController_->SetLockAmmoAvailable(lockAmmo_ > 0);
     ++lockedWingShotCount_;
     ++lockedWingEjectionDropStartCount_;
     if (wing == WingSide::Left) {
@@ -363,6 +366,7 @@ PlayerBulletManager::SpawnLockedWingShot(
             relativeVelocity);
     }
     bullet->SetVisualForwardOverride(launchDirection);
+    if (cameraShakeController_) cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Shot);
     return LockedWingShotResult::Spawned;
 }
 
@@ -408,7 +412,6 @@ void PlayerBulletManager::ResetLockedWingShotState(bool resetStatistics) {
         rightLockedWingShotCount_ = 0;
         lockedWingTargetInvalidFallbackCount_ = 0;
         lockedWingSpawnFailureCount_ = 0;
-        lockedWingNormalFallbackCount_ = 0;
         lockedWingAlternationErrorCount_ = 0;
         lockedWingEjectionDropStartCount_ = 0;
         lockedWingPreIgnitionHoldStartCount_ = 0;
@@ -510,14 +513,11 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
     ImGui::Text("左翼発射回数: %zu", leftLockedWingShotCount_);
     ImGui::Text("右翼発射回数: %zu", rightLockedWingShotCount_);
     ImGui::Text(
-        "対象無効フォールバック回数: %zu",
+        "対象無効による発射中止回数: %zu",
         lockedWingTargetInvalidFallbackCount_);
     ImGui::Text(
         "弾生成失敗回数: %zu",
         lockedWingSpawnFailureCount_);
-    ImGui::Text(
-        "通常弾フォールバック回数: %zu",
-        lockedWingNormalFallbackCount_);
     ImGui::Text(
         "左右交互エラー数: %zu",
         lockedWingAlternationErrorCount_);
@@ -529,7 +529,7 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip(
-            "デバッグモードで、次の既存通常射撃入力1回だけ左翼を使用します。\n"
+            "デバッグモードで、次の右クリック1回だけ左翼を使用します。\n"
             "このボタン自体は弾を生成しません。");
     }
     ImGui::SameLine();
@@ -539,7 +539,7 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
         ImGui::SetTooltip(
-            "デバッグモードで、次の既存通常射撃入力1回だけ右翼を使用します。\n"
+            "デバッグモードで、次の右クリック1回だけ右翼を使用します。\n"
             "このボタン自体は弾を生成しません。");
     }
     ImGui::EndDisabled();
@@ -567,4 +567,12 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
         ClearLockedWingShotForceState();
     }
 #endif
+}
+
+void PlayerBulletManager::RecoverLockAmmo() {
+    lockAmmo_ = (std::min)(kMaxLockAmmo, lockAmmo_ + 1);
+    if (aimCorridorTargetingController_) aimCorridorTargetingController_->SetLockAmmoAvailable(lockAmmo_ > 0);
+}
+void PlayerBulletManager::NotifyKrakenDefeated(uint64_t sequence) {
+    if (combatState_) combatState_->RecordKrakenDefeat(sequence);
 }

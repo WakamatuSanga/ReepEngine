@@ -1,4 +1,4 @@
-#include "GpuParticleResources.h"
+﻿#include "GpuParticleResources.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "GpuParticleTypes.h"
@@ -62,11 +62,22 @@ Microsoft::WRL::ComPtr<ID3D12Resource> CreateReadbackBufferResource(ID3D12Device
 
 }
 
+GpuParticleResources::~GpuParticleResources() {
+    if (srvManager_) for (const uint32_t index : descriptors_) srvManager_->Release(index, descriptorGeneration_);
+}
+
+uint32_t GpuParticleResources::AllocateDescriptor() {
+    const uint32_t index = srvManager_->Allocate();
+    descriptors_.push_back(index);
+    return index;
+}
+
 bool GpuParticleResources::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, const GpuParticle::State& state) {
 	assert(dxCommon);
 	assert(srvManager);
 	dxCommon_ = dxCommon;
 	srvManager_ = srvManager;
+    descriptorGeneration_ = srvManager_->GetGeneration();
 	return CreateParticleResources(state) && CreateFreeListResources() && CreateDeadListResources() && CreateCounterReadbackResources();
 }
 
@@ -75,17 +86,17 @@ bool GpuParticleResources::CreateParticleResources(const GpuParticle::State& sta
 	particleResource_ = CreateUavBufferResource(device, sizeof(GpuParticle::Particle) * GpuParticle::kParticleCount);
 	particleResourceState_ = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
 
-	particleUavIndex_ = srvManager_->Allocate();
+	particleUavIndex_ = AllocateDescriptor();
 	srvManager_->CreateUAVforStructuredBuffer(particleUavIndex_, particleResource_.Get(), GpuParticle::kParticleCount, sizeof(GpuParticle::Particle));
 	particleUavHandle_ = srvManager_->GetGPUDescriptorHandle(particleUavIndex_);
 
-	particleSrvIndex_ = srvManager_->Allocate();
+	particleSrvIndex_ = AllocateDescriptor();
 	srvManager_->CreateSRVforStructuredBuffer(particleSrvIndex_, particleResource_.Get(), GpuParticle::kParticleCount, sizeof(GpuParticle::Particle));
 	particleSrvHandle_ = srvManager_->GetGPUDescriptorHandle(particleSrvIndex_);
 
 	particleTypeResource_ = dxCommon_->CreateBufferResource(sizeof(GpuParticle::ParticleTypeForGPU) * GpuParticle::kMaxParticleTypes);
 	particleTypeResource_->Map(0, nullptr, reinterpret_cast<void**>(&particleTypeData_));
-	particleTypeSrvIndex_ = srvManager_->Allocate();
+	particleTypeSrvIndex_ = AllocateDescriptor();
 	srvManager_->CreateSRVforStructuredBuffer(
 		particleTypeSrvIndex_,
 		particleTypeResource_.Get(),
@@ -107,7 +118,7 @@ bool GpuParticleResources::CreateFreeListResources() {
 	freeListCounterResetResource_->Map(0, nullptr, reinterpret_cast<void**>(&resetData));
 	*resetData = 0u;
 
-	freeListUavIndex_ = srvManager_->Allocate();
+	freeListUavIndex_ = AllocateDescriptor();
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -133,7 +144,7 @@ bool GpuParticleResources::CreateDeadListResources() {
 	deadListCounterResetResource_->Map(0, nullptr, reinterpret_cast<void**>(&resetData));
 	*resetData = 0u;
 
-	deadListUavIndex_ = srvManager_->Allocate();
+	deadListUavIndex_ = AllocateDescriptor();
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -213,8 +224,8 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.emissionByChargeRate = source.emissionByChargeRate ? 1u : 0u;
 		destination.chargeGatherTargetMode = source.chargeGatherTargetMode;
 		destination.chargeGatherTargetOffset = source.chargeGatherTargetOffset;
-		destination.padding2[0] = 0.0f;
-		destination.padding2[1] = 0.0f;
+		destination.streakLength = std::clamp(source.streakLength, 0.0f, 10.0f);
+		destination.streakWidth = std::clamp(source.streakWidth, 0.001f, 1.0f);
 	}
 }
 

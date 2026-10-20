@@ -1,3 +1,4 @@
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "RuntimeModeController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Input/Input.h"
@@ -44,7 +45,6 @@ void RuntimeModeController::Update(Input* input) {
     }
 #else
     mode_ = RuntimeMode::Game;
-    RequestWindowFullscreen(true);
 #endif
 }
 
@@ -79,8 +79,8 @@ void RuntimeModeController::DrawImGui() {
     }
 
     ImGui::SetNextWindowSize(ImVec2(440.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("実行モード / 性能確認 (Runtime Mode / Performance Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("実行モード / 性能確認 (Runtime Mode / Performance Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -284,24 +284,26 @@ void RuntimeModeController::DrawImGui() {
     ImGui::Checkbox("GPU Particleを無効化 (Disable GPU Particle)", &shadowLikeDebugSettings_.disableGpuParticle);
     ImGui::Checkbox("PBRライティングを無効化 (Disable PBR Lighting)", &shadowLikeDebugSettings_.disablePbrLighting);
     ImGui::TextWrapped("Current Suspected Source: %s", GetCurrentSuspectedShadowSource());
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
 void RuntimeModeController::DrawMenuBarImGui() {
 #ifdef USE_IMGUI
+    ImGui::BeginDisabled(cloudComparisonActive_);
     ImGui::Separator();
     ImGui::TextDisabled("Runtime: %s", IsDebugMode() ? "Debug" : "Game");
     ImGui::SameLine();
-    if (ImGui::SmallButton("Debug Mode")) {
+    if (ImGui::SmallButton("Debugへ")) {
         SetMode(RuntimeMode::Debug);
     }
     ImGui::SameLine();
-    if (ImGui::SmallButton("Game Mode")) {
+    if (ImGui::SmallButton("Gameへ")) {
         SetMode(RuntimeMode::Game);
     }
     ImGui::SameLine();
-    ImGui::TextDisabled("F1 Toggle");
+    ImGui::TextDisabled("F1で切替");
+    ImGui::EndDisabled();
 #endif
 }
 

@@ -53,11 +53,11 @@ void ParticleManager::SetTexture(const std::string& texturePath) {
     TextureManager::GetInstance()->LoadTexture(textureName_);
 }
 
-void ParticleManager::Update(Camera* camera) {
-    const float deltaTime = FrameTimer::GetInstance().GetGameplayDeltaTime();
+void ParticleManager::Update(Camera* camera, float gameDeltaTime) {
+    const float deltaTime = gameDeltaTime < 0 ? FrameTimer::GetInstance().GetGameplayDeltaTime() : gameDeltaTime;
     const float legacyFrameScale = deltaTime * 60.0f;
     Matrix4x4 viewProj = camera->GetViewProjectionMatrix();
-    Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
+    Matrix4x4 billboardMatrix = camera->GetViewWorldMatrix();
     billboardMatrix.m[3][0] = 0.0f;
     billboardMatrix.m[3][1] = 0.0f;
     billboardMatrix.m[3][2] = 0.0f;

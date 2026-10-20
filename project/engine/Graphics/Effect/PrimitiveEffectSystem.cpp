@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include "Engine/Graphics/Effect/CylinderEffect.h"
 #include "Engine/Graphics/Effect/RingEffect.h"
@@ -72,7 +73,7 @@ void PrimitiveEffectSystem::Draw() {
 void PrimitiveEffectSystem::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420, 520), ImGuiCond_Once);
-    ImGui::Begin("Primitive Effect Debug / プリミティブエフェクト調整");
+    DebugUiWorkspace::BeginPanel("Primitive Effect Debug / プリミティブエフェクト調整");
     ImGui::Checkbox("全体表示 (Show All)", &isVisible_);
     if (diagnosticSuppressed_) {
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "影診断でPrimitive Effectが一時非表示です。");
@@ -94,7 +95,7 @@ void PrimitiveEffectSystem::DrawImGui() {
         }
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

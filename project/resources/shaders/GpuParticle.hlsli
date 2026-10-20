@@ -52,13 +52,15 @@ struct ParticleType
     uint emissionByChargeRate;
     uint chargeGatherTargetMode;
     float3 chargeGatherTargetOffset;
-    float2 padding2;
+    float streakLength;
+    float streakWidth;
 };
 
 struct PerView
 {
     row_major float4x4 viewProjection;
     row_major float4x4 billboardMatrix;
+    float4 cameraPosition;
 };
 
 struct VertexShaderOutput

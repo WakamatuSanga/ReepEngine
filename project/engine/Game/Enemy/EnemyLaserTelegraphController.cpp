@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyLaserTelegraphController.h"
 #include "Engine/Game/Player/PlayerJetExhaustBeamRenderer.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -236,8 +237,8 @@ void EnemyLaserTelegraphController::ClearOwner(const void* owner) {
 void EnemyLaserTelegraphController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 430.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Enemy Laser Telegraph Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Enemy Laser Telegraph Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
     ImGui::Checkbox("Enable Laser Telegraph", &enableLaserTelegraph_);
@@ -307,7 +308,7 @@ void EnemyLaserTelegraphController::DrawImGui() {
     ImGui::Text("Last Direction: %.2f, %.2f, %.2f", lastDirection_.x, lastDirection_.y, lastDirection_.z);
     ImGui::Text("Last Locked Target Position: %.2f, %.2f, %.2f", lastLockedTargetPosition_.x, lastLockedTargetPosition_.y, lastLockedTargetPosition_.z);
     ImGui::Text("Last Locked Direction: %.2f, %.2f, %.2f", lastLockedDirection_.x, lastLockedDirection_.y, lastLockedDirection_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

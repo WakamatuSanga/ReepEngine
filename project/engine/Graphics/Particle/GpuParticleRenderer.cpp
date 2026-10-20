@@ -73,11 +73,12 @@ void GpuParticleRenderer::UpdateView(const Camera* camera, const Matrix4x4* part
 		return;
 	}
 
-	Matrix4x4 billboardMatrix = camera->GetWorldMatrix();
+	Matrix4x4 billboardMatrix = camera->GetViewWorldMatrix();
 	if (particleToWorld) {
 		// Rigid local particle frame. Billboard offsets must use that same frame.
 		billboardMatrix = MatrixMath::Multipty(billboardMatrix, MatrixMath::Inverse(*particleToWorld));
 	}
+	perViewData_->cameraPosition = { billboardMatrix.m[3][0], billboardMatrix.m[3][1], billboardMatrix.m[3][2], 1.0f };
 	billboardMatrix.m[3][0] = 0.0f;
 	billboardMatrix.m[3][1] = 0.0f;
 	billboardMatrix.m[3][2] = 0.0f;
@@ -172,7 +173,7 @@ uint32_t GpuParticleRenderer::ResolveParticleTextureDescriptorIndex(const std::s
 		return cachedIt->second;
 	}
 
-	if (resolvedPath != GpuParticle::kFallbackParticleTexturePath && !CanLoadTextureFile(resolvedPath)) {
+	if (resolvedPath != GpuParticle::kFallbackParticleTexturePath && !TextureManager::GetInstance()->IsLoaded(resolvedPath) && !CanLoadTextureFile(resolvedPath)) {
 		return fallbackTextureDescriptorIndex_;
 	}
 
@@ -210,8 +211,8 @@ bool GpuParticleRenderer::CreatePipelineState() {
 	desc.BlendState.RenderTarget[0].SrcBlend = particleSrcBlend_;
 	desc.BlendState.RenderTarget[0].DestBlend = particleDestBlend_;
 	desc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	desc.BlendState.RenderTarget[0].SrcBlendAlpha = particleSrcBlendAlpha_;
-	desc.BlendState.RenderTarget[0].DestBlendAlpha = particleDestBlendAlpha_;
+	desc.BlendState.RenderTarget[0].SrcBlendAlpha = afterCloud_ ? D3D12_BLEND_ZERO : particleSrcBlendAlpha_;
+	desc.BlendState.RenderTarget[0].DestBlendAlpha = afterCloud_ ? D3D12_BLEND_ONE : particleDestBlendAlpha_;
 	desc.BlendState.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
 	desc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
 	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -219,9 +220,9 @@ bool GpuParticleRenderer::CreatePipelineState() {
 	desc.DepthStencilState.DepthEnable = TRUE;
 	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-	desc.NumRenderTargets = 2;
+	desc.NumRenderTargets = afterCloud_ ? 1 : 2;
 	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	desc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.RTVFormats[1] = afterCloud_ ? DXGI_FORMAT_UNKNOWN : DXGI_FORMAT_R8G8B8A8_UNORM;
 	desc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	desc.SampleDesc.Count = 1;
 	desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;

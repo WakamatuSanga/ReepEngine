@@ -95,9 +95,10 @@ EnemyBullet::EnemyBullet() = default;
 
 EnemyBullet::~EnemyBullet() = default;
 
-void EnemyBullet::PrepareSharedVisualResources(const std::string& modelPath) {
+bool EnemyBullet::PrepareSharedVisualResources(const std::string& modelPath) {
     std::string texturePath;
-    LoadSharedFileModel(ResolveResourcePath(modelPath), texturePath);
+    Model* model = LoadSharedFileModel(ResolveResourcePath(modelPath), texturePath);
+    return model && model->GetVertexCount() > 0 && !texturePath.empty();
 }
 
 bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
@@ -112,6 +113,10 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     deathReason_ = "初期化中";
     projectileRailFrameSequence_ = 0;
     projectileSpawnSequence_ = 0;
+    combatLifetimeId_ = 0;
+    scoreClaimed_ = false;
+    nearMissArmed_ = false;
+    cancelable_ = true;
 
     if (!object3dCommon_ || !camera_) {
         loadStatus_ = "Initialize failed: Object3dCommon or Camera is null.";
