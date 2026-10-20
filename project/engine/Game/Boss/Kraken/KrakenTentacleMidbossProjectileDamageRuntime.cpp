@@ -1,4 +1,4 @@
-#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossControllerInternal.h"
+﻿#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossControllerInternal.h"
 
 #include "Engine/Game/Player/PlayerBulletManager.h"
 
@@ -320,7 +320,7 @@ void KrakenTentacleMidbossController::Impl::UpdateProjectileDamage() {
             KrakenTentacleHealthDamageResult::DefeatStarted) {
             ++projectileDamageDiagnostics.hpZeroReachedCount;
             ++projectileDamageDiagnostics.defeatPendingStartCount;
-            BeginDefeat();
+            if (BeginDefeat() && projectileDamageBulletManager) projectileDamageBulletManager->NotifyKrakenDefeated(defeatSequenceId);
         }
     }
 }

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 
@@ -35,7 +35,10 @@ public:
     void UpdateDisplay(float deltaTime, const Transform& transform, float referenceModelScale,
         float displayBoost = 0.0f, float opacity = 1.0f, bool nozzleLocalParticles = false);
     void SetDisplayCamera(Camera* camera) { if (!player_) camera_ = camera; }
+    // Reset only this exhaust's particles and beam geometry at a hidden relocation.
     void ResetDisplayState();
+    struct DisplayBounds { float backwardReach; float radialReach; };
+    DisplayBounds GetUnboostedDisplayBounds() const;
     void Draw();
     void DrawAfterCloud();
     void DrawImGui();

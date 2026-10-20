@@ -1,6 +1,7 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
 #include "Engine/Graphics/Skybox/Skybox.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
@@ -19,6 +20,12 @@
 #include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/Player/PlayerRailFlightVisualTiltController.h"
 #include <stdexcept>
+#include "Engine/Core/FrameTimer.h"
+#include "Engine/Core/RuntimeModeController.h"
+#include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/BoostController.h"
+#include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Core/GameViewport.h"
 
 void GameScene::PrepareForPresentation() {
     // Title transitions call this after a fully covered Present; Restart uses
@@ -74,5 +81,45 @@ void GameScene::PrepareForPresentation() {
     if (playerHudController_) playerHudController_->Update(0.0f);
     cloudProjectedBounds_ = MyGame::GetInstance()->GetVolumetricCloudPass()->BuildProjectedBounds(
         camera_.get(), cloudVolume_.get());
+    // Resolve the ordinary initial framing with dt=0. No input, Wave or event simulation.
+    if (railShooterCameraRig_) {
+        railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), runtimeModeController_->IsGameMode());
+        railShooterCameraRig_->Update(0);
+        railShooterCameraRig_->UpdatePlayerFollow(0,0);
+    }
+    player_->RefreshCameraPresentation(0);
+    stageStart_ = std::make_unique<StageStartSequenceController>();
+    stageStart_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), camera_.get(), player_.get(),
+        railShooterCameraRig_.get(), playerJetExhaustController_.get());
+    cloudProjectedBounds_ = MyGame::GetInstance()->GetVolumetricCloudPass()->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
+    if (playerHudController_) { playerHudController_->SetStartSequence(stageStart_.get()); playerHudController_->Update(0); }
     presentationPrepared_ = true;
+}
+
+bool GameScene::UsesFullscreenScenePresentation() const { return !stageStart_ || stageStart_->IsActive(); }
+bool GameScene::BlocksDebugUiForPresentation() const { return UsesFullscreenScenePresentation(); }
+void GameScene::OnPresentationRevealed() { if (stageStart_) stageStart_->OnPresentationRevealed(); }
+void GameScene::OnFramePresented() { if (stageStart_) stageStart_->OnFramePresented(); }
+void GameScene::DrawOverlay() {
+    if (playerHudController_) {
+        if ((!stageStart_ || !stageStart_->IsActive()) && runtimeModeController_->IsDebugMode() && gameViewport_) {
+            const auto& rect = gameViewport_->GetGameViewportRect();
+            playerHudController_->DrawInRect(rect.left, rect.top, rect.width, rect.height);
+        } else playerHudController_->Draw();
+    }
+    if (stageStart_) stageStart_->DrawOverlay();
+}
+void GameScene::UpdateStageStartPresentation() {
+    MyGame::GetInstance()->GetInput()->SuppressLeftMouseUntilRelease();
+    if (MyGame::GetInstance()->GetInput()->TriggerKey(DIK_PAUSE)) stageStart_->SetPaused(!stageStart_->IsPaused());
+    const float dt = stageStart_->IsPaused() ? 0.0f : FrameTimer::GetInstance().GetGameplayDeltaTime();
+    stageStart_->Update(dt);
+    if (playerHudController_) playerHudController_->Update(dt);
+    camera_->Update();
+    if (skybox_) { skybox_->SetTranslate(camera_->GetViewTranslate()); skybox_->Update(); }
+    if (cloudVolume_) cloudVolume_->Update(dt);
+    if (auto* clouds=MyGame::GetInstance()->GetVolumetricCloudPass()) {
+        clouds->SetGameplayFlowActive(true);
+        cloudProjectedBounds_=clouds->BuildProjectedBounds(camera_.get(),cloudVolume_.get());
+    }
 }

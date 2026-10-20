@@ -1,5 +1,6 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletEnemyCollision.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
@@ -34,6 +35,7 @@ void PlayerBulletEnemyCollision::Initialize(
 }
 
 void PlayerBulletEnemyCollision::Finalize() {
+    combatState_ = nullptr;
     cameraShakeController_ = nullptr;
     bulletManager_ = nullptr;
     enemyManager_ = nullptr;
@@ -120,6 +122,7 @@ void PlayerBulletEnemyCollision::Update() {
         ++hitCount_;
 
         const bool isLethalHit = !wasDeadBeforeDamage && enemy->IsDead();
+        if (isLethalHit && combatState_) combatState_->RecordEnemyDefeat(*enemy);
         if (isLethalHit && cameraShakeController_) {
             cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::EnemyDefeat);
         }

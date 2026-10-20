@@ -1,4 +1,4 @@
-#include "Player.h"
+﻿#include "Player.h"
 #include "FlightTuning.h"
 
 #include "Engine/Graphics/Camera/Camera.h"
@@ -145,6 +145,25 @@ float Lerp(float start, float end, float t) {
 }
 }
 
+Transform Player::GetVisualTransform() const {
+    return {modelScale_, displayRotationActive_ ? displayRotation_ : visualFinalRotation_, GetDisplayWorldPosition()};
+}
+void Player::SetDisplayPose(const Vector3& translationOffset, const Vector3& rotation) {
+    displayRotation_ = rotation;
+    displayRotationActive_ = true;
+    SetDisplayTranslationOffset(translationOffset);
+}
+void Player::ClearDisplayPose() {
+    displayRotationActive_ = false;
+    SetDisplayTranslationOffset({});
+}
+Vector3 Player::GetDisplayWorldPosition() const { return Add(worldPosition_,displayTranslationOffset_); }
+void Player::SetDisplayTranslationOffset(const Vector3& offset) {
+    displayTranslationOffset_=offset;
+    UpdateObjectTransform();
+    if (object_) object_->Update();
+}
+
 void Player::SetRailFlightVisualBankRadians(float radians) {
     railFlightVisualBankRadians_ = std::isfinite(radians) ? radians : 0.0f;
 }
@@ -157,7 +176,7 @@ bool Player::GetVisualModelBounds(Vector3& minimum, Vector3& maximum) const {
 
 Vector3 Player::TransformVisualModelPointToWorld(const Vector3& modelLocalPoint) const {
     const Matrix4x4 world = MatrixMath::MakeAffine(
-        modelScale_, visualFinalRotation_, worldPosition_);
+        modelScale_, GetVisualTransform().rotate, GetDisplayWorldPosition());
     return {
         modelLocalPoint.x * world.m[0][0]
             + modelLocalPoint.y * world.m[1][0]
@@ -375,8 +394,8 @@ void Player::UpdateObjectTransform() {
     }
 
     if (!object_) return;
-    object_->SetTranslate(worldPosition_);
-    object_->SetRotate(visualFinalRotation_);
+    object_->SetTranslate(GetDisplayWorldPosition());
+    object_->SetRotate(displayRotationActive_ ? displayRotation_ : visualFinalRotation_);
     object_->SetScale(modelScale_);
     if (hitRadiusObject_) {
         hitRadiusObject_->SetTranslate(worldPosition_);

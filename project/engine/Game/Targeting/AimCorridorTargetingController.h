@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 
@@ -36,6 +36,7 @@ public:
     void Reset();
     void SetGameModeActive(bool active);
     void SetPlayerAlive(bool alive);
+    void SetLockAmmoAvailable(bool available);
     void Update(float scaledDeltaTime, float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
@@ -206,5 +207,6 @@ private:
     bool enabled_ = true;
     bool gameModeActive_ = false;
     bool playerAlive_ = true;
+    bool lockAmmoAvailable_ = true;
     bool initialized_ = false;
 };

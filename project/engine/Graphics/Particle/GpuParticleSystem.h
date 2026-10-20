@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "GpuParticleTypes.h"
 
@@ -44,9 +44,11 @@ public:
 	uint32_t GetActiveCountEstimate() const { return state_.activeCountEstimate; }
 	uint32_t GetPoolCapacity() const { return GpuParticle::kParticleCount; }
 	const GpuParticle::State& GetState() const { return state_; }
-	bool IsInitialized() const { return isInitialized_; }
+    bool IsInitialized() const { return isInitialized_; }
+    static void SetSimulationPaused(bool paused) { simulationPaused_ = paused; }
 
 private:
+    inline static bool simulationPaused_ = false;
 	uint32_t EstimateActiveParticleCount() const;
 
 	DirectXCommon* dxCommon_ = nullptr;

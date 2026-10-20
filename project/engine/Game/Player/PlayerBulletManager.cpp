@@ -1,4 +1,4 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletManager.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
@@ -98,6 +98,7 @@ PlayerBulletManager::PlayerBulletInstance& PlayerBulletManager::PlayerBulletInst
 
 void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player) {
     ClearAimCorridorContext();
+    lockAmmo_ = kMaxLockAmmo;
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     player_ = player;

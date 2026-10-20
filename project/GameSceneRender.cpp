@@ -1,5 +1,6 @@
-#include "GameScene.h"
+﻿#include "GameScene.h"
 #include "MyGame.h"
+#include "Engine/Game/GameState/StageStartSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
@@ -45,8 +46,10 @@ void GameScene::DrawSceneRender() {
     auto volumetricCloudPass = MyGame::GetInstance()->GetVolumetricCloudPass();
     auto particleManager = ParticleManager::GetInstance();
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
+    const bool stageStartActive = stageStart_ && stageStart_->IsActive();
+    const bool aircraftVisible = !stageStartActive || stageStart_->IsAircraftVisible();
     const bool shouldDrawDebugVisuals =
-        runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+        !stageStartActive && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
         runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
@@ -88,7 +91,7 @@ void GameScene::DrawSceneRender() {
     if (shouldDrawDebugVisuals && levelSceneRuntime_) {
         levelSceneRuntime_->Draw();
     }
-    if (player_) {
+    if (player_ && aircraftVisible) {
         player_->Draw();
     }
     if (playerBulletManager_) {
@@ -107,7 +110,7 @@ void GameScene::DrawSceneRender() {
         influenceFieldManager_->DrawDebug();
     }
     DrawKrakenTentacleMidboss();
-    if (screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+    if (!stageStartActive && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }
     if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
@@ -116,7 +119,7 @@ void GameScene::DrawSceneRender() {
     if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         combatEffectController_->Draw();
     }
-    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->Draw();
     }
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
@@ -165,7 +168,7 @@ void GameScene::DrawSceneRender() {
         dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
         player_->DrawAfterimages();
     }
-    if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
     }
     if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
@@ -188,27 +191,25 @@ void GameScene::DrawSceneRender() {
         gpuParticleSystem_->Draw();
     }
 
-    if (isParticleVisible_ && !shadowDebugSettings.disableEffects) {
+    if (!stageStartActive && isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
     }
 
     if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
         impactDistortionController_->Draw();
     }
-    if (aimCorridorVisualController_) {
+    if (!stageStartActive && aimCorridorVisualController_) {
         aimCorridorVisualController_->Draw();
     }
-    if (aimCorridorTargetingController_) {
+    if (!stageStartActive && aimCorridorTargetingController_) {
         aimCorridorTargetingController_->Draw();
     }
 
     spriteCommon->CommonDrawSetting();
-    if (playerDamageFeedbackController_) {
+    if (!stageStartActive && playerDamageFeedbackController_) {
         playerDamageFeedbackController_->Draw();
     }
-    if (playerHudController_) {
-        playerHudController_->Draw();
-    }
+    // HUD is composited in DrawOverlay after world post effects, before cloud transitions.
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }

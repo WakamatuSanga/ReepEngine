@@ -268,7 +268,7 @@ bool RailShooterCameraRig::UsesGameplayComposition() const {
 
 bool RailShooterCameraRig::IsGameplayPresentationActive() const {
     // Midboss combat can retain its FOV framing without owning normal input/attitude.
-    return presentationOverrideActive_ || presentationReturnActive_;
+    return stageStartPresentationActive_ || presentationOverrideActive_ || presentationReturnActive_;
 }
 
 void RailShooterCameraRig::ResetGameplayInputHistory(bool resetRotation) {

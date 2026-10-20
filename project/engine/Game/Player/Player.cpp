@@ -1,4 +1,4 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -98,6 +98,8 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     afterimages_ = std::make_unique<PlayerAfterimageController>();
     afterimages_->Initialize(object3dCommon_, camera_);
     LoadModel();
+    displayTranslationOffset_ = {};
+    displayRotationActive_ = false;
     ResetPosition();
     UpdateWorldPosition();
     UpdateObjectTransform();

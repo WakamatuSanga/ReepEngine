@@ -481,6 +481,12 @@
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\GameState\StageStartSequenceController.cpp">
+      <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\GameState\StageCombatState.cpp">
+      <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
     </ClCompile>
@@ -1189,6 +1195,12 @@
       <Filter>ヘッダー ファイル\engine\Game\Field</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h">
+      <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\GameState\StageStartSequenceController.h">
+      <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\GameState\StageCombatState.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h">

@@ -1,0 +1,1184 @@
+{
+  "design_size": [
+    1920,
+    1080
+  ],
+  "preview_reference_size": [
+    736,
+    414
+  ],
+  "scale_from_preview": 2.608695652173913,
+  "pixel_format": "RGBA",
+  "alpha": "straight",
+  "transparent_padding_px": 2,
+  "widgets": {
+    "score": {
+      "file": "widgets/score.png",
+      "position": [
+        44,
+        38
+      ],
+      "size": [
+        161,
+        80
+      ],
+      "source_alpha_bbox": [
+        46,
+        40,
+        203,
+        116
+      ],
+      "source_crop": [
+        44,
+        38,
+        205,
+        118
+      ]
+    },
+    "progress": {
+      "file": "widgets/progress.png",
+      "position": [
+        643,
+        35
+      ],
+      "size": [
+        749,
+        77
+      ],
+      "source_alpha_bbox": [
+        645,
+        37,
+        1390,
+        110
+      ],
+      "source_crop": [
+        643,
+        35,
+        1392,
+        112
+      ]
+    },
+    "lock-ammo": {
+      "file": "widgets/lock-ammo.png",
+      "position": [
+        42,
+        925
+      ],
+      "size": [
+        426,
+        87
+      ],
+      "source_alpha_bbox": [
+        44,
+        927,
+        466,
+        1010
+      ],
+      "source_crop": [
+        42,
+        925,
+        468,
+        1012
+      ]
+    },
+    "evade": {
+      "file": "widgets/evade.png",
+      "position": [
+        519,
+        928
+      ],
+      "size": [
+        374,
+        71
+      ],
+      "source_alpha_bbox": [
+        521,
+        930,
+        891,
+        997
+      ],
+      "source_crop": [
+        519,
+        928,
+        893,
+        999
+      ]
+    },
+    "hp": {
+      "file": "widgets/hp.png",
+      "position": [
+        1488,
+        925
+      ],
+      "size": [
+        390,
+        118
+      ],
+      "source_alpha_bbox": [
+        1490,
+        927,
+        1876,
+        1041
+      ],
+      "source_crop": [
+        1488,
+        925,
+        1878,
+        1043
+      ]
+    }
+  },
+  "parts": {
+    "progress-geometry": {
+      "source_rect": [
+        645.704347826087,
+        86.08695652173913,
+        743.7913043478261,
+        23.47826086956522
+      ],
+      "fill_anchor": "left",
+      "fill_example": "scale or crop fill width by normalized value; do not scale text"
+    },
+    "evade-geometry": {
+      "source_rect": [
+        521.8351304347826,
+        973.0434782608696,
+        368.46052173913034,
+        23.47826086956522
+      ],
+      "fill_anchor": "left",
+      "fill_example": "scale or crop fill width by normalized value; do not scale text"
+    },
+    "hp-geometry": {
+      "source_rect": [
+        1490.504347826087,
+        1009.5652173913044,
+        385.1478260869565,
+        31.304347826086957
+      ],
+      "fill_anchor": "left",
+      "fill_example": "scale or crop fill width by normalized value; do not scale text"
+    },
+    "digits-score": {
+      "directory": "parts/digits-score",
+      "cell_size": [
+        46,
+        85
+      ],
+      "baseline_y": 58.11339130434783,
+      "advance_x": 31.846078125000005,
+      "native_font_size": 52.89600000000001,
+      "baseline_x": 5.217391304347826,
+      "origin_x": 5.217391304347826
+    },
+    "digits-small": {
+      "directory": "parts/digits-small",
+      "cell_size": [
+        35,
+        63
+      ],
+      "baseline_y": 41.697391304347825,
+      "advance_x": 21.962812500000002,
+      "native_font_size": 36.480000000000004,
+      "baseline_x": 5.217391304347826,
+      "origin_x": 5.217391304347826
+    },
+    "score-label": {
+      "file": "parts/score-label.png",
+      "position": [
+        44,
+        38
+      ],
+      "size": [
+        94,
+        30
+      ],
+      "source_alpha_bbox": [
+        46,
+        40,
+        136,
+        66
+      ],
+      "source_crop": [
+        44,
+        38,
+        138,
+        68
+      ]
+    },
+    "progress-label": {
+      "file": "parts/progress-label.png",
+      "position": [
+        646,
+        35
+      ],
+      "size": [
+        147,
+        30
+      ],
+      "source_alpha_bbox": [
+        648,
+        37,
+        791,
+        63
+      ],
+      "source_crop": [
+        646,
+        35,
+        793,
+        65
+      ]
+    },
+    "lock-label": {
+      "file": "parts/lock-label.png",
+      "position": [
+        45,
+        925
+      ],
+      "size": [
+        75,
+        30
+      ],
+      "source_alpha_bbox": [
+        47,
+        927,
+        118,
+        953
+      ],
+      "source_crop": [
+        45,
+        925,
+        120,
+        955
+      ]
+    },
+    "hp-label": {
+      "file": "parts/hp-label.png",
+      "position": [
+        1490,
+        929
+      ],
+      "size": [
+        42,
+        31
+      ],
+      "source_alpha_bbox": [
+        1492,
+        931,
+        1530,
+        958
+      ],
+      "source_crop": [
+        1490,
+        929,
+        1532,
+        960
+      ]
+    },
+    "evade-label": {
+      "file": "parts/evade-label.png",
+      "position": [
+        522,
+        928
+      ],
+      "size": [
+        121,
+        29
+      ],
+      "source_alpha_bbox": [
+        524,
+        930,
+        641,
+        955
+      ],
+      "source_crop": [
+        522,
+        928,
+        643,
+        957
+      ]
+    },
+    "evade-state-ready": {
+      "file": "parts/evade-state-ready.png",
+      "position": [
+        662,
+        928
+      ],
+      "size": [
+        93,
+        29
+      ],
+      "source_alpha_bbox": [
+        664,
+        930,
+        753,
+        955
+      ],
+      "source_crop": [
+        662,
+        928,
+        755,
+        957
+      ]
+    },
+    "evade-state-wait": {
+      "file": "parts/evade-state-wait.png",
+      "position": [
+        660,
+        928
+      ],
+      "size": [
+        77,
+        29
+      ],
+      "source_alpha_bbox": [
+        662,
+        930,
+        735,
+        955
+      ],
+      "source_crop": [
+        660,
+        928,
+        737,
+        957
+      ]
+    },
+    "evade-state-safe": {
+      "file": "parts/evade-state-safe.png",
+      "position": [
+        662,
+        928
+      ],
+      "size": [
+        74,
+        30
+      ],
+      "source_alpha_bbox": [
+        664,
+        930,
+        734,
+        956
+      ],
+      "source_crop": [
+        662,
+        928,
+        736,
+        958
+      ]
+    },
+    "progress-track": {
+      "file": "parts/progress-track.png",
+      "position": [
+        643,
+        84
+      ],
+      "size": [
+        749,
+        28
+      ],
+      "source_alpha_bbox": [
+        645,
+        86,
+        1390,
+        110
+      ],
+      "source_crop": [
+        643,
+        84,
+        1392,
+        112
+      ]
+    },
+    "progress-fill": {
+      "file": "parts/progress-fill.png",
+      "position": [
+        643,
+        84
+      ],
+      "size": [
+        749,
+        28
+      ],
+      "source_alpha_bbox": [
+        645,
+        86,
+        1390,
+        110
+      ],
+      "source_crop": [
+        643,
+        84,
+        1392,
+        112
+      ]
+    },
+    "evade-track": {
+      "file": "parts/evade-track.png",
+      "position": [
+        519,
+        971
+      ],
+      "size": [
+        374,
+        28
+      ],
+      "source_alpha_bbox": [
+        521,
+        973,
+        891,
+        997
+      ],
+      "source_crop": [
+        519,
+        971,
+        893,
+        999
+      ]
+    },
+    "evade-fill-ready": {
+      "file": "parts/evade-fill-ready.png",
+      "position": [
+        519,
+        971
+      ],
+      "size": [
+        374,
+        28
+      ],
+      "source_alpha_bbox": [
+        521,
+        973,
+        891,
+        997
+      ],
+      "source_crop": [
+        519,
+        971,
+        893,
+        999
+      ]
+    },
+    "evade-fill-active": {
+      "file": "parts/evade-fill-active.png",
+      "position": [
+        519,
+        971
+      ],
+      "size": [
+        374,
+        28
+      ],
+      "source_alpha_bbox": [
+        521,
+        973,
+        891,
+        997
+      ],
+      "source_crop": [
+        519,
+        971,
+        893,
+        999
+      ]
+    },
+    "hp-track": {
+      "file": "parts/hp-track.png",
+      "position": [
+        1488,
+        1007
+      ],
+      "size": [
+        390,
+        36
+      ],
+      "source_alpha_bbox": [
+        1490,
+        1009,
+        1876,
+        1041
+      ],
+      "source_crop": [
+        1488,
+        1007,
+        1878,
+        1043
+      ]
+    },
+    "hp-fill": {
+      "file": "parts/hp-fill.png",
+      "position": [
+        1488,
+        1007
+      ],
+      "size": [
+        390,
+        36
+      ],
+      "source_alpha_bbox": [
+        1490,
+        1009,
+        1876,
+        1041
+      ],
+      "source_crop": [
+        1488,
+        1007,
+        1878,
+        1043
+      ]
+    },
+    "ammo-slot-on": {
+      "file": "parts/ammo-slot-on.png",
+      "position": [
+        42,
+        968
+      ],
+      "size": [
+        51,
+        36
+      ],
+      "source_alpha_bbox": [
+        44,
+        970,
+        91,
+        1002
+      ],
+      "source_crop": [
+        42,
+        968,
+        93,
+        1004
+      ]
+    },
+    "ammo-slot-off": {
+      "file": "parts/ammo-slot-off.png",
+      "position": [
+        42,
+        968
+      ],
+      "size": [
+        51,
+        36
+      ],
+      "source_alpha_bbox": [
+        44,
+        970,
+        91,
+        1002
+      ],
+      "source_crop": [
+        42,
+        968,
+        93,
+        1004
+      ]
+    },
+    "missile-icon": {
+      "file": "parts/missile-icon.png",
+      "position": [
+        314,
+        960
+      ],
+      "size": [
+        31,
+        52
+      ],
+      "source_alpha_bbox": [
+        316,
+        962,
+        343,
+        1010
+      ],
+      "source_crop": [
+        314,
+        960,
+        345,
+        1012
+      ]
+    },
+    "digits-score/0": {
+      "file": "parts/digits-score/0.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        18,
+        37,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/1": {
+      "file": "parts/digits-score/1.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        11,
+        19,
+        37,
+        61
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/2": {
+      "file": "parts/digits-score/2.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        9,
+        18,
+        36,
+        61
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/3": {
+      "file": "parts/digits-score/3.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        18,
+        36,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/4": {
+      "file": "parts/digits-score/4.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        7,
+        19,
+        38,
+        61
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/5": {
+      "file": "parts/digits-score/5.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        19,
+        36,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/6": {
+      "file": "parts/digits-score/6.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        18,
+        37,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/7": {
+      "file": "parts/digits-score/7.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        19,
+        36,
+        61
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/8": {
+      "file": "parts/digits-score/8.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        18,
+        37,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/9": {
+      "file": "parts/digits-score/9.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        8,
+        18,
+        37,
+        62
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-score/slash": {
+      "file": "parts/digits-score/slash.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        46,
+        85
+      ],
+      "source_alpha_bbox": [
+        7,
+        19,
+        36,
+        66
+      ],
+      "source_crop": [
+        0,
+        0,
+        46,
+        85
+      ]
+    },
+    "digits-small/0": {
+      "file": "parts/digits-small/0.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/1": {
+      "file": "parts/digits-small/1.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        9,
+        15,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/2": {
+      "file": "parts/digits-small/2.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        27,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/3": {
+      "file": "parts/digits-small/3.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/4": {
+      "file": "parts/digits-small/4.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        15,
+        29,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/5": {
+      "file": "parts/digits-small/5.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        15,
+        27,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/6": {
+      "file": "parts/digits-small/6.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/7": {
+      "file": "parts/digits-small/7.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        15,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/8": {
+      "file": "parts/digits-small/8.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/9": {
+      "file": "parts/digits-small/9.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        14,
+        28,
+        45
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    },
+    "digits-small/slash": {
+      "file": "parts/digits-small/slash.png",
+      "position": [
+        0,
+        0
+      ],
+      "size": [
+        35,
+        63
+      ],
+      "source_alpha_bbox": [
+        7,
+        15,
+        27,
+        48
+      ],
+      "source_crop": [
+        0,
+        0,
+        35,
+        63
+      ]
+    }
+  },
+  "frame": {
+    "file": "hud-frames.png",
+    "position": [
+      0,
+      0
+    ],
+    "size": [
+      1920,
+      1080
+    ],
+    "panel_alpha": 64,
+    "line_alpha_approx": 173
+  },
+  "sample_state": {
+    "score": 0,
+    "progress": 0.18,
+    "ammo": 5,
+    "ammo_max": 5,
+    "hp": 3,
+    "hp_max": 3,
+    "evade_state": "READY"
+  },
+  "ammo_slots": {
+    "count": 5,
+    "origin": [
+      44.34782608695652,
+      970.4347826086956
+    ],
+    "cell_content_size": [
+      46.080000000000005,
+      31.304347826086957
+    ],
+    "step_x": 53.90608695652175
+  },
+  "render_validation": {
+    "recomposition_max_channel_difference_against_svg_master": 3,
+    "center_alpha": 0,
+    "frame_panel_alpha": 64
+  },
+  "text_runs": {
+    "score_value": {
+      "example": "00000",
+      "digit_set": "parts/digits-score",
+      "baseline": [
+        44.34782608695652,
+        112.17391304347827
+      ],
+      "anchor": "left",
+      "max_digits": 5
+    },
+    "ammo_value": {
+      "example": "5 / 5",
+      "digit_set": "parts/digits-small",
+      "baseline": [
+        355.6173913043478,
+        999.1304347826087
+      ],
+      "anchor": "left"
+    },
+    "hp_value": {
+      "example": "3 / 3",
+      "digit_set": "parts/digits-small",
+      "baseline": [
+        1875.6521739130435,
+        954.7826086956522
+      ],
+      "anchor": "right"
+    }
+  },
+  "notes": [
+    "Place hud-frames.png once at origin. Five widgets contain no panel backgrounds.",
+    "Widget positions are top-left pixels of padded cropped PNGs; composite at the provided positions.",
+    "parts/ is for runtime values. Widget images are the sample initial state only.",
+    "Fill sprites are 100% width; use normalized width clipping or scaling from the left.",
+    "Digit cells are equal-size within a set. The cell text origin is (baseline_x, baseline_y); origin_x is an alias of baseline_x. Place the PNG top-left at (text_runs.baseline.x - baseline_x, text_runs.baseline.y - baseline_y), and advance following cells by advance_x. For a right anchor, first subtract the full text advance from text_runs.baseline.x. Transparent padding is included.",
+    "The only opaque preview is preview-contact.png; checkerboard is not part of the assets."
+  ]
+}

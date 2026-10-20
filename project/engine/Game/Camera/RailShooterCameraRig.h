@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <array>
 #include <cstddef>
@@ -80,6 +80,7 @@ public:
     const Vector3& GetBaseForward() const { return currentForward_; }
     const Matrix4x4& GetGameplayReferenceFrame() const { return gameplayReferenceFrame_; }
     bool IsGameplayPresentationActive() const;
+    void SetStageStartPresentationActive(bool active) { stageStartPresentationActive_ = active; }
     void UpdatePlayerFollow(float deltaTime, float unscaledDeltaTime = -1.0f);
     void ResetGameplayInputHistory(bool resetRotation = true);
     void Finalize();
@@ -108,6 +109,8 @@ public:
     float GetBoostRailSpeedMultiplier() const;
     float GetEffectiveRailSpeed() const;
     float GetRailDistance() const;
+    float GetStageRailProgress() const { return railT_; }
+    bool HasStageRailProgress() const { return IsCameraRigActive() && GetActiveRailTotalLength() > 0.001f; }
     float GetLastRailAdvance() const;
 
 private:
@@ -159,6 +162,7 @@ private:
     float GetActiveRailTotalLength() const;
     static float ComputePitchDegrees(const Vector3& forward);
 
+    bool stageStartPresentationActive_ = false;
     Camera* camera_ = nullptr;
     LevelRailRuntime* railRuntime_ = nullptr;
     const LevelSceneRuntime* levelSceneRuntime_ = nullptr;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
 #include <memory>
@@ -35,6 +35,16 @@ public:
     void SetUseLightweightVisual(bool useLightweightVisual);
     void SetModelPath(const std::string& modelPath);
     void Kill(const std::string& reason = "外部処理");
+    void CapturePreviousPosition() { previousPosition_ = position_; }
+    const Vector3& GetPreviousPosition() const { return previousPosition_; }
+    bool TryClaimScore() { if (scoreClaimed_) return false; scoreClaimed_ = true; return true; }
+    bool HasScoreClaim() const { return scoreClaimed_; }
+    bool IsCancelable() const { return cancelable_; }
+    void SetCancelable(bool cancelable) { cancelable_ = cancelable; }
+    void SetCombatLifetimeId(uint64_t id) { combatLifetimeId_ = id; scoreClaimed_ = false; nearMissArmed_ = false; }
+    uint64_t GetCombatLifetimeId() const { return combatLifetimeId_; }
+    bool IsNearMissArmed() const { return nearMissArmed_; }
+    void SetNearMissArmed(bool armed) { nearMissArmed_ = armed; }
 
     bool IsActive() const { return isActive_; }
     bool IsDead() const { return isDead_; }
@@ -90,4 +100,9 @@ private:
     bool useLightweightVisual_ = false;
     bool hasVisualForwardOverride_ = false;
     bool initialized_ = false;
+    Vector3 previousPosition_{};
+    uint64_t combatLifetimeId_ = 0;
+    bool scoreClaimed_ = false;
+    bool nearMissArmed_ = false;
+    bool cancelable_ = true;
 };

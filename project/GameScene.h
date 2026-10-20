@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Scene/IScene.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -68,6 +68,8 @@ class ScreenSpaceFakeShadowPass;
 class SkinningEditor;
 class Skybox;
 class StartupEnemySpawnController;
+class StageStartSequenceController;
+class StageCombatState;
 class Sprite;
 class WarningUIController;
 struct Skeleton;
@@ -81,10 +83,18 @@ public:
     void Draw() override;
     void Finalize() override;
     void PrepareForPresentation() override;
+    void OnPresentationRevealed() override;
+    void OnFramePresented() override;
+    void DrawOverlay() override;
+    bool UsesFullscreenScenePresentation() const override;
+    bool BlocksDebugUiForPresentation() const override;
 
 private:
     friend class GameSceneDebugGui;
     bool presentationPrepared_ = false;
+    std::unique_ptr<StageStartSequenceController> stageStart_;
+    std::unique_ptr<StageCombatState> stageCombatState_;
+    void UpdateStageStartPresentation();
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();

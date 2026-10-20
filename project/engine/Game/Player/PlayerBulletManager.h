@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <array>
 #include <cstddef>
@@ -18,6 +18,7 @@ class Object3dCommon;
 class Player;
 class PlayerLockOnTargetProvider;
 class ProjectileRailMotionAdapter;
+class StageCombatState;
 enum class PlayerLockOnTargetKind : uint8_t;
 
 class PlayerBulletManager {
@@ -94,6 +95,11 @@ public:
         bool gameModeActive,
         bool playerAlive);
     void ClearAimCorridorContext();
+    static constexpr int kMaxLockAmmo = 5;
+    int GetLockAmmo() const { return lockAmmo_; }
+    void RecoverLockAmmo();
+    void SetCombatState(StageCombatState* state) { combatState_ = state; }
+    void NotifyKrakenDefeated(uint64_t sequence);
     void SetProjectileRailMotionAdapter(ProjectileRailMotionAdapter* adapter) { projectileRailMotionAdapter_ = adapter; }
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity, int damage);
     void DeleteAllBullets();
@@ -253,6 +259,8 @@ private:
 
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    int lockAmmo_ = kMaxLockAmmo;
+    StageCombatState* combatState_ = nullptr;
     CameraShakeController* cameraShakeController_ = nullptr;
     Player* player_ = nullptr;
     GameViewport* gameViewport_ = nullptr;

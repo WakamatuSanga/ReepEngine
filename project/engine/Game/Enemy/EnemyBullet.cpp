@@ -113,6 +113,10 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     deathReason_ = "初期化中";
     projectileRailFrameSequence_ = 0;
     projectileSpawnSequence_ = 0;
+    combatLifetimeId_ = 0;
+    scoreClaimed_ = false;
+    nearMissArmed_ = false;
+    cancelable_ = true;
 
     if (!object3dCommon_ || !camera_) {
         loadStatus_ = "Initialize failed: Object3dCommon or Camera is null.";

@@ -120,6 +120,7 @@ RailShooterCameraRig::RailShooterCameraRig() = default;
 RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
+    stageStartPresentationActive_ = false;
     ResetGameplayInputHistory();
     presentationReturnActive_ = false;
     gameplayBaseInitialized_ = false;
@@ -138,6 +139,7 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    stageStartPresentationActive_ = false;
     ResetGameplayInputHistory();
     if (camera_) camera_->SetViewRotationOffset({});
     externalEncounterRailSpeedMultiplier_ = 1.0f;

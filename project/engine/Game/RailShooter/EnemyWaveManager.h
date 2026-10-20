@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/Game/RailShooter/EnemyWaveData.h"
 #include "Engine/math/Matrix4x4.h"
 #include <array>
@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class Camera;
@@ -62,6 +63,8 @@ public:
     uint64_t GetExternalWaveObjectiveCompletionPublishCount() const;
     uint64_t GetExternalWaveObjectiveDuplicatePublishSuppressionCount() const;
 
+    float GetStageProgress() const;
+    bool IsStageComplete() const { return GetStageProgress() >= 1.0f; }
     bool ValidateWaveResources();
     bool HasLoadedWave(std::string_view waveId) const;
     size_t GetWaveDuplicateIdCount() const { return waveDuplicateIdCount_; }
@@ -180,6 +183,7 @@ private:
     EnemyLaserTelegraphController* laserController_ = nullptr;
     WarningUIController* warningUIController_ = nullptr;
     std::vector<EnemyWaveDefinition> waves_;
+    std::unordered_set<std::string> completedStageWaves_;
     std::unordered_map<std::string, size_t> waveIndexById_;
     std::vector<ActiveWave> activeWaves_;
     std::vector<WaveEnemyRuntime> waveEnemies_;

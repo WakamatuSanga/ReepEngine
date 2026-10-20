@@ -1,4 +1,4 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "BoostController.h"
 #include "FlightTuning.h"
 
@@ -41,10 +41,14 @@ void BoostController::Finalize() {
     cloudPass_ = nullptr;
 }
 
-void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay) {
+void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay, float realDeltaTime) {
     const float realDt = std::clamp(unscaledDeltaTime, 0.0f, 1.0f / 15.0f);
     lastInputTriggered_ = lastCanBoost_ = false;
     if (!ordinaryGameplay || !enableBoost_) { Cancel(); return; }
+    if (state_ == State::Cooldown) {
+        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - (std::max)(0.0f, std::isfinite(realDeltaTime) && realDeltaTime >= 0 ? realDeltaTime : unscaledDeltaTime));
+        if (boostCooldownTimer_ == 0) state_ = State::Idle;
+    }
     Input* input = MyGame::GetInstance()->GetInput();
     if (gameViewInputActive_ && input) {
         lastInputTriggered_ = input->TriggerKey(ResolveInputKey());
@@ -83,9 +87,6 @@ void BoostController::Update(float deltaTime) {
             boostTimer_ = 0; boostCooldownTimer_ = boostCooldown_; currentBoostPower_ = 0;
             if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
         }
-    } else if (state_ == State::Cooldown) {
-        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - dt);
-        if (boostCooldownTimer_ == 0) state_ = State::Idle;
     }
     UpdateCloudFlowMultiplier(dt);
     PushMultiplierToCloud();
@@ -104,13 +105,22 @@ void BoostController::DrawImGui() {
         ImGui::Text("開始側 %.0f / 開始横位置 %.2f / 強度 %.2f", startSide_, startX_, currentBoostPower_);
         ImGui::Text("雲の基準 %.1f / 追加 %.1f / 実流速 %.1f", cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0,
             currentCloudBoostExtraSpeed_, cloudPass_ ? cloudPass_->GetCurrentCloudFlowSpeed() : 0);
-        ImGui::SliderFloat("再発動待ち(ゲーム秒)", &boostCooldown_, 0, 5);
+        DrawEvadeSettingsImGui();
         ImGui::SliderFloat("雲Boost追加速度", &maxCloudBoostExtraSpeed_, 0, 30);
         ImGui::Text("軌道・時間倍率の設定は飛行調整へ。");
         if (ImGui::Button("テスト発動")) StartBoost(true);
         ImGui::SameLine(); if (ImGui::Button("中断")) Cancel();
     }
     DebugUiWorkspace::EndPanel();
+#endif
+}
+
+void BoostController::DrawEvadeSettingsImGui() {
+#ifdef USE_IMGUI
+    ImGui::Text("回避キー: %s / %s / 待ち %.2f 実秒", GetInputKeyName(),
+        IsEvadeActive() ? "回避中" : IsCoolingDown() ? "回復待ち" : "READY", GetCooldownRemaining());
+    ImGui::SliderFloat("再発動待ち(実秒)", &boostCooldown_, 0, 5);
+    ImGui::TextWrapped("初期案は終了から3実秒。ワールドのスローでは遅くなりません。");
 #endif
 }
 

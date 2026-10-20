@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <memory>
 #include <string>
@@ -81,6 +81,7 @@ public:
         float spawnAttackDelay);
 
     void Damage(int amount);
+    bool TryClaimDefeatReward() { if (!isDead_ || hp_ > 0 || defeatRewardClaimed_) return false; defeatRewardClaimed_ = true; return true; }
     void Kill();
     void Revive(int hp);
 #ifdef USE_IMGUI
@@ -179,6 +180,7 @@ private:
 #endif
     bool isActive_ = true;
     bool isDead_ = false;
+    bool defeatRewardClaimed_ = false;
     bool useFallbackModel_ = false;
     bool useLightweightVisual_ = false;
     bool spawnFaceDownDuringSpawn_ = true;

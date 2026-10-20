@@ -23,6 +23,10 @@ public:
     // 次のシーンを予約する (unique_ptrで所有権ごと受け取る)
     void ChangeScene(std::unique_ptr<IScene> newScene);
 
+    bool BlocksDebugUiForNextUpdate() const {
+        const IScene* scene = nextScene_ ? nextScene_.get() : currentScene_.get();
+        return scene && scene->BlocksDebugUiForPresentation();
+    }
     bool UsesFullscreenScenePresentationForNextUpdate() const {
         if (IsTitleTransitionActive()) return true;
         // ImGui begins before Update applies a pending scene change.
@@ -44,6 +48,7 @@ private:
     std::unique_ptr<IScene> transitionScene_;
     std::unique_ptr<TitleCloudTransition> titleTransition_;
     bool testTransition_ = false;
+    bool presentationRevealPending_ = false;
     std::unique_ptr<IScene> failedPreparationScene_;
     std::string lastPreparationError_;
     bool IsTitleTransitionActive() const;

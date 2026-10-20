@@ -1,4 +1,5 @@
-#include "PlayerBulletManager.h"
+﻿#include "PlayerBulletManager.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 
 #include "Engine/Core/GameViewport.h"
 #include "Engine/Game/Player/Player.h"
@@ -115,6 +116,7 @@ void PlayerBulletManager::SetAimRuntimeContext(
     bool playerAlive) {
     aimCorridorVisualController_ = visualController;
     aimCorridorTargetingController_ = targetingController;
+    if (targetingController) targetingController->SetLockAmmoAvailable(lockAmmo_ > 0);
     targetProvider_ = targetProvider;
 
     const bool enteringGameMode =
@@ -122,6 +124,11 @@ void PlayerBulletManager::SetAimRuntimeContext(
         || (aimRuntimeStateInitialized_ && !aimGameModeActive_ && gameModeActive);
     const bool respawned =
         aimRuntimeStateInitialized_ && !aimPlayerAlive_ && playerAlive;
+    if (respawned) {
+        lockAmmo_ = kMaxLockAmmo;
+        if (combatState_) combatState_->Reset();
+        if (targetingController) targetingController->SetLockAmmoAvailable(true);
+    }
     const bool leavingGameMode =
         aimRuntimeStateInitialized_ && aimGameModeActive_ && !gameModeActive;
 

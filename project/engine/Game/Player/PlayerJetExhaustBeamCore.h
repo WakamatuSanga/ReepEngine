@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 #include "PlayerJetExhaustBeamRenderer.h"
@@ -23,6 +23,8 @@ public:
     void Draw(const Camera* camera, float brightnessScale = 1.0f, float alphaScale = 1.0f);
     void DrawImGui();
     void ApplyCurrentTunedPreset();
+    void ResetDisplayHistory();
+    Vector2 GetUnboostedDisplayBounds() const;
 
     bool IsBeamEnabled() const { return enableBeamCore_; }
     bool IsOuterParticlesEnabled() const { return enableOuterParticles_; }

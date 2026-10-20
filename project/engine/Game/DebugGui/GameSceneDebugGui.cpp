@@ -1,4 +1,5 @@
-﻿#include "GameSceneDebugGui.h"
+﻿#include "Engine/Game/GameState/StageCombatState.h"
+#include "GameSceneDebugGui.h"
 #include "GameScene.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
@@ -28,6 +29,7 @@
 #include "Engine/Game/Field/InfluenceFieldManager.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
+#include "Engine/Game/GameState/StageStartSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/FlightTuning.h"
@@ -246,6 +248,10 @@ void GameSceneDebugGui::DrawManagerDebugWindows(DirectXCommon* dxCommon, Volumet
         if (ImGui::Button("タイトルへ戻る")) SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
         ImGui::TextWrapped("各機能は上の分類から選びます。独立エディタの開閉と配置だけを保存し、調整値は担当クラスが保持します。");
     } });
+    if (scene_->stageStart_) panels.push_back({ "stageStart", "ステージ1・開始演出", C::Game, [this] {
+        scene_->stageStart_->DrawImGui();
+        if (ImGui::Button("調整値でRestart")) SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
+    } });
     panels.push_back({ "kraken", "クラーケン中ボスの演出・配置", C::Enemy, [this] { scene_->DrawKrakenTentacleMidbossImGui(); }, true });
     panels.push_back({ "krakenWave", "クラーケン交戦ウェーブ", C::Enemy, [this] { scene_->DrawKrakenTentacleWaveEncounterImGui(); } });
     if (scene_->boostController_) panels.push_back({ "flightTuning", "飛行・ロール・風の採用値", C::Player, [] { FlightTuning::DrawImGui(); } });
@@ -255,7 +261,7 @@ void GameSceneDebugGui::DrawManagerDebugWindows(DirectXCommon* dxCommon, Volumet
     if (scene_->player_) panels.push_back({ "player", "プレイヤー・HP・ロール", C::Player, [this] { scene_->player_->DrawImGui(scene_->playerDamageFeedbackController_.get()); }, false });
     if (scene_->playerRailFlightVisualTiltController_) panels.push_back({ "playerRailFlightVisualTiltController", "レール飛行の見た目傾き", C::Player, [this] { scene_->playerRailFlightVisualTiltController_->DrawImGui(); }, false });
     if (scene_->playerDamageFeedbackController_) panels.push_back({ "playerDamageFeedbackController", "被弾の点滅・火花", C::Player, [this] { scene_->playerDamageFeedbackController_->DrawImGui(); }, false });
-    if (scene_->playerHudController_) panels.push_back({ "playerHudController", "プレイヤーHUD", C::Player, [this] { scene_->playerHudController_->DrawImGui(); }, false });
+    if (scene_->playerHudController_) panels.push_back({ "playerHudController", "HUD・スコア・ロック弾・スロー回避", C::Player, [this] { scene_->playerHudController_->DrawImGui(); }, false });
     if (scene_->aimCorridorVisualController_) panels.push_back({ "aimCorridorVisualController", "照準コリドー表示", C::Player, [this] { scene_->aimCorridorVisualController_->DrawImGui(); }, false });
     if (scene_->aimCorridorTargetingController_) panels.push_back({ "aimCorridorTargetingController", "照準コリドー判定", C::Player, [this] { scene_->aimCorridorTargetingController_->DrawImGui(); }, false });
     if (scene_->playerLockOnTargetProvider_) panels.push_back({ "playerLockOnTargetProvider", "ロックオン対象・ミサイル", C::Player, [this] { scene_->playerLockOnTargetProvider_->DrawImGui(

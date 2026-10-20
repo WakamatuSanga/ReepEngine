@@ -1,4 +1,4 @@
-#include "GpuParticleSystem.h"
+﻿#include "GpuParticleSystem.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/GpuTimestampProfiler.h"
@@ -322,6 +322,7 @@ void GpuParticleSystem::Draw() {
 		return;
 	}
 
+    if (simulationPaused_) { renderer_->Draw(dxCommon_->GetCommandList(), *resources_, state_); return; }
 	resources_->RefreshCounterReadbackValues(state_);
 	GpuParticle::ClampEmitterParticleTypeIndices(state_);
 	renderer_->RefreshParticleTypeTextures(state_);

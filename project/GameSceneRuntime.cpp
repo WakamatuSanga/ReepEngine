@@ -1,3 +1,4 @@
+﻿#include "Engine/Game/GameState/StageCombatState.h"
 #include "GameScene.h"
 #include "MyGame.h"
 #include "SceneManager.h"
@@ -231,7 +232,9 @@ void GameScene::UpdateSceneRuntime() {
     const bool presentationBeforeUpdate = isDeathSequenceActive
         || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())
         || (railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive());
-    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, isGameMode && !presentationBeforeUpdate);
+    if (stageCombatState_) stageCombatState_->SetGameplayActive(isGameMode && !presentationBeforeUpdate
+        && !(enemyWaveManager_ && enemyWaveManager_->IsStageComplete()));
+    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, isGameMode && !presentationBeforeUpdate, frameTimer.GetRawDeltaTime());
     if (combatSlowMotionController_) {
         if (presentationBeforeUpdate) combatSlowMotionController_->Reset();
         combatSlowMotionController_->Update(unscaledDeltaTime);
@@ -429,6 +432,9 @@ void GameScene::UpdateSceneRuntime() {
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
     PostWaveUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
+    if (stageCombatState_) stageCombatState_->UpdateProgress(gameplayDeltaTime, isGameMode && !presentationBeforeUpdate
+        && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())
+        && !(enemyWaveManager_ && enemyWaveManager_->IsStageComplete()));
     if ((playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())
         || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())) {
         if (boostController_) boostController_->Cancel();

@@ -1,3 +1,4 @@
+﻿#include "Engine/Game/GameState/StageCombatState.h"
 #include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
@@ -335,4 +336,11 @@ void GameScene::InitializeSceneResources() {
         enemyManager_.get(), krakenTentacleMidboss_.get());
     InitializeKrakenTentacleWaveEncounter();
     InitializeSkinningEditorPreview();
+    stageCombatState_ = std::make_unique<StageCombatState>();
+    stageCombatState_->Initialize(playerBulletManager_.get());
+    playerBulletManager_->SetCombatState(stageCombatState_.get());
+    enemyBulletManager_->SetCombatState(stageCombatState_.get());
+    playerBulletEnemyCollision_->SetCombatState(stageCombatState_.get());
+    playerEnemyBulletCollision_->SetEvadeController(boostController_.get());
+    playerHudController_->BindState(stageCombatState_.get(), enemyWaveManager_.get(), railShooterCameraRig_.get());
 }

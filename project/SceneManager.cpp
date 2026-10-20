@@ -1,4 +1,4 @@
-#include "SceneManager.h"
+﻿#include "SceneManager.h"
 #include "TitleCloudTransition.h"
 #include "MyGame.h"
 #include "TitleScene.h"
@@ -25,11 +25,12 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> newScene) {
     if (titleTransition_) titleTransition_->Cancel();
     transitionScene_.reset();
     testTransition_ = false;
+    presentationRevealPending_ = false;
     nextScene_ = std::move(newScene);
 }
 
 void SceneManager::Update() {
-    if (titleTransition_ && titleTransition_->DrawImGui() && !nextScene_) {
+    if (!BlocksDebugUiForNextUpdate() && titleTransition_ && titleTransition_->DrawImGui() && !nextScene_) {
         testTransition_ = titleTransition_->Start();
     }
     const bool wasActive = IsTitleTransitionActive();
@@ -59,6 +60,7 @@ void SceneManager::Update() {
             currentScene_->Initialize();
             currentScene_->PrepareForPresentation();
         }
+        presentationRevealPending_ = true;
         if (exchanged) {
             // CPU preparation succeeded (or a fresh title was restored). The next
             // fully covered Draw + Present + DIRECT queue fence gates reveal.
@@ -81,6 +83,7 @@ void SceneManager::Finalize() {
     if (failedPreparationScene_) failedPreparationScene_->Finalize();
     failedPreparationScene_.reset();
     lastPreparationError_.clear();
+    presentationRevealPending_ = false;
     titleTransition_.reset();
     testTransition_ = false;
     transitionScene_.reset();
@@ -129,4 +132,10 @@ void SceneManager::OnFramePresented() {
             testTransition_ = false;
         }
     }
+    if (presentationRevealPending_ && !IsTitleTransitionActive() && currentScene_) {
+        presentationRevealPending_ = false;
+        currentScene_->OnPresentationRevealed();
+    }
+    if (currentScene_) currentScene_->OnFramePresented();
+
 }

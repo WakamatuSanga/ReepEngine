@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstddef>
 #include <string>
@@ -8,6 +8,7 @@ class CameraShakeController;
 class PlayerBulletManager;
 class CombatEffectController;
 class EnemyDefeatEffectController;
+class StageCombatState;
 class ImpactDistortionController;
 
 class PlayerBulletEnemyCollision {
@@ -24,6 +25,7 @@ public:
     void SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller);
     void SetImpactDistortionController(ImpactDistortionController* controller);
     void Update();
+    void SetCombatState(StageCombatState* state) { combatState_ = state; }
     void DrawImGui();
 
 private:
@@ -31,6 +33,7 @@ private:
     CameraShakeController* cameraShakeController_ = nullptr;
     EnemyManager* enemyManager_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
+    StageCombatState* combatState_ = nullptr;
     EnemyDefeatEffectController* enemyDefeatEffectController_ = nullptr;
     ImpactDistortionController* impactDistortionController_ = nullptr;
     Vector3 lastHitPosition_{ 0.0f, 0.0f, 0.0f };

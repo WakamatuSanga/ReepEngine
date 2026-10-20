@@ -1,4 +1,5 @@
-#include "PlayerBulletManager.h"
+﻿#include "PlayerBulletManager.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
 
@@ -236,6 +237,7 @@ PlayerBulletManager::TrySpawnLockedWingShot() {
 PlayerBulletManager::LockedWingShotResult
 PlayerBulletManager::SpawnLockedWingShot(
     WingSide wing, const std::string& targetId, bool forcedTest) {
+    if (lockAmmo_ <= 0) return LockedWingShotResult::SpawnFailed;
     if (!player_ || !camera_ || !std::isfinite(bulletSpeed_)) {
         ++lockedWingSpawnFailureCount_;
         lastLockedWingStatus_ =
@@ -324,6 +326,8 @@ PlayerBulletManager::SpawnLockedWingShot(
         ? "デバッグテスト用ミサイルを分離しました"
         : "ロック対象を確認し、翼下ミサイルを分離しました";
 
+    --lockAmmo_;
+    if (aimCorridorTargetingController_) aimCorridorTargetingController_->SetLockAmmoAvailable(lockAmmo_ > 0);
     ++lockedWingShotCount_;
     ++lockedWingEjectionDropStartCount_;
     if (wing == WingSide::Left) {
@@ -563,4 +567,12 @@ void PlayerBulletManager::DrawLockedWingShotImGui() {
         ClearLockedWingShotForceState();
     }
 #endif
+}
+
+void PlayerBulletManager::RecoverLockAmmo() {
+    lockAmmo_ = (std::min)(kMaxLockAmmo, lockAmmo_ + 1);
+    if (aimCorridorTargetingController_) aimCorridorTargetingController_->SetLockAmmoAvailable(lockAmmo_ > 0);
+}
+void PlayerBulletManager::NotifyKrakenDefeated(uint64_t sequence) {
+    if (combatState_) combatState_->RecordKrakenDefeat(sequence);
 }

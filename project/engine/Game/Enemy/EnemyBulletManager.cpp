@@ -1,6 +1,7 @@
 ﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Utility/Logger.h"
@@ -52,6 +53,7 @@ void EnemyBulletManager::Update(float deltaTime) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyUpdateMs);
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
+            bullet->CapturePreviousPosition();
             if (projectileRailMotionAdapter_) {
                 projectileRailMotionAdapter_->ApplyToProjectile(
                     *bullet, ProjectileRailMotionAdapter::ProjectileKind::Enemy);
@@ -212,6 +214,8 @@ EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vect
         projectileRailMotionAdapter_->RegisterProjectile(*bullet);
     }
 
+    bullet->SetCombatLifetimeId(++nextCombatLifetimeId_);
+    bullet->CapturePreviousPosition();
     EnemyBullet* bulletPtr = bullet.get();
     bullets_.push_back(std::move(bullet));
     FrameTimer::GetInstance().AddBulletMetric(FrameTimer::BulletMetric::EnemySpawnCount);
@@ -275,10 +279,11 @@ size_t EnemyBulletManager::ClearBulletsInRadius(
         }
 
         const float combinedRadius = safeRadius + bullet->GetRadius();
-        if (DistanceSquared(center, bullet->GetPosition()) <= combinedRadius * combinedRadius) {
+        if (bullet->IsCancelable() && DistanceSquared(center, bullet->GetPosition()) <= combinedRadius * combinedRadius) {
             if (clearedPositions && clearedPositions->size() < maxRecordedPositions) {
                 clearedPositions->push_back(bullet->GetPosition());
             }
+            if (combatState_) combatState_->RecordBulletCancel(*bullet);
             bullet->Kill("範囲消去");
             ++clearedCount;
         }
@@ -296,7 +301,7 @@ bool EnemyBulletManager::CheckHitAndKillFirstSphere(
     Vector3* hitPosition,
     float* lastDistance,
     float* lastRadiusSum,
-    float* lastBulletRadius) {
+    float* lastBulletRadius, bool playerCanceled) {
     const float safeRadius = (std::max)(0.0f, radius);
     if (lastDistance) {
         *lastDistance = -1.0f;
@@ -327,7 +332,10 @@ bool EnemyBulletManager::CheckHitAndKillFirstSphere(
             if (hitPosition) {
                 *hitPosition = bullet->GetPosition();
             }
-            bullet->Kill("Playerとの衝突");
+            if (bullet->IsCancelable()) {
+                if (playerCanceled && combatState_) combatState_->RecordBulletCancel(*bullet);
+                bullet->Kill("Playerとの衝突");
+            }
             return true;
         }
     }
@@ -364,3 +372,34 @@ void EnemyBulletManager::RemoveDeadBullets() {
     }
 }
 
+
+void EnemyBulletManager::EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active) {
+    const float outerScale = std::clamp(StageCombatState::GetTuning().nearMissScale, 1.05f, 3.0f);
+    for (auto& bullet : bullets_) {
+        if (!bullet || bullet->IsDead() || !bullet->IsActive()) continue;
+        if (!active) { bullet->SetNearMissArmed(false); continue; }
+        const auto& a = bullet->GetPreviousPosition();
+        const auto& b = bullet->GetPosition();
+        const Vector3 start{a.x-previousPlayer.x, a.y-previousPlayer.y, a.z-previousPlayer.z};
+        const Vector3 end{b.x-player.x, b.y-player.y, b.z-player.z};
+        const Vector3 step{end.x-start.x, end.y-start.y, end.z-start.z};
+        const float length2 = step.x*step.x + step.y*step.y + step.z*step.z;
+        const float t = length2 > .0000001f ? std::clamp(-(start.x*step.x+start.y*step.y+start.z*step.z)/length2, 0.0f, 1.0f) : 0;
+        const Vector3 closest{start.x+step.x*t,start.y+step.y*t,start.z+step.z*t};
+        const float minimum2 = closest.x*closest.x+closest.y*closest.y+closest.z*closest.z;
+        const float inner = (std::max)(0.0f, radius) + bullet->GetRadius();
+        const float outer = inner * outerScale;
+        if (minimum2 <= inner*inner) {
+            bullet->SetNearMissArmed(false);
+            if (combatState_) combatState_->RecordEvade(*bullet);
+            if (bullet->IsCancelable()) bullet->Kill("スロー回避接触");
+            continue;
+        }
+        if (minimum2 <= outer*outer) bullet->SetNearMissArmed(true);
+        const float end2 = end.x*end.x+end.y*end.y+end.z*end.z;
+        if (bullet->IsNearMissArmed() && end2 > outer*outer) {
+            bullet->SetNearMissArmed(false);
+            if (combatState_) combatState_->RecordEvade(*bullet);
+        }
+    }
+}

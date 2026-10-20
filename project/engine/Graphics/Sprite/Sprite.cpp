@@ -1,4 +1,4 @@
-#include "Sprite.h"
+﻿#include "Sprite.h"
 #include "SpriteCommon.h"
 #include "Matrix4x4.h"
 #include "Engine/Core/WinApp.h"
@@ -50,6 +50,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
     materialData_->enableLighting = false;
     materialData_->uvTransform = MakeIdentity4x4();
     SetWhiteGradient({});
+    materialData_->textureAlphaScale = {1, 1, 0, 0};
 
     // 4. トランスフォーム用定数バッファ
     transformationMatrixResource_ = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
@@ -164,4 +165,8 @@ void Sprite::Draw() {
 
     // 描画
     commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+
+void Sprite::SetTextureAlphaScale(float panel, float detail) {
+    materialData_->textureAlphaScale = {std::clamp(panel, 0.0f, 3.0f), std::clamp(detail, 0.0f, 1.0f), 0, 1};
 }

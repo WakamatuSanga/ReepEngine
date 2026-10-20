@@ -1,4 +1,4 @@
-#include "EnemyWaveManager.h"
+﻿#include "EnemyWaveManager.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
@@ -332,6 +332,7 @@ void EnemyWaveManager::StopAllWaves() {
     if (warningUIController_) {
         warningUIController_->HideWarning();
     }
+    completedStageWaves_.clear();
     ResetWaveFoundationForRestart();
     AddLog("Stopped all active waves and tracked wave enemies.");
 }

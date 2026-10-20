@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
 #include <memory>
@@ -39,6 +39,11 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void RefreshCameraPresentation(float deltaTime);
+    Transform GetVisualTransform() const;
+    Vector3 GetDisplayWorldPosition() const;
+    void SetDisplayTranslationOffset(const Vector3& offset);
+    void SetDisplayPose(const Vector3& translationOffset, const Vector3& rotation);
+    void ClearDisplayPose();
     void Draw();
     void DrawImGui(PlayerDamageFeedbackController* damageFeedbackController = nullptr);
 
@@ -139,6 +144,9 @@ private:
     std::string loadStatus_;
     Vector3 basePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 baseForward_{ 0.0f, 0.0f, 1.0f };
+    Vector3 displayTranslationOffset_{};
+    Vector3 displayRotation_{};
+    bool displayRotationActive_ = false;
     Vector3 worldPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 externalBasePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 externalBaseForward_{ 0.0f, 0.0f, 1.0f };

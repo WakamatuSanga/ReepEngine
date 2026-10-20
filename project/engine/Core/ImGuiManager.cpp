@@ -146,6 +146,7 @@ void ImGuiManager::BeginDockSpace_() {
 	const RuntimeModeController* runtimeModeController = RuntimeModeController::GetActiveController();
 	const bool drawDebugUi = !runtimeModeController || runtimeModeController->ShouldDrawDebugUi();
 
+	const bool cinematic = SceneManager::GetInstance()->BlocksDebugUiForNextUpdate();
 #ifdef IMGUI_HAS_DOCK
 	const bool fullscreenScene = SceneManager::GetInstance()->UsesFullscreenScenePresentationForNextUpdate();
 	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_None;
@@ -159,6 +160,7 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGuiWindowFlags_NoBringToFrontOnFocus |
 		ImGuiWindowFlags_NoNavFocus;
 
+	if (cinematic) windowFlags &= ~ImGuiWindowFlags_MenuBar;
 	if (fullscreenScene || (!drawDebugUi && runtimeModeController && runtimeModeController->ShouldKeepDockSpaceAlive())) {
 		// Keep the editor layout, but do not cover the scene with host or dock-node backgrounds.
 		dockspaceFlags |= ImGuiDockNodeFlags_KeepAliveOnly;
@@ -187,7 +189,7 @@ void ImGuiManager::BeginDockSpace_() {
 		ImGui::SetWindowHitTestHole(host, host->InnerRect.Min, host->InnerRect.GetSize());
 	}
 
-	if (ImGui::BeginMenuBar()) {
+	if (!cinematic && ImGui::BeginMenuBar()) {
 		DebugUiWorkspace::DrawMenu(drawDebugUi);
 		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
@@ -207,7 +209,7 @@ void ImGuiManager::BeginDockSpace_() {
 	ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
 	ImGui::End();
 #else
-	if (ImGui::BeginMainMenuBar()) {
+	if (!cinematic && ImGui::BeginMainMenuBar()) {
 		DebugUiWorkspace::DrawMenu(drawDebugUi);
 		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
@@ -223,7 +225,7 @@ void ImGuiManager::BeginDockSpace_() {
 	}
 #endif
 
-	if (drawDebugUi && showDemoWindow_) {
+	if (!cinematic && drawDebugUi && showDemoWindow_) {
 		ImGui::ShowDemoWindow(&showDemoWindow_);
 	}
 }

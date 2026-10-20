@@ -1,4 +1,4 @@
-#include "AimCorridorTargetingController.h"
+﻿#include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
 #include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
@@ -109,7 +109,7 @@ void AimCorridorTargetingController::Update(float scaledDeltaTime, float unscale
         std::isfinite(unscaledDeltaTime) ? unscaledDeltaTime : 0.0f, 0.0f, 0.1f);
     ClampParameters();
 
-    const bool canTarget = initialized_ && enabled_ && gameModeActive_ && playerAlive_
+    const bool canTarget = initialized_ && enabled_ && gameModeActive_ && playerAlive_ && lockAmmoAvailable_
         && targetProvider_ && camera_ && visualController_
         && visualController_->IsVisible() && visualController_->IsGameModeActive();
     if (!canTarget) {
@@ -216,4 +216,10 @@ void AimCorridorTargetingController::ClampParameters() {
     lockAcquireTime_ = std::clamp(lockAcquireTime_, 0.2f, 3.0f);
     lockBreakGraceTime_ = std::clamp(lockBreakGraceTime_, 0.0f, 2.0f);
     maximumCandidateCount_ = std::clamp(maximumCandidateCount_, 1, 32);
+}
+
+void AimCorridorTargetingController::SetLockAmmoAvailable(bool available) {
+    if (lockAmmoAvailable_ == available) return;
+    lockAmmoAvailable_ = available;
+    if (!available) { heldLocks_.clear(); ClearTarget(false, "ロック弾が0発"); if (markerRenderer_) markerRenderer_->Reset(); }
 }

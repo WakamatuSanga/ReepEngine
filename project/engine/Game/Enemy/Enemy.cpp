@@ -1,4 +1,4 @@
-#include "Enemy.h"
+﻿#include "Enemy.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -164,6 +164,7 @@ void Enemy::Initialize(Object3dCommon* object3dCommon, Camera* camera, const std
     object3dCommon_ = object3dCommon;
     camera_ = camera;
     enemyId_ = enemyId;
+    defeatRewardClaimed_ = false;
     isActive_ = true;
     isDead_ = false;
     state_ = State::Active;
