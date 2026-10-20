@@ -24,7 +24,7 @@ public:
     ~LevelSceneRuntime();
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
-    void Update();
+    void Update(float gameDeltaTime = -1.0f);
     void Draw();
     void DrawImGui();
     void SetGameViewRect(float x, float y, float width, float height);

@@ -9,7 +9,7 @@ public:
     void Initialize(DirectXCommon* dxCommon);
     DirectXCommon* GetDxCommon() const { return dxCommon_; }
 
-    void CommonDrawSetting();
+    void CommonDrawSetting(bool compositeAlpha = false);
 
 private:
     void CreateRootSignature();
@@ -20,4 +20,5 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> compositeAlphaPipelineState_;
 };

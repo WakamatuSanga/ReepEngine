@@ -5,7 +5,7 @@ class Camera;
 
 class CameraShakeController {
 public:
-    enum class GameplayEvent { Shot, EnemyDefeat, Explosion };
+    enum class GameplayEvent { Shot, EnemyDefeat, Explosion, BulletCancel };
     CameraShakeController();
     ~CameraShakeController();
 

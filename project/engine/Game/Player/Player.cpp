@@ -8,6 +8,7 @@
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Input/Input.h"
 #include "PlayerActionController.h"
+#include "PlayerAfterimageController.h"
 #include "MyGame.h"
 #include <algorithm>
 #include <array>
@@ -93,6 +94,8 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     hitRadiusObject_->SetModel(hitRadiusModel_);
     actionController_ = std::make_unique<PlayerActionController>();
     actionController_->Initialize(object3dCommon_, camera_);
+    afterimages_ = std::make_unique<PlayerAfterimageController>();
+    afterimages_->Initialize(object3dCommon_, camera_);
     LoadModel();
     ResetPosition();
     UpdateWorldPosition();
@@ -102,6 +105,7 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
 }
 
 void Player::Finalize() {
+    afterimages_.reset();
     if (actionController_) {
         actionController_->Finalize();
     }
@@ -189,6 +193,9 @@ void Player::Update(float deltaTime) {
     }
     UpdateVisualTilt(safeDeltaTime);
     UpdateObjectTransform();
+    if (afterimages_ && !normalFlightPresentation_) afterimages_->Update(safeDeltaTime,
+        flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_, IsBarrelRolling(), model_,
+        { modelScale_, visualFinalRotation_, worldPosition_ });
     if (!normalFlightPresentation_) {
         object_->Update();
         if (hitRadiusObject_) hitRadiusObject_->Update();
@@ -196,6 +203,14 @@ void Player::Update(float deltaTime) {
 }
 
 void Player::RefreshCameraPresentation(float deltaTime) {
+    // Commit the final unshaken pilot pose before shots, collision and exhaust.
+    UpdateWorldPosition();
+    UpdateObjectTransform();
+    if (afterimages_) {
+        afterimages_->Update(deltaTime, flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_,
+            IsBarrelRolling(), model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+        afterimages_->RefreshCamera();
+    }
     // Object3d caches WVP in Update, so commit it only after the final camera.
     UpdateCenterVisibilityAssist(deltaTime);
     if (object_) object_->Update();
@@ -217,6 +232,15 @@ void Player::Draw() {
     }
 }
 
+void Player::DrawAfterimages() { if (afterimages_) afterimages_->Draw(); }
+void Player::ClearFlightTransient() {
+    SetBoostTrajectory(0, {}, 0, {});
+    if (afterimages_) afterimages_->Update(0, false, false, model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+}
+uint32_t Player::GetAfterimageDrawCount() const { return afterimages_ ? afterimages_->GetDrawCount() : 0; }
+void Player::SetCameraShakeController(CameraShakeController* controller) {
+    if (actionController_) actionController_->SetCameraShakeController(controller);
+}
 void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_FirstUseEver);

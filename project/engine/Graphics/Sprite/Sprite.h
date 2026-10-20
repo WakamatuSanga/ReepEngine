@@ -21,6 +21,9 @@ public:
         float saturationSoftness = 0.2f;
     };
     void SetWhiteGradient(const WhiteGradientSettings& settings);
+    // Opt-in: existing sprites keep their logical canvas and wrapping sampler.
+    void SetCanvasSize(const Vector2& size) { canvasSize_ = size; }
+    void SetTextureSampling(bool clamp, float verticalEdgeFade = 0.0f);
 
     // 初期化（SpriteCommon を受け取る）
     void Initialize(SpriteCommon* spriteCommon);
@@ -121,6 +124,7 @@ private:
     Vector2 position_ = { 0.0f, 0.0f };
     Vector2 size_ = { 640.0f, 360.0f };
     float   rotation_ = 0.0f;
+    Vector2 canvasSize_{};
 
     uint32_t textureIndex_ = 0;
 };

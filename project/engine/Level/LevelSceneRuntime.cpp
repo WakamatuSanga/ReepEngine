@@ -185,7 +185,7 @@ void LevelSceneRuntime::Initialize(Object3dCommon* object3dCommon, Camera* camer
     LoadJsonFromBuffer();
 }
 
-void LevelSceneRuntime::Update() {
+void LevelSceneRuntime::Update(float gameDeltaTime) {
     ++frameCounter_;
 
     if (rebuildDirty_ && !freezeDebugObjects_) {
@@ -199,7 +199,7 @@ void LevelSceneRuntime::Update() {
     if (eventRuntime_) { eventRuntime_->Update(frameCounter_); }
     if (railDebugVisualizer_) { railDebugVisualizer_->Update(frameCounter_); }
     if (railRuntime_) {
-        railRuntime_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime(), frameCounter_);
+        railRuntime_->Update(gameDeltaTime < 0 ? FrameTimer::GetInstance().GetGameplayDeltaTime() : gameDeltaTime, frameCounter_);
     }
 }
 

@@ -126,6 +126,7 @@ void GameScene::FinalizeSceneResources() {
     }
     playerRailFlightVisualTiltController_.reset();
     MyGame::GetInstance()->GetVolumetricCloudPass()->SetFlowReferenceRig(nullptr);
+    MyGame::GetInstance()->GetVolumetricCloudPass()->SetGameplayFlowActive(false);
     if (railShooterCameraRig_) {
         railShooterCameraRig_->Finalize();
     }

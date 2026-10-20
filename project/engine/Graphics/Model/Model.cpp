@@ -271,7 +271,7 @@ void Model::Initialize(ModelCommon* modelCommon, const ModelData& modelData) {
     materialData_->hasSpecularF0Map = material.hasSpecularF0Map ? 1 : 0;
 }
 
-void Model::Draw() {
+void Model::Draw(D3D12_GPU_VIRTUAL_ADDRESS materialOverride) {
     ID3D12GraphicsCommandList* commandList = modelCommon_->GetDxCommon()->GetCommandList();
 
     if (!commandList) {
@@ -293,13 +293,13 @@ void Model::Draw() {
     commandList->IASetVertexBuffers(0, 1, &activeVertexBufferView);
     commandList->IASetIndexBuffer(&indexBufferView_);
 
-    if (DrawIndexRangesWithMaterials(commandList)) {
+    if (!materialOverride && DrawIndexRangesWithMaterials(commandList)) {
         return;
     }
     if (!materialResource_) {
         return;
     }
-    commandList->SetGraphicsRootConstantBufferView(0, materialResource_->GetGPUVirtualAddress());
+    commandList->SetGraphicsRootConstantBufferView(0, materialOverride ? materialOverride : materialResource_->GetGPUVirtualAddress());
 
     // ★修正: 最新の textureIndex を使って描画する
     commandList->SetGraphicsRootDescriptorTable(2, TextureManager::GetInstance()->GetSrvHandleGPU(modelData_.material.textureIndex));

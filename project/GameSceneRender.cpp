@@ -149,6 +149,12 @@ void GameScene::DrawSceneRender() {
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }
+    if (player_ && !shadowDebugSettings.disableEffects) {
+        auto rtv = dxCommon->GetRenderTextureRTV();
+        auto dsv = dxCommon->GetDepthStencilView();
+        dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+        player_->DrawAfterimages();
+    }
     if (playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
     }

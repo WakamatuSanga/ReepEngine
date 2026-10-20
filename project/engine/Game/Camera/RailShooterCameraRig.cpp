@@ -120,12 +120,14 @@ RailShooterCameraRig::RailShooterCameraRig() = default;
 RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
+    ResetGameplayInputHistory();
     presentationReturnActive_ = false;
     gameplayBaseInitialized_ = false;
     playerFollowInitialized_ = false;
     externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
     camera_ = camera;
+    if (camera_) gameplayBaseFovY_ = camera_->GetFovY();
     railRuntime_ = railRuntime;
     runtimeV2Trial_ = std::make_unique<RailPathRuntimeV2>();
     CaptureCameraPose();
@@ -136,6 +138,7 @@ void RailShooterCameraRig::SetLevelSceneRuntime(const LevelSceneRuntime* levelSc
 }
 
 void RailShooterCameraRig::Finalize() {
+    ResetGameplayInputHistory();
     if (camera_) camera_->SetViewRotationOffset({});
     externalEncounterRailSpeedMultiplier_ = 1.0f;
     InvalidateProjectileRailContinuity();
@@ -518,6 +521,7 @@ Vector3 RailShooterCameraRig::SmoothCameraForward(const Vector3& targetForward, 
 }
 
 void RailShooterCameraRig::ResetCameraRig() {
+    ResetGameplayInputHistory();
     InvalidateProjectileRailContinuity();
     railDistance_ = 0.0f;
     railT_ = 0.0f;

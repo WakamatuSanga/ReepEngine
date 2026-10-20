@@ -38,6 +38,7 @@ void RailShooterCameraRig::ApplyInitialCameraFromLevel() {
     camera_->SetTranslate(cameraStart->transform.translation);
     camera_->SetRotate(DegreesToRadians(cameraStart->transform.rotation));
     camera_->SetFovY((std::max)(0.01f, cameraStart->fovY));
+    gameplayBaseFovY_ = camera_->GetFovY();
     camera_->SetNearClip((std::max)(0.001f, cameraStart->nearClip));
     camera_->SetFarClip((std::max)(cameraStart->nearClip + 0.01f, cameraStart->farClip));
     camera_->Update();

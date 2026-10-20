@@ -85,7 +85,8 @@ public:
     void SetDiagnosticDisableDepthAwareUpsample(bool disabled) { diagnosticDisableDepthAwareUpsample_ = disabled; }
     float GetExternalFlowMultiplier() const { return externalFlowMultiplier_; }
     float GetExternalBoostExtraFlowSpeed() const { return externalBoostExtraFlowSpeed_; }
-    float GetCloudBaseFlowSpeed() const { return cloudBaseFlowSpeed_; }
+    float GetCloudBaseFlowSpeed() const;
+    void SetGameplayFlowActive(bool active) { gameplayFlowActive_ = active; }
     float GetCurrentCloudFlowSpeed() const { return currentCloudFlowSpeed_; }
     float GetCloudFlowPhase() const { return cloudFlowPhase_; }
     float GetCloudResolutionScale() const { return cloudResolutionScale_; }
@@ -268,6 +269,7 @@ private:
     float viewStepScale_ = 1.0f;
     float lightStepScale_ = 1.0f;
     float cloudBaseFlowSpeed_ = 10.0f;
+    bool gameplayFlowActive_ = false;
     float externalFlowMultiplier_ = 1.0f;
     float externalBoostExtraFlowSpeed_ = 0.0f;
     float currentCloudFlowSpeed_ = 0.35f;

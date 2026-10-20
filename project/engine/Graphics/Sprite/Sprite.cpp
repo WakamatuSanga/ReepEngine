@@ -72,6 +72,11 @@ void Sprite::SetWhiteGradient(const WhiteGradientSettings& settings) {
         std::clamp(settings.strength, 0.0f, 1.0f), 0.0f, 0.0f };
 }
 
+void Sprite::SetTextureSampling(bool clamp, float verticalEdgeFade) {
+    materialData_->gradientControl.z = std::clamp(verticalEdgeFade, 0.0f, 0.5f);
+    materialData_->gradientControl.w = clamp ? 1.0f : 0.0f;
+}
+
 void Sprite::SetTexture(const std::string& filePath)
 {
     TextureManager* texMan = TextureManager::GetInstance();
@@ -94,8 +99,8 @@ void Sprite::Update() {
     Matrix4x4 vp = Orthographic(
         0.0f,
         0.0f,
-        static_cast<float>(WinApp::kClientWidth),
-        static_cast<float>(WinApp::kClientHeight),
+        canvasSize_.x > 0 ? canvasSize_.x : static_cast<float>(WinApp::kClientWidth),
+        canvasSize_.y > 0 ? canvasSize_.y : static_cast<float>(WinApp::kClientHeight),
         0.0f,
         1.0f);
     Matrix4x4 wvp = Multipty(world, vp);

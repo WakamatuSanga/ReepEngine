@@ -319,6 +319,18 @@ void AimCorridorVisualController::SyncWorldPlacement(float unscaledDeltaTime) {
         Add(Add(farBaseCenter_, farFinalScreenWorldOffset_), Scale(cameraRight_, farOffset_.x)),
         Scale(cameraUp_, farOffset_.y));
 
+    if (player_->UsesGameplayViewport() && !freezeCameraForDebug_ && !freezePlayerPositionForDebug_) {
+        // Keep the original lead/base offsets in the interior, tapering them at
+        // the four edges. The same unshaken ray drives reticle, bullets and locks.
+        const Vector2 control = player_->GetGameplayViewportNdc();
+        const auto offsetNdc = [](const Vector2& ndc, const Vector2& offset) {
+            return Vector2{ std::clamp(ndc.x + offset.x * (1 - std::fabs(ndc.x)), -1.0f, 1.0f),
+                std::clamp(ndc.y + offset.y * (1 - std::fabs(ndc.y)), -1.0f, 1.0f) };
+        };
+        nearCenter_ = player_->GetGameplayViewportPoint(offsetNdc(control, nearFinalScreenOffset_), nearLeadDepth_);
+        farCenter_ = player_->GetGameplayViewportPoint(offsetNdc(control, farFinalScreenOffset_), farLeadDepth_);
+    }
+
     worldPlacementValid_ = IsFinite(aimOrigin_) && IsFinite(aimForward_)
         && IsFinite(nearCenter_) && IsFinite(farCenter_)
         && IsFinite(cameraRight_) && IsFinite(cameraUp_);

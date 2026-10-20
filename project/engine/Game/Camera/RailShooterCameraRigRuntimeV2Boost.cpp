@@ -9,6 +9,7 @@
 void RailShooterCameraRig::SetRuntimeContext(
     Player* player, BoostController* boostController, bool gameModeActive,
     bool presentationOverrideActive, bool suppressPlayerAttitude) {
+    if (presentationOverrideActive_ != presentationOverrideActive) ResetGameplayInputHistory(false);
     player_ = player;
     boostController_ = boostController;
     if (presentationOverrideActive_ && !presentationOverrideActive) presentationReturnActive_ = true;
@@ -16,7 +17,9 @@ void RailShooterCameraRig::SetRuntimeContext(
     presentationOverrideActive_ = presentationOverrideActive;
     if (player_) {
         player_->SetNormalFlightPresentation(gameModeActive && camera_,
-            suppressPlayerAttitude || (boostController_ && boostController_->GetCurrentBoostPower() > 0.01f));
+            suppressPlayerAttitude);
+        player_->SetFlightEffectsActive(gameModeActive && camera_ &&
+            !presentationOverrideActive_ && !presentationReturnActive_);
     }
     boostControllerActive_ = boostController_ != nullptr;
     if (!runtimeContextInitialized_) {
@@ -28,6 +31,7 @@ void RailShooterCameraRig::SetRuntimeContext(
 
     InvalidateProjectileRailContinuity();
     gameModeActive_ = gameModeActive;
+    ResetGameplayInputHistory();
     playerFollowInitialized_ = false;
     presentationReturnActive_ = false;
     // Keep the logical gameplay basis across editor/Game Mode switches.

@@ -155,6 +155,7 @@ bool GpuParticleSystem::SetParticleTypeRuntime(size_t index, const GpuParticle::
 	return true;
 }
 
+bool GpuParticleSystem::SetAfterCloudRendering() { return renderer_ && renderer_->SetAfterCloudRendering(); }
 void GpuParticleSystem::SetDeltaTime(float deltaTime) {
 	state_.deltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
 }

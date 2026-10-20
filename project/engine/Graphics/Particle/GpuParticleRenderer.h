@@ -20,6 +20,7 @@ struct State;
 class GpuParticleRenderer {
 public:
 	bool Initialize(DirectXCommon* dxCommon);
+    bool SetAfterCloudRendering() { afterCloud_ = true; return CreatePipelineState(); }
 	void RefreshParticleTypeTextures(GpuParticle::State& state);
 	void ReloadParticleTypeTextures(GpuParticle::State& state);
 	void UpdateView(const Camera* camera, const Matrix4x4* particleToWorld = nullptr);
@@ -49,6 +50,7 @@ private:
 	D3D12_GPU_DESCRIPTOR_HANDLE particleTextureTableHandle_{};
 	std::unordered_map<std::string, uint32_t> textureDescriptorIndexCache_;
 	bool particleBlendEnabled_ = true;
+    bool afterCloud_ = false;
 	D3D12_BLEND particleSrcBlend_ = D3D12_BLEND_SRC_ALPHA;
 	D3D12_BLEND particleDestBlend_ = D3D12_BLEND_INV_SRC_ALPHA;
 	D3D12_BLEND particleSrcBlendAlpha_ = D3D12_BLEND_ONE;

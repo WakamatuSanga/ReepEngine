@@ -1,4 +1,6 @@
 #include "PlayerActionController.h"
+#include "FlightTuning.h"
+#include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
@@ -63,6 +65,7 @@ void PlayerActionController::Finalize() {
     rollRingController_ = nullptr;
     bulletCancelEffectController_ = nullptr;
     slowMotionController_ = nullptr;
+    shake_ = nullptr;
     object3dCommon_ = nullptr;
     camera_ = nullptr;
 }
@@ -90,6 +93,7 @@ void PlayerActionController::SetDebugVisualsEnabled(bool isEnabled) {
 }
 
 void PlayerActionController::Update(float deltaTime, bool canUseInput, const Vector3& playerPosition) {
+    barrelRollDuration_ = FlightTuning::Get().rollDuration;
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     lastLeftTrigger_ = false;
     lastRightTrigger_ = false;
@@ -152,7 +156,7 @@ void PlayerActionController::DrawImGui() {
     ImGui::SeparatorText("バレルロール / 回避 (Barrel Roll Action)");
     ImGui::Checkbox("Enable Barrel Roll", &enableBarrelRoll_);
     ImGui::Checkbox("Enable Barrel Roll Effect", &enableBarrelRollEffect_);
-    ImGui::DragFloat("Barrel Roll Duration", &barrelRollDuration_, 0.01f, 0.05f, 3.0f, "%.2f");
+    ImGui::Text("回転時間: %.2fゲーム秒（飛行調整で変更）", barrelRollDuration_);
     ImGui::DragFloat("Barrel Roll Cooldown", &barrelRollCooldown_, 0.01f, 0.0f, 5.0f, "%.2f");
     ImGui::DragFloat("Double Tap Time", &barrelRollInputDoubleTapTime_, 0.01f, 0.05f, 1.0f, "%.2f");
     ImGui::DragFloat("Invincible Time", &barrelRollInvincibleTime_, 0.01f, 0.0f, 3.0f, "%.2f");
@@ -266,6 +270,9 @@ void PlayerActionController::StartBarrelRoll(BarrelRollDirection direction, cons
         }
         if (slowMotionController_ && lastClearedBulletCount_ > 0) {
             slowMotionController_->TriggerBulletCancelSlowMotion(static_cast<int>(lastClearedBulletCount_));
+        }
+        if (shake_ && lastClearedBulletCount_ > 0) {
+            shake_->RequestGameplayShake(CameraShakeController::GameplayEvent::BulletCancel);
         }
     }
     if (enableBarrelRollEffect_ && combatEffectController_) {

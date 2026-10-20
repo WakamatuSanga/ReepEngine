@@ -27,6 +27,7 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
@@ -62,6 +63,7 @@
 #include <utility>
 
 void GameScene::InitializeSceneResources() {
+    FlightTuning::LoadOnce();
     auto modelManager = ModelManager::GetInstance();
     auto texManager = TextureManager::GetInstance();
     auto particleManager = ParticleManager::GetInstance();
@@ -258,6 +260,7 @@ void GameScene::InitializeSceneResources() {
     player_->SetBarrelRollSlowMotionController(combatSlowMotionController_.get());
     cameraShakeController_ = std::make_unique<CameraShakeController>();
     cameraShakeController_->Initialize();
+    player_->SetCameraShakeController(cameraShakeController_.get());
     playerBulletManager_->SetCameraShakeController(cameraShakeController_.get());
     combatEffectController_->SetCameraShakeController(cameraShakeController_.get());
     enemyDefeatEffectController_->SetCameraShakeController(cameraShakeController_.get());

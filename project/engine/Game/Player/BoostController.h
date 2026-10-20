@@ -29,6 +29,10 @@ public:
     void Initialize(VolumetricCloudPass* cloudPass);
     void Finalize();
     void Update(float deltaTime);
+    void BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay);
+    void RefreshPresentation();
+    void Cancel();
+    float GetTimeScale() const { return currentTimeScale_; }
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive) { gameViewInputActive_ = isActive; }
@@ -77,6 +81,9 @@ private:
     float boostDuration_ = 1.4f;
     float boostCooldown_ = 1.5f;
     float boostTimer_ = 0.0f;
+    float startSide_ = 1.0f;
+    float startX_ = 0.0f;
+    float currentTimeScale_ = 1.0f;
     float boostCooldownTimer_ = 0.0f;
     float boostCloudFlowMultiplier_ = 2.0f;
     float boostVisualSpeedMultiplier_ = 2.0f;

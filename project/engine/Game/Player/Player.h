@@ -15,6 +15,8 @@ class PlayerActionController;
 class PlayerBarrelRollRingController;
 class PlayerBulletCancelEffectController;
 class PlayerDamageFeedbackController;
+class PlayerAfterimageController;
+class CameraShakeController;
 
 class Player {
 public:
@@ -45,6 +47,14 @@ public:
     void SetBarrelRollDependencies(EnemyBulletManager* enemyBulletManager, CombatEffectController* combatEffectController);
     void SetBarrelRollEffectControllers(PlayerBarrelRollRingController* rollRingController, PlayerBulletCancelEffectController* bulletCancelEffectController);
     void SetBarrelRollSlowMotionController(CombatSlowMotionController* slowMotionController);
+    void SetCameraShakeController(CameraShakeController* controller);
+    void DrawAfterimages();
+    void ClearFlightTransient();
+    void SetBoostTrajectory(float envelope, const Vector2& orbit, float depth, const Vector3& attitude, float rollRadians = 0) {
+        boostRollRadians_ = rollRadians;
+        boostEnvelope_ = envelope; boostOrbit_ = orbit; boostDepth_ = depth; boostAttitude_ = attitude;
+    }
+    uint32_t GetAfterimageDrawCount() const;
     void SetDamageFeedbackAlpha(float alpha);
     void SetBaseMode(BaseMode baseMode);
     void SetExternalBasePosition(const Vector3& position);
@@ -70,9 +80,19 @@ public:
     }
     void SetGameplayMovementViewport(float distance, float height, float fovY, float aspect,
         float yawMarginRadians, float pitchMarginRadians);
+    void SetGameplayViewportPose(const Matrix4x4& frame, const Vector3& pilotRotation) {
+        gameplayViewportFrame_ = frame; gameplayPilotRotation_ = pilotRotation;
+    }
+    bool UsesGameplayViewport() const {
+        return normalFlightPresentation_ && gameplayMovementViewportValid_ && flightEffectsActive_;
+    }
+    Vector2 GetGameplayViewportNdc() const;
+    Vector3 GetGameplayViewportPoint(const Vector2& ndc, float depth) const;
     Vector2 GetPresentationOffset() const;
     Vector3 GetAimControlWorldPosition() const;
     float GetDistanceFromCamera() const { return distanceFromCamera_; }
+    float GetGameplayReferenceDistance() const { return gameplayReferenceDistance_; }
+    void SetFlightEffectsActive(bool active) { flightEffectsActive_ = active; }
     bool GetVisualModelBounds(Vector3& minimum, Vector3& maximum) const;
     float GetRailFlightVisualBankRadians() const { return railFlightVisualBankRadians_; }
     bool IsEnabled() const { return enablePlayer_; }
@@ -106,6 +126,12 @@ private:
     Model* model_ = nullptr;
     std::unique_ptr<Object3d> hitRadiusObject_;
     std::unique_ptr<PlayerActionController> actionController_;
+    std::unique_ptr<PlayerAfterimageController> afterimages_;
+    float boostEnvelope_ = 0.0f;
+    Vector2 boostOrbit_{};
+    float boostDepth_ = 0.0f;
+    Vector3 boostAttitude_{};
+    float boostRollRadians_ = 0;
     Model* hitRadiusModel_ = nullptr;
     std::string modelPath_ = "resources/Player/player.obj";
     std::string resolvedModelPath_;
@@ -138,6 +164,13 @@ private:
     Vector2 gameplayMovementMin_{};
     Vector2 gameplayMovementMax_{};
     bool gameplayMovementViewportValid_ = false;
+    float gameplayReferenceDistance_ = 3.30f;
+    float gameplayViewportHeight_ = 0.18f;
+    float gameplayViewportTanY_ = 0.29f;
+    float gameplayViewportAspect_ = 16.0f / 9.0f;
+    Matrix4x4 gameplayViewportFrame_{};
+    Vector3 gameplayPilotRotation_{};
+    bool flightEffectsActive_ = false;
     float distanceFromCamera_ = 3.0f;
     float eventTriggerRadius_ = 0.25f;
     float hitRadius_ = 0.30f;

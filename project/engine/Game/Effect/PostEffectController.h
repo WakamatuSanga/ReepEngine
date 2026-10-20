@@ -13,7 +13,8 @@ public:
 
     void Initialize(DirectXCommon* dxCommon, SpriteCommon* spriteCommon);
     void Finalize();
-    void Update(float deltaTime);
+    void Update(float deltaTime, float unscaledDeltaTime = -1.0f);
+    void ClearBoostEffects();
     void Draw();
     void DrawImGui();
 
@@ -32,6 +33,11 @@ private:
     void UpdateBoostPostEffect(float deltaTime);
     void ApplyBoostRadialBlur(float strength);
     void RestoreBoostRadialBlur();
+    void RestoreBoostVignette();
+    bool boostVignetteSaved_ = false;
+    unsigned int previousVignetteEnabled_ = 0;
+    float previousVignetteIntensity_ = 1;
+    float currentVignettePower_ = 0;
 
     DirectXCommon* dxCommon_ = nullptr;
     SpriteCommon* spriteCommon_ = nullptr;

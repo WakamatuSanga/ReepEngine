@@ -483,6 +483,8 @@
     <ClCompile Include="engine\Game\Player\BoostController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Player\FlightTuning.cpp"><Filter>ソース ファイル\engine\Game\Player</Filter></ClCompile>
+    <ClCompile Include="engine\Game\Player\PlayerAfterimageController.cpp"><Filter>ソース ファイル\engine\Game\Player</Filter></ClCompile>
     <ClCompile Include="engine\Game\Player\Player.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
@@ -1175,6 +1177,8 @@
     <ClInclude Include="engine\Game\Player\BoostController.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Player\FlightTuning.h"><Filter>ヘッダー ファイル\engine\Game\Player</Filter></ClInclude>
+    <ClInclude Include="engine\Game\Player\PlayerAfterimageController.h"><Filter>ヘッダー ファイル\engine\Game\Player</Filter></ClInclude>
     <ClInclude Include="engine\Game\Player\Player.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>

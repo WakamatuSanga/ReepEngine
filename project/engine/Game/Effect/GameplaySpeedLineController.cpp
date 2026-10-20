@@ -1,6 +1,9 @@
 #include "GameplaySpeedLineController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Player/BoostController.h"
+#include "Engine/Game/Player/FlightTuning.h"
+#include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Core/DirectXCommon.h"
 #include "Engine/Graphics/Particle/GpuParticleEffectData.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include <algorithm>
@@ -8,8 +11,6 @@
 namespace {
 constexpr float kSpawnAhead = 8.0f;
 constexpr float kDespawnBehind = 0.5f;
-constexpr float kSpeed = 28.0f;
-constexpr float kRate = 48.0f;
 constexpr uint32_t kMaxParticles = 128;
 constexpr uint32_t kMaxEmitPerFrame = 8;
 }
@@ -28,13 +29,15 @@ bool GameplaySpeedLineController::Initialize(DirectXCommon* dxCommon, SrvManager
         Finalize();
         return false;
     }
+    dxCommon_ = dxCommon;
+    if (!particles_->SetAfterCloudRendering()) { Finalize(); return false; }
     GpuParticle::ParticleEffectData effect;
     auto type = GpuParticle::MakeDefaultParticleEffectType(0);
     type.name = "Gameplay wind";
     type.texturePath = "resources/particle/gradationLine.png";
-    type.baseColor = { 0.85f, 0.94f, 1.0f, 0.35f };
+    type.baseColor = { 0.55f, 0.82f, 1.0f, 0.70f };
     type.startColor = type.baseColor;
-    type.endColor = { 0.85f, 0.94f, 1.0f, 0.0f };
+    type.endColor = { 0.55f, 0.82f, 1.0f, 0.0f };
     type.startScale = type.endScale = 1.0f;
     type.lifeTimeMin = 0.45f;
     type.lifeTimeMax = 0.55f;
@@ -53,7 +56,7 @@ bool GameplaySpeedLineController::Initialize(DirectXCommon* dxCommon, SrvManager
     emitter.boxSize = { 1.5f, 0.90f, 0.20f };
     emitter.emitCount = 0;
     emitter.emitInterval = 0;
-    emitter.emissionRate = kRate;
+    emitter.emissionRate = FlightTuning::Get().windRate;
     effect.emitters.push_back(emitter);
     effect.runtime.useFreeListEmit = effect.runtime.generateUnusedList = true;
     effect.runtime.useDeadList = effect.runtime.autoRecycleDeadList = effect.runtime.autoReuseDeadParticles = true;
@@ -67,6 +70,7 @@ bool GameplaySpeedLineController::Initialize(DirectXCommon* dxCommon, SrvManager
 
 void GameplaySpeedLineController::Finalize() {
     particles_.reset();
+    dxCommon_ = nullptr;
     camera_ = nullptr;
     rig_ = nullptr;
     boost_ = nullptr;
@@ -91,20 +95,31 @@ void GameplaySpeedLineController::Update(float deltaTime, bool ordinaryGameplayA
     const float power = boost_ ? std::clamp(boost_->GetCurrentBoostPower(), 0.0f, 1.0f) : 0.0f;
     GpuParticle::Emitter emitter = particles_->GetState().emitters.front();
     emitter.randomSeed = seed_++;
-    emitter.emissionRate = kRate * (1.0f + power);
+    const auto& tuning = FlightTuning::Get();
+    const float strength = 1.0f + (tuning.windBoost - 1.0f) * power;
+    emitter.emissionRate = tuning.windRate * strength;
+    const float halfY = kSpawnAhead * std::tan(camera_->GetFovY() * .5f) * .85f;
+    emitter.boxSize = { halfY * camera_->GetAspectRatio(), halfY, .2f };
     particles_->SetEmitterRuntime(0, emitter);
     auto type = particles_->GetState().particleTypes.front();
-    type.streakLength = 0.9f * (1.0f + 0.7f * power);
+    type.streakLength = tuning.windLength * strength;
+    type.streakWidth = tuning.windWidth;
+    type.baseColor.w = type.startColor.w = tuning.windAlpha;
     particles_->SetParticleTypeRuntime(0, type);
     // Simulate within the unshaken rail frame, render through the final camera.
-    particles_->SetRailParticleFlow(true, {}, { 0, 0, -1 }, kSpeed * (1.0f + 0.7f * power),
+    particles_->SetRailParticleFlow(true, {}, { 0, 0, -1 }, tuning.windSpeed * strength,
         1.0f, kSpawnAhead + 0.2f, kDespawnBehind);
     particles_->SetDeltaTime(std::clamp(deltaTime, 0.0f, 1.0f / 15.0f));
     particles_->Update(camera_, &rig_->GetGameplayReferenceFrame());
 }
 
 void GameplaySpeedLineController::Draw() {
-    if (active_ && particles_) particles_->Draw();
+    if (active_ && particles_ && dxCommon_) {
+        const auto rtv = dxCommon_->GetRenderTextureRTV();
+        const auto dsv = dxCommon_->GetDepthStencilView();
+        dxCommon_->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+        particles_->Draw();
+    }
 }
 
 uint32_t GameplaySpeedLineController::GetActiveParticleEstimate() const {

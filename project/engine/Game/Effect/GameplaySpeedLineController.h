@@ -22,6 +22,7 @@ public:
     uint32_t GetActiveParticleEstimate() const;
 private:
     std::unique_ptr<GpuParticleSystem> particles_;
+    DirectXCommon* dxCommon_ = nullptr;
     Camera* camera_ = nullptr;
     RailShooterCameraRig* rig_ = nullptr;
     BoostController* boost_ = nullptr;

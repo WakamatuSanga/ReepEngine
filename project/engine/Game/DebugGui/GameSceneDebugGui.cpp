@@ -25,6 +25,7 @@
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/Player/PlayerBarrelRollRingController.h"
 #include "Engine/Game/Player/PlayerBulletCancelEffectController.h"
@@ -263,6 +264,7 @@ void GameSceneDebugGui::DrawManagerDebugWindows() {
     }
     if (scene_->boostController_) {
         scene_->boostController_->DrawImGui();
+        FlightTuning::DrawImGui();
     }
     if (scene_->playerJetExhaustController_) {
         scene_->playerJetExhaustController_->DrawImGui();

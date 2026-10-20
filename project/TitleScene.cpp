@@ -51,6 +51,7 @@ void TitleScene::Initialize() {
     transitionRequested_ = false;
     aircraftVisibility_ = 0.0f;
     auto* game = MyGame::GetInstance();
+    SceneManager::GetInstance()->PreloadTitleCloudTransition();
     logo_ = std::make_unique<TitleLogoController>();
     logo_->Initialize(game->GetSpriteCommon());
     camera_ = std::make_unique<Camera>();
@@ -204,7 +205,10 @@ void TitleScene::Update() {
 #endif
     ImGui::Text("This is Title Scene.");
     ImGui::Text("Left click to Start Game!");
+    if (ImGui::Button("雲の画面遷移を調整")) SceneManager::GetInstance()->ShowTitleCloudTransitionSettings();
+    if (foreground_ && ImGui::Button("タイトルの触手を調整")) foreground_->ShowSettings();
     ImGui::End();
+    if (foreground_) foreground_->DrawImGui();
     }
 #endif
 }

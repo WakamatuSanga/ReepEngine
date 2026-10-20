@@ -126,9 +126,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Checkbox("CameraRig中はEvent Debugを隠す (Hide Event Debug While Camera Rig Active)", &hideEventDebugWhileActive_);
 
     ImGui::SeparatorText("Camera Composition Debug");
-    ImGui::DragFloat("Gameplay Yaw Limit (degrees)", &gameplayCameraYawDegrees_, 0.05f, 0.0f, 2.0f);
-    ImGui::DragFloat("Gameplay Pitch Limit (degrees)", &gameplayCameraPitchLimitDegrees_, 0.05f, 0.0f, 1.0f);
-    ImGui::DragFloat("Gameplay Rotation Time (seconds)", &playerLookTime_, 0.01f, 0.05f, 0.5f);
+    ImGui::Text("通常カメラの操縦回転・余白は飛行調整で変更します。");
     ImGui::Checkbox("斜め上カメラを使う (Enable Angled Player Camera)", &enableAngledPlayerCamera_);
     ImGui::Checkbox("見た目用Camera Forwardのみ変更 (Use Visual Camera Forward Only)", &useVisualCameraForwardOnly_);
     ImGui::Checkbox("Camera Composition Debug表示 (Show Camera Composition Debug)", &showCameraCompositionDebug_);

@@ -17,43 +17,43 @@ SceneManager* SceneManager::GetInstance() {
 }
 
 void SceneManager::ChangeScene(std::unique_ptr<IScene> newScene) {
-    // 所有権の移動
+    if (!newScene) return;
+    // A direct Restart/end request cancels the outstanding title transition.
+    if (titleTransition_) titleTransition_->Cancel();
+    transitionScene_.reset();
+    testTransition_ = false;
     nextScene_ = std::move(newScene);
 }
 
 void SceneManager::Update() {
-    if (titleTransition_ && titleTransition_->IsFinished()) {
-        // Ignore clicks made/held during the transition until release.
-        MyGame::GetInstance()->GetInput()->SuppressLeftMouseUntilRelease();
-        titleTransition_.reset();
+    if (titleTransition_ && titleTransition_->DrawImGui() && !nextScene_) {
+        testTransition_ = titleTransition_->Start();
     }
-    if (titleTransition_ && titleTransition_->CanSwitch()) {
-        nextScene_ = std::move(transitionScene_);
-        titleTransition_->OnSceneChanged();
-    }
-    // シーン切り替え予約があれば切り替える
-    if (nextScene_) {
-        // 古いシーンの終了処理
-        if (currentScene_) {
-            currentScene_->Finalize();
-            // unique_ptrの書き換えにより、古いシーンは自動でdeleteされます
+    const bool wasActive = IsTitleTransitionActive();
+    if (wasActive) titleTransition_->Update(FrameTimer::GetInstance().GetRawDeltaTime());
+    bool exchanged = false;
+    if (wasActive && titleTransition_->CanSwitch()) {
+        if (testTransition_) {
+            if (titleTransition_->CanFinishTestLoad()) titleTransition_->OnSceneChanged();
+        } else {
+            nextScene_ = std::move(transitionScene_);
+            exchanged = static_cast<bool>(nextScene_);
         }
-
-        // 新しいシーンを現在のシーンにする
+    }
+    if (nextScene_) {
+        if (currentScene_) currentScene_->Finalize();
         currentScene_ = std::move(nextScene_);
-
-        // 新しいシーンの初期化
         currentScene_->Initialize();
-        if (titleTransition_) currentScene_->PrepareForPresentation();
+        if (exchanged) {
+            currentScene_->PrepareForPresentation();
+            // Initialization is synchronous; the first new-scene Present also gates exit.
+            titleTransition_->OnSceneChanged();
+        }
     }
-
-    if (titleTransition_) {
-        titleTransition_->Update(FrameTimer::GetInstance().GetGameplayDeltaTime());
-        if (!titleTransition_->IsCovering()) return;
+    if (IsTitleTransitionActive()) {
+        if (!titleTransition_->IsCovering() || testTransition_) return;
     }
-    if (currentScene_) {
-        currentScene_->Update();
-    }
+    if (currentScene_) currentScene_->Update();
 }
 
 void SceneManager::Draw() {
@@ -64,6 +64,7 @@ void SceneManager::Draw() {
 
 void SceneManager::Finalize() {
     titleTransition_.reset();
+    testTransition_ = false;
     transitionScene_.reset();
     nextScene_.reset();
     if (currentScene_) {
@@ -72,11 +73,22 @@ void SceneManager::Finalize() {
     }
 }
 
+bool SceneManager::IsTitleTransitionActive() const {
+    return titleTransition_ && titleTransition_->IsActive();
+}
+void SceneManager::PreloadTitleCloudTransition() {
+    if (!titleTransition_) {
+        titleTransition_ = std::make_unique<TitleCloudTransition>();
+        titleTransition_->Initialize(MyGame::GetInstance()->GetSpriteCommon());
+    }
+}
+void SceneManager::ShowTitleCloudTransitionSettings() { TitleCloudTransition::ShowSettings(); }
 void SceneManager::ChangeSceneWithTitleClouds(std::unique_ptr<IScene> newScene) {
-    if (titleTransition_ || nextScene_ || !newScene) return;
+    if (IsTitleTransitionActive() || nextScene_ || !newScene) return;
+    PreloadTitleCloudTransition();
+    if (!titleTransition_->Start()) return;
     transitionScene_ = std::move(newScene);
-    titleTransition_ = std::make_unique<TitleCloudTransition>();
-    titleTransition_->Initialize();
+    testTransition_ = false;
 }
 
 void SceneManager::DrawTransitionOverlay() {
@@ -86,5 +98,12 @@ void SceneManager::DrawTransitionOverlay() {
 
 void SceneManager::OnFramePresented() {
     // Called only after the existing Present and fence wait; no new GPU wait.
-    if (titleTransition_) titleTransition_->OnFramePresented();
+    if (titleTransition_) {
+        const bool wasActive = titleTransition_->IsActive();
+        titleTransition_->OnFramePresented();
+        if (wasActive && !titleTransition_->IsActive()) {
+            MyGame::GetInstance()->GetInput()->SuppressLeftMouseUntilRelease();
+            testTransition_ = false;
+        }
+    }
 }

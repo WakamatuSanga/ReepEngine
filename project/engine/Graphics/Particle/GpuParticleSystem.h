@@ -27,6 +27,7 @@ public:
 	bool SetEmitterRuntime(size_t index, const GpuParticle::Emitter& emitter);
 	bool SetParticleTypeRuntime(size_t index, const GpuParticle::ParticleType& type);
 	void SetDeltaTime(float deltaTime);
+    bool SetAfterCloudRendering();
 	void SetInfluenceFields(const Vector4* centersAndRadius, const Vector4* params, uint32_t count);
 	void SetParticleInfluenceEnabled(bool enabled);
 	void SetParticleInfluenceResponseScale(float scale);

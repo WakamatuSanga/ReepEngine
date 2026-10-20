@@ -239,8 +239,7 @@ EnemyDefeatEffectController::TrySpawnDefeatEffect(
     activeEffectCount_ = CountActiveEffects();
     lastEffectPosition_ = position;
     if (cameraShakeController_) {
-        cameraShakeController_->RequestGameplayShake(scale >= 2.0f
-            ? CameraShakeController::GameplayEvent::Explosion : CameraShakeController::GameplayEvent::EnemyDefeat);
+        if (scale >= 2.0f) cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Explosion);
     }
     return EnemyDefeatEffectSpawnResult::Spawned;
 }

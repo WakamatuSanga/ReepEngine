@@ -68,6 +68,7 @@ public:
     bool IsValid() const { return initialized_; }
 
     void SetModel(Model* model) { model_ = model; }
+    void SetMaterialBufferOverride(D3D12_GPU_VIRTUAL_ADDRESS address) { materialOverride_ = address; }
     void SetCamera(Camera* camera) { camera_ = camera; }
     void SetEnvironmentTextureIndex(uint32_t textureIndex) { environmentTextureIndex_ = textureIndex; }
     void SetEnvironmentMapEnabled(bool isEnabled) { if (environmentMapData_) { environmentMapData_->enableEnvironmentMap = isEnabled ? 1 : 0; } }
@@ -136,4 +137,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> ringAppearanceResource_;
     RingAppearanceData* ringAppearanceData_ = nullptr;
     bool initialized_ = false;
+    D3D12_GPU_VIRTUAL_ADDRESS materialOverride_ = 0;
 };

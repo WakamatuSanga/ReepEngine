@@ -440,11 +440,12 @@ void VolumetricCloudPass::DrawImGui()
     if (cloudFlowDirectionMode_ == CloudFlowDirectionMode::Fixed) {
         ImGui::DragFloat3("固定流れ方向 (Flow Direction)", &fixedCloudFlowDirection_.x, 0.01f, -10.0f, 10.0f, "%.2f");
     }
-    ImGui::DragFloat("基本流速 (Base Flow Speed)", &cloudBaseFlowSpeed_, 0.01f, 0.0f, 20.0f, "%.2f");
+    if (gameplayFlowActive_) ImGui::Text("Gameplay基準流速: %.1f（飛行調整で変更、上限120）", GetCloudBaseFlowSpeed());
+    else ImGui::DragFloat("基本流速 (Base Flow Speed)", &cloudBaseFlowSpeed_, .1f, 0, 120, "%.1f");
     ImGui::TextWrapped("Base Flow Speed は雲が奥から手前へ流れる基本速度です。Boost中は通常速度に追加速度が足されます。");
     ImGui::Checkbox("Boost連動を使う (Use Boost Flow Extra Speed)", &useBoostFlowMultiplier_);
     ImGui::Text("旧Boost倍率互換値 (Legacy External Boost Multiplier): %.2f", externalFlowMultiplier_);
-    ImGui::Text("Base Cloud Flow Speed: %.2f", cloudBaseFlowSpeed_);
+    ImGui::Text("基準流速: %.2f / 倍率 %.2f / 追加速度 %.2f", GetCloudBaseFlowSpeed(), externalFlowMultiplier_, externalBoostExtraFlowSpeed_);
     ImGui::Text("Cloud Boost Extra Speed: %.2f", useBoostFlowMultiplier_ ? externalBoostExtraFlowSpeed_ : 0.0f);
     ImGui::Text("現在の流速 (Cloud Flow Current Speed): %.2f", currentCloudFlowSpeed_);
     ImGui::Text("Cloud Flow Phase / Current Speed Segment: %.3f", cloudFlowPhase_);

@@ -1,4 +1,5 @@
 ﻿#include "CameraShakeController.h"
+#include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include <algorithm>
 #include <cmath>
@@ -119,8 +120,11 @@ void CameraShakeController::RequestGameplayShake(GameplayEvent event) {
         shotCooldown_ = 0.08f;
         return;
     }
-    const float amplitude = event == GameplayEvent::Explosion ? 0.5f : 0.25f;
-    const float duration = event == GameplayEvent::Explosion ? 0.20f : 0.15f;
+    const auto& tuning = FlightTuning::Get();
+    const float amplitude = event == GameplayEvent::Explosion ? 0.5f
+        : event == GameplayEvent::BulletCancel ? tuning.cancelAmplitude : tuning.defeatAmplitude;
+    const float duration = event == GameplayEvent::Explosion ? 0.20f
+        : event == GameplayEvent::BulletCancel ? tuning.cancelDuration : tuning.defeatDuration;
     // Defeat + explosion and multiple simultaneous defeats share one pulse.
     if (impactCooldown_ > 0.0f && amplitude <= impactPulse_.amplitudeDegrees) return;
     impactPulse_ = { 0.0f, duration, amplitude };
@@ -145,8 +149,8 @@ void CameraShakeController::UpdateGameplayShake(float deltaTime, Camera* camera)
     rotationAmplitude_ += (target - rotationAmplitude_) * (1.0f - std::exp(-dt / 0.012f));
     if (target == 0.0f && rotationAmplitude_ < 0.00001f) rotationAmplitude_ = 0.0f;
     const float phase = rotationClock_ * 24.0f * kPi * 2.0f;
-    const float amplitude = std::clamp(rotationAmplitude_, 0.0f, 0.5f) * kPi / 180.0f;
-    // sqrt(2) normalization also bounds the combined pitch/yaw vector at 0.5 deg.
+    const float amplitude = std::clamp(rotationAmplitude_, 0.0f, FlightTuning::Get().shakeLimit) * kPi / 180.0f;
+    // sqrt(2) normalization bounds the combined pitch/yaw vector at the configured cap.
     currentRotationOffset_ = { std::sin(phase * 1.17f) * amplitude * 0.70710678f,
         std::sin(phase * 1.71f) * amplitude * 0.70710678f, 0.0f };
     camera->SetViewRotationOffset(AddVector3(camera->GetViewRotationOffset(), currentRotationOffset_));
@@ -162,8 +166,8 @@ void CameraShakeController::DrawImGui() {
     }
 
     ImGui::Text("Playing: %s", isPlaying_ ? "true" : "false");
-    ImGui::Text("Gameplay rotation: %.4f deg (cap 0.50)", rotationAmplitude_);
-    ImGui::Text("Shot 0.04/0.08s; defeat 0.25/0.15s; explosion 0.50/0.20s");
+    ImGui::Text("通常イベント振幅: %.4f度 / 上限 %.2f度", rotationAmplitude_, FlightTuning::Get().shakeLimit);
+    ImGui::Text("撃破・弾無効化の調整は飛行調整へ。");
     ImGui::DragFloat("Shake Duration", &duration_, 0.05f, 0.01f, 10.0f, "%.2f");
     ImGui::DragFloat("Shake Amplitude", &amplitude_, 0.005f, 0.0f, 5.0f, "%.3f");
     ImGui::DragFloat("Shake Frequency", &frequency_, 0.1f, 0.1f, 100.0f, "%.1f");

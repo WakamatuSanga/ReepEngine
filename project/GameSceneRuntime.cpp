@@ -228,12 +228,23 @@ void GameScene::UpdateSceneRuntime() {
         runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
     }
 
+    const bool presentationBeforeUpdate = isDeathSequenceActive
+        || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())
+        || (railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive());
+    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, isGameMode && !presentationBeforeUpdate);
     if (combatSlowMotionController_) {
+        if (presentationBeforeUpdate) combatSlowMotionController_->Reset();
         combatSlowMotionController_->Update(unscaledDeltaTime);
-        gameplayDeltaTime = unscaledDeltaTime * combatSlowMotionController_->GetTimeScale();
     }
+    // Resolve one common clock. Overlapping slows take the stronger request;
+    // they are never multiplied twice. Gameplay consumers receive this dt once.
+    const float combatScale = combatSlowMotionController_ ? combatSlowMotionController_->GetTimeScale() : 1.0f;
+    const float boostScale = boostController_ ? boostController_->GetTimeScale() : 1.0f;
+    gameplayDeltaTime = unscaledDeltaTime * (std::min)(combatScale, boostScale);
+    if (boostController_) boostController_->Update(gameplayDeltaTime);
+    if (volumetricCloudPass) volumetricCloudPass->SetGameplayFlowActive(isGameMode);
 
-    const float effectDeltaTime = (combatSlowMotionController_ && !combatSlowMotionController_->ShouldUseScaledDeltaForEffects())
+    const float effectDeltaTime = (boostScale >= 0.9999f && combatSlowMotionController_ && !combatSlowMotionController_->ShouldUseScaledDeltaForEffects())
         ? unscaledDeltaTime
         : gameplayDeltaTime;
 
@@ -280,7 +291,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerRailFlightVisualTiltController_) {
         playerRailFlightVisualTiltController_->Update(
-            unscaledDeltaTime, isGameMode, !isDeathSequenceActive);
+            gameplayDeltaTime, isGameMode, !isDeathSequenceActive);
     }
     if (playerBulletCancelEffectController_) {
         playerBulletCancelEffectController_->BeginFrame();
@@ -297,7 +308,7 @@ void GameScene::UpdateSceneRuntime() {
     // Finalize the render camera after movement, before exhaust, reticle, locks
     // and shots consume it. The rail itself is advanced only once above.
     if (railShooterCameraRig_) {
-        railShooterCameraRig_->UpdatePlayerFollow(gameplayDeltaTime);
+        railShooterCameraRig_->UpdatePlayerFollow(gameplayDeltaTime, frameTimer.GetRawDeltaTime());
     }
     if (cameraShakeController_ && gameplayCameraFollow) {
         cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
@@ -307,10 +318,10 @@ void GameScene::UpdateSceneRuntime() {
         player_->RefreshCameraPresentation(gameplayDeltaTime);
     }
     if (playerDamageFeedbackController_) {
-        playerDamageFeedbackController_->Update(unscaledDeltaTime);
+        playerDamageFeedbackController_->Update(gameplayDeltaTime);
     }
     if (boostController_) {
-        boostController_->Update(gameplayDeltaTime);
+        boostController_->RefreshPresentation();
     }
     if (playerSonicBoostRingController_) {
         playerSonicBoostRingController_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
@@ -397,7 +408,7 @@ void GameScene::UpdateSceneRuntime() {
         playerDeathSequenceController_->Update(gameplayDeltaTime);
     }
     if (postEffectController_) {
-        postEffectController_->Update(gameplayDeltaTime);
+        postEffectController_->Update(gameplayDeltaTime, unscaledDeltaTime);
     }
     if (warningUIController_) {
         warningUIController_->Update(unscaledDeltaTime);
@@ -409,7 +420,7 @@ void GameScene::UpdateSceneRuntime() {
         playerEventTriggerBridge_->Update();
     }
     if (levelSceneRuntime_) {
-        levelSceneRuntime_->Update();
+        levelSceneRuntime_->Update(gameplayDeltaTime);
     }
     if (eventActionDispatcher_) {
         eventActionDispatcher_->Update();
@@ -418,6 +429,11 @@ void GameScene::UpdateSceneRuntime() {
         enemyWaveManager_->Update(gameplayDeltaTime);
     }
     PostWaveUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
+    if ((playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())
+        || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())) {
+        if (boostController_) boostController_->Cancel();
+        if (cameraShakeController_) cameraShakeController_->SetGameplayEventsEnabled(false);
+    }
     if (gameplaySpeedLineController_) {
         gameplaySpeedLineController_->Update(effectDeltaTime, isGameMode
             && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())
@@ -519,8 +535,9 @@ void GameScene::UpdateSceneRuntime() {
         particleManager->Emit(particleTexturePath_, object3dSphere_->GetTransform().translate, 1);
     }
 
-    particleManager->Update(camera_.get());
+    particleManager->Update(camera_.get(), effectDeltaTime);
     if (shouldDrawLevelDebug && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle && gpuParticleSystem_) {
+        gpuParticleSystem_->SetDeltaTime(effectDeltaTime);
         gpuParticleSystem_->Update(camera_.get());
     }
     if (shouldDrawLevelDebug && skinningEditor_) {

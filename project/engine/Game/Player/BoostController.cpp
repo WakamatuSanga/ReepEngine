@@ -1,4 +1,5 @@
 #include "BoostController.h"
+#include "FlightTuning.h"
 
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -39,116 +40,75 @@ void BoostController::Finalize() {
     cloudPass_ = nullptr;
 }
 
+void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay) {
+    const float realDt = std::clamp(unscaledDeltaTime, 0.0f, 1.0f / 15.0f);
+    lastInputTriggered_ = lastCanBoost_ = false;
+    if (!ordinaryGameplay || !enableBoost_) { Cancel(); return; }
+    Input* input = MyGame::GetInstance()->GetInput();
+    if (gameViewInputActive_ && input) {
+        lastInputTriggered_ = input->TriggerKey(ResolveInputKey());
+        lastCanBoost_ = state_ == State::Idle && boostCooldownTimer_ <= 0;
+        if (lastInputTriggered_ && lastCanBoost_) StartBoost(false);
+    }
+    const auto& tuning = FlightTuning::Get();
+    const float target = IsBoosting() ? tuning.boostTimeScale : 1.0f;
+    currentTimeScale_ += (target - currentTimeScale_) * (1.0f - std::exp(-realDt / tuning.timeResponse));
+    if (!IsBoosting() && std::fabs(currentTimeScale_ - 1) < 0.0001f) currentTimeScale_ = 1;
+}
+
 void BoostController::Update(float deltaTime) {
-    const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
-    lastInputTriggered_ = false;
-    lastCanBoost_ = false;
-    inputBlockedReason_ = "None";
-
-    if (state_ == State::Boosting) {
-        boostTimer_ += safeDeltaTime;
-        const float safeDuration = (std::max)(boostDuration_, 0.001f);
-        const float easeIn = (std::max)(boostEaseInTime_, 0.001f);
-        const float easeOut = (std::max)(boostEaseOutTime_, 0.001f);
-        const float easeInPower = SmoothStep(boostTimer_ / easeIn);
-        const float easeOutPower = SmoothStep((safeDuration - boostTimer_) / easeOut);
-        currentBoostPower_ = Saturate((std::min)(easeInPower, easeOutPower));
-
-        if (boostTimer_ >= safeDuration) {
-            state_ = boostCooldown_ > 0.0f ? State::Cooldown : State::Idle;
-            boostTimer_ = 0.0f;
-            boostCooldownTimer_ = (std::max)(0.0f, boostCooldown_);
-            currentBoostPower_ = 0.0f;
+    const float dt = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+    const auto& tuning = FlightTuning::Get();
+    boostDuration_ = tuning.boostDuration;
+    if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
+    if (IsBoosting()) {
+        boostTimer_ += dt;
+        const float u = std::clamp(boostTimer_ / boostDuration_, 0.0f, 1.0f);
+        constexpr float pi = 3.14159265358979323846f;
+        const float sine = std::sin(pi * u);
+        const float envelope = sine * sine;
+        currentBoostPower_ = Saturate((std::min)(SmoothStep(boostTimer_ / .10f), SmoothStep((boostDuration_ - boostTimer_) / .30f)));
+        const float wave = std::sin(2 * pi * u);
+        if (player_) {
+            const float distance = player_->GetGameplayReferenceDistance();
+            const float depth = distance * tuning.depthShrink / (1 - tuning.depthShrink) * envelope;
+            player_->SetBoostTrajectory(envelope,
+                { -startSide_ * (std::fabs(startX_) + tuning.orbitExtra), -tuning.orbitVertical * wave }, depth,
+                { .08f * wave * envelope, -startSide_ * .20f * envelope, startSide_ * .25f * envelope },
+                startSide_ * 2.0f * pi * u);
+        }
+        if (u >= 1) {
+            state_ = boostCooldown_ > 0 ? State::Cooldown : State::Idle;
+            boostTimer_ = 0; boostCooldownTimer_ = boostCooldown_; currentBoostPower_ = 0;
+            if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
         }
     } else if (state_ == State::Cooldown) {
-        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - safeDeltaTime);
-        currentBoostPower_ = 0.0f;
-        if (boostCooldownTimer_ <= 0.0f) {
-            state_ = State::Idle;
-        }
-    } else {
-        currentBoostPower_ = 0.0f;
+        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - dt);
+        if (boostCooldownTimer_ == 0) state_ = State::Idle;
     }
-
-    Input* input = MyGame::GetInstance()->GetInput();
-    if (!enableBoost_) {
-        inputBlockedReason_ = "Boost disabled";
-    } else if (!gameViewInputActive_) {
-        inputBlockedReason_ = "Game View input inactive";
-    } else if (!input) {
-        inputBlockedReason_ = "Input missing";
-    } else {
-        lastInputTriggered_ = input->TriggerKey(ResolveInputKey());
-        lastCanBoost_ = state_ == State::Idle && boostCooldownTimer_ <= 0.0f;
-        if (lastInputTriggered_) {
-            if (lastCanBoost_) {
-                StartBoost(false);
-            } else {
-                inputBlockedReason_ = "Boost cooldown or already boosting";
-            }
-        }
-    }
-
-    UpdateCloudFlowMultiplier(safeDeltaTime);
-    UpdateBoostPostEffect();
+    UpdateCloudFlowMultiplier(dt);
     PushMultiplierToCloud();
 }
+void BoostController::RefreshPresentation() { UpdateBoostPostEffect(); }
+void BoostController::Cancel() { ResetBoost(); PushMultiplierToCloud(); }
 
 void BoostController::DrawImGui() {
 #ifdef USE_IMGUI
-    ImGui::SetNextWindowSize(ImVec2(390.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ブースト確認 (Boost Debug)")) {
-        ImGui::End();
-        return;
+    if (ImGui::Begin("ブースト確認 (Boost Debug)")) {
+        ImGui::Checkbox("ブーストを使う", &enableBoost_);
+        int key = static_cast<int>(boostInputKey_);
+        const char* keys[] = { "左Shift", "右Shift", "B" };
+        if (ImGui::Combo("発動キー", &key, keys, 3)) boostInputKey_ = static_cast<InputKey>(key);
+        ImGui::Text("状態: %s / ゲーム経過 %.2f / 共通時間倍率 %.3f", GetStateName(), boostTimer_, currentTimeScale_);
+        ImGui::Text("開始側 %.0f / 開始横位置 %.2f / 強度 %.2f", startSide_, startX_, currentBoostPower_);
+        ImGui::Text("雲の基準 %.1f / 追加 %.1f / 実流速 %.1f", cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0,
+            currentCloudBoostExtraSpeed_, cloudPass_ ? cloudPass_->GetCurrentCloudFlowSpeed() : 0);
+        ImGui::SliderFloat("再発動待ち(ゲーム秒)", &boostCooldown_, 0, 5);
+        ImGui::SliderFloat("雲Boost追加速度", &maxCloudBoostExtraSpeed_, 0, 30);
+        ImGui::Text("軌道・時間倍率の設定は飛行調整へ。");
+        if (ImGui::Button("テスト発動")) StartBoost(true);
+        ImGui::SameLine(); if (ImGui::Button("中断")) Cancel();
     }
-
-    ImGui::Checkbox("Boostを使う (Enable Boost)", &enableBoost_);
-    int keyIndex = static_cast<int>(boostInputKey_);
-    const char* keyItems[] = { "Left Shift", "Right Shift", "B" };
-    if (ImGui::Combo("Boost Key", &keyIndex, keyItems, IM_ARRAYSIZE(keyItems))) {
-        boostInputKey_ = static_cast<InputKey>(keyIndex);
-    }
-    ImGui::Text("State: %s", GetStateName());
-    ImGui::Text("Boost Key: %s", GetInputKeyName());
-    ImGui::Text("Is Boosting: %s", IsBoosting() ? "true" : "false");
-    ImGui::Text("Current Boost Power: %.2f", currentBoostPower_);
-    ImGui::Text("Boost Timer: %.2f", boostTimer_);
-    ImGui::Text("Boost Cooldown Timer: %.2f", boostCooldownTimer_);
-    ImGui::DragFloat("Boost Duration", &boostDuration_, 0.01f, 0.05f, 10.0f, "%.2f");
-    ImGui::DragFloat("Boost Cooldown", &boostCooldown_, 0.01f, 0.0f, 10.0f, "%.2f");
-    ImGui::DragFloat("Ease In Time", &boostEaseInTime_, 0.01f, 0.0f, 3.0f, "%.2f");
-    ImGui::DragFloat("Ease Out Time", &boostEaseOutTime_, 0.01f, 0.0f, 3.0f, "%.2f");
-    ImGui::SeparatorText("雲Boost追加速度 (Cloud Boost Extra Speed)");
-    ImGui::DragFloat("最大Cloud Boost追加速度 (Max Cloud Boost Extra Speed)", &maxCloudBoostExtraSpeed_, 0.5f, 0.0f, 30.0f, "%.1f");
-    ImGui::DragFloat("Cloud Boost Smooth Speed", &cloudBoostMultiplierSmoothSpeed_, 0.1f, 0.0f, 30.0f, "%.1f");
-    const float baseCloudFlowSpeed = cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0.0f;
-    const float currentCloudFlowSpeed = cloudPass_ ? cloudPass_->GetCurrentCloudFlowSpeed() : baseCloudFlowSpeed + currentCloudBoostExtraSpeed_;
-    const float cloudFlowPhase = cloudPass_ ? cloudPass_->GetCloudFlowPhase() : 0.0f;
-    ImGui::Text("Base Cloud Flow Speed: %.2f", baseCloudFlowSpeed);
-    ImGui::Text("Target Cloud Boost Extra Speed: %.2f", targetCloudBoostExtraSpeed_);
-    ImGui::Text("Current Cloud Boost Extra Speed: %.2f", currentCloudBoostExtraSpeed_);
-    ImGui::Text("Current Cloud Flow Speed: %.2f", currentCloudFlowSpeed);
-    ImGui::Text("Cloud Flow Phase / Current Speed Segment: %.3f", cloudFlowPhase);
-    ImGui::Text("Equivalent Cloud Flow Multiplier: %.2f", GetCloudFlowMultiplier());
-    ImGui::Text("Target Equivalent Multiplier: %.2f", targetCloudFlowMultiplier_);
-    ImGui::DragFloat("Visual Speed Multiplier", &boostVisualSpeedMultiplier_, 0.05f, 1.0f, 10.0f, "%.2f");
-    ImGui::DragFloat("Future Radial Blur Intensity", &radialBlurIntensity_, 0.01f, 0.0f, 0.2f, "%.2f");
-    ImGui::DragFloat("Future FOV Boost Amount", &fovBoostAmount_, 0.1f, 0.0f, 60.0f, "%.1f");
-    ImGui::Text("Boost Effect Center: %.2f, %.2f (%s)", lastBoostEffectCenterX_, lastBoostEffectCenterY_, lastBoostEffectCenterValid_ ? "valid" : "invalid");
-    ImGui::Text("Applied Visual Speed Multiplier: %.2f", GetVisualSpeedMultiplier());
-    ImGui::Text("Game View Input Active: %s", gameViewInputActive_ ? "true" : "false");
-    ImGui::Text("Input Triggered: %s", lastInputTriggered_ ? "true" : "false");
-    ImGui::Text("Can Boost: %s", lastCanBoost_ ? "true" : "false");
-    ImGui::Text("Boost Count: %llu", static_cast<unsigned long long>(boostCount_));
-    ImGui::TextWrapped("Blocked Reason: %s", inputBlockedReason_.c_str());
-    if (ImGui::Button("テストBoost発動 (Trigger Test Boost)")) {
-        StartBoost(true);
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Boostリセット (Reset Boost)")) {
-        ResetBoost();
-    }
-
     ImGui::End();
 #endif
 }
@@ -182,6 +142,9 @@ void BoostController::StartBoost(bool ignoreCooldown) {
         return;
     }
 
+    boostDuration_ = FlightTuning::Get().boostDuration;
+    startX_ = player_ ? std::clamp(player_->GetLocalOffsetX() / (std::max)(player_->GetMoveLimitX(), .001f), -1.0f, 1.0f) : 0;
+    startSide_ = startX_ < 0 ? -1.0f : 1.0f;
     state_ = State::Boosting;
     boostTimer_ = 0.0f;
     boostCooldownTimer_ = 0.0f;
@@ -191,6 +154,9 @@ void BoostController::StartBoost(bool ignoreCooldown) {
 }
 
 void BoostController::ResetBoost() {
+    currentTimeScale_ = 1;
+    if (player_) player_->ClearFlightTransient();
+    if (postEffectController_) postEffectController_->ClearBoostEffects();
     state_ = State::Idle;
     boostTimer_ = 0.0f;
     boostCooldownTimer_ = 0.0f;

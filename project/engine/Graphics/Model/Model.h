@@ -81,7 +81,7 @@ public:
     // 生成済みのModelDataを直接渡す用
     void Initialize(ModelCommon* modelCommon, const ModelData& modelData);
 
-    void Draw();
+    void Draw(D3D12_GPU_VIRTUAL_ADDRESS materialOverride = 0);
     void SetVertices(const std::vector<VertexData>& vertices);
     void SetVertexBufferViewOverride(const D3D12_VERTEX_BUFFER_VIEW* vertexBufferView);
     void ClearVertexBufferViewOverride();

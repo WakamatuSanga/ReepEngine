@@ -20,6 +20,7 @@
     <ProjectGuid>{9648aa1c-0973-4002-93a8-71bdafbae28a}</ProjectGuid>
     <RootNamespace>DirectXGame</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -175,6 +176,8 @@
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\BoostController.cpp" />
+    <ClCompile Include="engine\Game\Player\FlightTuning.cpp" />
+    <ClCompile Include="engine\Game\Player\PlayerAfterimageController.cpp" />
     <ClCompile Include="engine\Game\Player\Player.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerTransform.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustController.cpp" />
@@ -475,6 +478,8 @@
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
     <ClInclude Include="engine\Game\Player\BoostController.h" />
+    <ClInclude Include="engine\Game\Player\FlightTuning.h" />
+    <ClInclude Include="engine\Game\Player\PlayerAfterimageController.h" />
     <ClInclude Include="engine\Game\Player\Player.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h" />

@@ -1,4 +1,5 @@
 #include "VolumetricCloudPass.h"
+#include "Engine/Game/Player/FlightTuning.h"
 
 #include "CloudVolume.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -219,8 +220,8 @@ void VolumetricCloudPass::UpdateCloudFlow(const Camera* camera, const CloudVolum
     currentCloudFlowDirection_ = flowDirection;
 
     const float boostExtraSpeed = useBoostFlowMultiplier_ ? std::clamp(externalBoostExtraFlowSpeed_, 0.0f, 30.0f) : 0.0f;
-    const float previousSpeed = currentCloudFlowSpeed_;
-    currentCloudFlowSpeed_ = enableCloudFlow_ ? cloudBaseFlowSpeed_ + boostExtraSpeed : 0.0f;
+    const float multiplier = useBoostFlowMultiplier_ ? externalFlowMultiplier_ : 1.0f;
+    currentCloudFlowSpeed_ = enableCloudFlow_ ? GetCloudBaseFlowSpeed() * multiplier + boostExtraSpeed : 0.0f;
 
     const float elapsedTime = cloudVolume->GetElapsedTime();
     float deltaTime = 0.0f;
@@ -240,10 +241,9 @@ void VolumetricCloudPass::UpdateCloudFlow(const Camera* camera, const CloudVolum
         previousCloudElapsedTime_ = elapsedTime;
         hasPreviousCloudElapsedTime_ = true;
     }
-    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 30.0f);
-    // Rebase the scalar speed segment, retaining the integrated noise position.
+    const float safeDeltaTime = std::clamp(std::isfinite(deltaTime) ? deltaTime : 0.0f, 0.0f, 1.0f / 15.0f);
+    // Integrate scalar travel and noise position continuously across speed edits.
     // Neither a speed edit nor a turn may rotate/re-scale past travel.
-    if (currentCloudFlowSpeed_ != previousSpeed) cloudFlowPhase_ = 0.0f;
     previousCloudFlowPhase_ = cloudFlowPhase_;
     cloudFlowPhase_ += currentCloudFlowSpeed_ * safeDeltaTime;
     if (!std::isfinite(cloudFlowPhase_)) {
@@ -279,4 +279,7 @@ void VolumetricCloudPass::UpdateCloudFlow(const Camera* camera, const CloudVolum
     constantData_->enableCloudFlow = enableCloudFlow_ ? 1u : 0u;
     constantData_->cloudRawTime = std::isfinite(elapsedTime) ? elapsedTime : 0.0f;
     constantData_->padding4 = 0.0f;
+}
+float VolumetricCloudPass::GetCloudBaseFlowSpeed() const {
+    return std::clamp(gameplayFlowActive_ ? FlightTuning::Get().cloudSpeed : cloudBaseFlowSpeed_, 0.0f, 120.0f);
 }

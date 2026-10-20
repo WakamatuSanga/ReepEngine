@@ -14,9 +14,14 @@
 #include "Engine/Utility/Logger.h"
 #include <array>
 #include <filesystem>
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
 
 namespace {
     using namespace TitleForegroundMotion;
+    constexpr const char* kLayoutPath = "resources/ui/title_foreground.json";
+    const char* layoutStatus = "タイトル専用です。保存で次回起動にも適用します。";
     std::string AssetPath() {
         for (const char* base : { "", "project/", "../project/", "../../project/", "../../../project/" }) {
             const auto path = std::filesystem::path(base) / "resources/midboss/kraken_midboss_tentacles.gltf";
@@ -43,6 +48,7 @@ struct TitleForegroundPresentation::Impl {
     float aspect = 1.0f, fov = 0.65f, time = 0.0f, departure = -1.0f;
     std::array<float, 2> rise{}, departingRise{};
     bool poseVisible = false;
+    bool settingsVisible = false;
 
     void CaptureFrame() {
         frame = camera->GetWorldMatrix();
@@ -63,6 +69,7 @@ bool TitleForegroundPresentation::Initialize(ModelCommon* modelCommon, Object3dC
     auto& p = *impl_;
     if (!modelCommon || !objects || !camera || !background) return false;
     p.camera = camera; p.objects = objects;
+    static const bool loaded = LoadTitleForegroundLayoutSettings(kLayoutPath); (void)loaded;
     const auto path = AssetPath();
     p.skeleton = GltfSkeletonLoader::LoadFromFile(path);
     std::string error;
@@ -129,6 +136,36 @@ void TitleForegroundPresentation::Update(float deltaTime, const Transform& aircr
             p.object->Update();
         }
     }
+}
+
+void TitleForegroundPresentation::ShowSettings() { if (impl_) impl_->settingsVisible = true; }
+void TitleForegroundPresentation::DrawImGui() {
+#ifdef USE_IMGUI
+    if (!impl_ || !impl_->settingsVisible) return;
+    if (ImGui::Begin("タイトルの触手・調整", &impl_->settingsVisible)) {
+        auto& settings = GetTitleForegroundLayoutSettings();
+        if (ImGui::Button("設定を保存")) layoutStatus = SaveTitleForegroundLayoutSettings(kLayoutPath) ? "保存しました。" : "保存できませんでした。";
+        ImGui::SameLine();
+        if (ImGui::Button("設定を読み込む")) layoutStatus = LoadTitleForegroundLayoutSettings(kLayoutPath) ? "読み込みました。" : "ファイルがないか読み込めませんでした。";
+        ImGui::SameLine();
+        if (ImGui::Button("初期値へ戻す")) settings = TitleForegroundLayoutSettings{};
+        ImGui::TextWrapped("%s", layoutStatus);
+        ImGui::TextWrapped("根元は下の雲へ隠し、左右端に配置します。狭い画面では横幅を補正します。調整後はロゴ・機体・開始文字の見え方を確認してください。");
+        for (int side = 0; side < 2; ++side) {
+            auto& s = settings.sides[side];
+            ImGui::PushID(side);
+            ImGui::SeparatorText(side == 0 ? "左の触手" : "右の触手");
+            ImGui::SliderFloat("横位置(画面比)", &s.centerX, side == 0 ? .03f : .88f, side == 0 ? .12f : .97f);
+            ImGui::SliderFloat("根元の高さ(画面下=1)", &s.rootY, 1.04f, 1.20f);
+            ImGui::SliderFloat("高さ倍率", &s.height, .88f, 1.15f);
+            ImGui::SliderFloat("横幅倍率", &s.width, .65f, 1.10f);
+            ImGui::SliderFloat("向き・左右(rad)", &s.yaw, -1.2f, 1.2f);
+            ImGui::SliderFloat("向き・傾き(rad)", &s.lean, -.06f, .06f);
+            ImGui::PopID();
+        }
+    }
+    ImGui::End();
+#endif
 }
 
 void TitleForegroundPresentation::DrawTentacles() {

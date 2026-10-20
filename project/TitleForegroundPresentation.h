@@ -17,6 +17,8 @@ public:
     void Update(float deltaTime, const Transform& aircraft);
     void DrawTentacles();
     void DrawClouds();
+    void ShowSettings();
+    void DrawImGui();
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

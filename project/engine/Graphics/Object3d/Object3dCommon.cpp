@@ -309,6 +309,22 @@ void Object3dCommon::CreateGraphicsPipelineStates()
         b.RenderTarget[0].BlendEnable = FALSE;
         CreatePSO(BlendMode::kNone, b);
     }
+    {
+        graphicsPipelineStateDesc.NumRenderTargets = 1;
+        graphicsPipelineStateDesc.RTVFormats[1] = DXGI_FORMAT_UNKNOWN;
+        graphicsPipelineStateDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+        D3D12_BLEND_DESC blend{};
+        auto& target = blend.RenderTarget[0];
+        target.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+        target.BlendEnable = TRUE;
+        target.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        target.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        target.BlendOp = D3D12_BLEND_OP_ADD;
+        target.SrcBlendAlpha = D3D12_BLEND_ZERO;
+        target.DestBlendAlpha = D3D12_BLEND_ONE;
+        target.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+        CreatePSO(BlendMode::kGhost, blend);
+    }
 }
 
 void Object3dCommon::CommonDrawSetting(BlendMode blendMode)

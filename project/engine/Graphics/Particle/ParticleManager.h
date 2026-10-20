@@ -42,7 +42,7 @@ public:
     static ParticleManager* GetInstance();
 
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
-    void Update(Camera* camera);
+    void Update(Camera* camera, float gameDeltaTime = -1.0f);
     void Draw();
     void Finalize();
 
