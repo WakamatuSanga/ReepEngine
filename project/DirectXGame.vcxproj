@@ -438,6 +438,8 @@
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="TitleMissilePresentation.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudSettings.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassQuality.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassVolume.cpp" />
@@ -631,6 +633,8 @@
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="TitleMissilePresentation.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h" />
+    <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudSettings.h" />
+    <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.h" />
     <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h" />
     <ClInclude Include="engine\Core\WinApp.h" />
   </ItemGroup>
