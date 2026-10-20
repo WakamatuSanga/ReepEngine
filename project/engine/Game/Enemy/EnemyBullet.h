@@ -16,7 +16,7 @@ public:
 
     bool Initialize(Object3dCommon* object3dCommon, Camera* camera);
     // Shared model/texture resources only; never creates or activates a projectile.
-    static void PrepareSharedVisualResources(const std::string& modelPath = "resources/EnemyBullet/EnemyBullet.obj");
+    static bool PrepareSharedVisualResources(const std::string& modelPath = "resources/EnemyBullet/EnemyBullet.obj");
     void Finalize();
     void Update(float deltaTime);
     void Draw();

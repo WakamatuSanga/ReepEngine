@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -244,8 +245,8 @@ void Player::SetCameraShakeController(CameraShakeController* controller) {
 void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤー情報 (Player Debug)###プレイヤー確認 (Player Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤー情報 (Player Debug)###プレイヤー確認 (Player Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -449,7 +450,7 @@ void Player::DrawImGui(PlayerDamageFeedbackController* damageFeedbackController)
         visualFinalRotation_.x,
         visualFinalRotation_.y,
         visualFinalRotation_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #else
     (void)damageFeedbackController;
 #endif

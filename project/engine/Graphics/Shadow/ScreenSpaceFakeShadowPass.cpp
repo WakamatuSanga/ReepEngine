@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "ScreenSpaceFakeShadowPass.h"
 
 #include "Engine/Game/Enemy/Enemy.h"
@@ -202,8 +203,8 @@ const char* ScreenSpaceFakeShadowPass::GetTargetName() const {
 void ScreenSpaceFakeShadowPass::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 500.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("スクリーンスペース簡易影 (Screen Space Fake Shadow Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("スクリーンスペース簡易影 (Screen Space Fake Shadow Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -240,6 +241,6 @@ void ScreenSpaceFakeShadowPass::DrawImGui() {
     ImGui::Text("Last Shadow Alpha: %.3f", lastPlayerShadowAlpha_);
     ImGui::TextWrapped("Last Reason: %s", lastReason_);
     ImGui::TextWrapped("現在はBlob方式です。Silhouette/Artifact Previewは将来の低解像度マスク+Blur用の比較モードとして残しています。");
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

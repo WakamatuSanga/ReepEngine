@@ -3,6 +3,7 @@
 #include <tuple>
 
 void VolumetricCloudSettings::SetSampling(float resolution, bool depthAware, int interval, float view, float light) {
+    appearanceMode_ = AppearanceMode::Legacy;
     cloudResolutionScale_ = resolution;
     enableDepthAwareUpsample_ = depthAware;
     cloudRenderInterval_ = interval;
@@ -13,6 +14,25 @@ void VolumetricCloudSettings::ApplyDefaultSampling(float resolution) {
     SetSampling(resolution, true, 1, 1.50f, 0.25f);
     depthThreshold_ = 0.0500f;
     debugViewMode_ = DebugViewMode::Final;
+}
+bool VolumetricCloudSettings::ApplyTunedCandidate() {
+    const auto before = *this;
+    appearanceMode_ = AppearanceMode::Legacy;
+    // Sampling-only candidate. Shape, density, lighting and layer settings are
+    // intentionally inherited from the settings at trial entry.
+    useLowResolutionCloud_ = true;
+    cloudResolutionScale_ = 0.25f;
+    cloudRenderInterval_ = 1;
+    viewStepScale_ = 0.75f;
+    lightStepScale_ = 0.50f;
+    return !(*this == before);
+}
+bool VolumetricCloudSettings::ApplyAppearanceCandidate(AppearanceMode mode) {
+    const auto before = *this;
+    ApplyTunedCandidate();
+    appearanceMode_ = mode;
+    if (mode != AppearanceMode::Legacy) volumeEdgeFadeDistance_ = 4.5f;
+    return !(*this == before);
 }
 void VolumetricCloudSettings::ApplyDefaultVolume(float farDistance, float width, float depth) {
     useCameraRelativeCloudVolume_ = true;
@@ -98,7 +118,8 @@ bool VolumetricCloudSettings::ApplyUserPreferredPreset() {
     return !(*this == before);
 }
 bool VolumetricCloudSettings::ApplyQualityPreset(QualityPreset preset) {
-    const auto before = std::tuple{useLowResolutionCloud_, enableCloudComposite_, cloudResolutionScale_, enableDepthAwareUpsample_, cloudRenderInterval_, viewStepScale_, lightStepScale_};
+    const auto before = std::tuple{appearanceMode_, useLowResolutionCloud_, enableCloudComposite_, cloudResolutionScale_, enableDepthAwareUpsample_, cloudRenderInterval_, viewStepScale_, lightStepScale_};
+    appearanceMode_ = AppearanceMode::Legacy;
     if (preset == QualityPreset::Direct) {
         useLowResolutionCloud_ = false;
         cloudRenderInterval_ = 1;
@@ -114,10 +135,11 @@ bool VolumetricCloudSettings::ApplyQualityPreset(QualityPreset preset) {
         default: break;
         }
     }
-    return before != std::tuple{useLowResolutionCloud_, enableCloudComposite_, cloudResolutionScale_, enableDepthAwareUpsample_, cloudRenderInterval_, viewStepScale_, lightStepScale_};
+    return before != std::tuple{appearanceMode_, useLowResolutionCloud_, enableCloudComposite_, cloudResolutionScale_, enableDepthAwareUpsample_, cloudRenderInterval_, viewStepScale_, lightStepScale_};
 }
 bool VolumetricCloudSettings::ApplyUnderCloudPreset() {
     const auto before = *this;
+    appearanceMode_ = AppearanceMode::Legacy;
     cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
     invertCloudFlowDirection_ = false;
     useCameraRelativeCloudVolume_ = true;
@@ -174,6 +196,7 @@ bool VolumetricCloudSettings::ApplyCloudSeaPreset() {
 }
 bool VolumetricCloudSettings::ApplyFlyThroughPreset() {
     const auto before = *this;
+    appearanceMode_ = AppearanceMode::Legacy;
     enableCloudSeaLayer_ = true;
     cloudFlowDirectionMode_ = CloudFlowDirectionMode::TowardCamera;
     invertCloudFlowDirection_ = false;
@@ -205,6 +228,7 @@ bool VolumetricCloudSettings::ApplyFlyThroughPreset() {
     return !(*this == before);
 }
 void VolumetricCloudSettings::ConfigureStillTitleBackground() {
+    appearanceMode_ = AppearanceMode::Legacy;
     // Only called on the title's own pass. Keep gameplay presets untouched.
     cloudResolutionScale_ = 0.5f;
     enableCloudFlow_ = false;
@@ -222,6 +246,7 @@ void VolumetricCloudSettings::ConfigureStillTitleBackground() {
     cameraForwardTunnelClearStrength_ = 1.0f;
 }
 void VolumetricCloudSettings::ConfigureTitleForegroundCopy() {
+    appearanceMode_ = AppearanceMode::Legacy;
     volumeEdgeFadeDistance_ = 1.0f;
     enableCameraForwardTunnel_ = false;
     useCameraRelativeCloudVolume_ = false;
@@ -314,5 +339,6 @@ bool VolumetricCloudSettings::operator==(const VolumetricCloudSettings& rhs) con
         cameraForwardTunnelLength_ == rhs.cameraForwardTunnelLength_ &&
         cameraForwardTunnelRadius_ == rhs.cameraForwardTunnelRadius_ &&
         cameraForwardTunnelClearStrength_ == rhs.cameraForwardTunnelClearStrength_ &&
-        cloudRenderInterval_ == rhs.cloudRenderInterval_;
+        cloudRenderInterval_ == rhs.cloudRenderInterval_ &&
+        appearanceMode_ == rhs.appearanceMode_;
 }

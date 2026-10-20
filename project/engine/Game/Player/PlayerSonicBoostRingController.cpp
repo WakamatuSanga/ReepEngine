@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerSonicBoostRingController.h"
 
 #include "BoostController.h"
@@ -423,8 +424,8 @@ void PlayerSonicBoostRingController::ApplyStrongPreset() {
 void PlayerSonicBoostRingController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(460.0f, 620.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ソニックブーストリング確認 (Sonic Boost Ring Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ソニックブーストリング確認 (Sonic Boost Ring Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -504,7 +505,7 @@ void PlayerSonicBoostRingController::DrawImGui() {
     ImGui::Text("Last Ring Normal: %.2f, %.2f, %.2f", lastRingNormal_.x, lastRingNormal_.y, lastRingNormal_.z);
     ImGui::Text("Current Ring Radius: %.2f", lastRingRadius_);
     ImGui::Text("Draw Layer: %s", drawSonicRingAfterCloud_ ? "After Cloud" : "Before Cloud");
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

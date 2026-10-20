@@ -1,4 +1,5 @@
-﻿#include "RailShooterEventActionBridge.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "RailShooterEventActionBridge.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include <algorithm>
@@ -96,8 +97,8 @@ bool RailShooterEventActionBridge::HandleAction(const FiredEventAction& action, 
 void RailShooterEventActionBridge::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("レールシューターイベント接続 (Rail Shooter Event Action Bridge)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("レールシューターイベント接続 (Rail Shooter Event Action Bridge)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -120,7 +121,7 @@ void RailShooterEventActionBridge::DrawImGui() {
         }
         ImGui::TreePop();
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

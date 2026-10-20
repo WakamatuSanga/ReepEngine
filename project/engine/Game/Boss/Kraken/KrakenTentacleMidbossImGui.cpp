@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossControllerInternal.h"
 
 #include "Engine/Animation/Skeleton.h"
@@ -141,10 +142,10 @@ namespace {
 
 void KrakenTentacleMidbossController::Impl::DrawImGui() {
 #ifdef USE_IMGUI
-    if (!ImGui::Begin(
+    if (!DebugUiWorkspace::BeginPanel(
             "クラーケン触手中ボス実行時デバッグ"
             "###KrakenTentacleMidbossRuntimeDebug")) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -491,6 +492,6 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
         DrawBounds("元モデル境界", diagnostics.sourceBounds);
         DrawBounds("スキニング後境界", diagnostics.skinnedBounds);
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

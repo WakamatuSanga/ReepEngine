@@ -1,6 +1,7 @@
 #include "GpuParticleSystem.h"
 
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/GpuTimestampProfiler.h"
 #include "GpuParticleCompute.h"
 #include "GpuParticleEffectData.h"
 #include "GpuParticleEditor.h"
@@ -100,7 +101,11 @@ bool GpuParticleSystem::PlayEffectDataAt(const GpuParticle::ParticleEffectData& 
 		return false;
 	}
 
-	ApplyEffectData(effectData);
+	// Restart transient state using the already retained texture descriptors.
+	// Explicit ApplyEffectData/editor reload still invalidates its local cache.
+	GpuParticle::ApplyParticleEffectDataToState(effectData, state_);
+	renderer_->RefreshParticleTypeTextures(state_);
+	resources_->UploadParticleTypes(state_);
 	for (GpuParticle::Emitter& emitter : state_.emitters) {
 		emitter.position = position;
 	}
@@ -325,7 +330,11 @@ void GpuParticleSystem::Draw() {
 	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
 	ID3D12DescriptorHeap* descriptorHeaps[] = { srvManager_->GetSrvDescriptorHeap() };
 	commandList->SetDescriptorHeaps(1, descriptorHeaps);
+	// Dispatch is recorded during Draw; this span is nested in scene/AfterCloud.
+	auto& profiler = dxCommon_->GetGpuProfiler();
+	const auto updateToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::ParticleUpdate, {});
 	compute_->Dispatch(commandList, *resources_, state_);
+	profiler.End(commandList, updateToken);
 	if (!state_.useFreeListEmit && state_.isUpdateEnabled && !state_.needsInitializeDispatch) {
 		state_.activeCountEstimate = EstimateActiveParticleCount();
 	}

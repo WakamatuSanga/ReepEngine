@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "GameViewport.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -116,8 +117,8 @@ void GameViewport::ClearImGuiGameViewRect() {
 void GameViewport::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 260.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ゲームビューポート確認 (GameViewport Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ゲームビューポート確認 (GameViewport Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -137,7 +138,7 @@ void GameViewport::DrawImGui() {
         gameViewHovered_ ? "true" : "false",
         gameViewFocused_ ? "true" : "false");
     ImGui::TextWrapped("Input Blocked Reason: %s", inputBlockedReason_.c_str());
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

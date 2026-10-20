@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletCancelEffectController.h"
 
 #include "PlayerJetExhaustBeamRenderer.h"
@@ -257,8 +258,8 @@ void PlayerBulletCancelEffectController::DrawLayer(bool afterCloudLayer) {
 void PlayerBulletCancelEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Bullet Cancel Effect Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Bullet Cancel Effect Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
     ImGui::Checkbox("Enable Bullet Cancel Effect", &enableBulletCancelEffect_);
@@ -285,7 +286,7 @@ void PlayerBulletCancelEffectController::DrawImGui() {
     ImGui::Text("Dropped Effect Count: %llu", static_cast<unsigned long long>(droppedEffectCount_));
     ImGui::Text("Spawned This Frame: %d", spawnedThisFrame_);
     ImGui::Text("Last Position: %.2f, %.2f, %.2f", lastEffectPosition_.x, lastEffectPosition_.y, lastEffectPosition_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

@@ -1,4 +1,5 @@
-﻿#include "PlayerDeathSequenceController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "PlayerDeathSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
@@ -90,8 +91,8 @@ void PlayerDeathSequenceController::Draw() {
 void PlayerDeathSequenceController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 340.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("死亡演出確認 (Death Effect Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("死亡演出確認 (Death Effect Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -114,7 +115,7 @@ void PlayerDeathSequenceController::DrawImGui() {
         Reset();
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

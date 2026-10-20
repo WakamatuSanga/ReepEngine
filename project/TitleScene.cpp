@@ -1,4 +1,4 @@
-#include "TitleScene.h"
+﻿#include "TitleScene.h"
 #include "SceneManager.h"
 #include "GameScene.h" 
 #include "MyGame.h"    
@@ -21,6 +21,7 @@
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #endif
 
 namespace {
@@ -197,18 +198,15 @@ void TitleScene::Update() {
     }
 #ifdef USE_IMGUI
     if (sequence_.phase == TitleLaunchSequence::Phase::Idle) {
-#ifdef IMGUI_HAS_DOCK
-    // The title's dockspace is kept alive without rendering its docked windows.
-    ImGui::Begin("Title Scene", nullptr, ImGuiWindowFlags_NoDocking);
-#else
-    ImGui::Begin("Title Scene");
-#endif
-    ImGui::Text("This is Title Scene.");
-    ImGui::Text("Left click to Start Game!");
-    if (ImGui::Button("雲の画面遷移を調整")) SceneManager::GetInstance()->ShowTitleCloudTransitionSettings();
-    if (foreground_ && ImGui::Button("タイトルの触手を調整")) foreground_->ShowSettings();
-    ImGui::End();
-    if (foreground_) foreground_->DrawImGui();
+    const DebugUiWorkspace::Panel panels[]{ { "title", "タイトルの設定", DebugUiWorkspace::Category::Game, [this] {
+        ImGui::TextUnformatted("タイトル画面を左クリックして出撃します。");
+        const auto& loadError = SceneManager::GetInstance()->GetLastPreparationError();
+        if (!loadError.empty()) ImGui::TextWrapped("ステージの準備に失敗しました。再出撃できます: %s", loadError.c_str());
+        if (ImGui::Button("雲の画面遷移を調整")) SceneManager::GetInstance()->ShowTitleCloudTransitionSettings();
+        if (foreground_ && ImGui::Button("タイトルの触手を調整")) foreground_->ShowSettings();
+        if (foreground_) foreground_->DrawImGui();
+    } } };
+    DebugUiWorkspace::Draw(panels);
     }
 #endif
 }
@@ -226,6 +224,7 @@ void TitleScene::Draw() {
     if (foreground_) foreground_->DrawTentacles();
     if (cloudPass_ && cloudVolume_) {
         auto* dx = MyGame::GetInstance()->GetDxCommon();
+        cloudPass_->MarkGpuScene();
         const auto bounds = cloudPass_->BuildTitleBackgroundBounds(camera_.get(), cloudVolume_.get());
         if (bounds.isVisible && !bounds.isPassSkipped) {
             dx->TransitionDepthBuffer(D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -234,6 +233,8 @@ void TitleScene::Draw() {
             const auto rtv = dx->GetRenderTextureRTV();
             const auto dsv = dx->GetDepthStencilView();
             dx->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+        } else {
+            cloudPass_->RecordGpuSkipped(!cloudPass_->IsEnabled() || cloudPass_->GetForceMode() == VolumetricCloudPass::ForceMode::ForceSkip);
         }
     }
     if (foreground_) foreground_->DrawClouds();

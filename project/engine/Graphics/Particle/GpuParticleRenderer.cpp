@@ -173,7 +173,7 @@ uint32_t GpuParticleRenderer::ResolveParticleTextureDescriptorIndex(const std::s
 		return cachedIt->second;
 	}
 
-	if (resolvedPath != GpuParticle::kFallbackParticleTexturePath && !CanLoadTextureFile(resolvedPath)) {
+	if (resolvedPath != GpuParticle::kFallbackParticleTexturePath && !TextureManager::GetInstance()->IsLoaded(resolvedPath) && !CanLoadTextureFile(resolvedPath)) {
 		return fallbackTextureDescriptorIndex_;
 	}
 

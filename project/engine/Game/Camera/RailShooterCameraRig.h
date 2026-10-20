@@ -84,6 +84,7 @@ public:
     void ResetGameplayInputHistory(bool resetRotation = true);
     void Finalize();
     void Update(float deltaTime);
+    void PrepareForPresentation();
     void DrawImGui();
 
     bool IsCameraRigActive() const;

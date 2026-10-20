@@ -1,5 +1,6 @@
 #include "MyGame.h"
 #include "Engine/Core/FrameTimer.h"
+#include "Engine/Core/GpuTimestampProfiler.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 
@@ -99,6 +100,10 @@ void MyGame::Run() {
 
 void MyGame::Update() {
     FrameTimer::GetInstance().BeginFrame();
+    // Update also records particle/other GPU compute work on the DIRECT list.
+    // Start before it; the timestamp executes on GPU only after submission.
+    dxCommon_->GetGpuProfiler().BeginFrame(dxCommon_->GetCommandList(),
+        dxCommon_->GetRenderTextureWidth(), dxCommon_->GetRenderTextureHeight());
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::GameUpdateMs);
     imguiManager_->Begin();
     input_->Update();

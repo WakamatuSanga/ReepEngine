@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/Scene/IScene.h"
 #include <memory>
+#include <string>
 class TitleCloudTransition;
 
 // シーンを管理するクラス
@@ -17,6 +18,7 @@ public:
     void ChangeSceneWithTitleClouds(std::unique_ptr<IScene> newScene);
     void PreloadTitleCloudTransition();
     void ShowTitleCloudTransitionSettings();
+    const std::string& GetLastPreparationError() const { return lastPreparationError_; }
 
     // 次のシーンを予約する (unique_ptrで所有権ごと受け取る)
     void ChangeScene(std::unique_ptr<IScene> newScene);
@@ -42,5 +44,7 @@ private:
     std::unique_ptr<IScene> transitionScene_;
     std::unique_ptr<TitleCloudTransition> titleTransition_;
     bool testTransition_ = false;
+    std::unique_ptr<IScene> failedPreparationScene_;
+    std::string lastPreparationError_;
     bool IsTitleTransitionActive() const;
 };

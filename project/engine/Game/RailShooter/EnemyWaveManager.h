@@ -17,6 +17,7 @@ class EnemyManager;
 class Player;
 class WarningUIController;
 struct FiredEventAction;
+struct LevelSceneData;
 
 class EnemyWaveManager {
 public:
@@ -25,6 +26,7 @@ public:
 
     void Initialize(EnemyManager* enemyManager, const Camera* camera);
     void Reset();
+    bool PrepareForPresentation(const LevelSceneData& sceneData);
     void Finalize();
     void Update(float deltaTime);
     void DrawImGui();

@@ -84,6 +84,7 @@ public:
 
 private:
     friend class GameSceneDebugGui;
+    bool presentationPrepared_ = false;
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();

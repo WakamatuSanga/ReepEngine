@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerHudController.h"
 
 #include "Engine/Game/Player/BoostController.h"
@@ -11,8 +12,8 @@
 void PlayerHudController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(500.0f, 760.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Player HUD Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Player HUD Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -157,6 +158,6 @@ void PlayerHudController::DrawImGui() {
     ImGui::ColorEdit4("Boost Color", &boostColor_.x);
     ImGui::ColorEdit4("Boost Cooldown Color", &boostCooldownColor_.x);
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

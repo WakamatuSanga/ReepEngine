@@ -1,8 +1,9 @@
-#include "ImGuiManager.h"
+﻿#include "ImGuiManager.h"
 
 #ifdef USE_IMGUI
 #include "DirectXCommon.h"
 #include "RuntimeModeController.h"
+#include "DebugUiWorkspace.h"
 #include "SceneManager.h"
 #include "SrvManager.h"
 #include "WinApp.h"
@@ -37,6 +38,7 @@ void ImGuiManager::Initialize([[maybe_unused]] WinApp* winApp, [[maybe_unused]] 
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+	DebugUiWorkspace::Initialize();
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -117,6 +119,7 @@ void ImGuiManager::Finalize() {
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+	DebugUiWorkspace::Shutdown();
 #endif
 }
 
@@ -185,11 +188,12 @@ void ImGuiManager::BeginDockSpace_() {
 	}
 
 	if (ImGui::BeginMenuBar()) {
-		if (ImGui::BeginMenu("Window")) {
+		DebugUiWorkspace::DrawMenu(drawDebugUi);
+		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
-				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+				ImGui::MenuItem("ImGuiデモ", nullptr, &showDemoWindow_);
 				ImGui::Separator();
-				ImGui::MenuItem("DockSpace Passthrough", nullptr, &enableDockSpacePassthrough_);
+				ImGui::MenuItem("中央を透過", nullptr, &enableDockSpacePassthrough_);
 			} else {
 				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
 			}
@@ -204,9 +208,10 @@ void ImGuiManager::BeginDockSpace_() {
 	ImGui::End();
 #else
 	if (ImGui::BeginMainMenuBar()) {
-		if (ImGui::BeginMenu("Window")) {
+		DebugUiWorkspace::DrawMenu(drawDebugUi);
+		if (ImGui::BeginMenu("表示")) {
 			if (drawDebugUi) {
-				ImGui::MenuItem("ImGui Demo Window", nullptr, &showDemoWindow_);
+				ImGui::MenuItem("ImGuiデモ", nullptr, &showDemoWindow_);
 			} else {
 				ImGui::TextDisabled("Debug windows are hidden in Game Mode.");
 			}

@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletManager.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
@@ -231,8 +232,8 @@ void PlayerBulletManager::Draw() {
 void PlayerBulletManager::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 430.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤーショット確認 (Player Shot Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤーショット確認 (Player Shot Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -350,7 +351,7 @@ void PlayerBulletManager::DrawImGui() {
             bullet->DrawImGui();
         }
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

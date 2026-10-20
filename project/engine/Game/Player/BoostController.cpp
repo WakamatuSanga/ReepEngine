@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "BoostController.h"
 #include "FlightTuning.h"
 
@@ -94,7 +95,7 @@ void BoostController::Cancel() { ResetBoost(); PushMultiplierToCloud(); }
 
 void BoostController::DrawImGui() {
 #ifdef USE_IMGUI
-    if (ImGui::Begin("ブースト確認 (Boost Debug)")) {
+    if (DebugUiWorkspace::BeginPanel("ブースト確認 (Boost Debug)")) {
         ImGui::Checkbox("ブーストを使う", &enableBoost_);
         int key = static_cast<int>(boostInputKey_);
         const char* keys[] = { "左Shift", "右Shift", "B" };
@@ -109,7 +110,7 @@ void BoostController::DrawImGui() {
         if (ImGui::Button("テスト発動")) StartBoost(true);
         ImGui::SameLine(); if (ImGui::Button("中断")) Cancel();
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

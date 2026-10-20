@@ -1,4 +1,5 @@
-#include "TitleForegroundPresentation.h"
+﻿#include "TitleForegroundPresentation.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "TitleForegroundMotion.h"
 #include "TitleForegroundPose.h"
 #include "Engine/Animation/Skeleton.h"
@@ -142,7 +143,7 @@ void TitleForegroundPresentation::ShowSettings() { if (impl_) impl_->settingsVis
 void TitleForegroundPresentation::DrawImGui() {
 #ifdef USE_IMGUI
     if (!impl_ || !impl_->settingsVisible) return;
-    if (ImGui::Begin("タイトルの触手・調整", &impl_->settingsVisible)) {
+    if (DebugUiWorkspace::BeginPanel("タイトルの触手・調整", &impl_->settingsVisible)) {
         auto& settings = GetTitleForegroundLayoutSettings();
         if (ImGui::Button("設定を保存")) layoutStatus = SaveTitleForegroundLayoutSettings(kLayoutPath) ? "保存しました。" : "保存できませんでした。";
         ImGui::SameLine();
@@ -164,7 +165,7 @@ void TitleForegroundPresentation::DrawImGui() {
             ImGui::PopID();
         }
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
@@ -177,10 +178,15 @@ void TitleForegroundPresentation::DrawTentacles() {
 }
 
 void TitleForegroundPresentation::DrawClouds() {
-    if (!impl_ || impl_->cloud->GetParameters().color.w <= 0.0f) return;
+    if (!impl_) return;
     auto& p = *impl_;
+    p.cloudPass->MarkGpuScene();
+    if (p.cloud->GetParameters().color.w <= 0.0f) { p.cloudPass->RecordGpuSkipped(true); return; }
     auto bounds = p.cloudPass->BuildProjectedBounds(&p.cloudCamera, p.cloud.get());
-    if (!bounds.isVisible || bounds.isPassSkipped) return;
+    if (!bounds.isVisible || bounds.isPassSkipped) {
+        p.cloudPass->RecordGpuSkipped(!p.cloudPass->IsEnabled() || p.cloudPass->GetForceMode() == VolumetricCloudPass::ForceMode::ForceSkip);
+        return;
+    }
     if (p.departure < 0.0f) {
         // This translated box crosses the near plane, so the general AABB path
         // falls back to fullscreen. Its known top edge gives a tighter safe rect.

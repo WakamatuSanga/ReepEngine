@@ -1,5 +1,7 @@
 #include "SrvManager.h"
 #include <cassert>
+#include <algorithm>
+#include <stdexcept>
 
 std::unique_ptr<SrvManager> SrvManager::instance_ = nullptr;
 const uint32_t SrvManager::kMaxSrvCount = 512;
@@ -15,17 +17,29 @@ void SrvManager::Initialize(DirectXCommon* dxCommon) {
     assert(dxCommon);
     dxCommon_ = dxCommon;
     useIndex_ = 1;
+    ++generation_;
+    releasedIndices_.clear();
 }
 
 uint32_t SrvManager::Allocate() {
-    assert(useIndex_ < kMaxSrvCount);
+    if (!releasedIndices_.empty()) {
+        const uint32_t index = releasedIndices_.back();
+        releasedIndices_.pop_back();
+        return index;
+    }
+    if (!CanAllocate()) throw std::runtime_error("SRV descriptor capacity exhausted");
     uint32_t index = useIndex_;
     useIndex_++;
     return index;
 }
 
+void SrvManager::Release(uint32_t index, uint64_t generation) {
+    if (generation != generation_ || index == 0 || index >= useIndex_) return;
+    if (std::find(releasedIndices_.begin(), releasedIndices_.end(), index) == releasedIndices_.end()) releasedIndices_.push_back(index);
+}
+
 bool SrvManager::CanAllocate() const {
-    return useIndex_ < kMaxSrvCount;
+    return !releasedIndices_.empty() || useIndex_ < kMaxSrvCount;
 }
 
 void SrvManager::CreateCBV(uint32_t cbvIndex, ID3D12Resource* pResource, UINT sizeInBytes) {

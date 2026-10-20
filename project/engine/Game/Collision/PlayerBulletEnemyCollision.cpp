@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletEnemyCollision.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Core/FrameTimer.h"
@@ -138,8 +139,8 @@ void PlayerBulletEnemyCollision::Update() {
 void PlayerBulletEnemyCollision::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 310.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵ヒット判定確認 (Enemy Hit Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵ヒット判定確認 (Enemy Hit Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -175,7 +176,7 @@ void PlayerBulletEnemyCollision::DrawImGui() {
     ImGui::Text("Last Enemy Radius: %.3f", lastEnemyRadius_);
     ImGui::Text("Last Damage: %d", lastDamage_);
     ImGui::Text("Hit Count: %zu", hitCount_);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

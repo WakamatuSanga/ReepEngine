@@ -1,6 +1,7 @@
 #pragma once
 
 #include "VolumetricCloudSettings.h"
+#include "CloudResolutionComparison.h"
 
 #include <array>
 #include <memory>
@@ -33,11 +34,13 @@ public:
         D3D12_RECT scissorRect{};
     };
 
+    using AppearanceMode = VolumetricCloudSettings::AppearanceMode;
     using DebugViewMode = VolumetricCloudSettings::DebugViewMode;
     using ForceMode = VolumetricCloudSettings::ForceMode;
     using CloudFlowDirectionMode = VolumetricCloudSettings::CloudFlowDirectionMode;
 
 public:
+    ~VolumetricCloudPass();
     void Initialize(DirectXCommon* dxCommon, SrvManager* srvManager);
     ProjectedBounds BuildProjectedBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
     ProjectedBounds BuildTitleBackgroundBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
@@ -45,6 +48,13 @@ public:
     void ConfigureTitleForegroundCopy(const Camera* camera, const CloudVolume* source, CloudVolume* copy);
     void Render(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds);
     void DrawImGui();
+    // The scene only asks whether diagnostic presentation owns this update.
+    bool UpdateResolutionComparison();
+    bool BeginResolutionComparison(bool trial = false, AppearanceMode appearance = AppearanceMode::Legacy);
+    void EndResolutionComparison();
+    bool IsResolutionComparisonActive() const { return comparison_.IsActive(); }
+    void RecordGpuSkipped(bool disabled);
+    void MarkGpuScene();
 
     void SetDebugViewMode(DebugViewMode mode) { settings_.debugViewMode_ = mode; }
     DebugViewMode GetDebugViewMode() const { return settings_.debugViewMode_; }
@@ -78,7 +88,7 @@ private:
         Matrix4x4 inverseViewProjection;
 
         Vector3 cameraPosition;
-        float padding0 = 0.0f;
+        uint32_t volumeShapeMode = 0; // Reuses the original 4-byte padding at offset 76.
 
         Vector3 volumeCenter;
         float density = 0.0f;
@@ -154,6 +164,12 @@ private:
     };
 
 private:
+    // omission: 0=draw, 1=reuse/N/A, 2=disabled, 3=cull.
+    uint32_t BeginGpuMeasurement(bool composite, int omission = 0, bool direct = false);
+    void EndGpuMeasurement(uint32_t token);
+    void RecordGpuReuse();
+    void DrawGpuDiagnosticsImGui();
+    void DrawComparisonControlsImGui();
     void CreateConstantBuffer();
     void CreateCompositeConstantBuffer();
     void UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume, uint32_t renderWidth, uint32_t renderHeight);
@@ -190,6 +206,12 @@ private:
 
     std::shared_ptr<VolumetricCloudPipelineResources> pipelineResources_;
     VolumetricCloudSettings settings_;
+    enum class PassKind { Game, TitleBackground, TitleForeground };
+    PassKind passKind_ = PassKind::Game;
+    uint64_t diagnosticInvocation_ = 0;
+    bool diagnosticReallocated_ = false;
+    bool comparisonSavedProfilerEnabled_ = false;
+    CloudResolutionComparison comparison_;
     Microsoft::WRL::ComPtr<ID3D12Resource> constantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> compositeConstantBuffer_;
     Microsoft::WRL::ComPtr<ID3D12Resource> cloudColorResource_;

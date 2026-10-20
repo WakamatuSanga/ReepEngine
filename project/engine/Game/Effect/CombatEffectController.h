@@ -16,6 +16,7 @@ public:
 
     void Initialize(PrimitiveEffectSystem* primitiveEffectSystem, GpuParticleEffectPlayer* gpuParticleEffectPlayer, Player* player);
     void Finalize();
+    bool PrepareForPresentation();
     void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     void Update(float deltaTime, const Camera* camera);
     void Draw();

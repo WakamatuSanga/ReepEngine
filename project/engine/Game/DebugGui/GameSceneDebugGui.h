@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 class DirectXCommon;
 class GameScene;
@@ -20,9 +20,10 @@ public:
 private:
     void ClearGameViewDebugState();
     void DrawGameViewImGui(DirectXCommon* dxCommon);
-    void DrawManagerDebugWindows();
+    void DrawManagerDebugWindows(DirectXCommon* dxCommon, VolumetricCloudPass* volumetricCloudPass);
     void RefreshSkinningPreviewAfterEditorInput(bool refreshObjectTransform);
-    void DrawSceneToolWindows(DirectXCommon* dxCommon, VolumetricCloudPass* volumetricCloudPass);
+    enum class SceneTool { Sprite, Scene, Camera, Cloud, Post, Particles, Object, Visibility, Skinning };
+    void DrawSceneToolContents(DirectXCommon* dxCommon, VolumetricCloudPass* volumetricCloudPass, SceneTool tool);
 
     GameScene* scene_ = nullptr;
 };

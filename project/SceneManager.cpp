@@ -1,6 +1,9 @@
 #include "SceneManager.h"
 #include "TitleCloudTransition.h"
 #include "MyGame.h"
+#include "TitleScene.h"
+#include "Engine/Utility/Logger.h"
+#include <exception>
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Input/Input.h"
 
@@ -43,10 +46,22 @@ void SceneManager::Update() {
     if (nextScene_) {
         if (currentScene_) currentScene_->Finalize();
         currentScene_ = std::move(nextScene_);
-        currentScene_->Initialize();
-        if (exchanged) {
+        try {
+            currentScene_->Initialize();
             currentScene_->PrepareForPresentation();
-            // Initialization is synchronous; the first new-scene Present also gates exit.
+        } catch (const std::exception& error) {
+            lastPreparationError_ = error.what();
+            Logger::Log("[Stage preparation failed] " + lastPreparationError_ + "\n");
+            // Recorded DIRECT-list commands may still refer to the failed scene.
+            // Release it only after this frame's existing submission/fence.
+            failedPreparationScene_ = std::move(currentScene_);
+            currentScene_ = std::make_unique<TitleScene>();
+            currentScene_->Initialize();
+            currentScene_->PrepareForPresentation();
+        }
+        if (exchanged) {
+            // CPU preparation succeeded (or a fresh title was restored). The next
+            // fully covered Draw + Present + DIRECT queue fence gates reveal.
             titleTransition_->OnSceneChanged();
         }
     }
@@ -63,6 +78,9 @@ void SceneManager::Draw() {
 }
 
 void SceneManager::Finalize() {
+    if (failedPreparationScene_) failedPreparationScene_->Finalize();
+    failedPreparationScene_.reset();
+    lastPreparationError_.clear();
     titleTransition_.reset();
     testTransition_ = false;
     transitionScene_.reset();
@@ -87,6 +105,7 @@ void SceneManager::ChangeSceneWithTitleClouds(std::unique_ptr<IScene> newScene) 
     if (IsTitleTransitionActive() || nextScene_ || !newScene) return;
     PreloadTitleCloudTransition();
     if (!titleTransition_->Start()) return;
+    lastPreparationError_.clear();
     transitionScene_ = std::move(newScene);
     testTransition_ = false;
 }
@@ -98,6 +117,10 @@ void SceneManager::DrawTransitionOverlay() {
 
 void SceneManager::OnFramePresented() {
     // Called only after the existing Present and fence wait; no new GPU wait.
+    if (failedPreparationScene_) {
+        failedPreparationScene_->Finalize();
+        failedPreparationScene_.reset();
+    }
     if (titleTransition_) {
         const bool wasActive = titleTransition_->IsActive();
         titleTransition_->OnFramePresented();

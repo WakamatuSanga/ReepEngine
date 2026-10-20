@@ -153,7 +153,7 @@ void RailShooterCameraRig::Finalize() {
     levelSceneRuntime_ = nullptr;
 }
 
-void RailShooterCameraRig::Update(float deltaTime) {
+void RailShooterCameraRig::PrepareForPresentation() {
     railCount_ = railRuntime_ ? railRuntime_->GetRailCount() : 0;
     if (autoApplyInitialCameraOnLoad_ && !hasAppliedInitialCameraOnce_ &&
         !gameplayBaseInitialized_ && !IsCameraRigActive() && levelSceneRuntime_ && levelSceneRuntime_->HasEngineCameraStart()) {
@@ -162,6 +162,10 @@ void RailShooterCameraRig::Update(float deltaTime) {
     } else if (levelSceneRuntime_ && !levelSceneRuntime_->HasEngineCameraStart()) {
         hasAppliedInitialCameraOnce_ = false;
     }
+}
+
+void RailShooterCameraRig::Update(float deltaTime) {
+    PrepareForPresentation();
     if (UsesGameplayComposition() && !gameplayBaseInitialized_) {
         if (!IsCameraRigActive() || (mode_ == Mode::Rail && !currentEvaluationValid_)) {
             // Initialize/initial-camera loading already captured the logical

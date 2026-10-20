@@ -9,6 +9,7 @@
 #include <cmath>
 
 void VolumetricCloudPass::ConfigureStillTitleBackground() {
+    passKind_ = PassKind::TitleBackground;
     settings_.ConfigureStillTitleBackground();
     currentCloudFlowSpeed_ = 0.0f;
     externalBoostExtraFlowSpeed_ = 0.0f;
@@ -30,6 +31,7 @@ void VolumetricCloudPass::ConfigureTitleForegroundCopy(
     // nearly the entire visible slice. Use a shorter, still smooth edge here.
     copy->GetParameters().edgeFade = 0.02f;
     copy->GetParameters().density *= 2.0f;
+    passKind_ = PassKind::TitleForeground;
     settings_.ConfigureTitleForegroundCopy();
 }
 

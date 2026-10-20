@@ -1,4 +1,5 @@
-#include "TitleCloudTransition.h"
+﻿#include "TitleCloudTransition.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Core/SrvManager.h"
 #include "externals/DirectXTex/DirectXTex.h"
@@ -231,6 +232,7 @@ bool TitleCloudTransition::DrawImGui() {
     bool test = false;
 #ifdef USE_IMGUI
     if (!settingsVisible) return false;
+    DebugUiWorkspace::TrackWindow("titleTransition", "雲の画面遷移・調整");
     if (ImGui::Begin("雲の画面遷移・調整", &settingsVisible)) {
         auto& s = GetSettings();
         if (ImGui::Button("設定を保存")) status = SaveSettings(kSettingsPath) ? "保存しました。" : "保存できませんでした。";

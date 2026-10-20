@@ -1,4 +1,5 @@
-﻿#include "SkinningEditor.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "SkinningEditor.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Core/FrameTimer.h"
@@ -229,8 +230,8 @@ void SkinningEditor::DrawImGui() {
     }
 
     ImGui::SetNextWindowSize(ImVec2(540.0f, 360.0f), ImGuiCond_Once);
-    if (!ImGui::Begin("スキニングエディタ (Skinning Editor)", &isOpen_)) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("スキニングエディタ (Skinning Editor)", &isOpen_)) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -431,7 +432,7 @@ void SkinningEditor::DrawImGui() {
 
     if (!targetSkeleton_) {
         ImGui::TextDisabled("スキニング対象が未設定です (No skinning target).");
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -573,7 +574,7 @@ void SkinningEditor::DrawImGui() {
     }
     ImGui::EndChild();
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
     DrawTimelineWindow();
 #endif
 }

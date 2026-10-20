@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "ImpactDistortionController.h"
 
 #include "Engine/Graphics/Camera/Camera.h"
@@ -47,8 +48,8 @@ const char* ImpactDistortionController::GetQualityModeName() const {
 void ImpactDistortionController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Impact Distortion Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Impact Distortion Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -129,6 +130,6 @@ void ImpactDistortionController::DrawImGui() {
     drawPreset("BulletCancel Params", bulletCancelPreset_);
     drawPreset("EnemyDefeat Params", enemyDefeatPreset_);
     ImGui::Text("Quality: %s", GetQualityModeName());
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

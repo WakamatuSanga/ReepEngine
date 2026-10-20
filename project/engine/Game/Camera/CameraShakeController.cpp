@@ -1,4 +1,5 @@
-﻿#include "CameraShakeController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "CameraShakeController.h"
 #include "Engine/Game/Player/FlightTuning.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include <algorithm>
@@ -160,8 +161,8 @@ void CameraShakeController::UpdateGameplayShake(float deltaTime, Camera* camera)
 void CameraShakeController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(320.0f, 220.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("カメラシェイク確認 (Camera Shake Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("カメラシェイク確認 (Camera Shake Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -176,7 +177,7 @@ void CameraShakeController::DrawImGui() {
         Start(duration_, amplitude_, frequency_);
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

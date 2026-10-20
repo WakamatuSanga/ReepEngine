@@ -7,6 +7,8 @@
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelEventRuntime.h"
+#include "Engine/Level/LevelSceneData.h"
+#include <unordered_set>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -115,6 +117,36 @@ void EnemyWaveManager::Initialize(EnemyManager* enemyManager, const Camera* came
     }
     LoadStep9AWaves();
     initialized_ = true;
+}
+
+bool EnemyWaveManager::PrepareForPresentation(const LevelSceneData& sceneData) {
+    std::vector<std::string> pending;
+    if (autoStartWaveOnGameMode_) pending.push_back(autoStartWaveId_);
+    const auto collect = [&](const auto& self, const LevelObject& object) -> void {
+        for (const auto& action : object.eventFlag.objectActions) {
+            std::string type = action.actionType;
+            std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (type == "spawnwave") pending.push_back(!action.waveId.empty() ? action.waveId :
+                !action.targetObjectName.empty() ? action.targetObjectName : action.targetObjectId);
+        }
+        for (const auto& child : object.children) self(self, child);
+    };
+    for (const auto& object : sceneData.objects) collect(collect, object);
+    std::unordered_set<std::string> visited;
+    while (!pending.empty()) {
+        std::string id = TrimCopy(pending.back());
+        pending.pop_back();
+        if (id.empty() || !visited.insert(id).second) continue;
+        std::string result;
+        if (!LoadWaveById(id, result)) { lastResult_ = result; return false; }
+        const auto found = waveIndexById_.find(id);
+        if (found == waveIndexById_.end() || found->second >= waves_.size()) return false;
+        const auto& wave = waves_[found->second];
+        if (!wave.nextWaveId.empty()) pending.push_back(wave.nextWaveId);
+        // enemyType/attackPattern select behavior, not asset paths in the current format.
+        // All live entries use Enemy/EnemyBullet shared visuals and the common FX owner.
+    }
+    return true;
 }
 
 void EnemyWaveManager::Finalize() {

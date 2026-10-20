@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyDefeatEffectController.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 
@@ -306,8 +307,8 @@ void EnemyDefeatEffectController::DrawLayer(bool afterCloudLayer) {
 void EnemyDefeatEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Enemy Defeat Effect Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Enemy Defeat Effect Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -339,7 +340,7 @@ void EnemyDefeatEffectController::DrawImGui() {
     ImGui::Text("Dropped Count: %llu", static_cast<unsigned long long>(droppedEffectCount_));
     ImGui::Text("Spawned This Frame: %d", spawnedThisFrame_);
     ImGui::Text("Last Defeated Position: %.2f, %.2f, %.2f", lastEffectPosition_.x, lastEffectPosition_.y, lastEffectPosition_.z);
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

@@ -5,7 +5,7 @@ struct CloudPassConstants
 {
     float4x4 inverseViewProjection;
     float3 cameraPosition;
-    float padding0;
+    uint volumeShapeMode; // C++ offset 76; legacy/title always zero.
     float3 volumeCenter;
     float density;
     float3 volumeHalfExtents;
@@ -164,6 +164,17 @@ float FBM(float3 p)
     return value;
 }
 
+// Same four existing ValueNoise evaluations and frequencies as FBM; stronger
+// first octave rounds the lobe without adding fine-grained noise evaluations.
+float VolumeShapeNoise(float3 p)
+{
+    if (gCloudPass.volumeShapeMode == 0u) return FBM(p);
+    return ValueNoise3D(p) * 0.625f
+        + ValueNoise3D(p * 2.0f) * 0.21875f
+        + ValueNoise3D(p * 4.0f) * 0.0703125f
+        + ValueNoise3D(p * 8.0f) * 0.0234375f;
+}
+
 float ComputeDistanceLodFactor(float entryDistance)
 {
     float volumeRadius = max(length(gCloudPass.volumeHalfExtents), 0.0001f);
@@ -269,7 +280,7 @@ float ComputeCloudDensity(float3 worldPosition)
     float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
     float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f - flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
 
-    float baseNoise = FBM(baseNoisePosition);
+    float baseNoise = VolumeShapeNoise(baseNoisePosition);
     float detailNoise = FBM(detailNoisePosition);
     float bottomDetailMultiplier = 1.0f;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
@@ -279,6 +290,16 @@ float ComputeCloudDensity(float3 worldPosition)
     }
     float shape = baseNoise - detailNoise * bottomDetailMultiplier * gCloudPass.detailWeight - 0.40f;
     float noiseMask = saturate(shape * 2.5f);
+    if (gCloudPass.volumeShapeMode != 0u)
+    {
+        // Continuous core/shell mapping. Keep a low-opacity tail so thin wisps
+        // are not removed by turning the density into a binary threshold.
+        float height = saturate((worldPosition.y - layerBottomY) / max(layerTopY - layerBottomY, 0.001f));
+        float signal = shape + 0.40f - smoothstep(0.30f, 1.0f, height) * 0.28f;
+        float core = smoothstep(0.38f, 0.50f, signal);
+        float wisp = saturate((signal - 0.31f) / 0.20f) * 0.025f;
+        noiseMask = core + (1.0f - core) * wisp;
+    }
 
     float density = noiseMask * edgeMask * heightMask * gCloudPass.density * gCloudPass.cloudColor.a;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)

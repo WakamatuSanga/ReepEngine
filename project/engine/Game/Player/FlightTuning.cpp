@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "FlightTuning.h"
 #include <algorithm>
 #include <cmath>
@@ -81,7 +82,7 @@ bool FlightTuning::Save(const char* path) {
 }
 void FlightTuning::DrawImGui() {
 #ifdef USE_IMGUI
-    if (ImGui::Begin("飛行・採用プレビュー調整")) {
+    if (DebugUiWorkspace::BeginPanel("飛行・採用プレビュー調整")) {
         if (ImGui::Button("設定を保存")) status = Save(kPath) ? "保存しました。" : "保存できませんでした。";
         ImGui::SameLine();
         if (ImGui::Button("設定を読み込む")) status = Load(kPath) ? "読み込みました。" : "ファイルがないか、読み込めませんでした。";
@@ -93,6 +94,6 @@ void FlightTuning::DrawImGui() {
         }
         ImGui::Text("残像は最大6描画、風は最大128粒・8粒/フレームです。");
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

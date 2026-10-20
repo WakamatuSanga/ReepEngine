@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerLockOnTargetProvider.h"
 
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
@@ -381,9 +382,9 @@ void PlayerLockOnTargetProvider::DrawImGui(
     const PlayerBulletManager* playerBulletManager) {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(480.0f, 620.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(
+    if (!DebugUiWorkspace::BeginPanel(
             "ロックオン対象プロバイダー###PlayerLockOnTargetProvider")) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
     ImGui::SeparatorText("接続状態");
@@ -484,6 +485,6 @@ void PlayerLockOnTargetProvider::DrawImGui(
     if (ImGui::Button("候補を再取得##RefreshProviderCandidates")) {
         CollectTargetableTargets(debugTargets_);
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

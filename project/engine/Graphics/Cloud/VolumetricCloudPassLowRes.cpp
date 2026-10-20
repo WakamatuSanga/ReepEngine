@@ -1,4 +1,4 @@
-#include "VolumetricCloudPass.h"
+﻿#include "VolumetricCloudPass.h"
 #include "VolumetricCloudPipelineResources.h"
 
 #include "CloudVolume.h"
@@ -97,22 +97,27 @@ void VolumetricCloudPass::RenderLowResolution(const Camera* camera, const CloudV
         UpdateConstantBuffer(camera, cloudVolume, cloudBufferWidth_, cloudBufferHeight_);
         ID3D12DescriptorHeap* descriptorHeaps[] = { dxCommon_->GetSrvDescriptorHeap() };
         commandList->SetDescriptorHeaps(1, descriptorHeaps);
+        const auto gpuToken = BeginGpuMeasurement(false);
         commandList->SetGraphicsRootSignature(pipelineResources_->GetRootSignature());
         commandList->SetPipelineState(pipelineResources_->GetPipelineState());
         commandList->SetGraphicsRootDescriptorTable(0, dxCommon_->GetDepthTextureSRVGPUHandle());
         commandList->SetGraphicsRootConstantBufferView(1, constantBuffer_->GetGPUVirtualAddress());
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->DrawInstanced(3, 1, 0, 0);
+        EndGpuMeasurement(gpuToken);
 
         TransitionResource(commandList, cloudColorResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         hasValidCloudBuffer_ = true;
         ++renderedFrameCount_;
     } else {
         ++skippedFrameCount_;
+        RecordGpuReuse();
     }
 
     if (IsCloudCompositeEnabled()) {
         CompositeCloudBuffer();
+    } else {
+        BeginGpuMeasurement(true, 2);
     }
 
     const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
@@ -144,6 +149,7 @@ void VolumetricCloudPass::CompositeCloudBuffer()
 
     ID3D12DescriptorHeap* descriptorHeaps[] = { dxCommon_->GetSrvDescriptorHeap() };
     commandList->SetDescriptorHeaps(1, descriptorHeaps);
+    const auto gpuToken = BeginGpuMeasurement(true);
     commandList->SetGraphicsRootSignature(pipelineResources_->GetCompositeRootSignature());
     commandList->SetPipelineState(pipelineResources_->GetCompositePipelineState());
     commandList->SetGraphicsRootDescriptorTable(0, cloudColorSRVGPU_);
@@ -151,6 +157,7 @@ void VolumetricCloudPass::CompositeCloudBuffer()
     commandList->SetGraphicsRootConstantBufferView(2, compositeConstantBuffer_->GetGPUVirtualAddress());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->DrawInstanced(3, 1, 0, 0);
+    EndGpuMeasurement(gpuToken);
 }
 
 void VolumetricCloudPass::EnsureCloudBuffer()
@@ -182,6 +189,7 @@ void VolumetricCloudPass::CreateCloudBuffer(uint32_t width, uint32_t height)
         assert(SUCCEEDED(hr));
     }
 
+    diagnosticReallocated_ = true;
     cloudColorResource_.Reset();
     cloudColorResource_.Attach(CreateCloudRenderTextureResource(device, width, height));
     cloudColorRTV_ = cloudRtvHeap_->GetCPUDescriptorHandleForHeapStart();
@@ -232,6 +240,19 @@ void VolumetricCloudPass::UpdateCompositeConstantBuffer()
 void VolumetricCloudPass::DrawImGui()
 {
 #ifdef USE_IMGUI
+    if (comparison_.IsActive()) {
+        DrawComparisonControlsImGui();
+        if (ImGui::CollapsingHeader("雲GPUの計測・診断")) DrawGpuDiagnosticsImGui();
+        return;
+    }
+    if (ImGui::Button("雲の形状改善候補（形＋光）を試用")) BeginResolutionComparison(true, AppearanceMode::ShapeAndLighting);
+    if (ImGui::Button("形だけの切り分けを試用")) BeginResolutionComparison(true, AppearanceMode::ShapeOnly);
+    if (ImGui::Button("調整候補（0.25）を試用")) BeginResolutionComparison(true);
+    if (ImGui::Button("解像度だけの固定比較を開始 (0.125 -> 1.0)")) BeginResolutionComparison();
+    if (comparison_.IsActive()) return;
+    ImGui::TextWrapped("固定比較には雲の有効化・合成ON・Force Skip解除・Timestamp対応が必要です。開始時に雲が見える視点を選んでください。");
+    if (ImGui::CollapsingHeader("雲GPUの計測・診断")) DrawGpuDiagnosticsImGui();
+    if (!ImGui::CollapsingHeader("雲の品質・合成・Flow設定")) return;
     ImGui::SeparatorText("雲の軽量化設定 (GPU Optimization)");
     ImGui::TextWrapped("まずは「バランス」を使ってください。PlayerやEnemyを低解像度にしたくない場合はGame Mode Render Scaleを1.0に保ち、Cloud Resolution Scaleだけを下げます。");
 

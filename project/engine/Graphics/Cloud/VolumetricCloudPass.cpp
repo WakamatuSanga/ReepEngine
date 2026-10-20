@@ -1,4 +1,6 @@
 #include "VolumetricCloudPass.h"
+#include "Engine/Core/GpuTimestampProfiler.h"
+#include "Engine/Core/RuntimeModeController.h"
 #include "VolumetricCloudPipelineResources.h"
 
 #include "CloudVolume.h"
@@ -53,6 +55,7 @@ void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
 {
     assert(dxCommon);
     assert(srvManager);
+    EndResolutionComparison();
     dxCommon_ = dxCommon;
     srvManager_ = srvManager;
 
@@ -67,6 +70,7 @@ void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
     pipelineResources_ = std::move(pipelines);
     CreateConstantBuffer();
     CreateCompositeConstantBuffer();
+    passKind_ = PassKind::Game;
     settings_.ApplyStartupDefaults();
     externalFlowMultiplier_ = 1.0f;
     currentCloudFlowSpeed_ = settings_.cloudBaseFlowSpeed_;
@@ -230,9 +234,18 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
     assert(constantBuffer_);
     assert(constantData_);
 
+    MarkGpuScene();
+    if (comparison_.IsActive() && !comparison_.Maintain(settings_, dxCommon_->GetRenderTextureWidth(), dxCommon_->GetRenderTextureHeight())) {
+        if (auto* runtime = RuntimeModeController::GetActiveController()) runtime->SetCloudComparisonActive(false);
+        dxCommon_->GetGpuProfiler().SetEnabled(comparisonSavedProfilerEnabled_);
+        hasValidCloudBuffer_ = false;
+    }
     if (projectedBounds.isPassSkipped || !projectedBounds.isVisible) {
+        RecordGpuSkipped(!settings_.isEnabled_ || settings_.forceMode_ == ForceMode::ForceSkip);
         return;
     }
+    ++diagnosticInvocation_;
+    diagnosticReallocated_ = false;
 
     if (settings_.useLowResolutionCloud_) {
         RenderLowResolution(camera, cloudVolume, projectedBounds);
@@ -288,6 +301,7 @@ void VolumetricCloudPass::SetCameraForwardTunnelSettings(bool enabled, float len
     settings_.cameraForwardTunnelClearStrength_ = std::clamp(clearStrength, 0.0f, 1.0f);
 }
 void VolumetricCloudPass::ApplyGameModePerformancePreset() {
+    if (comparison_.IsActive()) return;
     ApplyQualityPreset(VolumetricCloudSettings::QualityPreset::Light);
 }
 void VolumetricCloudPass::ApplyQualityPreset(VolumetricCloudSettings::QualityPreset preset) {
@@ -316,12 +330,15 @@ void VolumetricCloudPass::RenderDirect(const Camera* camera, const CloudVolume* 
     ID3D12DescriptorHeap* descriptorHeaps[] = { dxCommon_->GetSrvDescriptorHeap() };
     commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
+    const auto gpuToken = BeginGpuMeasurement(false, 0, true);
     commandList->SetGraphicsRootSignature(pipelineResources_->GetRootSignature());
     commandList->SetPipelineState(pipelineResources_->GetPipelineState());
     commandList->SetGraphicsRootDescriptorTable(0, dxCommon_->GetDepthTextureSRVGPUHandle());
     commandList->SetGraphicsRootConstantBufferView(1, constantBuffer_->GetGPUVirtualAddress());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->DrawInstanced(3, 1, 0, 0);
+    EndGpuMeasurement(gpuToken);
+    BeginGpuMeasurement(true, 1, true);
 
     const D3D12_RECT fullScreenScissor = MakeScissor(renderWidth, renderHeight);
     const D3D12_VIEWPORT fullScreenViewport = MakeViewport(renderWidth, renderHeight);
@@ -340,7 +357,9 @@ void VolumetricCloudPass::CreateConstantBuffer()
 
 void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume, uint32_t renderWidth, uint32_t renderHeight)
 {
-    const CloudVolume::Parameters& parameters = cloudVolume->GetParameters();
+    const bool appearance = passKind_ == PassKind::Game && settings_.appearanceMode_ != AppearanceMode::Legacy;
+    const auto parameters = appearance ? cloudVolume->GetAppearanceCandidateParameters(
+        settings_.appearanceMode_ == AppearanceMode::ShapeAndLighting) : cloudVolume->GetParameters();
 
     constantData_->inverseViewProjection = Inverse(camera->GetViewProjectionMatrix());
     // Ray origin and inverse projection must include the same framing/shake offset.
@@ -366,7 +385,10 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->debugViewMode = static_cast<uint32_t>(settings_.debugViewMode_);
     constantData_->lodFactorScale = (settings_.forceMode_ == ForceMode::ForceAggressiveLod) ? 1.75f : 1.0f;
     constantData_->disableDistanceLod = (settings_.forceMode_ == ForceMode::ForceMaxQuality) ? 1u : 0u;
-    constantData_->padding0 = 0.0f;
+    static_assert(offsetof(CloudPassConstants, volumeShapeMode) == 76);
+    static_assert(offsetof(CloudPassConstants, renderInfo) == 208);
+    static_assert(sizeof(CloudPassConstants) % 16 == 0);
+    constantData_->volumeShapeMode = appearance ? 1u : 0u;
     constantData_->padding1 = 0.0f;
     constantData_->padding2 = 0.0f;
     const uint32_t depthWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;

@@ -1,5 +1,10 @@
-#include "GameSceneDebugGui.h"
+﻿#include "GameSceneDebugGui.h"
 #include "GameScene.h"
+#include "SceneManager.h"
+#include "TitleScene.h"
+#include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
+#include "Engine/Core/DebugUiWorkspace.h"
+#include <vector>
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/GameViewport.h"
@@ -75,7 +80,9 @@ void GameSceneDebugGui::DrawImGui(DirectXCommon* dxCommon, bool showDebugUi, Vol
     }
 
     if (showDebugUi) {
-        DrawManagerDebugWindows();
+        DrawManagerDebugWindows(dxCommon, volumetricCloudPass);
+        // Keep the existing debug HP propagation independent of panel visibility.
+        if (scene_->enemyManager_ && scene_->krakenTentacleMidboss_) scene_->krakenTentacleMidboss_->SetDebugHpOne(EnemyManager::IsDebugHpOneEnabled());
         if (scene_->skinningEditor_) {
             KrakenPreviewAssetMode requestedAssetMode{};
             if (scene_->skinningEditor_->ConsumeKrakenGltfPreviewLoadRequest(
@@ -84,7 +91,6 @@ void GameSceneDebugGui::DrawImGui(DirectXCommon* dxCommon, bool showDebugUi, Vol
                 scene_->InitializeSkinningEditorPreview();
             }
         }
-        DrawSceneToolWindows(dxCommon, volumetricCloudPass);
         RefreshSkinningPreviewAfterEditorInput(true);
         DrawGameViewImGui(dxCommon);
     } else {
@@ -146,7 +152,7 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
         return;
     }
 
-    ImGui::SetNextWindowSize(ImVec2(640.0f, 400.0f), ImGuiCond_FirstUseEver);
+    DebugUiWorkspace::PrepareGameView();
     if (ImGui::Begin("Game View")) {
         const D3D12_RESOURCE_DESC desc = dxCommon->GetFinalOutputTextureResource()->GetDesc();
         const float textureWidth = static_cast<float>(desc.Width);
@@ -227,158 +233,91 @@ void GameSceneDebugGui::DrawGameViewImGui(DirectXCommon* dxCommon) {
     ImGui::End();
 }
 
-void GameSceneDebugGui::DrawManagerDebugWindows() {
-    scene_->DrawKrakenTentacleMidbossImGui();
-    scene_->DrawKrakenTentacleWaveEncounterImGui();
-    if (scene_->skinningEditor_) {
-        scene_->skinningEditor_->DrawImGui();
-    }
-    if (scene_->gpuParticleSystem_) {
-        scene_->gpuParticleSystem_->DrawImGui();
-    }
-    if (scene_->editorCameraController_) {
-        scene_->editorCameraController_->DrawImGui();
-    }
-    if (scene_->player_) {
-        scene_->player_->DrawImGui(scene_->playerDamageFeedbackController_.get());
-    }
-    if (scene_->playerRailFlightVisualTiltController_) {
-        scene_->playerRailFlightVisualTiltController_->DrawImGui();
-    }
-    if (scene_->playerDamageFeedbackController_) {
-        scene_->playerDamageFeedbackController_->DrawImGui();
-    }
-    if (scene_->playerHudController_) {
-        scene_->playerHudController_->DrawImGui();
-    }
-    if (scene_->aimCorridorVisualController_) {
-        scene_->aimCorridorVisualController_->DrawImGui();
-    }
-    if (scene_->aimCorridorTargetingController_) {
-        scene_->aimCorridorTargetingController_->DrawImGui();
-    }
-    if (scene_->playerLockOnTargetProvider_) {
-        scene_->playerLockOnTargetProvider_->DrawImGui(
+void GameSceneDebugGui::DrawManagerDebugWindows(DirectXCommon* dxCommon, VolumetricCloudPass* clouds) {
+    using C = DebugUiWorkspace::Category;
+    std::vector<DebugUiWorkspace::Panel> panels;
+    panels.push_back({ "game", "シーン移動・実行モード", C::Game, [this] {
+        ImGui::TextUnformatted("F1: Game / Debug、T: タイトルへ戻る");
+        ImGui::TextUnformatted("モード切替は上部メニューまたはF1を使用します。");
+        if (ImGui::Button("実行・性能設定を開く")) DebugUiWorkspace::SelectPanel("runtimeModeController");
+        if (ImGui::Button("雲の画面遷移を調整")) SceneManager::GetInstance()->ShowTitleCloudTransitionSettings();
+        if (ImGui::Button("Restart")) SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
+        ImGui::SameLine();
+        if (ImGui::Button("タイトルへ戻る")) SceneManager::GetInstance()->ChangeScene(std::make_unique<TitleScene>());
+        ImGui::TextWrapped("各機能は上の分類から選びます。独立エディタの開閉と配置だけを保存し、調整値は担当クラスが保持します。");
+    } });
+    panels.push_back({ "kraken", "クラーケン中ボスの演出・配置", C::Enemy, [this] { scene_->DrawKrakenTentacleMidbossImGui(); }, true });
+    panels.push_back({ "krakenWave", "クラーケン交戦ウェーブ", C::Enemy, [this] { scene_->DrawKrakenTentacleWaveEncounterImGui(); } });
+    if (scene_->boostController_) panels.push_back({ "flightTuning", "飛行・ロール・風の採用値", C::Player, [] { FlightTuning::DrawImGui(); } });
+    if (scene_->skinningEditor_) panels.push_back({ "skinningEditor", "スキニング・クラーケン編集", C::Enemy, [this] { scene_->skinningEditor_->SetOpen(true); scene_->skinningEditor_->DrawImGui(); }, true });
+    if (scene_->gpuParticleSystem_) panels.push_back({ "gpuParticleSystem", "GPU粒子エディタ", C::Rendering, [this] { scene_->gpuParticleSystem_->DrawImGui(); }, true });
+    if (scene_->editorCameraController_) panels.push_back({ "editorCameraController", "エディタカメラ", C::Player, [this] { scene_->editorCameraController_->DrawImGui(); }, false });
+    if (scene_->player_) panels.push_back({ "player", "プレイヤー・HP・ロール", C::Player, [this] { scene_->player_->DrawImGui(scene_->playerDamageFeedbackController_.get()); }, false });
+    if (scene_->playerRailFlightVisualTiltController_) panels.push_back({ "playerRailFlightVisualTiltController", "レール飛行の見た目傾き", C::Player, [this] { scene_->playerRailFlightVisualTiltController_->DrawImGui(); }, false });
+    if (scene_->playerDamageFeedbackController_) panels.push_back({ "playerDamageFeedbackController", "被弾の点滅・火花", C::Player, [this] { scene_->playerDamageFeedbackController_->DrawImGui(); }, false });
+    if (scene_->playerHudController_) panels.push_back({ "playerHudController", "プレイヤーHUD", C::Player, [this] { scene_->playerHudController_->DrawImGui(); }, false });
+    if (scene_->aimCorridorVisualController_) panels.push_back({ "aimCorridorVisualController", "照準コリドー表示", C::Player, [this] { scene_->aimCorridorVisualController_->DrawImGui(); }, false });
+    if (scene_->aimCorridorTargetingController_) panels.push_back({ "aimCorridorTargetingController", "照準コリドー判定", C::Player, [this] { scene_->aimCorridorTargetingController_->DrawImGui(); }, false });
+    if (scene_->playerLockOnTargetProvider_) panels.push_back({ "playerLockOnTargetProvider", "ロックオン対象・ミサイル", C::Player, [this] { scene_->playerLockOnTargetProvider_->DrawImGui(
             scene_->aimCorridorTargetingController_.get(),
-            scene_->playerBulletManager_.get());
-    }
-    if (scene_->boostController_) {
-        scene_->boostController_->DrawImGui();
-        FlightTuning::DrawImGui();
-    }
-    if (scene_->playerJetExhaustController_) {
-        scene_->playerJetExhaustController_->DrawImGui();
-    }
-    if (scene_->playerSonicBoostRingController_) {
-        scene_->playerSonicBoostRingController_->DrawImGui();
-    }
-    if (scene_->playerBarrelRollRingController_) {
-        scene_->playerBarrelRollRingController_->DrawImGui();
-    }
-    if (scene_->playerBulletCancelEffectController_) {
-        scene_->playerBulletCancelEffectController_->DrawImGui();
-    }
-    if (scene_->enemyDefeatEffectController_) {
-        scene_->enemyDefeatEffectController_->DrawImGui();
-    }
-    if (scene_->influenceFieldManager_) {
-        scene_->influenceFieldManager_->DrawImGui();
-    }
-    if (scene_->projectileRailMotionAdapter_) {
-        scene_->projectileRailMotionAdapter_->DrawImGui(
+            scene_->playerBulletManager_.get()); }, false });
+    if (scene_->boostController_) panels.push_back({ "boostController", "Boost操作・状態", C::Player, [this] { scene_->boostController_->DrawImGui();
+ }, false });
+    if (scene_->playerJetExhaustController_) panels.push_back({ "playerJetExhaustController", "機体のジェット排気", C::Rendering, [this] { scene_->playerJetExhaustController_->DrawImGui(); }, false });
+    if (scene_->playerSonicBoostRingController_) panels.push_back({ "playerSonicBoostRingController", "Boostリング", C::Rendering, [this] { scene_->playerSonicBoostRingController_->DrawImGui(); }, false });
+    if (scene_->playerBarrelRollRingController_) panels.push_back({ "playerBarrelRollRingController", "ロールリング", C::Rendering, [this] { scene_->playerBarrelRollRingController_->DrawImGui(); }, false });
+    if (scene_->playerBulletCancelEffectController_) panels.push_back({ "playerBulletCancelEffectController", "弾消去エフェクト", C::Rendering, [this] { scene_->playerBulletCancelEffectController_->DrawImGui(); }, false });
+    if (scene_->enemyDefeatEffectController_) panels.push_back({ "enemyDefeatEffectController", "敵撃破エフェクト", C::Rendering, [this] { scene_->enemyDefeatEffectController_->DrawImGui(); }, false });
+    if (scene_->influenceFieldManager_) panels.push_back({ "influenceFieldManager", "風圧・雲の影響場", C::Rendering, [this] { scene_->influenceFieldManager_->DrawImGui(); }, false });
+    if (scene_->projectileRailMotionAdapter_) panels.push_back({ "projectileRailMotionAdapter", "弾のレール移動診断", C::Stage, [this] { scene_->projectileRailMotionAdapter_->DrawImGui(
             scene_->playerBulletManager_ ? scene_->playerBulletManager_->GetActiveCount() : 0,
-            scene_->enemyBulletManager_ ? scene_->enemyBulletManager_->GetActiveCount() : 0);
-    }
-    if (scene_->playerBulletManager_) {
-        scene_->playerBulletManager_->DrawImGui();
-    }
-    if (scene_->enemyManager_) {
-        scene_->enemyManager_->DrawImGui();
-        if (scene_->krakenTentacleMidboss_) {
-            scene_->krakenTentacleMidboss_->SetDebugHpOne(
-                EnemyManager::IsDebugHpOneEnabled());
-        }
-    }
-    if (scene_->enemyBulletManager_) {
-        scene_->enemyBulletManager_->DrawImGui();
-    }
-    if (scene_->enemyAttackController_) {
-        scene_->enemyAttackController_->DrawImGui();
-    }
-    if (scene_->playerEnemyBulletCollision_) {
-        scene_->playerEnemyBulletCollision_->DrawImGui();
-    }
-    if (scene_->playerBulletEnemyCollision_) {
-        scene_->playerBulletEnemyCollision_->DrawImGui();
-    }
-    if (scene_->combatEffectController_) {
-        scene_->combatEffectController_->DrawImGui();
-    }
-    if (scene_->combatSlowMotionController_) {
-        scene_->combatSlowMotionController_->DrawImGui();
-    }
-    if (scene_->impactDistortionController_) {
-        scene_->impactDistortionController_->DrawImGui();
-    }
-    if (scene_->playerDeathSequenceController_) {
-        scene_->playerDeathSequenceController_->DrawImGui();
-    }
-    if (scene_->cameraShakeController_) {
-        scene_->cameraShakeController_->DrawImGui();
-    }
-    if (scene_->gameOverFlowController_) {
-        scene_->gameOverFlowController_->DrawImGui();
-    }
-    if (scene_->playerRailController_) {
-        scene_->playerRailController_->DrawImGui();
-    }
-    if (scene_->playerEventTriggerBridge_) {
-        scene_->playerEventTriggerBridge_->DrawImGui();
-    }
-    if (scene_->railShooterCameraRig_) {
-        scene_->railShooterCameraRig_->DrawImGui();
-    }
-    if (scene_->gameViewport_) {
-        scene_->gameViewport_->DrawImGui();
-    }
-    if (scene_->runtimeModeController_) {
-        scene_->runtimeModeController_->DrawImGui();
-    }
-    if (scene_->screenSpaceFakeShadowPass_) {
-        scene_->screenSpaceFakeShadowPass_->DrawImGui();
-    }
-    if (scene_->railShooterEventActionBridge_) {
-        scene_->railShooterEventActionBridge_->DrawImGui();
-    }
-    if (scene_->enemySpawnActionBridge_) {
-        scene_->enemySpawnActionBridge_->DrawImGui();
-    }
-    if (scene_->enemyWaveManager_) {
-        scene_->enemyWaveManager_->DrawImGui();
-    }
-    if (scene_->enemyLaserTelegraphController_) {
-        scene_->enemyLaserTelegraphController_->DrawImGui();
-    }
-    if (scene_->startupEnemySpawnController_) {
-        scene_->startupEnemySpawnController_->DrawImGui();
-    }
-    if (scene_->postEffectActionBridge_) {
-        scene_->postEffectActionBridge_->DrawImGui();
-    }
-    if (scene_->eventActionDispatcher_) {
-        scene_->eventActionDispatcher_->DrawImGui();
-    }
-    if (scene_->postEffectController_) {
-        scene_->postEffectController_->DrawImGui();
-    }
-    if (scene_->warningUIController_) {
-        scene_->warningUIController_->DrawImGui();
-    }
-    if (scene_->levelSceneRuntime_) {
-        scene_->levelSceneRuntime_->DrawImGui();
-    }
-    if (scene_->blenderLiveSync_) {
-        scene_->blenderLiveSync_->DrawImGui();
-    }
+            scene_->enemyBulletManager_ ? scene_->enemyBulletManager_->GetActiveCount() : 0); }, false });
+    if (scene_->playerBulletManager_) panels.push_back({ "playerBulletManager", "射撃・通常弾・ミサイル", C::Player, [this] { scene_->playerBulletManager_->DrawImGui(); }, false });
+    if (scene_->enemyManager_) panels.push_back({ "enemyManager", "敵HP・出現・配置", C::Enemy, [this] { scene_->enemyManager_->DrawImGui(); }, false });
+    if (scene_->enemyBulletManager_) panels.push_back({ "enemyBulletManager", "敵弾", C::Enemy, [this] { scene_->enemyBulletManager_->DrawImGui(); }, false });
+    if (scene_->enemyAttackController_) panels.push_back({ "enemyAttackController", "敵攻撃", C::Enemy, [this] { scene_->enemyAttackController_->DrawImGui(); }, false });
+    if (scene_->playerEnemyBulletCollision_) panels.push_back({ "playerEnemyBulletCollision", "敵弾とプレイヤーの衝突", C::Player, [this] { scene_->playerEnemyBulletCollision_->DrawImGui(); }, false });
+    if (scene_->playerBulletEnemyCollision_) panels.push_back({ "playerBulletEnemyCollision", "プレイヤー弾の命中判定", C::Enemy, [this] { scene_->playerBulletEnemyCollision_->DrawImGui(); }, false });
+    if (scene_->combatEffectController_) panels.push_back({ "combatEffectController", "戦闘エフェクト", C::Rendering, [this] { scene_->combatEffectController_->DrawImGui(); }, false });
+    if (scene_->combatSlowMotionController_) panels.push_back({ "combatSlowMotionController", "戦闘スロー", C::Rendering, [this] { scene_->combatSlowMotionController_->DrawImGui(); }, false });
+    if (scene_->impactDistortionController_) panels.push_back({ "impactDistortionController", "命中時の歪み", C::Rendering, [this] { scene_->impactDistortionController_->DrawImGui(); }, false });
+    if (scene_->playerDeathSequenceController_) panels.push_back({ "playerDeathSequenceController", "プレイヤー死亡演出", C::Game, [this] { scene_->playerDeathSequenceController_->DrawImGui(); }, false });
+    if (scene_->cameraShakeController_) panels.push_back({ "cameraShakeController", "カメラシェイク", C::Rendering, [this] { scene_->cameraShakeController_->DrawImGui(); }, false });
+    if (scene_->gameOverFlowController_) panels.push_back({ "gameOverFlowController", "GameOver遷移状態", C::Game, [this] { scene_->gameOverFlowController_->DrawImGui(); }, false });
+    if (scene_->playerRailController_) panels.push_back({ "playerRailController", "プレイヤーのレール基準", C::Stage, [this] { scene_->playerRailController_->DrawImGui(); }, false });
+    if (scene_->playerEventTriggerBridge_) panels.push_back({ "playerEventTriggerBridge", "プレイヤーイベント判定", C::Stage, [this] { scene_->playerEventTriggerBridge_->DrawImGui(); }, false });
+    if (scene_->railShooterCameraRig_) panels.push_back({ "railShooterCameraRig", "通常カメラ・レールRig", C::Player, [this] { scene_->railShooterCameraRig_->DrawImGui(); }, false });
+    if (scene_->gameViewport_) panels.push_back({ "gameViewport", "Game Viewの入力診断", C::Diagnostics, [this] { scene_->gameViewport_->DrawImGui(); }, false });
+    if (scene_->runtimeModeController_) panels.push_back({ "runtimeModeController", "CPU・実行モード・描画倍率", C::Diagnostics, [this] { scene_->runtimeModeController_->DrawImGui(); }, false });
+    if (scene_->screenSpaceFakeShadowPass_) panels.push_back({ "screenSpaceFakeShadowPass", "スクリーンスペース簡易影", C::Rendering, [this] { scene_->screenSpaceFakeShadowPass_->DrawImGui(); }, false });
+    if (scene_->railShooterEventActionBridge_) panels.push_back({ "railShooterEventActionBridge", "レールイベント接続", C::Stage, [this] { scene_->railShooterEventActionBridge_->DrawImGui(); }, false });
+    if (scene_->enemySpawnActionBridge_) panels.push_back({ "enemySpawnActionBridge", "敵出現アクション接続", C::Stage, [this] { scene_->enemySpawnActionBridge_->DrawImGui(); }, false });
+    if (scene_->enemyWaveManager_) panels.push_back({ "enemyWaveManager", "敵ウェーブ・進行エディタ", C::Enemy, [this] { scene_->enemyWaveManager_->DrawImGui(); }, true });
+    if (scene_->enemyLaserTelegraphController_) panels.push_back({ "enemyLaserTelegraphController", "敵レーザー予告", C::Enemy, [this] { scene_->enemyLaserTelegraphController_->DrawImGui(); }, false });
+    if (scene_->startupEnemySpawnController_) panels.push_back({ "startupEnemySpawnController", "開幕の敵出現", C::Enemy, [this] { scene_->startupEnemySpawnController_->DrawImGui(); }, false });
+    if (scene_->postEffectActionBridge_) panels.push_back({ "postEffectActionBridge", "PostEffectイベント接続", C::Stage, [this] { scene_->postEffectActionBridge_->DrawImGui(); }, false });
+    if (scene_->eventActionDispatcher_) panels.push_back({ "eventActionDispatcher", "イベントアクション振り分け", C::Stage, [this] { scene_->eventActionDispatcher_->DrawImGui(); }, false });
+    if (scene_->postEffectController_) panels.push_back({ "postEffectController", "PostEffectの演出トリガー・Boost", C::Rendering, [this] { scene_->postEffectController_->DrawImGui(); }, false });
+    if (scene_->warningUIController_) panels.push_back({ "warningUIController", "WARNING表示", C::Rendering, [this] { scene_->warningUIController_->DrawImGui(); }, false });
+    if (scene_->levelSceneRuntime_) panels.push_back({ "levelSceneRuntime", "レベル・レールエディタ", C::Stage, [this] { scene_->levelSceneRuntime_->DrawImGui(); }, true });
+    if (scene_->blenderLiveSync_) panels.push_back({ "blenderLiveSync", "Blenderライブ同期", C::Stage, [this] { scene_->blenderLiveSync_->DrawImGui(); }, true });
+    auto add = [&](const char* id, const char* label, C category, SceneTool tool) {
+        panels.push_back({ id, label, category, [this, dxCommon, clouds, tool] { DrawSceneToolContents(dxCommon, clouds, tool); } });
+    };
+    add("cameraPose", "通常カメラ位置の直接編集", C::Player, SceneTool::Camera);
+    add("scene", "空・背景", C::Rendering, SceneTool::Scene);
+    add("cloud", "雲の設定・GPU・比較・候補", C::Rendering, SceneTool::Cloud);
+    add("postSettings", "PostEffectの描画設定", C::Rendering, SceneTool::Post);
+    add("particles", "既存粒子・Hit／Fireball／Wind", C::Rendering, SceneTool::Particles);
+    add("objects", "検証オブジェクト・素材", C::Rendering, SceneTool::Object);
+    add("visibility", "シーンの表示切替", C::Rendering, SceneTool::Visibility);
+    add("skinningStatus", "GPUスキニング診断", C::Diagnostics, SceneTool::Skinning);
+    add("sprite", "検証用スプライト位置", C::Diagnostics, SceneTool::Sprite);
+    if (scene_->primitiveEffectSystem_) panels.push_back({ "primitive", "プリミティブエフェクト", C::Rendering, [this] { scene_->primitiveEffectSystem_->DrawImGui(); } });
+    panels.push_back({ "cloudDiagnosticLink", "雲GPU・固定比較・候補への入口", C::Diagnostics, [] {
+        ImGui::TextWrapped("雲の設定と比較・候補は同じ所有者のパネルにまとめています。固定比較はゲーム更新を固定し、候補試用は通常更新を続けます。");
+        if (ImGui::Button("雲の設定・GPU・比較・候補を開く")) DebugUiWorkspace::SelectPanel("cloud");
+    } });
+    DebugUiWorkspace::Draw(panels);
 }
 #endif

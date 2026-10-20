@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "InfluenceFieldManager.h"
 
 #include "Engine/Game/Enemy/Enemy.h"
@@ -304,7 +305,7 @@ void InfluenceFieldManager::DrawDebug() {
 void InfluenceFieldManager::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 520.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("風圧フィールド確認 (Influence Field Debug)")) { ImGui::End(); return; }
+    if (!DebugUiWorkspace::BeginPanel("風圧フィールド確認 (Influence Field Debug)")) { DebugUiWorkspace::EndPanel(); return; }
     ImGui::TextWrapped("PlayerやEnemyの近くにある雲とParticleを押しのけ、視界を確保します。Boost中はPlayer周辺の影響範囲と押し出しが強くなります。");
     ImGui::Checkbox("風圧フィールドを使う (Enable Influence Field)", &enabled_);
     ImGui::Checkbox("Player風圧を使う (Enable Player Influence)", &enablePlayerInfluence_);
@@ -351,6 +352,6 @@ void InfluenceFieldManager::DrawImGui() {
     ImGui::DragFloat("トンネル長さ (Tunnel Length)", &tunnelLength_, 0.1f, 0.1f, 200.0f, "%.1f");
     ImGui::DragFloat("トンネル半径 (Tunnel Radius)", &tunnelRadius_, 0.05f, 0.1f, 50.0f, "%.2f");
     ImGui::DragFloat("トンネル雲穴あけ強さ (Tunnel Clear Strength)", &tunnelClearStrength_, 0.01f, 0.0f, 1.0f, "%.2f");
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

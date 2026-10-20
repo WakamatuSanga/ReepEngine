@@ -1,4 +1,5 @@
-﻿#include "GameOverFlowController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "GameOverFlowController.h"
 #include "GameOverScene.h"
 #include "SceneManager.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
@@ -36,13 +37,13 @@ void GameOverFlowController::Update() {
 void GameOverFlowController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(300.0f, 120.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("GameOver遷移確認 (Game Over Flow Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("GameOver遷移確認 (Game Over Flow Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
     ImGui::Text("Transition Requested: %s", hasRequestedTransition_ ? "true" : "false");
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

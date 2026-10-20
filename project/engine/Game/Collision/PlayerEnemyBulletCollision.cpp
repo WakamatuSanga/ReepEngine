@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerEnemyBulletCollision.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
@@ -132,8 +133,8 @@ void PlayerEnemyBulletCollision::Update() {
 void PlayerEnemyBulletCollision::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(340.0f, 240.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Player被弾確認 (Player Enemy Bullet Collision)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Player被弾確認 (Player Enemy Bullet Collision)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -156,7 +157,7 @@ void PlayerEnemyBulletCollision::DrawImGui() {
     ImGui::Text("Last Hit Position: %.2f, %.2f, %.2f", lastHitPosition_.x, lastHitPosition_.y, lastHitPosition_.z);
     ImGui::TextWrapped("Blocked Reason: %s", lastBlockedReason_);
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

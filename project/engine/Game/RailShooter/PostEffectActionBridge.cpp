@@ -1,4 +1,5 @@
-﻿#include "PostEffectActionBridge.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "PostEffectActionBridge.h"
 #include "Engine/Game/Effect/PostEffectController.h"
 #include "Engine/Level/LevelEventRuntime.h"
 #include <algorithm>
@@ -35,8 +36,8 @@ void PostEffectActionBridge::Finalize() {
 void PostEffectActionBridge::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 340.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ポストエフェクトアクション接続 (PostEffect Action Bridge Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ポストエフェクトアクション接続 (PostEffect Action Bridge Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -58,7 +59,7 @@ void PostEffectActionBridge::DrawImGui() {
         }
         ImGui::TreePop();
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

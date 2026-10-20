@@ -1,4 +1,5 @@
-﻿#include "EditorCameraController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "EditorCameraController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Input/Input.h"
 #include <algorithm>
@@ -157,8 +158,8 @@ void EditorCameraController::Update(
 void EditorCameraController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 430.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("エディタカメラ確認 (Editor Camera Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("エディタカメラ確認 (Editor Camera Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -198,7 +199,7 @@ void EditorCameraController::DrawImGui() {
         ImGui::Text("Camera Position: %.3f, %.3f, %.3f", position.x, position.y, position.z);
         ImGui::Text("Camera Rotation: %.3f, %.3f, %.3f", rotation.x, rotation.y, rotation.z);
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

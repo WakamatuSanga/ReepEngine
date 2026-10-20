@@ -1,4 +1,5 @@
-﻿#include "EnemyBulletManager.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
@@ -34,6 +35,10 @@ void EnemyBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* came
     if (!camera_) {
         Logger::Log("[EnemyBulletManager] Initialize warning: Camera is null");
     }
+}
+
+bool EnemyBulletManager::PrepareForPresentation() {
+    return object3dCommon_ && camera_ && EnemyBullet::PrepareSharedVisualResources();
 }
 
 void EnemyBulletManager::Finalize() {
@@ -84,8 +89,8 @@ void EnemyBulletManager::Draw() {
 void EnemyBulletManager::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("敵弾確認 (Enemy Bullet Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("敵弾確認 (Enemy Bullet Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -180,7 +185,7 @@ void EnemyBulletManager::DrawImGui() {
         }
     }
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

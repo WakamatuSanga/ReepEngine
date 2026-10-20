@@ -43,6 +43,23 @@ namespace {
         return {};
     }
 
+    Model* LoadSharedFileModel(const std::string& resolvedPath, std::string& texturePath) {
+        if (resolvedPath.empty()) return nullptr;
+        auto* models = ModelManager::GetInstance();
+        models->LoadModel(resolvedPath);
+        Model* model = models->FindModel(resolvedPath);
+        if (model) {
+            texturePath = ToGenericString(std::filesystem::path(resolvedPath).parent_path() / "textures" / "Material.003_baseColor.png");
+            if (!std::filesystem::exists(texturePath)) texturePath = ResolveResourcePath("resources/obj/axis/uvChecker.png");
+            if (!texturePath.empty()) {
+                auto* textures = TextureManager::GetInstance();
+                textures->LoadTexture(texturePath);
+                model->SetTextureIndex(textures->GetTextureIndexByFilePath(texturePath));
+            }
+        }
+        return model;
+    }
+
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
     }
@@ -136,6 +153,12 @@ namespace {
 Enemy::Enemy() = default;
 
 Enemy::~Enemy() = default;
+
+bool Enemy::PrepareSharedVisualResources(const std::string& modelPath) {
+    std::string texturePath;
+    Model* model = LoadSharedFileModel(ResolveResourcePath(modelPath), texturePath);
+    return model && model->GetVertexCount() > 0 && !texturePath.empty();
+}
 
 void Enemy::Initialize(Object3dCommon* object3dCommon, Camera* camera, const std::string& enemyId) {
     object3dCommon_ = object3dCommon;
@@ -446,18 +469,8 @@ void Enemy::LoadModel() {
         useFallbackModel_ = true;
         loadStatus_ = "Using lightweight enemy primitive.";
     } else if (!resolvedModelPath_.empty()) {
-        modelManager->LoadModel(resolvedModelPath_);
-        model_ = modelManager->FindModel(resolvedModelPath_);
+        model_ = LoadSharedFileModel(resolvedModelPath_, texturePath_);
         if (model_) {
-            const std::filesystem::path resolvedPath(resolvedModelPath_);
-            texturePath_ = ToGenericString(resolvedPath.parent_path() / "textures" / "Material.003_baseColor.png");
-            if (!std::filesystem::exists(std::filesystem::path(texturePath_))) {
-                texturePath_ = ResolveResourcePath("resources/obj/axis/uvChecker.png");
-            }
-            if (!texturePath_.empty()) {
-                TextureManager::GetInstance()->LoadTexture(texturePath_);
-                model_->SetTextureIndex(TextureManager::GetInstance()->GetTextureIndexByFilePath(texturePath_));
-            }
             loadStatus_ =
                 !texturePath_.empty() && std::filesystem::path(texturePath_).filename().string() == "Material.003_baseColor.png"
                 ? "Enemy model loaded."

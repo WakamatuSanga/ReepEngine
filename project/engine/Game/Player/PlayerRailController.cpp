@@ -1,4 +1,5 @@
-﻿#include "PlayerRailController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "PlayerRailController.h"
 #include "Player.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include <algorithm>
@@ -76,8 +77,8 @@ void PlayerRailController::Update(float deltaTime) {
 void PlayerRailController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(420.0f, 430.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("プレイヤーレール確認 / Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("プレイヤーレール確認 / Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -90,7 +91,7 @@ void PlayerRailController::DrawImGui() {
     if (!railRuntime_ || railCount_ == 0) {
         ImGui::TextDisabled("レールがありません。 (No rails.)");
         ImGui::Text("Current Evaluation Valid: %s", currentEvaluationValid_ ? "true" : "false");
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -175,7 +176,7 @@ void PlayerRailController::DrawImGui() {
         ImGui::Text("Player World Position: %.3f, %.3f, %.3f", worldPosition.x, worldPosition.y, worldPosition.z);
         ImGui::Text("Player Base Mode: %s", player_->GetBaseMode() == Player::BaseMode::Rail ? "Rail" : "CameraFront");
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

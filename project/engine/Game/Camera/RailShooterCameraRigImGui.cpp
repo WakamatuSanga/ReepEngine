@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "RailShooterCameraRig.h"
 #include "Engine/Level/LevelRailRuntime.h"
 #include "Engine/Level/LevelSceneRuntime.h"
@@ -111,8 +112,8 @@ namespace {
 void RailShooterCameraRig::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 520.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("レールシューティングカメラ確認 (Rail Shooter Camera Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -380,7 +381,7 @@ void RailShooterCameraRig::DrawImGui() {
     ImGui::Text("Saved Position: %.3f, %.3f, %.3f", savedCameraPosition_.x, savedCameraPosition_.y, savedCameraPosition_.z);
     ImGui::Text("Saved Rotation: %.3f, %.3f, %.3f", savedCameraRotation_.x, savedCameraRotation_.y, savedCameraRotation_.z);
     DrawRuntimeV2TrialImGui();
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

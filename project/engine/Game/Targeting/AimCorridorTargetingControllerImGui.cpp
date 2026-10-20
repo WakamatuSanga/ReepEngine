@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "AimCorridorTargetingController.h"
 
 #include "AimCorridorTargetMarkerRenderer.h"
@@ -36,10 +37,10 @@ namespace {
 void AimCorridorTargetingController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(470.0f, 720.0f), ImGuiCond_FirstUseEver);
-    const bool panelVisible = ImGui::Begin(
+    const bool panelVisible = DebugUiWorkspace::BeginPanel(
         "エイムコリドー照準・ロックデバッグ###AimCorridorTargetingDebug");
     if (!panelVisible) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -162,7 +163,7 @@ void AimCorridorTargetingController::DrawImGui() {
             Reset();
         }
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImDrawList* drawList = ImGui::GetForegroundDrawList();

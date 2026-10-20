@@ -32,10 +32,13 @@ struct VolumetricCloudSettings {
         NegativeCameraForward = 4,
     };
 
+    enum class AppearanceMode : uint32_t { Legacy, ShapeOnly, ShapeAndLighting };
     enum class QualityPreset { High, Balanced, Light, UltraLight, Direct };
     void ApplyStartupDefaults();
     bool ResetDefaults();
     bool ApplyUserPreferredPreset();
+    bool ApplyTunedCandidate();
+    bool ApplyAppearanceCandidate(AppearanceMode mode = AppearanceMode::ShapeAndLighting);
     bool ApplyQualityPreset(QualityPreset preset);
     bool ApplyUnderCloudPreset();
     bool ApplyCloudSeaPreset();
@@ -44,6 +47,7 @@ struct VolumetricCloudSettings {
     void ConfigureTitleForegroundCopy();
     bool operator==(const VolumetricCloudSettings& rhs) const;
 
+    AppearanceMode appearanceMode_ = AppearanceMode::Legacy;
     DebugViewMode debugViewMode_ = DebugViewMode::Final;
     ForceMode forceMode_ = ForceMode::None;
     bool isEnabled_ = true;

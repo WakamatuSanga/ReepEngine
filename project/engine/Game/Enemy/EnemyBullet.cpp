@@ -95,9 +95,10 @@ EnemyBullet::EnemyBullet() = default;
 
 EnemyBullet::~EnemyBullet() = default;
 
-void EnemyBullet::PrepareSharedVisualResources(const std::string& modelPath) {
+bool EnemyBullet::PrepareSharedVisualResources(const std::string& modelPath) {
     std::string texturePath;
-    LoadSharedFileModel(ResolveResourcePath(modelPath), texturePath);
+    Model* model = LoadSharedFileModel(ResolveResourcePath(modelPath), texturePath);
+    return model && model->GetVertexCount() > 0 && !texturePath.empty();
 }
 
 bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {

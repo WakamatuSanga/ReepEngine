@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PostEffectController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Game/Player/FlightTuning.h"
@@ -123,8 +124,8 @@ void PostEffectController::Draw() {
 void PostEffectController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(380.0f, 340.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("ポストエフェクト確認 (PostEffect Controller Debug)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("ポストエフェクト確認 (PostEffect Controller Debug)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -207,7 +208,7 @@ void PostEffectController::DrawImGui() {
     ImGui::Text("Current Boost Effect Intensity: %.3f", currentBoostEffectIntensity_);
     ImGui::Text("Current Boost Effect Center: %.2f, %.2f", currentBoostCenterX_, currentBoostCenterY_);
     ImGui::TextWrapped("Boost PostEffect Reason: %s", boostPostEffectReason_.c_str());
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

@@ -31,6 +31,7 @@ public:
     Enemy();
     ~Enemy();
 
+    static bool PrepareSharedVisualResources(const std::string& modelPath = "resources/Enemy/Enemy.obj");
     void Initialize(Object3dCommon* object3dCommon, Camera* camera, const std::string& enemyId);
     void Finalize();
     void Update(float deltaTime);

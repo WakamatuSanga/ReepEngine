@@ -1,6 +1,7 @@
 #include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
@@ -49,6 +50,8 @@ void GameScene::DrawSceneRender() {
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
         runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
+    auto& profiler = dxCommon->GetGpuProfiler();
+    const auto mainToken = profiler.Begin(dxCommon->GetCommandList(), GpuTimestampProfiler::Stage::MainScene, {});
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
         skybox_->Draw();
@@ -129,6 +132,8 @@ void GameScene::DrawSceneRender() {
         enemyDefeatEffectController_->Draw();
     }
 
+    profiler.End(commandList, mainToken);
+    if (volumetricCloudPass) volumetricCloudPass->MarkGpuScene();
     if (isVolumetricCloudVisible_ && !shadowDebugSettings.disableClouds && volumetricCloudPass && cloudVolume_) {
         if (cloudProjectedBounds_.isVisible && !cloudProjectedBounds_.isPassSkipped) {
             dxCommon->TransitionDepthBuffer(
@@ -143,9 +148,14 @@ void GameScene::DrawSceneRender() {
             D3D12_CPU_DESCRIPTOR_HANDLE sceneRTV = dxCommon->GetRenderTextureRTV();
             D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = dxCommon->GetDepthStencilView();
             commandList->OMSetRenderTargets(1, &sceneRTV, FALSE, &depthStencilView);
+        } else {
+            volumetricCloudPass->RecordGpuSkipped(!volumetricCloudPass->IsEnabled() || volumetricCloudPass->GetForceMode() == VolumetricCloudPass::ForceMode::ForceSkip);
         }
+    } else if (volumetricCloudPass) {
+        volumetricCloudPass->RecordGpuSkipped(true);
     }
 
+    const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }
@@ -211,4 +221,5 @@ void GameScene::DrawSceneRender() {
     if (warningUIController_) {
         warningUIController_->Draw();
     }
+    profiler.End(commandList, afterToken);
 }

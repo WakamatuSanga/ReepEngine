@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EventActionDispatcher.h"
 #include "Engine/Game/RailShooter/EnemySpawnActionBridge.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
@@ -117,8 +118,8 @@ void EventActionDispatcher::Update() {
 void EventActionDispatcher::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(430.0f, 360.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("イベントアクション振り分け (Event Action Dispatcher)")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("イベントアクション振り分け (Event Action Dispatcher)")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -143,7 +144,7 @@ void EventActionDispatcher::DrawImGui() {
         }
         ImGui::TreePop();
     }
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 

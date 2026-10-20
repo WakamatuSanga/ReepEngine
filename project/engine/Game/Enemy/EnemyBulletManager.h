@@ -16,6 +16,7 @@ public:
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
+    bool PrepareForPresentation();
     void Update(float deltaTime);
     void Draw();
     void DrawImGui();

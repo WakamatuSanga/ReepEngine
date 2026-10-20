@@ -1,3 +1,4 @@
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerRailFlightVisualTiltController.h"
 
 #include "Player.h"
@@ -28,9 +29,9 @@ void PlayerRailFlightVisualTiltController::DrawImGui() {
 #ifdef USE_IMGUI
     UpdatePlayerDiagnostics();
     ImGui::SetNextWindowSize(ImVec2(430.0f, 690.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(
+    if (!DebugUiWorkspace::BeginPanel(
         "プレイヤー・レール飛行姿勢デバッグ###PlayerRailFlightVisualTiltDebug")) {
-        ImGui::End();
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -149,6 +150,6 @@ void PlayerRailFlightVisualTiltController::DrawImGui() {
     }
 
     ClampSettings();
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }

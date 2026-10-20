@@ -1,4 +1,5 @@
-﻿#include "PlayerDamageFeedbackController.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "PlayerDamageFeedbackController.h"
 
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Player/Player.h"
@@ -94,8 +95,8 @@ void PlayerDamageFeedbackController::Draw() {
 void PlayerDamageFeedbackController::DrawImGui() {
 #ifdef USE_IMGUI
     ImGui::SetNextWindowSize(ImVec2(360.0f, 390.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Player Damage Feedback Debug")) {
-        ImGui::End();
+    if (!DebugUiWorkspace::BeginPanel("Player Damage Feedback Debug")) {
+        DebugUiWorkspace::EndPanel();
         return;
     }
 
@@ -105,7 +106,7 @@ void PlayerDamageFeedbackController::DrawImGui() {
     ImGui::DragFloat("Damage Flash Duration", &damageFlashDuration_, 0.01f, 0.0f, 2.0f, "%.2f");
     ImGui::DragFloat("Damage Flash Alpha", &damageFlashAlpha_, 0.01f, 0.0f, 1.0f, "%.2f");
 
-    ImGui::End();
+    DebugUiWorkspace::EndPanel();
 #endif
 }
 
