@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 
 class Camera;
@@ -14,7 +14,7 @@ public:
     void BeginFrame(Camera* camera);
     void Start(float duration, float amplitude, float frequency);
     void SetGameplayEventsEnabled(bool enabled);
-    void RequestGameplayShake(GameplayEvent event);
+    void RequestGameplayShake(GameplayEvent event, float strength = 1.0f);
     void UpdateAndApply(float deltaTime, Camera* camera, bool viewOnly = false);
     void Reset(Camera* camera);
     void DrawImGui();

@@ -44,6 +44,8 @@ public:
     void SetDisplayTranslationOffset(const Vector3& offset);
     void SetDisplayPose(const Vector3& translationOffset, const Vector3& rotation);
     void ClearDisplayPose();
+    void SetDisplayScale(const Vector3& scale);
+    void SetDisplayOpacity(float alpha) { displayOpacity_=alpha; }
     void Draw();
     void DrawImGui(PlayerDamageFeedbackController* damageFeedbackController = nullptr);
 
@@ -145,6 +147,8 @@ private:
     Vector3 basePosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 baseForward_{ 0.0f, 0.0f, 1.0f };
     Vector3 displayTranslationOffset_{};
+    Vector3 displayScale_{1,1,1};
+    float displayOpacity_=-1;
     Vector3 displayRotation_{};
     bool displayRotationActive_ = false;
     Vector3 worldPosition_{ 0.0f, 0.0f, 0.0f };

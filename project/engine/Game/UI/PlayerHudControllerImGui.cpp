@@ -21,6 +21,17 @@ void PlayerHudController::DrawImGui(){
         if(boost_)boost_->DrawEvadeSettingsImGui();
         ImGui::TextWrapped("Spaceは照準切替。Pauseキーで進行・実秒待ちを停止します。");
         ImGui::PopItemWidth();
+        if(ImGui::CollapsingHeader("撃墜時のSYSTEM ERROR")){
+            ImGui::PushItemWidth(140);
+            ImGui::SliderInt("エラー文字数（上限32）",&errorCount_,0,32);
+            ImGui::SliderFloat("エラー文字サイズ",&errorTextScale_,.5f,1.5f);
+            ImGui::ColorEdit3("警告の赤色",&errorColor_.x);
+            ImGui::SliderFloat("局所点滅速度",&errorBlinkSpeed_,1,8);
+            ImGui::SliderFloat("横ずれ（基準px）",&errorJitter_,0,12);
+            ImGui::SliderFloat("警告全体Alpha",&errorAlpha_,0,1);
+            ImGui::TextWrapped("通常時は現行の緑色です。描画は事前確保したSpriteと一度読み込む文字素材を使用します。");
+            ImGui::PopItemWidth();
+        }
     }DebugUiWorkspace::EndPanel();
 #endif
 }

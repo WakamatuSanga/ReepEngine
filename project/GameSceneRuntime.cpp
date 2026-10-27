@@ -308,6 +308,7 @@ void GameScene::UpdateSceneRuntime() {
     if (player_) {
         player_->Update(gameplayDeltaTime);
     }
+    if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) { UpdateDeathPresentation(); return; }
     // Finalize the render camera after movement, before exhaust, reticle, locks
     // and shots consume it. The rail itself is advanced only once above.
     if (railShooterCameraRig_) {
@@ -372,6 +373,7 @@ void GameScene::UpdateSceneRuntime() {
         enemyManager_->Update(gameplayDeltaTime);
     }
     UpdateKrakenTentacleMidboss(gameplayDeltaTime);
+    if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) { UpdateDeathPresentation(); return; }
     PostKrakenUpdateKrakenTentacleWaveEncounter();
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
@@ -388,6 +390,10 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (playerEnemyBulletCollision_) {
         playerEnemyBulletCollision_->Update();
+    }
+    if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) {
+        UpdateDeathPresentation();
+        return;
     }
     if (playerHudController_) {
         playerHudController_->SetGameModeActive(isGameMode);
@@ -406,9 +412,6 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (enemyDefeatEffectController_) {
         enemyDefeatEffectController_->Update(effectDeltaTime);
-    }
-    if (playerDeathSequenceController_) {
-        playerDeathSequenceController_->Update(gameplayDeltaTime);
     }
     if (postEffectController_) {
         postEffectController_->Update(gameplayDeltaTime, unscaledDeltaTime);

@@ -133,9 +133,8 @@ void PlayerEnemyBulletCollision::Update() {
         if (!shouldStartDeath) {
             return;
         }
-        if (combatEffectController_) {
-            combatEffectController_->PlayPlayerDeathExplosion(lastPlayerPosition_);
-        }
+        // One-shot route selection belongs to the death owner. Cinematic shots
+        // are isolated from this normal collision manager.
         deathSequence_->StartDeathSequence();
     }
 }

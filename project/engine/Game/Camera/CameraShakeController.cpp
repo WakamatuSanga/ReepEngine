@@ -112,7 +112,7 @@ void CameraShakeController::SetGameplayEventsEnabled(bool enabled) {
     }
 }
 
-void CameraShakeController::RequestGameplayShake(GameplayEvent event) {
+void CameraShakeController::RequestGameplayShake(GameplayEvent event, float strength) {
     if (!gameplayEventsEnabled_ || isPlaying_) return;
     if (event == GameplayEvent::Shot) {
         // At most 12.5 Hz, including simultaneous missiles. Never stack shots.
@@ -122,8 +122,8 @@ void CameraShakeController::RequestGameplayShake(GameplayEvent event) {
         return;
     }
     const auto& tuning = FlightTuning::Get();
-    const float amplitude = event == GameplayEvent::Explosion ? 0.5f
-        : event == GameplayEvent::BulletCancel ? tuning.cancelAmplitude : tuning.defeatAmplitude;
+    const float amplitude = (event == GameplayEvent::Explosion ? 0.5f
+        : event == GameplayEvent::BulletCancel ? tuning.cancelAmplitude : tuning.defeatAmplitude) * std::clamp(strength,0.0f,2.0f);
     const float duration = event == GameplayEvent::Explosion ? 0.20f
         : event == GameplayEvent::BulletCancel ? tuning.cancelDuration : tuning.defeatDuration;
     // Defeat + explosion and multiple simultaneous defeats share one pulse.

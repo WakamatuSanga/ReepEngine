@@ -135,6 +135,8 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="engine\Game\Effect\GpuParticleFollowingEffect.cpp" />
+    <ClCompile Include="GameSceneDeathPresentation.cpp" />
     <ClCompile Include="externals\imgui\imgui.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
@@ -873,9 +875,6 @@
     <ClCompile Include="GameScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="GameOverScene.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="engine\Graphics\Particle\GpuParticleCompute.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -968,6 +967,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="engine\Game\Effect\GpuParticleFollowingEffect.h" />
     <ClInclude Include="engine\math\Matrix4x4.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -1367,9 +1367,6 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="GameScene.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="GameOverScene.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Graphics\Particle\GpuParticleCompute.h">

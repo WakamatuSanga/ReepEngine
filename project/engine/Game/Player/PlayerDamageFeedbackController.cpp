@@ -1,5 +1,6 @@
 ﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerDamageFeedbackController.h"
+#include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Player/Player.h"
@@ -48,6 +49,7 @@ void PlayerDamageFeedbackController::Initialize(
 }
 
 void PlayerDamageFeedbackController::Finalize() {
+    deathSequence_ = nullptr;
     ApplyBlinkAlpha(1.0f);
     flashSprite_.reset();
     spriteCommon_ = nullptr;
@@ -145,13 +147,21 @@ bool PlayerDamageFeedbackController::ApplyDamage(const Vector3& position, int da
         return false;
     }
 
+    const bool wasAlive = hp_ > 0;
     const int damageAmount = (std::max)(1, damage);
     hp_ = (std::max)(0, hp_ - damageAmount);
     invincibleTimer_ = (std::max)(0.0f, invincibleDuration_);
     lastDamagePosition_ = position;
     ++damageFeedbackCount_;
-    TriggerDamageVisuals(position);
+    if (!IsDead() || !deathSequence_) {
+        TriggerDamageVisuals(position);
+    } else {
+        // Lethal damage uses the new persistent damage FX, not the ordinary
+        // full-screen hit flash/ring which would mask the actual cloud probe.
+        damageFlashTimer_ = 0;
+    }
     lastResult_ = IsDead() ? "Damage applied: dead" : "Damage applied";
+    if (wasAlive && IsDead() && deathSequence_) deathSequence_->StartDeathSequence();
     return true;
 }
 
