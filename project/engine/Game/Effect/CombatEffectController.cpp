@@ -1,4 +1,4 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "CombatEffectController.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 
@@ -193,14 +193,14 @@ bool CombatEffectController::TryPlayPlayerBulletHitEnemy(
         lethalHit ? true : enableEnemyHitRing_);
 }
 
-void CombatEffectController::PlayEnemyBulletHitPlayer(const Vector3& position) {
+void CombatEffectController::PlayEnemyBulletHitPlayer(const Vector3& position, float runtimeScale) {
     ++playerHitEffectCount_;
-    PlayHitRing(position, "EnemyBulletHitPlayer", playerHitRingScale_, 1.0f, true);
+    PlayHitRing(position, "EnemyBulletHitPlayer", playerHitRingScale_*runtimeScale, 1.0f, true, runtimeScale);
 }
 
-void CombatEffectController::PlayPlayerDeathExplosion(const Vector3& position) {
+void CombatEffectController::PlayPlayerDeathExplosion(const Vector3& position, float scale, float brightness, float amount, float lifetime) {
     ++playerDeathEffectCount_;
-    PlayExplosion(position, "PlayerDeathExplosion");
+    PlayExplosion(position, "PlayerDeathExplosion", scale, brightness, amount, lifetime);
 }
 
 void CombatEffectController::PlayEnemyDeathExplosion(const Vector3& position) {
@@ -213,7 +213,7 @@ bool CombatEffectController::PlayHitRing(
     const char* effectType,
     float ringScale,
     float ringAlpha,
-    bool ringEnabled) {
+    bool ringEnabled, float particleScale) {
     if (!enableCombatEffects_) {
         RecordEffect(effectType, position, "Combat effects disabled");
         return false;
@@ -241,7 +241,7 @@ bool CombatEffectController::PlayHitRing(
     }
 
     if (enableGpuParticleEffects_ && enableHitSparks_) {
-        playedSomething = PlayGpuEffectAt(hitSparksJsonPath_, position, effectType) || playedSomething;
+        playedSomething = (particleScale==1 ? PlayGpuEffectAt(hitSparksJsonPath_, position, effectType) : (gpuParticleEffectPlayer_&&gpuParticleEffectPlayer_->PlayGpuParticleEffectAt(hitSparksJsonPath_,position,particleScale,1,1,1))) || playedSomething;
         result += gpuParticleEffectPlayer_ ? "GPU HitSparks requested " : "GPU player missing ";
     }
 
@@ -249,7 +249,7 @@ bool CombatEffectController::PlayHitRing(
     return playedSomething;
 }
 
-void CombatEffectController::PlayExplosion(const Vector3& position, const char* effectType) {
+void CombatEffectController::PlayExplosion(const Vector3& position, const char* effectType, float scale, float brightness, float amount, float lifetime) {
     if (!enableCombatEffects_) {
         RecordEffect(effectType, position, "Combat effects disabled");
         return;
@@ -273,7 +273,7 @@ void CombatEffectController::PlayExplosion(const Vector3& position, const char* 
             } else if (IsPlayerDeathEffectName(effectType)) {
                 ringScale = playerDeathExplosionScale_;
             }
-            primitiveEffectSystem_->PlayRingEffectAt(position, ringScale, 1.0f);
+            primitiveEffectSystem_->PlayRingEffectAt(position, ringScale*scale, 1.0f);
             result += "Primitive Ring ";
             playedSomething = true;
         }
@@ -290,7 +290,7 @@ void CombatEffectController::PlayExplosion(const Vector3& position, const char* 
     const bool gpuEnabled = isDeath ? enableDeathExplosion_ : enableSmallExplosion_;
     const std::string& gpuPath = isDeath ? deathExplosionJsonPath_ : smallExplosionJsonPath_;
     if (enableGpuParticleEffects_ && gpuEnabled) {
-        playedSomething = PlayGpuEffectAt(gpuPath, position, effectType) || playedSomething;
+        playedSomething = (gpuParticleEffectPlayer_ && gpuParticleEffectPlayer_->PlayGpuParticleEffectAt(gpuPath,position,scale,brightness,amount,lifetime)) || playedSomething;
         result += gpuParticleEffectPlayer_ ? "GPU Explosion requested " : "GPU player missing ";
     }
 

@@ -290,7 +290,7 @@ void GameScene::InitializeSceneResources() {
     playerEnemyBulletCollision_->SetImpactDistortionController(impactDistortionController_.get());
     playerEnemyBulletCollision_->SetDamageFeedbackController(playerDamageFeedbackController_.get());
     gameOverFlowController_ = std::make_unique<GameOverFlowController>();
-    gameOverFlowController_->Initialize(playerDeathSequenceController_.get());
+    gameOverFlowController_->Initialize(playerDeathSequenceController_.get(),MyGame::GetInstance()->GetSpriteCommon(),gameViewport_.get(),MyGame::GetInstance()->GetInput());
     playerRailController_ = std::make_unique<PlayerRailController>();
     playerRailController_->Initialize(player_.get(), levelSceneRuntime_->GetRailRuntime());
     playerEventTriggerBridge_ = std::make_unique<PlayerEventTriggerBridge>();
@@ -343,4 +343,9 @@ void GameScene::InitializeSceneResources() {
     playerBulletEnemyCollision_->SetCombatState(stageCombatState_.get());
     playerEnemyBulletCollision_->SetEvadeController(boostController_.get());
     playerHudController_->BindState(stageCombatState_.get(), enemyWaveManager_.get(), railShooterCameraRig_.get());
+    playerHudController_->SetDeathSequence(playerDeathSequenceController_.get());
+    playerDamageFeedbackController_->SetDeathSequence(playerDeathSequenceController_.get());
+    playerDeathSequenceController_->BindFlight(player_.get(),camera_.get(),boostController_.get(),
+        playerDamageFeedbackController_.get(),gpuParticleEffectPlayer_.get(),combatEffectController_.get(),
+        enemyWaveManager_.get(),krakenTentacleWaveEncounter_.get(),ModelManager::GetInstance()->GetModelCommon(),MyGame::GetInstance()->GetObject3dCommon());
 }

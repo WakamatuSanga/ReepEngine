@@ -197,7 +197,7 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     {
         velocityDirection = SafeNormalize(emitterOffset + emitterForward * 0.25f, emitterForward);
     }
-    if (particleType.streakLength > 0.0f) {
+    if (particleType.streakLength > 0.0f && particleType.affectedByRailFlow != 0u) {
         // The existing box dimensions describe a thin elliptical shell for wind.
         const float angle = Random01(baseSeed ^ 0x68bc21ebu) * 6.28318530718f;
         const float radius = RandomRange(baseSeed ^ 0x02e5be93u, 0.85f, 1.15f);

@@ -4,6 +4,7 @@
 #include "Engine/Game/Player/PlayerDamageFeedbackController.h"
 #include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
@@ -73,11 +74,15 @@ void PlayerHudController::Initialize(SpriteCommon* s, PlayerDamageFeedbackContro
     framesTexture_=textures->GetTextureIndexByFilePath(root+"hud-frames.png");
     textures->LoadTexture("resources/human/white.png");
     whiteTexture_=textures->GetTextureIndexByFilePath("resources/human/white.png");
+    textures->LoadTexture("resources/ui/system-error.png");
+    errorTexture_=textures->GetTextureIndexByFilePath("resources/ui/system-error.png");
+    const auto& errorMetadata=textures->GetMetaData(errorTexture_);
+    errorTextureSize_={static_cast<float>(errorMetadata.width),static_cast<float>(errorMetadata.height)};
     for(auto& sprite:pool_) {sprite=std::make_unique<Sprite>();sprite->Initialize(sprites_);sprite->SetTextureSampling(true);}
     Reset();
 }
 void PlayerHudController::BindState(StageCombatState* c,EnemyWaveManager* w,RailShooterCameraRig* r){combat_=c;waves_=w;rig_=r;}
-void PlayerHudController::Finalize(){for(auto& sprite:pool_)sprite.reset();parts_.clear();sequence_=nullptr;combat_=nullptr;waves_=nullptr;rig_=nullptr;}
+void PlayerHudController::Finalize(){for(auto& sprite:pool_)sprite.reset();parts_.clear();sequence_=nullptr;death_=nullptr;combat_=nullptr;waves_=nullptr;rig_=nullptr;}
 void PlayerHudController::Reset(){topReveal_=bottomReveal_=0;ammoPulse_=0;previousAmmo_=bullets_?bullets_->GetLockAmmo():5;}
 void PlayerHudController::Update(float dt){
     topReveal_=sequence_?sequence_->GetHudTopReveal():1;
@@ -100,7 +105,10 @@ void PlayerHudController::DrawItem(uint32_t texture,Vector2 position,Vector2 siz
     sprite.SetCanvasSize({sprites_->GetDxCommon()->GetBackBufferViewport().Width,sprites_->GetDxCommon()->GetBackBufferViewport().Height});
     sprite.SetPosition(Map(position,group));sprite.SetSize({size.x*scale_,size.y*scale_});
     sprite.SetTextureAlphaScale(frame?panelScale_:1,frame?frameAlpha_:1);
-    sprite.SetColor({1,1,1,alpha*groupAlpha_*(frame?1:textAlpha_)});sprite.Update();sprite.Draw();
+    const bool error=death_&&death_->IsActiveOrFinished();
+    sprite.SetTextureAlertTint(error);
+    const auto color=error?errorColor_:Vector3{1,1,1};
+    sprite.SetColor({color.x,color.y,color.z,alpha*groupAlpha_*(frame?1:textAlpha_)*(error?death_->GetHudVisibility()*errorAlpha_:1)});sprite.Update();sprite.Draw();
 }
 void PlayerHudController::DrawPart(const std::string& name,int group,float alpha,float fill){
     const auto it=parts_.find(name);if(it==parts_.end() || fill<=0)return;
@@ -141,14 +149,32 @@ void PlayerHudController::DrawGroup(int group){
         if(ammoPulse_>0){const auto& p=parts_.at("ammo-slot-on");DrawItem(p.texture,{42+std::clamp(ammo,0,4)*53.906087f,968},p.size,2,ammoPulse_*1.2f);}
     }
     if(group==3){DrawPart("hp-label",3,1);const int hp=damage_?damage_->GetHp():0,maxHp=damage_?damage_->GetMaxHp():0;DrawNumber(std::to_string(hp)+" / "+std::to_string(maxHp),{1875.65217f,954.78261f},true,3,true);DrawPart("hp-track",3,1);DrawPart("hp-fill",3,1,maxHp>0?static_cast<float>(hp)/maxHp:0);}
+    DrawSystemErrors(group);
     if(!reducedMotion_&&reveal<1){
         // Two thin, local scan/electric fragments. No full-screen post effect or fabricated values.
         DrawItem(whiteTexture_,{framePos[group].x+12,framePos[group].y+15+reveal*(frameSize[group].y-30)}, {frameSize[group].x*.48f,1.5f},group,.20f,{}, {1,1});
     }
 }
+void PlayerHudController::DrawSystemErrors(int group){
+    if(!death_||!death_->IsActiveOrFinished()||death_->GetHudVisibility()<=0)return;
+    const Vector2 origins[]{{0,0},{600,0},{0,900},{1440,900}};
+    const int count=std::clamp(errorCount_,0,32);
+    const int rows=count/4+(group<count%4?1:0);
+    const float time=death_->GetElapsedTime();
+    for(int i=0;i<rows;++i){
+        const float phase=time*errorBlinkSpeed_+i*.31f+group*.63f;
+        const float width=(group==1?300.0f:230.0f)*std::clamp(errorTextScale_,.5f,1.5f)*(i%3==1?.78f:1);
+        const float shift=reducedMotion_?0:std::sin(phase*9)*errorJitter_;
+        const float crop=!reducedMotion_&&std::fmod(phase,1.0f)<.12f?.72f:1;
+        const float alpha=reducedMotion_?.85f:.65f+.35f*std::fabs(std::sin(phase*3.14159f));
+        DrawItem(errorTexture_,{origins[group].x+16+static_cast<float>((i*53)%97)+shift,origins[group].y+12+i*20.0f},
+            {width*crop,22*errorTextScale_},group,alpha,{}, {errorTextureSize_.x*crop,errorTextureSize_.y});
+    }
+}
 void PlayerHudController::Draw(){auto v=sprites_->GetDxCommon()->GetBackBufferViewport();DrawInRect(0,0,v.Width,v.Height);}
 void PlayerHudController::DrawInRect(float l,float t,float w,float h){
     if(!enabled_||!sprites_||w<=1||h<=1)return;
+    if(death_&&death_->IsActiveOrFinished()&&death_->GetHudVisibility()<=0)return;
     left_=l;top_=t;width_=w;height_=h;scale_=(std::min)(w/1920,h/1080);used_=0;
     auto* dx=sprites_->GetDxCommon();const auto viewport=dx->GetBackBufferViewport();const auto scissor=dx->GetBackBufferScissorRect();
     dx->GetCommandList()->RSSetViewports(1,&viewport);sprites_->CommonDrawSetting(true);

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
 #include <string>
@@ -32,8 +32,9 @@ public:
         const Vector3& position,
         bool lethalHit,
         float runtimeScale);
-    void PlayEnemyBulletHitPlayer(const Vector3& position);
-    void PlayPlayerDeathExplosion(const Vector3& position);
+    void PlayEnemyBulletHitPlayer(const Vector3& position, float runtimeScale = 1);
+    void PlayPlayerDeathExplosion(const Vector3& position, float scale = 1,
+        float brightness = 1, float amount = 1, float lifetime = 1);
     void PlayEnemyDeathExplosion(const Vector3& position);
 
     bool IsEnabled() const { return enableCombatEffects_; }
@@ -44,8 +45,9 @@ private:
         const char* effectType,
         float ringScale,
         float ringAlpha,
-        bool ringEnabled);
-    void PlayExplosion(const Vector3& position, const char* effectType);
+        bool ringEnabled, float particleScale = 1);
+    void PlayExplosion(const Vector3& position, const char* effectType,
+        float scale = 1, float brightness = 1, float amount = 1, float lifetime = 1);
     bool PlayGpuEffectAt(const std::string& jsonPath, const Vector3& position, const char* label);
     void RecordEffect(const char* effectType, const Vector3& position, const char* result);
 

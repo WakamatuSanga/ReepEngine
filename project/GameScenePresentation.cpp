@@ -25,6 +25,8 @@
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/PlayerDeathSequenceController.h"
+#include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Core/GameViewport.h"
 
 void GameScene::PrepareForPresentation() {
@@ -44,6 +46,10 @@ void GameScene::PrepareForPresentation() {
         throw std::runtime_error("Stage projectile shared visuals could not be prepared");
     if (!combatEffectController_ || !combatEffectController_->PrepareForPresentation())
         throw std::runtime_error("Stage combat effects could not be prepared");
+    if (!playerDeathSequenceController_ || !playerDeathSequenceController_->PrepareForPresentation())
+        throw std::runtime_error("Stage death presentation could not be prepared");
+    if (!gameOverFlowController_ || !gameOverFlowController_->PrepareForPresentation())
+        throw std::runtime_error("Game Over Sprite menu could not be prepared");
     if (!krakenTentacleMidboss_ || !krakenTentacleMidboss_->IsInitialized())
         throw std::runtime_error("Stage Kraken skinned model could not be prepared");
     if (railShooterCameraRig_) railShooterCameraRig_->PrepareForPresentation();
@@ -108,6 +114,7 @@ void GameScene::DrawOverlay() {
         } else playerHudController_->Draw();
     }
     if (stageStart_) stageStart_->DrawOverlay();
+    if (gameOverFlowController_) gameOverFlowController_->DrawOverlay();
 }
 void GameScene::UpdateStageStartPresentation() {
     MyGame::GetInstance()->GetInput()->SuppressLeftMouseUntilRelease();

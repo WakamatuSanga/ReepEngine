@@ -146,14 +146,17 @@ float Lerp(float start, float end, float t) {
 }
 
 Transform Player::GetVisualTransform() const {
-    return {modelScale_, displayRotationActive_ ? displayRotation_ : visualFinalRotation_, GetDisplayWorldPosition()};
+    return {{modelScale_.x*displayScale_.x,modelScale_.y*displayScale_.y,modelScale_.z*displayScale_.z}, displayRotationActive_ ? displayRotation_ : visualFinalRotation_, GetDisplayWorldPosition()};
 }
 void Player::SetDisplayPose(const Vector3& translationOffset, const Vector3& rotation) {
     displayRotation_ = rotation;
     displayRotationActive_ = true;
     SetDisplayTranslationOffset(translationOffset);
 }
+void Player::SetDisplayScale(const Vector3& scale) { displayScale_=scale; }
 void Player::ClearDisplayPose() {
+    displayScale_={1,1,1};
+    displayOpacity_=-1;
     displayRotationActive_ = false;
     SetDisplayTranslationOffset({});
 }
@@ -176,7 +179,7 @@ bool Player::GetVisualModelBounds(Vector3& minimum, Vector3& maximum) const {
 
 Vector3 Player::TransformVisualModelPointToWorld(const Vector3& modelLocalPoint) const {
     const Matrix4x4 world = MatrixMath::MakeAffine(
-        modelScale_, GetVisualTransform().rotate, GetDisplayWorldPosition());
+        GetVisualTransform().scale, GetVisualTransform().rotate, GetDisplayWorldPosition());
     return {
         modelLocalPoint.x * world.m[0][0]
             + modelLocalPoint.y * world.m[1][0]
@@ -356,6 +359,7 @@ void Player::UpdateCenterVisibilityAssist(float deltaTime) {
 
 void Player::ApplyModelAlpha(float alpha) {
     if (!model_) return;
+    if (displayOpacity_>=0) alpha=displayOpacity_;
     if (Model::Material* material = model_->GetMaterialData()) {
         material->color.w = std::clamp(alpha, 0.0f, 1.0f);
     }
@@ -396,7 +400,7 @@ void Player::UpdateObjectTransform() {
     if (!object_) return;
     object_->SetTranslate(GetDisplayWorldPosition());
     object_->SetRotate(displayRotationActive_ ? displayRotation_ : visualFinalRotation_);
-    object_->SetScale(modelScale_);
+    object_->SetScale(GetVisualTransform().scale);
     if (hitRadiusObject_) {
         hitRadiusObject_->SetTranslate(worldPosition_);
         hitRadiusObject_->SetRotate({});

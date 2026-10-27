@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <string>
 
@@ -36,6 +36,7 @@ public:
     Ray GetMouseRayFromCamera(const Camera& camera) const;
 
     const Rect& GetGameViewportRect() const { return gameViewportRect_; }
+    Vector2 GetClientSize() const;
     Mode GetMode() const { return mode_; }
     bool IsMouseInGameViewport() const { return mouseInGameViewport_; }
     bool IsGameViewHovered() const { return gameViewHovered_; }

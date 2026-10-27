@@ -26,6 +26,10 @@ public:
     void SetTextureSampling(bool clamp, float verticalEdgeFade = 0.0f);
     // Opt-in UI texture opacity separation; existing sprites use the original sample unchanged.
     void SetTextureAlphaScale(float panel, float detail);
+    void SetTextureAlertTint(bool enabled);
+    // Opt-in screen-space static; default sprites keep the original shading.
+    void SetScreenNoise(bool enabled, float timeSeconds = 0, float grainPixels = 2);
+    void SetTextureNoise(bool enabled, float timeSeconds = 0, float strength = .22f, float grainPixels = 2);
 
     // 初期化（SpriteCommon を受け取る）
     void Initialize(SpriteCommon* spriteCommon);
@@ -101,7 +105,8 @@ private:
         Vector4 gradientPoints; // xy: start, zw: end
         Vector4 whiteSelection; // brightness, saturation, their transition half-widths
         Vector4 gradientControl; // enabled, strength, edge fade, clamp sampler
-        Vector4 textureAlphaScale; // panel, detail, reserved, enabled
+        Vector4 textureAlphaScale; // panel, detail, alert tint, enabled
+        Vector4 screenNoise; // mode (0 off, 1 screen, 2 texture), time, grain pixels, mode strength
     };
     static_assert(offsetof(Material, gradientStartColor) == 96);
     static_assert(offsetof(Material, gradientEndColor) == 112);
@@ -109,7 +114,8 @@ private:
     static_assert(offsetof(Material, whiteSelection) == 144);
     static_assert(offsetof(Material, gradientControl) == 160);
     static_assert(offsetof(Material, textureAlphaScale) == 176);
-    static_assert(sizeof(Material) == 192);
+    static_assert(offsetof(Material, screenNoise) == 192);
+    static_assert(sizeof(Material) == 208);
 
     Microsoft::WRL::ComPtr<ID3D12Resource> materialResource_;
     Material* materialData_ = nullptr;

@@ -1,4 +1,4 @@
-#include "Engine/Core/DebugUiWorkspace.h"
+﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "GameViewport.h"
 #include "Engine/Core/WinApp.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -60,6 +60,11 @@ namespace {
             std::isfinite(outPosition.y) &&
             std::isfinite(outPosition.z);
     }
+}
+
+Vector2 GameViewport::GetClientSize() const {
+    return {static_cast<float>(winApp_?winApp_->GetClientWidth():WinApp::kClientWidth),
+        static_cast<float>(winApp_?winApp_->GetClientHeight():WinApp::kClientHeight)};
 }
 
 void GameViewport::Initialize(WinApp* winApp) {

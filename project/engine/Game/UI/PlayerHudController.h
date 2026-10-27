@@ -7,6 +7,7 @@
 class BoostController;
 class PlayerBulletManager;
 class PlayerDamageFeedbackController;
+class PlayerDeathSequenceController;
 class StageCombatState;
 class StageStartSequenceController;
 class EnemyWaveManager;
@@ -22,6 +23,7 @@ public:
     void Initialize(SpriteCommon*, PlayerDamageFeedbackController*, PlayerBulletManager*, BoostController*);
     void BindState(StageCombatState*, EnemyWaveManager*, RailShooterCameraRig*);
     void SetStartSequence(const StageStartSequenceController* sequence) { sequence_ = sequence; }
+    void SetDeathSequence(const PlayerDeathSequenceController* sequence) { death_ = sequence; }
     void Finalize();
     void Reset();
     void SetGameModeActive(bool active) { gameMode_ = active; }
@@ -36,6 +38,7 @@ private:
         Vector2 uvOrigin = {}, Vector2 uvSize = {}, bool frame = false);
     void DrawNumber(const std::string&, Vector2 baseline, bool smallDigits, int group, bool right = false);
     void DrawGroup(int group);
+    void DrawSystemErrors(int group);
     Vector2 Map(Vector2 position, int group) const;
     SpriteCommon* sprites_ = nullptr;
     PlayerDamageFeedbackController* damage_ = nullptr;
@@ -45,12 +48,21 @@ private:
     EnemyWaveManager* waves_ = nullptr;
     RailShooterCameraRig* rig_ = nullptr;
     const StageStartSequenceController* sequence_ = nullptr;
+    const PlayerDeathSequenceController* death_ = nullptr;
     std::unordered_map<std::string, Part> parts_;
     // Every submitted draw owns its constants/vertices until the existing frame fence.
     std::array<std::unique_ptr<Sprite>, 96> pool_;
     size_t used_ = 0;
     uint32_t framesTexture_ = 0;
     uint32_t whiteTexture_ = 0;
+    uint32_t errorTexture_ = 0;
+    Vector2 errorTextureSize_{};
+    int errorCount_ = 24;
+    float errorTextScale_ = 1;
+    float errorBlinkSpeed_ = 5;
+    float errorJitter_ = 6;
+    float errorAlpha_ = 1;
+    Vector3 errorColor_{1, .14f, .07f};
     bool enabled_ = true;
     bool reducedMotion_ = false;
     bool gameMode_ = true;

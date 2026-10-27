@@ -51,6 +51,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon) {
     materialData_->uvTransform = MakeIdentity4x4();
     SetWhiteGradient({});
     materialData_->textureAlphaScale = {1, 1, 0, 0};
+    materialData_->screenNoise = {};
 
     // 4. トランスフォーム用定数バッファ
     transformationMatrixResource_ = dxCommon->CreateBufferResource(sizeof(TransformationMatrix));
@@ -76,6 +77,16 @@ void Sprite::SetWhiteGradient(const WhiteGradientSettings& settings) {
 void Sprite::SetTextureSampling(bool clamp, float verticalEdgeFade) {
     materialData_->gradientControl.z = std::clamp(verticalEdgeFade, 0.0f, 0.5f);
     materialData_->gradientControl.w = clamp ? 1.0f : 0.0f;
+}
+
+void Sprite::SetScreenNoise(bool enabled, float timeSeconds, float grainPixels) {
+    materialData_->screenNoise = {enabled ? 1.0f : 0.0f, timeSeconds,
+        std::clamp(grainPixels, 1.0f, 6.0f), .03f};
+}
+
+void Sprite::SetTextureNoise(bool enabled, float timeSeconds, float strength, float grainPixels) {
+    materialData_->screenNoise = {enabled ? 2.0f : 0.0f, timeSeconds,
+        std::clamp(grainPixels, 1.0f, 6.0f), std::clamp(strength, 0.0f, 1.0f)};
 }
 
 void Sprite::SetTexture(const std::string& filePath)
@@ -169,4 +180,7 @@ void Sprite::Draw() {
 
 void Sprite::SetTextureAlphaScale(float panel, float detail) {
     materialData_->textureAlphaScale = {std::clamp(panel, 0.0f, 3.0f), std::clamp(detail, 0.0f, 1.0f), 0, 1};
+}
+void Sprite::SetTextureAlertTint(bool enabled) {
+    materialData_->textureAlphaScale.z = enabled ? 1.0f : 0.0f;
 }

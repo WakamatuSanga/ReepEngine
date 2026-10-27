@@ -7,6 +7,7 @@
 #include "Engine/Graphics/Particle/GpuParticleEffectSerializer.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
+#include "GpuParticleFollowingEffect.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -41,6 +42,7 @@ bool GpuParticleEffectPlayer::Initialize(DirectXCommon* dxCommon, SrvManager* sr
 }
 
 void GpuParticleEffectPlayer::Finalize() {
+    followingEffects_.clear();
     effects_.clear();
     activeParticleEstimate_ = 0;
     playCount_ = missingJsonCount_ = failedPlayCount_ = 0;
@@ -59,9 +61,11 @@ void GpuParticleEffectPlayer::Update(float deltaTime, const Camera* camera) {
         instance->system->Update(camera);
         activeParticleEstimate_ += instance->system->GetActiveCountEstimate();
     }
+    UpdateFollowingEffects(deltaTime, camera);
 }
 
 void GpuParticleEffectPlayer::Draw() {
+    DrawFollowingEffects();
     for (const std::unique_ptr<EffectInstance>& instance : effects_) {
         if (!instance || !instance->system || !instance->loaded || !instance->playing) {
             continue;
@@ -103,6 +107,23 @@ bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& jsonPat
     ++playCount_;
     RecordResult(jsonPath, position, "Played GPU particle effect");
     return true;
+}
+
+bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& path, const Vector3& position,
+    float scale, float brightness, float amount, float lifetime) {
+    auto* instance=FindOrCreateInstance(path);
+    if(!instance||(!instance->loaded&&!LoadInstance(*instance)))return false;
+    auto data=instance->data;scale=std::clamp(scale,.1f,4.0f);brightness=std::clamp(brightness,0.0f,3.0f);
+    amount=std::clamp(amount,.1f,2.0f);lifetime=std::clamp(lifetime,.2f,3.0f);
+    for(auto& type:data.particleTypes){type.startScale*=scale;type.endScale*=scale;type.speedMin*=scale;type.speedMax*=scale;
+        type.lifeTimeMin*=lifetime;type.lifeTimeMax*=lifetime;
+        for(auto* color:{&type.baseColor,&type.startColor,&type.endColor}){color->x*=brightness;color->y*=brightness;color->z*=brightness;}}
+    for(auto& emitter:data.emitters){emitter.radius*=scale;emitter.emitCount=static_cast<uint32_t>(std::clamp(static_cast<float>(emitter.emitCount)*amount,0.0f,1024.0f));}
+    if(!instance->system->PlayEffectDataAt(data,position))return false;
+    instance->playing=true;++playCount_;RecordResult(path,position,"Played bounded runtime variation");return true;
+}
+void GpuParticleEffectPlayer::StopEffect(const std::string& path){
+    if(auto* instance=FindInstance(path);instance&&instance->system){instance->system->ResetParticlePool();instance->playing=false;}
 }
 
 bool GpuParticleEffectPlayer::PrepareEffect(const std::string& jsonPath) {

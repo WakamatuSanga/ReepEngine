@@ -133,6 +133,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="engine\Game\Effect\GpuParticleFollowingEffect.cpp" />
+    <ClCompile Include="GameSceneDeathPresentation.cpp" />
     <ClCompile Include="engine\Audio\Audio.cpp" />
     <ClCompile Include="engine\Animation\AnimationClip.cpp" />
     <ClCompile Include="engine\Editor\Camera\EditorCameraController.cpp" />
@@ -319,7 +321,6 @@
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
     <ClCompile Include="engine\math\Matrix4x4.cpp" />
-    <ClCompile Include="GameOverScene.cpp" />
     <ClCompile Include="GameSceneSkinningPreview.cpp" />
     <ClCompile Include="GameSceneSkinningEditorInitialize.cpp" />
     <ClCompile Include="GameSceneKrakenTentacleMidboss.cpp" />
@@ -453,6 +454,7 @@
     <ClCompile Include="engine\Core\WinApp.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="engine\Game\Effect\GpuParticleFollowingEffect.h" />
     <ClInclude Include="engine\Audio\Audio.h" />
     <ClInclude Include="engine\Animation\AnimationClip.h" />
     <ClInclude Include="engine\Editor\Camera\EditorCameraController.h" />
@@ -561,7 +563,6 @@
     <ClInclude Include="externals\imgui\imstb_textedit.h" />
     <ClInclude Include="externals\imgui\imstb_truetype.h" />
     <ClInclude Include="engine\math\Matrix4x4.h" />
-    <ClInclude Include="GameOverScene.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="engine\Graphics\Particle\GpuParticleCompute.h" />
     <ClInclude Include="engine\Graphics\Particle\GpuParticleEffectData.h" />

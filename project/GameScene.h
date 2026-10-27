@@ -95,6 +95,8 @@ private:
     std::unique_ptr<StageStartSequenceController> stageStart_;
     std::unique_ptr<StageCombatState> stageCombatState_;
     void UpdateStageStartPresentation();
+    void UpdateDeathPresentation();
+    bool deathPresentationEntered_ = false;
 
     void InitializeSceneResources();
     void InitializeSkinningEditorPreview();

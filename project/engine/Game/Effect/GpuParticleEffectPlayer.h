@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Engine/math/Matrix4x4.h"
 #include <cstdint>
@@ -23,8 +23,27 @@ public:
     void DrawImGui();
 
     bool PlayGpuParticleEffectAt(const std::string& jsonPath, const Vector3& position);
+    bool PlayGpuParticleEffectAt(const std::string& jsonPath, const Vector3& position,
+        float scale, float brightness, float amount, float lifetime);
+    void StopEffect(const std::string& jsonPath);
     bool PrepareEffect(const std::string& jsonPath);
     bool ReloadEffect(const std::string& jsonPath);
+
+    using FollowHandle = uint64_t;
+    struct DamageSource {
+        Vector3 position{};
+        Vector3 direction{0, 1, 0};
+        float scale = 1;
+        float intensity = 1;
+        float smokeMix = 0.65f;
+        float duration = 4.6f;
+    };
+    bool PrepareDamageEffect();
+    FollowHandle StartDamageEffect(const DamageSource& source);
+    bool FollowDamageEffect(FollowHandle handle, const DamageSource& source);
+    void StopDamageEmission(FollowHandle handle); // Existing particles finish naturally.
+    void EndDamageEffect(FollowHandle handle); // Force-clear, including particles.
+    bool IsDamageEffectAlive(FollowHandle handle) const;
 
     const std::string& GetLastEffectPath() const { return lastEffectPath_; }
     const std::string& GetLastResult() const { return lastResult_; }
@@ -36,6 +55,12 @@ public:
 
 private:
     struct EffectInstance;
+    struct FollowingEffect;
+    void UpdateFollowingEffects(float deltaTime, const Camera* camera);
+    void DrawFollowingEffects();
+    void ConfigureFollowingEffect(FollowingEffect& effect);
+    std::vector<std::unique_ptr<FollowingEffect>> followingEffects_;
+    uint64_t nextFollowHandle_ = 0;
 
     EffectInstance* FindInstance(const std::string& jsonPath);
     EffectInstance* FindOrCreateInstance(const std::string& jsonPath);

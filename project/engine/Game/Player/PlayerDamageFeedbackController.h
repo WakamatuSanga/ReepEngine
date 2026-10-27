@@ -6,6 +6,7 @@
 
 class CombatEffectController;
 class Player;
+class PlayerDeathSequenceController;
 class Sprite;
 class SpriteCommon;
 
@@ -27,6 +28,7 @@ public:
     int GetHp() const { return hp_; }
     int GetMaxHp() const { return maxHp_; }
     uint64_t GetDamageFeedbackCount() const { return damageFeedbackCount_; }
+    void SetDeathSequence(PlayerDeathSequenceController* sequence) { deathSequence_ = sequence; }
 
 private:
     void ResetHp();
@@ -35,6 +37,7 @@ private:
 
     SpriteCommon* spriteCommon_ = nullptr;
     Player* player_ = nullptr;
+    PlayerDeathSequenceController* deathSequence_ = nullptr;
     CombatEffectController* combatEffectController_ = nullptr;
     std::unique_ptr<Sprite> flashSprite_;
 

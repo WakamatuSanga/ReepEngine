@@ -47,9 +47,10 @@ void GameScene::DrawSceneRender() {
     auto particleManager = ParticleManager::GetInstance();
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
     const bool stageStartActive = stageStart_ && stageStart_->IsActive();
-    const bool aircraftVisible = !stageStartActive || stageStart_->IsAircraftVisible();
+    const bool deathActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
+    const bool aircraftVisible = (!stageStartActive || stageStart_->IsAircraftVisible()) && (!deathActive || playerDeathSequenceController_->IsAircraftVisible());
     const bool shouldDrawDebugVisuals =
-        !stageStartActive && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+        !stageStartActive && !deathActive && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
         runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
@@ -94,23 +95,24 @@ void GameScene::DrawSceneRender() {
     if (player_ && aircraftVisible) {
         player_->Draw();
     }
-    if (playerBulletManager_) {
+    if (playerBulletManager_ && !deathActive) {
         playerBulletManager_->Draw();
     }
-    if (enemyManager_) {
+    if (enemyManager_ && !deathActive) {
         enemyManager_->Draw();
     }
-    if (enemyBulletManager_) {
+    if (enemyBulletManager_ && !deathActive) {
         enemyBulletManager_->Draw();
     }
-    if (enemyLaserTelegraphController_ && !shadowDebugSettings.disableEffects) {
+    if (enemyLaserTelegraphController_ && !deathActive && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->Draw();
     }
     if (influenceFieldManager_) {
         influenceFieldManager_->DrawDebug();
     }
-    DrawKrakenTentacleMidboss();
-    if (!stageStartActive && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+    if (!deathActive) DrawKrakenTentacleMidboss();
+    if (deathActive) playerDeathSequenceController_->Draw();
+    if (!stageStartActive && !deathActive && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }
     if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
@@ -162,7 +164,7 @@ void GameScene::DrawSceneRender() {
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }
-    if (player_ && !shadowDebugSettings.disableEffects) {
+    if (player_ && !shadowDebugSettings.disableEffects && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
         auto rtv = dxCommon->GetRenderTextureRTV();
         auto dsv = dxCommon->GetDepthStencilView();
         dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
@@ -183,7 +185,7 @@ void GameScene::DrawSceneRender() {
     if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();
     }
-    if (enemyLaserTelegraphController_ && !shadowDebugSettings.disableEffects) {
+    if (enemyLaserTelegraphController_ && !deathActive && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->DrawAfterCloud();
     }
 
@@ -198,10 +200,10 @@ void GameScene::DrawSceneRender() {
     if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
         impactDistortionController_->Draw();
     }
-    if (!stageStartActive && aimCorridorVisualController_) {
+    if (!stageStartActive && aimCorridorVisualController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
         aimCorridorVisualController_->Draw();
     }
-    if (!stageStartActive && aimCorridorTargetingController_) {
+    if (!stageStartActive && aimCorridorTargetingController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
         aimCorridorTargetingController_->Draw();
     }
 
@@ -212,9 +214,6 @@ void GameScene::DrawSceneRender() {
     // HUD is composited in DrawOverlay after world post effects, before cloud transitions.
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
-    }
-    if (playerDeathSequenceController_) {
-        playerDeathSequenceController_->Draw();
     }
     if (postEffectController_) {
         postEffectController_->Draw();
