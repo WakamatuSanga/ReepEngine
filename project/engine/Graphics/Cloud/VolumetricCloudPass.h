@@ -78,7 +78,7 @@ public:
     void SetGameplayFlowActive(bool active) { gameplayFlowActive_ = active; }
     float GetCurrentCloudFlowSpeed() const { return currentCloudFlowSpeed_; }
     float GetCloudFlowPhase() const { return cloudFlowPhase_; }
-    float GetCloudResolutionScale() const { return settings_.cloudResolutionScale_; }
+    float GetCloudResolutionScale() const;
     bool IsLowResolutionCloudEnabled() const { return settings_.useLowResolutionCloud_; }
     bool IsCloudCompositeEnabled() const { return settings_.enableCloudComposite_ && !diagnosticDisableCloudComposite_; }
     bool IsDepthAwareUpsampleEnabled() const { return settings_.enableDepthAwareUpsample_ && !diagnosticDisableDepthAwareUpsample_; }
@@ -143,6 +143,7 @@ private:
         Vector4 cameraTunnelDirectionRadius;
         Vector4 accumulatedFlowOffset;
         Vector4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
+        Vector4 comparisonShadow{},comparisonHighlight{},comparisonSun{},comparisonSunColor{},targetComposition{},seaRefinement{};
     };
 
     struct CloudCompositeConstants {
@@ -228,6 +229,7 @@ private:
     bool diagnosticDisableDepthAwareUpsample_ = false;
     bool recreateCloudBufferRequested_ = false;
     bool hasValidCloudBuffer_ = false;
+    std::array<Vector4,11> comparisonState_{};
     bool cloudColorSrvAllocated_ = false;
     Vector3 currentCloudFlowDirection_{ 0.0f, 0.0f, -1.0f };
     bool gameplayFlowActive_ = false;

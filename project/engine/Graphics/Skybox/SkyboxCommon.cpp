@@ -25,7 +25,7 @@ void SkyboxCommon::CreateRootSignature() {
     D3D12_ROOT_PARAMETER rootParameters[2]{};
 
     rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+    rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rootParameters[0].Descriptor.ShaderRegister = 0;
 
     D3D12_DESCRIPTOR_RANGE descriptorRange[1]{};

@@ -29,6 +29,15 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     float edgeSoftness = max(gBeam.qualityParams.y, 0.5f);
     float tipFadePower = max(gBeam.qualityParams.z, 0.2f);
 
+    if(mode==4u || mode==5u) {
+        float u=saturate(input.uv.x),edge=abs(input.uv.y*2-1);
+        float band=pow(saturate(1-edge),edgeSoftness);
+        float cap=smoothstep(0,.16,u)*(1-smoothstep(.84,1,u));
+        float alpha=band*cap*alphaScale;
+        if(alpha<=.01)discard;
+        float3 hue=mode==4u?float3(1,.82,.025):float3(1,.025,.24);
+        return MakeOutput(float4(hue*brightness,alpha));
+    }
     if (mode == 1u)
     {
         float2 centered = input.uv * 2.0f - 1.0f;

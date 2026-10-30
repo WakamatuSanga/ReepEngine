@@ -53,6 +53,7 @@ struct CloudPassConstants
     float4 cameraTunnelDirectionRadius; // xyz:direction w:radius
     float4 accumulatedFlowOffset;
     float4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
+    float4 comparisonShadow,comparisonHighlight,comparisonSun,comparisonSunColor,targetComposition;
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -64,6 +65,14 @@ struct VertexShaderOutput
 };
 
 static const uint kInfluenceFieldFlagAffectCloud = 1u << 2;
+
+float3 ApplyCloudComparison(float3 color,float lighting,float visibility) {
+    if(gCloudPass.comparisonShadow.w<=0 || gCloudPass.debugViewMode!=0)return color;
+    float form=gCloudPass.comparisonHighlight.w>0?pow(saturate(visibility),gCloudPass.comparisonHighlight.w):smoothstep(.2,.95,lighting);
+    float3 tint=lerp(gCloudPass.comparisonShadow.rgb,gCloudPass.comparisonHighlight.rgb,form);
+    if(gCloudPass.comparisonSun.w>0)tint*=gCloudPass.comparisonSunColor.rgb;
+    return lerp(color,color*tint,gCloudPass.comparisonShadow.w);
+}
 
 float Hash31(float3 p)
 {
@@ -361,7 +370,7 @@ float4 ComputeFarCloudLayer(float2 uv, float3 rayDirection, float depth)
     float topScreenMask = 1.0f - smoothstep(0.35f, 0.98f, uv.y);
     float cloudMask = smoothstep(0.42f, 0.72f, noiseValue);
     float alpha = saturate(cloudMask * topScreenMask * distanceMask * gCloudPass.farCloudLayerExtra.x);
-    return float4(gCloudPass.farCloudColor.rgb * alpha, alpha);
+    return float4(ApplyCloudComparison(gCloudPass.farCloudColor.rgb,1,1) * alpha, alpha);
 }
 
 float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
@@ -403,7 +412,7 @@ float4 ComputeCloudSeaLayer(float2 uv, float3 rayDirection, float depth)
     float cloudMask = smoothstep(0.50f - softness, 0.50f + softness, noiseValue);
     float horizonMask = 1.0f - smoothstep(0.60f, 1.0f, uv.y);
     float alpha = saturate(cloudMask * depthMask * widthMask * horizonMask * gCloudPass.cloudSeaLayer.w);
-    return float4(gCloudPass.cloudSeaColor.rgb * alpha, alpha);
+    return float4(ApplyCloudComparison(gCloudPass.cloudSeaColor.rgb,1,1) * alpha, alpha);
 }
 
 float4 ComputeCloudNoiseDebug(float2 uv, float3 rayDirection, float depth)
@@ -457,6 +466,7 @@ float ComputeLightTransmittance(
 
 float4 main(VertexShaderOutput input) : SV_TARGET0
 {
+    if(gCloudPass.targetComposition.x>.5 && (gCloudPass.targetComposition.w<.5 || gCloudPass.targetComposition.y<=.001))return float4(0,0,0,0);
     float2 depthTextureSize = max(gCloudPass.renderInfo.xy, float2(1.0f, 1.0f));
     uint2 pixelCoord = min(uint2(input.texcoord * depthTextureSize), uint2(depthTextureSize - 1.0f));
     float depth = gDepthTexture.Load(int3(pixelCoord, 0));
@@ -533,7 +543,7 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
         accumulatedDensity += density;
 
         float alpha = 1.0f - exp(-density * gCloudPass.absorption * stepSize);
-        float3 sampleColor = gCloudPass.cloudColor.rgb * lighting;
+        float3 sampleColor = ApplyCloudComparison(gCloudPass.cloudColor.rgb * lighting,lighting,lightTransmittance);
 
         accumulatedColor += transmittance * alpha * sampleColor;
         transmittance *= (1.0f - alpha);

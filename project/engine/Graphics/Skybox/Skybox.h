@@ -14,6 +14,7 @@ public:
 
     struct TransformationMatrix {
         Matrix4x4 WVP;
+        Vector4 styleControl{},styleZenith{},styleHorizon{},styleCloudShadow{},styleCloudHighlight{},styleSun{},styleSunColor{},styleCumulus{},styleCamera{},styleCumulusExtra{},styleCumulusDistribution{},styleCloudRelief{},styleCloudLayout{};
         Vector4 blueFraming{}; // x: title-only strength, zero keeps the original sky.
     };
 

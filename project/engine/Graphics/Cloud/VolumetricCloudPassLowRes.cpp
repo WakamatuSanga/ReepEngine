@@ -1,4 +1,4 @@
-﻿#include "VolumetricCloudPass.h"
+#include "VolumetricCloudPass.h"
 #include "VolumetricCloudPipelineResources.h"
 
 #include "CloudVolume.h"
@@ -165,8 +165,9 @@ void VolumetricCloudPass::EnsureCloudBuffer()
     settings_.cloudResolutionScale_ = std::clamp(settings_.cloudResolutionScale_, 0.125f, 1.0f);
     const uint32_t renderWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
     const uint32_t renderHeight = dxCommon_ ? dxCommon_->GetRenderTextureHeight() : WinApp::kClientHeight;
-    const uint32_t requestedWidth = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderWidth) * settings_.cloudResolutionScale_)));
-    const uint32_t requestedHeight = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderHeight) * settings_.cloudResolutionScale_)));
+    const float effectiveResolution=GetCloudResolutionScale();
+    const uint32_t requestedWidth = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderWidth) * effectiveResolution)));
+    const uint32_t requestedHeight = (std::max)(1u, static_cast<uint32_t>(std::ceil(static_cast<float>(renderHeight) * effectiveResolution)));
     if (!recreateCloudBufferRequested_ && cloudColorResource_ && cloudBufferWidth_ == requestedWidth && cloudBufferHeight_ == requestedHeight) {
         return;
     }

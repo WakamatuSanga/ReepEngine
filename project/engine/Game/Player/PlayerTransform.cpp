@@ -1,4 +1,5 @@
-﻿#include "Player.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Player.h"
 #include "FlightTuning.h"
 
 #include "Engine/Graphics/Camera/Camera.h"
@@ -146,7 +147,8 @@ float Lerp(float start, float end, float t) {
 }
 
 Transform Player::GetVisualTransform() const {
-    return {{modelScale_.x*displayScale_.x,modelScale_.y*displayScale_.y,modelScale_.z*displayScale_.z}, displayRotationActive_ ? displayRotation_ : visualFinalRotation_, GetDisplayWorldPosition()};
+    const float visual=RenderStyleComparison::PlayerDisplayScale();
+    return {{modelScale_.x*displayScale_.x*visual,modelScale_.y*displayScale_.y*visual,modelScale_.z*displayScale_.z*visual}, displayRotationActive_ ? displayRotation_ : visualFinalRotation_, GetDisplayWorldPosition()};
 }
 void Player::SetDisplayPose(const Vector3& translationOffset, const Vector3& rotation) {
     displayRotation_ = rotation;

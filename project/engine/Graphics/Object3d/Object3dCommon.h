@@ -26,6 +26,8 @@ public:
     // blendModeを指定できるように変更
     void CommonDrawSetting(BlendMode blendMode = BlendMode::kNormal);
 
+    void CommonDrawOutlineSetting();
+
     // ゲッター
     DirectXCommon* GetDxCommon() const { return dxCommon_; }
 
@@ -41,4 +43,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
     // ブレンドモードごとのPSOを配列で持つ
     std::vector<Microsoft::WRL::ComPtr<ID3D12PipelineState>> graphicsPipelineStates_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> outlineState_;
 };

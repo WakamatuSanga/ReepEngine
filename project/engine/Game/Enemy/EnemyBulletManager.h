@@ -1,10 +1,11 @@
-﻿#pragma once
+#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
 
+class ProjectileBeamVisual;
 class Camera;
 class EnemyBullet;
 class Object3dCommon;
@@ -21,6 +22,7 @@ public:
     bool PrepareForPresentation();
     void Update(float deltaTime);
     void Draw();
+    void DrawAfterCloud();
     void DrawImGui();
 
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity);
@@ -45,6 +47,7 @@ private:
     void RemoveDeadBullets();
     void ApplyModelRotationOffsetToAllBullets();
 
+    std::unique_ptr<ProjectileBeamVisual> normalBeamVisual_;
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
     StageCombatState* combatState_ = nullptr;
