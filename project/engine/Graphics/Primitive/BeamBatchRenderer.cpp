@@ -1,4 +1,4 @@
-#include "PlayerJetExhaustBeamRenderer.h"
+#include "BeamBatchRenderer.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -9,6 +9,13 @@
 #include <cstring>
 #include <d3dcompiler.h>
 
+struct BeamBatchRenderer::PipelineBundle {
+    ID3D12Device* device=nullptr;
+    bool preserveAlpha=false,projectiles=false;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> additive,alpha,solid;
+};
+
 namespace {
     constexpr size_t kInitialVertexCapacity = 32;
 
@@ -17,7 +24,7 @@ namespace {
     }
 }
 
-bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha) {
+bool BeamBatchRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha, bool normalProjectileBlend) {
     initialized_ = false;
     dxCommon_ = dxCommon;
     constantData_ = nullptr;
@@ -34,11 +41,25 @@ bool PlayerJetExhaustBeamRenderer::Initialize(DirectXCommon* dxCommon, bool pres
         return false;
     }
 
-    initialized_ = EnsureVertexCapacity(kInitialVertexCapacity) && CreateRootSignature() && CreatePipelineState(preserveDestinationAlpha);
+    static std::vector<std::weak_ptr<PipelineBundle>> cache;
+    pipelines_.reset();
+    for(auto it=cache.begin();it!=cache.end();) {
+        auto shared=it->lock();
+        if(!shared){it=cache.erase(it);continue;}
+        if(shared->device==dxCommon_->GetDevice()&&shared->preserveAlpha==preserveDestinationAlpha&&shared->projectiles==normalProjectileBlend)pipelines_=shared;
+        ++it;
+    }
+    if(pipelines_){rootSignature_=pipelines_->root;pipelineState_=pipelines_->additive;normalProjectilePipeline_=pipelines_->alpha;solidProjectilePipeline_=pipelines_->solid;}
+    else {
+        if(!CreateRootSignature()||!CreatePipelineState(preserveDestinationAlpha,normalProjectileBlend))return false;
+        pipelines_=std::make_shared<PipelineBundle>();pipelines_->device=dxCommon_->GetDevice();pipelines_->preserveAlpha=preserveDestinationAlpha;pipelines_->projectiles=normalProjectileBlend;
+        pipelines_->root=rootSignature_;pipelines_->additive=pipelineState_;pipelines_->alpha=normalProjectilePipeline_;pipelines_->solid=solidProjectilePipeline_;cache.push_back(pipelines_);
+    }
+    initialized_ = EnsureVertexCapacity(normalProjectileBlend?4096*72:kInitialVertexCapacity);
     return initialized_;
 }
 
-void PlayerJetExhaustBeamRenderer::Draw(
+void BeamBatchRenderer::Draw(
     const std::vector<Vertex>& vertices,
     const Camera* camera,
     float brightness,
@@ -78,14 +99,15 @@ void PlayerJetExhaustBeamRenderer::Draw(
         return;
     }
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
-    commandList->SetPipelineState(pipelineState_.Get());
+    if ((mode == 8u || mode == 9u) && solidProjectilePipeline_) commandList->SetPipelineState(solidProjectilePipeline_.Get());
+    else commandList->SetPipelineState((mode == 6u || mode == 7u) && normalProjectilePipeline_ ? normalProjectilePipeline_.Get() : pipelineState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, constantResource_->GetGPUVirtualAddress());
     commandList->DrawInstanced(static_cast<UINT>(vertices.size()), 1, 0, 0);
 }
 
-bool PlayerJetExhaustBeamRenderer::CreateRootSignature() {
+bool BeamBatchRenderer::CreateRootSignature() {
     D3D12_ROOT_PARAMETER rootParameter{};
     rootParameter.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rootParameter.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -116,13 +138,13 @@ bool PlayerJetExhaustBeamRenderer::CreateRootSignature() {
     return SUCCEEDED(hr);
 }
 
-bool PlayerJetExhaustBeamRenderer::CreatePipelineState(bool preserveDestinationAlpha) {
+bool BeamBatchRenderer::CreatePipelineState(bool preserveDestinationAlpha, bool normalProjectileBlend) {
     Microsoft::WRL::ComPtr<IDxcBlob> vertexShaderBlob = dxCommon_->CompileShader(L"resources/shaders/PlayerJetExhaustBeam.VS.hlsl", L"vs_6_0");
     Microsoft::WRL::ComPtr<IDxcBlob> pixelShaderBlob = dxCommon_->CompileShader(L"resources/shaders/PlayerJetExhaustBeam.PS.hlsl", L"ps_6_0");
     assert(vertexShaderBlob);
     assert(pixelShaderBlob);
 
-    D3D12_INPUT_ELEMENT_DESC inputElements[2]{};
+    D3D12_INPUT_ELEMENT_DESC inputElements[4]{};
     inputElements[0].SemanticName = "POSITION";
     inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;
     inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
@@ -130,6 +152,12 @@ bool PlayerJetExhaustBeamRenderer::CreatePipelineState(bool preserveDestinationA
     inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;
     inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
+    inputElements[2].SemanticName = "NORMAL";
+    inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+    inputElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+    inputElements[3].SemanticName = "TEXCOORD";inputElements[3].SemanticIndex=1;
+    inputElements[3].Format = DXGI_FORMAT_R32_FLOAT;
+    inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc{};
     desc.pRootSignature = rootSignature_.Get();
     desc.InputLayout = { inputElements, _countof(inputElements) };
@@ -159,10 +187,28 @@ bool PlayerJetExhaustBeamRenderer::CreatePipelineState(bool preserveDestinationA
 
     HRESULT hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState_));
     assert(SUCCEEDED(hr));
+    if (FAILED(hr)) return false;
+    normalProjectilePipeline_.Reset();
+    if (normalProjectileBlend) {
+        // Only the short projectile core replaces background color. Other modes
+        // keep the original additive PSO, depth test and destination alpha.
+        desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&normalProjectilePipeline_));
+        assert(SUCCEEDED(hr));
+        if(FAILED(hr))return false;
+        auto solidShader=dxCommon_->CompileShader(L"resources/shaders/ProjectileLaser.PS.hlsl",L"ps_6_0");
+        if(!solidShader)return false;
+        desc.PS={solidShader->GetBufferPointer(),solidShader->GetBufferSize()};
+        desc.RasterizerState.CullMode=D3D12_CULL_MODE_BACK;
+        desc.RasterizerState.DepthClipEnable=TRUE;
+        desc.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ALL;
+        hr=dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc,IID_PPV_ARGS(&solidProjectilePipeline_));
+        assert(SUCCEEDED(hr));
+    }
     return SUCCEEDED(hr);
 }
 
-bool PlayerJetExhaustBeamRenderer::EnsureVertexCapacity(size_t vertexCount) {
+bool BeamBatchRenderer::EnsureVertexCapacity(size_t vertexCount) {
     if (vertexCount == 0) {
         return true;
     }

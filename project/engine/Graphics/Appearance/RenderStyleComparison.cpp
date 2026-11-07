@@ -36,18 +36,39 @@ CandidateSettings MakeTargetCandidate(){
 }
 CloudCompositionSettings MakeRefinedCloudSettings() {
     CloudCompositionSettings c;
-    c.baseHeight=-34;c.towerHeight=46;c.towerCoverage=.70f;
+    c.baseHeight=-34;c.towerHeight=40;c.towerCoverage=.70f;c.worldOffset={15,20};
+    c.mediumRelief=8.0f;c.seaNoiseMultiplier=1.15f;c.farTraceSteps=96;c.seaShapeMode=2;
     c.shadowColor={.22f,.46f,.74f};c.lightColor={1,.99f,.94f};
     c.seaBelow=40;c.seaThickness=40;c.seaWidth=180;c.seaDepth=260;
+    c.seaShadowColor={.24f,.50f,.78f};
     return c;
 }
+CloudCompositionSettings MakeAdjustedCloudSettings() {
+    auto c=MakeRefinedCloudSettings(); // The approved distant cumulus is identical.
+    c.seaShapeMode=3;c.seaNoiseMultiplier=1;c.seaCoreWidth=.095f;
+    c.seaBelow=36;c.seaThickness=44;c.seaShadeContrast=1.30f;c.seaShadowLift=.35f;
+    return c;
+}
+CloudCompositionSettings MakeDepthCloudSettings() {
+    auto c=MakeAdjustedCloudSettings();c.depthLayout=true;c.viewSteps=.5f;
+    c.seaBelow=30;c.seaThickness=48;c.seaWidth=240;c.seaDepth=420;c.seaNoiseMultiplier=.90f;
+    c.seaShadowColor={.23f,.48f,.77f};c.shadowColor=c.seaShadowColor;
+    c.lightColor=c.seaLightColor={1,.99f,.94f};return c;
+}
+NormalBeamSettings& GetNormalBeamSettings() {
+    if(settings.presentation.beamVariant==BeamVariant::Depth)return settings.presentation.depthBeams;
+    return settings.presentation.beamVariant==BeamVariant::Adjusted
+        ? settings.presentation.adjustedBeams : settings.presentation.previousBeams;
+}
 CloudCompositionSettings& GetCloudSettings() {
+    if(settings.presentation.cloudVariant==CloudVariant::Depth)return settings.presentation.depthClouds;
+    if(settings.presentation.cloudVariant==CloudVariant::Adjusted)return settings.presentation.adjustedClouds;
     return settings.presentation.cloudVariant==CloudVariant::Refined
         ? settings.presentation.refinedClouds : settings.presentation.clouds;
 }
 bool IsRefinedClouds() {
     return IsTargetBackground()&&settings.presentation.stage>=3
-        &&settings.presentation.cloudVariant==CloudVariant::Refined;
+        &&settings.presentation.cloudVariant!=CloudVariant::Previous;
 }
 CandidateSettings& GetCandidateSettings(){return settings.candidate==Candidate::Initial?settings.initial:settings.candidate==Candidate::Emphasized?settings.emphasized:settings.target;}
 bool IsTargetPresentation(){return settings.mode!=Mode::Original&&settings.candidate==Candidate::CloudSeaTarget;}
@@ -86,14 +107,39 @@ BackgroundData ResolveBackground(){
         r.cumulusShadow=Color(c.shadowColor);r.cumulusLight=Color(c.lightColor);
         if(IsRefinedClouds()) {
             r.cloudRelief={c.macroRelief,c.mediumRelief,c.fineRelief,1};
-            r.cloudLayout={c.layoutVariation,c.bankFill,0,0};
+            r.cloudLayout={c.layoutVariation,c.bankFill,static_cast<float>(std::clamp(c.farTraceSteps,48,96)),0};
             r.seaRefinement={c.seaNoiseMultiplier,c.seaCoreWidth,c.seaShadowLift,1};
+            if(c.depthLayout){r.depthControl={1,c.volumetricBanks?c.nearVolumeRange:0,c.enableCumulus?1.f:0.f,c.bankDensity};r.depthStyle={c.highCloudStrength,static_cast<float>(c.depthFarSteps),c.bankScale,c.bankSpacing};r.cloudLayout.w=c.corridorHalfWidth;}
+            r.seaContour={static_cast<float>(std::clamp(c.seaShapeMode,1,3)),c.seaShadeContrast,0,0};
             r.cloudShadow=Color(c.seaShadowColor,1);r.cloudHighlight=Color(c.seaLightColor,1);
+            if(c.depthLayout){r.cumulusShadow=r.cloudShadow;r.cumulusLight=r.cloudHighlight;}
         }
     }return r;
 }
 #ifdef USE_IMGUI
 namespace {
+void DrawBeamControls(){
+    if(!ImGui::CollapsingHeader("短い通常ビームの視認性"))return;
+    auto& p=settings.presentation;int variant=static_cast<int>(p.beamVariant);
+    const char* variants[]{"調整前：加算", "前候補：有色の芯", "立体レーザー"};
+    if(ImGui::Combo("通常ビームの比較",&variant,variants,3))p.beamVariant=static_cast<BeamVariant>(variant);
+    auto& b=GetNormalBeamSettings();
+    ImGui::BeginDisabled(b.solidPrism);
+    ImGui::Checkbox("通常弾専用の有色コア",&b.opaqueCore);
+    ImGui::EndDisabled();
+    if(p.beamVariant==BeamVariant::Depth){
+        ImGui::Checkbox("本体を実体のある角柱で描画",&b.solidPrism);
+        ImGui::SliderFloat("レーザー本体の太さ",&b.widthScale,1,2.5f);
+        ImGui::SliderFloat("レーザー本体の長さ",&b.lengthScale,.75f,1.5f);
+        ImGui::SliderFloat("芯の明るい色",&b.coreWhiteness,.3f,.85f);
+        ImGui::SliderFloat("短い光跡の割合",&b.trailRatio,0,.45f);
+    }
+    ImGui::SliderFloat("通常ビームの不透明度",&b.opacity,.1f,1);
+    ImGui::SliderFloat("通常ビームの色・明度",&b.brightness,.5f,2);
+    if(b.opaqueCore)ImGui::SliderFloat("通常ビームの周辺光",&b.haloOpacity,0,.3f);
+    if(ImGui::Button("通常ビームだけ初期値へ"))b=p.beamVariant==BeamVariant::Depth?NormalBeamSettings{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f}:p.beamVariant==BeamVariant::Adjusted?NormalBeamSettings{true,.98f,1.55f,.10f}:NormalBeamSettings{};
+    ImGui::TextWrapped("通常弾の表示のみ。長さ・幅・速度・威力・深度、ロック弾、排気、特殊ビームは維持します。");
+}
 void DrawCloudControls(){
     auto& p=settings.presentation;
         if(ImGui::CollapsingHeader("積雲・下方の雲海（今回追加）",ImGuiTreeNodeFlags_DefaultOpen)){
@@ -101,15 +147,31 @@ void DrawCloudControls(){
                 ImGui::TextWrapped("この項目は目標C・段階3へ即時反映します。");
                 if(ImGui::Button("積雲・雲海を表示して調整")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;settings.diagnostic=Diagnostic::None;}
             }
+            if(ImGui::Button("奥行き雲・立体レーザー候補")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Depth;p.beamVariant=BeamVariant::Depth;settings.diagnostic=Diagnostic::None;}
+            if(ImGui::Button("直前の連続雲海・通常弾へ戻す")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Adjusted;p.beamVariant=BeamVariant::Adjusted;settings.diagnostic=Diagnostic::None;}
+            if(ImGui::Button("雲海・ビーム調整Cを表示")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Adjusted;p.beamVariant=BeamVariant::Adjusted;settings.diagnostic=Diagnostic::None;}
+            if(ImGui::Button("今回Cと通常弾へ戻す")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Refined;p.beamVariant=BeamVariant::Previous;settings.diagnostic=Diagnostic::None;}
             int variant=static_cast<int>(p.cloudVariant);
-            const char* variants[]{"前回：2026-10-28", "改良：大きな起伏・非対称配置"};
-            if(ImGui::Combo("雲の比較候補",&variant,variants,2))p.cloudVariant=static_cast<CloudVariant>(variant);
+            const char* variants[]{"前回：2026-10-28", "今回C：10/30調整前", "前候補：連続雲海", "奥行き雲"};
+            if(ImGui::Combo("雲の比較候補",&variant,variants,4))p.cloudVariant=static_cast<CloudVariant>(variant);
             if(ImGui::Button("改良雲Cを表示")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Refined;settings.diagnostic=Diagnostic::None;}
             ImGui::SameLine();if(ImGui::Button("前回の雲Cを表示")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Previous;settings.diagnostic=Diagnostic::None;}
-            auto& c=GetCloudSettings();const bool refined=p.cloudVariant==CloudVariant::Refined;
-            if(ImGui::Button("雲構成だけ初期値へ"))c=refined?MakeRefinedCloudSettings():CloudCompositionSettings{};
+            auto& c=GetCloudSettings();const bool refined=p.cloudVariant!=CloudVariant::Previous;
+            if(ImGui::Button("雲構成だけ初期値へ"))c=p.cloudVariant==CloudVariant::Depth?MakeDepthCloudSettings():p.cloudVariant==CloudVariant::Adjusted?MakeAdjustedCloudSettings():refined?MakeRefinedCloudSettings():CloudCompositionSettings{};
             ImGui::TextWrapped("変更は実際の描画へ即時反映。Restartでも調整値を保持し、アプリ終了で既定値へ戻ります。元の雲JSONは変更しません。");
-            if(ImGui::TreeNodeEx("遠景の積雲",ImGuiTreeNodeFlags_DefaultOpen)){
+            if(c.depthLayout && ImGui::TreeNodeEx("奥へ続く雲の配置",ImGuiTreeNodeFlags_DefaultOpen)){
+                ImGui::Checkbox("左右・奥の積雲を表示",&c.enableCumulus);
+                ImGui::SliderFloat("雲の間の飛行空間",&c.corridorHalfWidth,9,24);
+                ImGui::SliderFloat("次の雲までの間隔",&c.bankSpacing,36,90);
+                ImGui::SliderFloat("左右の雲の大きさ",&c.bankScale,.65f,1.35f);
+                ImGui::SliderFloat("近景の積雲の密度",&c.bankDensity,.4f,1.5f);
+                ImGui::SliderFloat("薄い高層雲",&c.highCloudStrength,0,.5f);
+                ImGui::Checkbox("近い積雲を密度積分",&c.volumetricBanks);
+                ImGui::SliderFloat("近景の体積描画範囲",&c.nearVolumeRange,60,140);
+                ImGui::SliderInt("奥の積雲の距離品質",&c.depthFarSteps,32,96);
+                ImGui::TextWrapped("近い雲は既存Passで密度積分、奥は共有形状の表面探索。レール上の固定位置へ配置します。");ImGui::TreePop();
+            }
+            if(!c.depthLayout && ImGui::TreeNodeEx("遠景の積雲",ImGuiTreeNodeFlags_DefaultOpen)){
                 ImGui::Checkbox("積雲を表示",&c.enableCumulus);ImGui::SliderFloat("積雲の濃さ",&c.strength,0,1);
                 ImGui::SliderFloat("塔の高さ",&c.towerHeight,15,100);ImGui::SliderFloat("塊の大きさ",&c.scale,.5f,1.5f);
                 ImGui::SliderFloat("塊の間隔",&c.tileSize,100,240);ImGui::SliderFloat("背の高い雲の割合",&c.towerCoverage,0,1);
@@ -118,7 +180,7 @@ void DrawCloudControls(){
                 ImGui::ColorEdit3("積雲の影色",&c.shadowColor.x);ImGui::ColorEdit3("積雲の明部色",&c.lightColor.x);
                 if(refined){
                     ImGui::SliderFloat("積雲の大きな起伏",&c.macroRelief,0,12);
-                    ImGui::SliderFloat("積雲の中くらいの起伏",&c.mediumRelief,0,5);
+                    ImGui::SliderFloat("積雲の中くらいの起伏",&c.mediumRelief,0,12);
                     ImGui::SliderFloat("積雲の細部の強さ",&c.fineRelief,0,1);
                     ImGui::SliderFloat("高さ・幅・奥行きのばらつき",&c.layoutVariation,0,1);
                     ImGui::SliderFloat("低い雲のつながり",&c.bankFill,0,1);
@@ -130,7 +192,10 @@ void DrawCloudControls(){
                 ImGui::SliderFloat("雲海の厚み",&c.seaThickness,10,100);ImGui::SliderFloat("雲海の横幅",&c.seaWidth,60,400);
                 ImGui::SliderFloat("雲海の奥行き",&c.seaDepth,80,500);ImGui::SliderFloat("雲海の濃さ",&c.seaDensity,0,1);
                 if(refined){
-                    ImGui::ColorEdit3("雲海の青い影色",&c.seaShadowColor.x);ImGui::ColorEdit3("雲海の白い明部色",&c.seaLightColor.x);
+                    const char* shapes[]{"旧FBM密度", "今回Cの距離場ドーム", "連続FBM＋調整陰影"};int shape=c.seaShapeMode-1;
+                    if(ImGui::Combo("雲海の形",&shape,shapes,3))c.seaShapeMode=shape+1;
+                    if(c.seaShapeMode==3)ImGui::SliderFloat("雲だけの明暗の区切り",&c.seaShadeContrast,.7f,2.f);
+                    ImGui::ColorEdit3(c.depthLayout?"雲に共通の青い影色":"雲海の青い影色",&c.seaShadowColor.x);ImGui::ColorEdit3(c.depthLayout?"雲に共通の白い明部色":"雲海の白い明部色",&c.seaLightColor.x);
                     ImGui::SliderFloat("雲海の塊の細かさ",&c.seaNoiseMultiplier,.75f,2);
                     ImGui::SliderFloat("雲海の輪郭の柔らかさ",&c.seaCoreWidth,.03f,.16f);
                     ImGui::SliderFloat("雲海の影の明るさ",&c.seaShadowLift,.1f,.65f);
@@ -140,6 +205,7 @@ void DrawCloudControls(){
                 ImGui::TreePop();
             }
             if(ImGui::TreeNode("雲海の画質・負荷")){
+                if(refined)ImGui::SliderInt("積雲の追跡上限",&c.farTraceSteps,48,96);
                 ImGui::SliderFloat("近景雲の解像度倍率",&c.resolution,.125f,.5f);ImGui::SliderFloat("近景雲のViewステップ倍率",&c.viewSteps,.25f,1);
                 ImGui::TextWrapped("既存の固定解像度比較中はそのサンプリング設定を優先します。");ImGui::TreePop();
             }
@@ -153,6 +219,7 @@ void DrawCloudImGui(){
         ImGui::TextWrapped("今回追加した立体積雲と下方の雲海を調整します。カメラ・レール・Flowの位相は変更しません。");
         if(ImGui::Button("現行Aへ戻す（全表示設定）")){settings.mode=Mode::Original;settings.diagnostic=Diagnostic::None;}
         DrawCloudControls();
+        DrawBeamControls();
     }DebugUiWorkspace::EndPanel();
 #endif
 }
@@ -186,9 +253,10 @@ void DrawImGui(){
             }
         }
         DrawCloudControls();
+        DrawBeamControls();
         auto& b=GetCandidateSettings();
         if(ImGui::TreeNode("機体の色面")){auto& s=b.aircraft;ImGui::SliderFloat("適用率",&s.strength,0,1);ImGui::ColorEdit3("影色",&s.shadowColor.x);ImGui::SliderFloat("影明度",&s.shadowFloor,.1f,1);ImGui::SliderFloat("中間明度",&s.middleBrightness,.15f,.9f);ImGui::SliderFloat("リム強度",&s.rimStrength,0,.5f);ImGui::TreePop();}
-        if(ImGui::TreeNode("空と雲の色")){ImGui::ColorEdit3("上空",&b.skyZenith.x);ImGui::ColorEdit3("地平線",&b.skyHorizon.x);ImGui::ColorEdit3("雲影",&b.cloudShadow.x);ImGui::ColorEdit3("雲明部",&b.cloudHighlight.x);ImGui::TreePop();}
+        if(ImGui::TreeNode("空と雲の色")){ImGui::ColorEdit3("上空",&b.skyZenith.x);ImGui::ColorEdit3("地平線",&b.skyHorizon.x);ImGui::ColorEdit3("雲影",IsRefinedClouds()?&GetCloudSettings().seaShadowColor.x:&b.cloudShadow.x);ImGui::ColorEdit3("雲明部",IsRefinedClouds()?&GetCloudSettings().seaLightColor.x:&b.cloudHighlight.x);ImGui::TreePop();}
         if(ImGui::TreeNode("適用診断")){int d=static_cast<int>(settings.diagnostic);const char* names[]{"通常","自機:緑／通常敵:紫","N dot L"};if(ImGui::Combo("診断",&d,names,3))settings.diagnostic=static_cast<Diagnostic>(d);ImGui::TreePop();}
         ImGui::TextWrapped("HUD・中ボス・スキニング・タイトル・ロック弾・排気・粒子は機体画風の対象外。現在の起動既定はAです。");
     }DebugUiWorkspace::EndPanel();

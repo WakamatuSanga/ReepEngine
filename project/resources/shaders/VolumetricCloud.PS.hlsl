@@ -1,3 +1,4 @@
+#include "CloudDepthField.hlsli"
 Texture2D<float> gDepthTexture : register(t0);
 SamplerState gSampler : register(s0);
 
@@ -53,7 +54,8 @@ struct CloudPassConstants
     float4 cameraTunnelDirectionRadius; // xyz:direction w:radius
     float4 accumulatedFlowOffset;
     float4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
-    float4 comparisonShadow,comparisonHighlight,comparisonSun,comparisonSunColor,targetComposition;
+    float4 comparisonShadow,comparisonHighlight,comparisonSun,comparisonSunColor,targetComposition,seaRefinement,seaContour,depthControl,depthStyle,depthSea;
+    float4 bankCenters[16],bankRadii[16];
 };
 
 ConstantBuffer<CloudPassConstants> gCloudPass : register(b0);
@@ -238,10 +240,39 @@ bool RayBoxIntersect(
     return tFar > max(tNear, 0.0f);
 }
 
-float ComputeCloudDensity(float3 worldPosition)
+
+// A flowing, connected cloud sea with explicit broad lobes and a thin density shell.
+// It remains a 3D density field in the existing volume/light/depth pipeline.
+float RefinedSeaDistance(float3 worldPosition,float topY) {
+    float3 flow=gCloudPass.enableCloudFlow!=0u?gCloudPass.accumulatedFlowOffset.xyz:0;
+    float3 position=worldPosition+gCloudPass.windOffset-flow;
+    float spacing=clamp(1/max(gCloudPass.noiseScale,.001),5,18);
+    float2 cell=floor(position.xz/spacing);
+    float result=worldPosition.y-(topY-spacing*1.65);
+    [unroll] for(int z=-1;z<=1;++z) [unroll] for(int x=-1;x<=1;++x){
+        float2 id=cell+float2(x,z);float seed=Hash31(float3(id,1.37));
+        float2 jitter=float2(Hash31(float3(id,3.11)),Hash31(float3(id,7.91)))-.5;
+        float2 center=(id+.5+jitter*.56)*spacing;
+        float centerY=topY-spacing*lerp(.80,1.45,seed);
+        float3 radii=spacing*float3(lerp(.72,1.0,seed),lerp(.45,.88,frac(seed*7.13)),lerp(.73,.99,frac(seed*9.17)));
+        float3 relative=float3(position.x-center.x,worldPosition.y-centerY,position.z-center.y);
+        float d=(length(relative/radii)-1)*min(radii.x,min(radii.y,radii.z));
+        float width=spacing*.12,h=saturate(.5+.5*(d-result)/width);
+        result=lerp(d,result,h)-width*h*(1-h);
+    }
+    return result+(ValueNoise3D(position*gCloudPass.noiseScale*2.3)-.5)*spacing*.08;
+}
+float ComputeSeaDensity(float3 worldPosition)
 {
-    float3 safeHalfExtents = max(gCloudPass.volumeHalfExtents, float3(0.0001f, 0.0001f, 0.0001f));
-    float3 local = (worldPosition - gCloudPass.volumeCenter) / safeHalfExtents;
+    float3 densityCenter=gCloudPass.volumeCenter,densityExtent=gCloudPass.volumeHalfExtents;
+    if(gCloudPass.depthControl.x>0){
+        if(gCloudPass.depthSea.z<.5)return 0;
+        densityCenter.y=gCloudPass.depthSea.x;densityExtent.y=gCloudPass.depthSea.y;densityExtent.x=gCloudPass.depthSea.w;
+        if(abs(worldPosition.y-densityCenter.y)>densityExtent.y)return 0;
+    }
+
+    float3 safeHalfExtents = max(densityExtent, float3(0.0001f, 0.0001f, 0.0001f));
+    float3 local = (worldPosition - densityCenter) / safeHalfExtents;
     float3 absLocal = abs(local);
     if (any(absLocal > 1.0f))
     {
@@ -252,16 +283,16 @@ float ComputeCloudDensity(float3 worldPosition)
     float edgeMask = saturate(edgeDistance / max(gCloudPass.edgeFade, 0.0001f));
     if (gCloudPass.volumeEdgeFade.x > 0.5f)
     {
-        float3 boxMin = gCloudPass.volumeCenter - gCloudPass.volumeHalfExtents;
-        float3 boxMax = gCloudPass.volumeCenter + gCloudPass.volumeHalfExtents;
+        float3 boxMin = densityCenter - densityExtent;
+        float3 boxMax = densityCenter + densityExtent;
         float3 toMin = worldPosition - boxMin;
         float3 toMax = boxMax - worldPosition;
         float edgeWorldDistance = min(min(min(toMin.x, toMin.y), toMin.z), min(min(toMax.x, toMax.y), toMax.z));
         edgeMask *= smoothstep(0.0f, max(gCloudPass.volumeEdgeFade.y, 0.0001f), edgeWorldDistance);
     }
 
-    float layerBottomY = gCloudPass.volumeCenter.y - gCloudPass.volumeHalfExtents.y;
-    float layerTopY = gCloudPass.volumeCenter.y + gCloudPass.volumeHalfExtents.y;
+    float layerBottomY = densityCenter.y - densityExtent.y;
+    float layerTopY = densityCenter.y + densityExtent.y;
     if (gCloudPass.cloudBottomShaping.x > 0.5f)
     {
         float bottomNoiseScale = max(abs(gCloudPass.cloudBottomUndulation.y), 0.00001f);
@@ -286,6 +317,12 @@ float ComputeCloudDensity(float3 worldPosition)
         flowOffset = gCloudPass.accumulatedFlowOffset.xyz;
     }
 
+    float noiseMask=0;
+    if(gCloudPass.volumeShapeMode==2u) {
+        float spacing=clamp(1/max(gCloudPass.noiseScale,.001),5,18);
+        float width=spacing*clamp(gCloudPass.seaRefinement.y,.03,.16);
+        noiseMask=1-smoothstep(-width,width,RefinedSeaDistance(worldPosition,layerTopY));
+    }else {
     float3 baseNoisePosition = (worldPosition + gCloudPass.windOffset - flowOffset) * gCloudPass.noiseScale;
     float3 detailNoisePosition = (worldPosition + gCloudPass.windOffset * 1.7f - flowOffset * 1.7f + 19.31f) * gCloudPass.detailNoiseScale;
 
@@ -298,16 +335,19 @@ float ComputeCloudDensity(float3 worldPosition)
         bottomDetailMultiplier = lerp(bottomDetailTarget, 1.0f, saturate(shapedBottomMask));
     }
     float shape = baseNoise - detailNoise * bottomDetailMultiplier * gCloudPass.detailWeight - 0.40f;
-    float noiseMask = saturate(shape * 2.5f);
+    noiseMask = saturate(shape * 2.5f);
     if (gCloudPass.volumeShapeMode != 0u)
     {
         // Continuous core/shell mapping. Keep a low-opacity tail so thin wisps
         // are not removed by turning the density into a binary threshold.
         float height = saturate((worldPosition.y - layerBottomY) / max(layerTopY - layerBottomY, 0.001f));
-        float signal = shape + 0.40f - smoothstep(0.30f, 1.0f, height) * 0.28f;
-        float core = smoothstep(0.38f, 0.50f, signal);
+        float signal = shape + 0.40f - smoothstep(0.30f, 1.0f, height) * (gCloudPass.depthControl.x>0?.16f:.28f);
+        float coreWidth=gCloudPass.volumeShapeMode==3u?clamp(gCloudPass.seaRefinement.y,.03,.16):.12;
+        float core = smoothstep(0.38f, 0.38f+coreWidth, signal);
         float wisp = saturate((signal - 0.31f) / 0.20f) * 0.025f;
-        noiseMask = core + (1.0f - core) * wisp;
+        noiseMask = core + (1.0f - core) * wisp * (gCloudPass.volumeShapeMode==3u?.5:1);
+    }
+
     }
 
     float density = noiseMask * edgeMask * heightMask * gCloudPass.density * gCloudPass.cloudColor.a;
@@ -327,6 +367,32 @@ float ComputeCloudDensity(float3 worldPosition)
     }
     density *= 1.0f - ComputeInfluenceClearFactor(worldPosition);
     return max(density, 0.0f);
+}
+
+float ComputeCloudDensity(float3 worldPosition){
+    float sea=ComputeSeaDensity(worldPosition);
+    if(gCloudPass.depthControl.x>0 && gCloudPass.depthSea.z>.5){
+        // A continuous, irregular lower bank connects the FBM crests. It stays
+        // inside this one bounded volume rather than revealing blue holes below.
+        float3 q=(worldPosition-gCloudPass.accumulatedFlowOffset.xyz)*.025;
+        float surface=gCloudPass.depthSea.x+gCloudPass.depthSea.y-24+(ValueNoise3D(float3(q.x,2.31,q.z))-.5)*10+(ValueNoise3D(float3(q.x*2.2,7.13,q.z*2.2))-.5)*3;
+        float2 edge=saturate((1-abs((worldPosition.xz-gCloudPass.volumeCenter.xz)/float2(gCloudPass.depthSea.w,gCloudPass.volumeHalfExtents.z)))/.10);
+        float fill=smoothstep(-.8,2,surface-worldPosition.y)*gCloudPass.density*.85*edge.x*edge.y;
+        sea=max(sea,fill*(1-ComputeInfluenceClearFactor(worldPosition)));
+    }
+    if(gCloudPass.depthControl.x<=0||gCloudPass.depthControl.z<.5)return sea;
+    float banks=0;
+    [loop]for(int i=0;i<16;++i){
+        float weight=gCloudPass.bankRadii[i].w*(1-DepthFarWeight(gCloudPass.cameraPosition,gCloudPass.bankCenters[i].xyz,gCloudPass.depthControl.y));
+        if(weight<.001)continue;
+        float3 q=abs(worldPosition-gCloudPass.bankCenters[i].xyz),r=gCloudPass.bankRadii[i].xyz;
+        if(any(q>r*1.8+4))continue;
+        float d=DepthBankDistance(worldPosition,gCloudPass.bankCenters[i],r);
+        banks=max(banks,(1-smoothstep(-.9,1.4,d))*weight*gCloudPass.density*gCloudPass.depthControl.w);
+    }
+    banks*=smoothstep(2,9,length(worldPosition-gCloudPass.cameraPosition));
+    banks*=1-ComputeInfluenceClearFactor(worldPosition);
+    return max(sea,banks);
 }
 
 float2 SafeNormalize2(float2 value, float2 fallbackValue)
@@ -440,6 +506,9 @@ float ComputeLightTransmittance(
     float marchEnd = max(lightFar, 0.0f);
     uint baseLightSteps = max(gCloudPass.lightStepCount, 1u);
     uint lightSteps = max(1u, (uint)(float(baseLightSteps) * stepScale + 0.5f));
+    // New close banks need local extinction: two samples over the entire union
+    // box jump between unrelated clouds. Keep legacy lighting untouched.
+    if(gCloudPass.depthControl.x>0){marchEnd=min(marchEnd,24.f);lightSteps=4u;}
     float stepSize = marchEnd / float(lightSteps);
     if (stepSize <= 0.0f)
     {
@@ -466,7 +535,7 @@ float ComputeLightTransmittance(
 
 float4 main(VertexShaderOutput input) : SV_TARGET0
 {
-    if(gCloudPass.targetComposition.x>.5 && (gCloudPass.targetComposition.w<.5 || gCloudPass.targetComposition.y<=.001))return float4(0,0,0,0);
+    if(gCloudPass.depthControl.x<=0 && gCloudPass.targetComposition.x>.5 && (gCloudPass.targetComposition.w<.5 || gCloudPass.targetComposition.y<=.001))return float4(0,0,0,0);
     float2 depthTextureSize = max(gCloudPass.renderInfo.xy, float2(1.0f, 1.0f));
     uint2 pixelCoord = min(uint2(input.texcoord * depthTextureSize), uint2(depthTextureSize - 1.0f));
     float depth = gDepthTexture.Load(int3(pixelCoord, 0));
@@ -523,11 +592,25 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
     float maxDensity = 0.0f;
     float weightedLight = 0.0f;
     float accumulatedDensity = 0.0f;
+    float formLighting=.5f;bool formLightingValid=false;
 
     [loop]
     for (uint i = 0u; i < viewSteps; ++i)
     {
+        float sampleStep=stepSize;
         float distanceAlongRay = marchStart + stepSize * (float(i) + 0.5f);
+        if(gCloudPass.depthControl.x>0){
+            // Spend the existing view-step budget on nearby silhouettes. Distant
+            // sea samples can be wider; no extra pass or resolution increase.
+            float u0=float(i)/float(viewSteps),u1=float(i+1u)/float(viewSteps);
+            float a=marchStart+(marchEnd-marchStart)*u0*u0;
+            float b=marchStart+(marchEnd-marchStart)*u1*u1;
+            sampleStep=b-a;
+            // A frame-independent, low-discrepancy pixel offset breaks coherent
+            // slice bands. Bilinear cloud upsampling combines neighboring phases.
+            float phase=frac(52.9829189*frac(dot(floor(input.position.xy),float2(.06711056,.00583715))));
+            distanceAlongRay=lerp(a,b,.15+.70*phase);
+        }
         float3 samplePosition = gCloudPass.cameraPosition + rayDirection * distanceAlongRay;
 
         float density = ComputeCloudDensity(samplePosition) * densityScale;
@@ -538,12 +621,71 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
 
         float lightTransmittance = ComputeLightTransmittance(samplePosition, lightDirection, boxMin, boxMax, densityScale, stepScale);
         float lighting = saturate(gCloudPass.ambientLighting + lightTransmittance * gCloudPass.sunIntensity);
+        if(gCloudPass.seaRefinement.w>0&&!formLightingValid&&density>.02f) {
+            float3 normal;
+            // Side-bank lighting is evaluated on its shared geometric surface,
+            // rather than on the first arbitrary view-step inside the shell.
+            // This removes lighting bands without raising the whole-pass sample count.
+            int bank=-1;float bestDensity=0,bankDistance=0;
+            if(gCloudPass.depthControl.x>0 && ComputeInfluenceClearFactor(samplePosition)<.05){
+                [loop]for(int k=0;k<16;++k){float3 r=gCloudPass.bankRadii[k].xyz;
+                    float weight=gCloudPass.bankRadii[k].w*(1-DepthFarWeight(gCloudPass.cameraPosition,gCloudPass.bankCenters[k].xyz,gCloudPass.depthControl.y));
+                    if(weight<.001||any(abs(samplePosition-gCloudPass.bankCenters[k].xyz)>r*1.8+4))continue;
+                    float d=DepthBankDistance(samplePosition,gCloudPass.bankCenters[k],r);
+                    float value=(1-smoothstep(-.9,1.4,d))*weight*gCloudPass.density*gCloudPass.depthControl.w*densityScale*smoothstep(2,9,length(samplePosition-gCloudPass.cameraPosition));
+                    if(value>bestDensity){bestDensity=value;bank=k;bankDistance=d;}
+                }
+            }
+            if(bank>=0 && bestDensity>=density*.95){
+                float4 c=gCloudPass.bankCenters[bank];float3 r=gCloudPass.bankRadii[bank].xyz;
+                float3 gradient=DepthBankGradient(samplePosition,c,r);
+                float3 correction=gradient*bankDistance/max(dot(gradient,gradient),.0001);
+                correction*=min(1,3/max(length(correction),.0001));
+                normal=normalize(DepthBankGradient(samplePosition-correction,c,r)+float3(0,.0001,0));
+            }else if(gCloudPass.depthControl.x>0){
+                // The lower sea uses its broad world-space height field for
+                // form light. Its small FBM wisps must not choose a different
+                // per-ray normal at an arbitrary first density sample.
+                float3 q=(samplePosition-gCloudPass.accumulatedFlowOffset.xyz)*.025;
+                float e=.025;
+                float dx=ValueNoise3D(q+float3(e,0,0))-ValueNoise3D(q-float3(e,0,0));
+                float dz=ValueNoise3D(q+float3(0,0,e))-ValueNoise3D(q-float3(0,0,e));
+                normal=normalize(float3(-dx*5,1,-dz*5));
+            }else if(gCloudPass.volumeShapeMode==3u||gCloudPass.volumeShapeMode==1u){
+                float e=.50f;
+                float3 gradient=float3(ComputeCloudDensity(samplePosition+float3(e,0,0))-ComputeCloudDensity(samplePosition-float3(e,0,0)),
+                    ComputeCloudDensity(samplePosition+float3(0,e,0))-ComputeCloudDensity(samplePosition-float3(0,e,0)),
+                    ComputeCloudDensity(samplePosition+float3(0,0,e))-ComputeCloudDensity(samplePosition-float3(0,0,e)));
+                normal=normalize(-gradient+float3(0,.0001,0));
+            }else {
+            float topY=gCloudPass.volumeCenter.y+gCloudPass.volumeHalfExtents.y;
+            float e=.35f;
+            float3 gradient=float3(RefinedSeaDistance(samplePosition+float3(e,0,0),topY)-RefinedSeaDistance(samplePosition-float3(e,0,0),topY),
+                RefinedSeaDistance(samplePosition+float3(0,e,0),topY)-RefinedSeaDistance(samplePosition-float3(0,e,0),topY),
+                RefinedSeaDistance(samplePosition+float3(0,0,e),topY)-RefinedSeaDistance(samplePosition-float3(0,0,e),topY));
+            normal=normalize(gradient+float3(0,.0001,0));
+            }
+            formLighting=saturate(dot(normal,lightDirection)*.5+.5);
+            if(gCloudPass.depthControl.x>0)formLighting*=lerp(.45,1,exp(-ComputeCloudDensity(samplePosition+lightDirection*3)*8));
+            formLightingValid=true;
+        }
         maxDensity = max(maxDensity, density);
         weightedLight += density * lighting;
         accumulatedDensity += density;
 
-        float alpha = 1.0f - exp(-density * gCloudPass.absorption * stepSize);
+        float alpha = 1.0f - exp(-density * gCloudPass.absorption * sampleStep);
         float3 sampleColor = ApplyCloudComparison(gCloudPass.cloudColor.rgb * lighting,lighting,lightTransmittance);
+        if(gCloudPass.seaRefinement.w>0 && gCloudPass.debugViewMode==0) {
+            // An absolute blue shadow palette avoids multiplying already-dark gray.
+            float sunlit=pow(saturate(lightTransmittance*.30+formLighting*.70),2);
+            float spacing=clamp(1/max(gCloudPass.noiseScale,.001),5,18);
+            float height=(samplePosition.y-(gCloudPass.volumeCenter.y+gCloudPass.volumeHalfExtents.y-spacing*1.65))/(spacing*1.10);
+            if(gCloudPass.volumeShapeMode==2u)sunlit*=lerp(.28,1,smoothstep(0,.9,height));
+            else sunlit=pow(sunlit,clamp(gCloudPass.seaContour.y,.7,2));
+            float lift=clamp(gCloudPass.seaRefinement.z,.1,.65);
+            sampleColor=lerp(gCloudPass.comparisonShadow.rgb*(.70+lift),
+                gCloudPass.comparisonHighlight.rgb*gCloudPass.comparisonSunColor.rgb,sunlit);
+        }
 
         accumulatedColor += transmittance * alpha * sampleColor;
         transmittance *= (1.0f - alpha);

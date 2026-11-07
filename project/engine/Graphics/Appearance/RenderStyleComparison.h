@@ -7,7 +7,8 @@ namespace RenderStyleComparison {
 enum class Mode { Original, Aircraft, AircraftAndBackground };
 enum class Target : uint32_t { None, Player, NormalEnemy, BackgroundModel };
 enum class Candidate { Initial, Emphasized, CloudSeaTarget };
-enum class CloudVariant { Previous, Refined };
+enum class CloudVariant { Previous, Refined, Adjusted, Depth };
+enum class BeamVariant { Previous, Adjusted, Depth };
 enum class Diagnostic { None, TargetColor, LightDirection };
 struct SurfaceSettings {
     float strength=.65f; int levels=3; float softness=.08f, shadowFloor=.35f;
@@ -38,8 +39,23 @@ struct CloudCompositionSettings {
     float layoutVariation=.9f,bankFill=.65f;
     float seaNoiseMultiplier=1.4f,seaCoreWidth=.065f,seaShadowLift=.30f;
     Vector3 seaShadowColor{.22f,.47f,.76f},seaLightColor{1,.99f,.94f};
+    int farTraceSteps=48;
+    bool depthLayout=false,volumetricBanks=true;
+    float bankSpacing=52, corridorHalfWidth=13, bankScale=1, bankDensity=1;
+    float nearVolumeRange=105,highCloudStrength=.26f;
+    int depthFarSteps=48;
+    int seaShapeMode=1;
+    float seaShadeContrast=1;
 };
 CloudCompositionSettings MakeRefinedCloudSettings();
+CloudCompositionSettings MakeAdjustedCloudSettings();
+CloudCompositionSettings MakeDepthCloudSettings();
+struct NormalBeamSettings {
+    bool opaqueCore=false;
+    float opacity=.90f,brightness=1.25f,haloOpacity=.10f;
+    bool solidPrism=false;
+    float widthScale=1.75f,lengthScale=1.15f,coreWhiteness=.72f,trailRatio=.30f;
+};
 struct TargetSettings {
     int stage=3; // 1: aircraft/light/color, 2: normal shots, 3: distant composition
     float playerScale=1.10f, outlinePixels=1.0f;
@@ -50,6 +66,12 @@ struct TargetSettings {
     CloudCompositionSettings clouds;
     CloudVariant cloudVariant=CloudVariant::Previous;
     CloudCompositionSettings refinedClouds=MakeRefinedCloudSettings();
+    CloudCompositionSettings adjustedClouds=MakeAdjustedCloudSettings();
+    CloudCompositionSettings depthClouds=MakeDepthCloudSettings();
+    BeamVariant beamVariant=BeamVariant::Previous;
+    NormalBeamSettings previousBeams;
+    NormalBeamSettings adjustedBeams{true,.98f,1.55f,.10f};
+    NormalBeamSettings depthBeams{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f};
 };
 CandidateSettings MakeEmphasizedCandidate();
 CandidateSettings MakeTargetCandidate();
@@ -62,10 +84,11 @@ struct Settings {
     TargetSettings presentation;
 };
 struct SurfaceData { Vector4 control{},shadow{},highlight{},rim{},bands{},sun{},sunColor{}; };
-struct BackgroundData { Vector4 control{},zenith{},horizon{},cloudShadow{},cloudHighlight{},sun{},sunColor{},cumulus{},cumulusExtra{},cumulusDistribution{},seaShape{},cumulusShadow{},cumulusLight{},cloudRelief{},cloudLayout{},seaRefinement{}; };
+struct BackgroundData { Vector4 control{},zenith{},horizon{},cloudShadow{},cloudHighlight{},sun{},sunColor{},cumulus{},cumulusExtra{},cumulusDistribution{},seaShape{},cumulusShadow{},cumulusLight{},cloudRelief{},cloudLayout{},seaRefinement{},seaContour{},depthControl{},depthStyle{}; };
 Settings& GetSettings();
 CandidateSettings& GetCandidateSettings();
 CloudCompositionSettings& GetCloudSettings();
+NormalBeamSettings& GetNormalBeamSettings();
 bool IsRefinedClouds();
 bool IsTargetPresentation();
 bool IsTargetBackground();

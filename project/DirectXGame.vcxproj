@@ -134,6 +134,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="resources\shaders\CloudSeaBackground.hlsli" />
+    <None Include="resources\shaders\CloudDepthField.hlsli" />
+    <None Include="resources\shaders\ProjectileLaser.PS.hlsl" />
     <ClCompile Include="engine\Game\Effect\GpuParticleFollowingEffect.cpp" />
     <ClCompile Include="GameSceneDeathPresentation.cpp" />
     <ClCompile Include="engine\Audio\Audio.cpp" />
@@ -190,7 +192,7 @@
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerUpdate.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustControllerImGui.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp" />
-    <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.cpp" />
+    <ClCompile Include="engine\Graphics\Primitive\BeamBatchRenderer.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBarrelRollRingController.cpp" />
     <ClCompile Include="engine\Game\Player\PlayerBulletCancelEffectController.cpp" />
@@ -445,6 +447,7 @@
     <ClCompile Include="GameScenePresentation.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="TitleMissilePresentation.cpp" />
+    <ClCompile Include="engine\Graphics\Cloud\CloudSceneryLayout.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudSettings.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudResolutionComparison.cpp" />
@@ -499,6 +502,7 @@
     <ClInclude Include="engine\Game\Player\Player.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustController.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h" />
+    <ClInclude Include="engine\Graphics\Primitive\BeamBatchRenderer.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.h" />
     <ClInclude Include="engine\Game\Player\PlayerSonicBoostRingController.h" />
     <ClInclude Include="engine\Game\Player\PlayerBarrelRollRingController.h" />
@@ -648,6 +652,7 @@
     <ClInclude Include="TitleWaitingAircraft.h" />
     <ClInclude Include="TitleScene.h" />
     <ClInclude Include="TitleMissilePresentation.h" />
+    <ClInclude Include="engine\Graphics\Cloud\CloudSceneryLayout.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudSettings.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudResolutionComparison.h" />

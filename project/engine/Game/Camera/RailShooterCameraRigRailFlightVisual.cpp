@@ -108,3 +108,30 @@ RailShooterCameraRig::GetRailFlightPoseSnapshot(float lookAheadDistance) const {
         IsUsableDirection(snapshot.up);
     return snapshot;
 }
+
+float RailShooterCameraRig::GetSceneryDistance() const {
+    if(mode_==Mode::Rail||mode_==Mode::RailEndStopped)return railDistance_;
+    if(mode_==Mode::RailFinishedStraight&&!selectedRailId_.empty()){
+        const float length=GetActiveRailTotalLength();const auto end=SampleSceneryFrame(length);const Vector3 p{end.m[3][0],end.m[3][1],end.m[3][2]};
+        return length+(currentPosition_.x-p.x)*currentForward_.x+(currentPosition_.y-p.y)*currentForward_.y+(currentPosition_.z-p.z)*currentForward_.z;
+    }
+    return currentPosition_.x*currentForward_.x+currentPosition_.y*currentForward_.y+currentPosition_.z*currentForward_.z;
+}
+Matrix4x4 RailShooterCameraRig::SampleSceneryFrame(float absoluteDistance) const {
+    Vector3 p=currentPosition_,f=Normalize(currentForward_,{0,0,1});bool sampled=false;
+    const bool rail=mode_!=Mode::Disabled&&mode_!=Mode::Straight&&!selectedRailId_.empty();
+    const bool loop=debugLoop_||selectedRailLoop_;float total=GetActiveRailTotalLength(),at=absoluteDistance;
+    if(rail&&total>kMinimumRailLength){
+        at=loop?WrapDistance(absoluteDistance,total):std::clamp(absoluteDistance,0.f,total);
+        if(!forceLegacyForward_&&runtimeV2PoseValid_&&runtimeV2Trial_&&runtimeV2Trial_->IsValid()){
+            const auto point=runtimeV2Trial_->SampleByDistance(at);if(point.valid){p=point.position;f=Normalize(point.tangent,f);sampled=true;}
+        }
+        if(!sampled&&railRuntime_){const auto point=railRuntime_->EvaluateByDistance(selectedRailId_,at,loop);if(point.valid){p=point.position;f=Normalize(point.forward,f);sampled=true;}}
+        if(sampled&&!loop){const float beyond=absoluteDistance-at;p={p.x+f.x*beyond,p.y+f.y*beyond,p.z+f.z*beyond};}
+    }
+    if(!sampled){const float d=absoluteDistance-(p.x*f.x+p.y*f.y+p.z*f.z);p={p.x+f.x*d,p.y+f.y*d,p.z+f.z*d};}
+    const Vector3 axis=std::fabs(f.y)<.95f?Vector3{0,1,0}:Vector3{1,0,0};
+    const Vector3 right=Normalize({axis.y*f.z-axis.z*f.y,axis.z*f.x-axis.x*f.z,axis.x*f.y-axis.y*f.x},{1,0,0});
+    const Vector3 up{f.y*right.z-f.z*right.y,f.z*right.x-f.x*right.z,f.x*right.y-f.y*right.x};
+    auto result=MatrixMath::MakeIdentity4x4();const Vector3 basis[]{right,up,f,p};for(int row=0;row<4;++row){result.m[row][0]=basis[row].x;result.m[row][1]=basis[row].y;result.m[row][2]=basis[row].z;}return result;
+}

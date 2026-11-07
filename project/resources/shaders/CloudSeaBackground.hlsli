@@ -89,3 +89,91 @@ float4 DistantCumulus(float3 eye,float3 ray,float4 composition,float3 sunTravel,
     color=lerp(color,sky,smoothstep(240,400,nearest)*.22);
     return float4(color,saturate(alpha*composition.x));
 }
+
+
+// Refinement is opt-in. Keep the previous distance field and placement intact.
+float RefinedCloudDistance(float3 samplePosition,float3 origin,float seed,float height,float coverage,float scale,float4 relief,float4 layout) {
+    float variation=saturate(layout.x);
+    float width=lerp(1,lerp(.76,1.16,frac(seed*13.37+.17)),variation);
+    float depth=lerp(1,lerp(.72,1.36,frac(seed*9.71+.41)),variation);
+    float towerHeight=height*lerp(1,lerp(.60,1.28,frac(seed*13.7)),variation);
+    float angle=(frac(seed*5.83)-.5)*.8*variation;
+    float2x2 turn=float2x2(cos(angle),-sin(angle),sin(angle),cos(angle));
+    float3 q=(samplePosition-origin)/scale;
+    q.xz=mul(q.xz,turn)/float2(width,depth);
+    float result=10000;bool tower=frac(seed*3.17+.2)>=1-saturate(coverage);float fill=saturate(layout.y);
+    [unroll] for(int i=0;i<7;++i) {
+        float3 center=0,radii=0;
+        if(i==0){center=float3(-24,0,-8);radii=float3(38+fill*8,19,32);}
+        if(i==1){center=float3(25,-5,8);radii=float3(31+fill*8,20,31);}
+        if(i==2){center=float3(-30,tower?towerHeight*.40:11,-15);radii=float3(26,22,28);}
+        if(i==3){center=float3(1,tower?towerHeight*.83:14,0);radii=float3(24,22,25);}
+        if(i==4){center=float3(28,tower?towerHeight*.60:8,6);radii=float3(25,20,25);}
+        if(i==5){center=float3(-16,towerHeight*.90+13,5);radii=float3(20,20,21);}
+        if(i==6){center=float3(6,towerHeight*1.20+8,-5);radii=float3(18,18,18);}
+        if(i>=5&&!tower)continue;
+        radii*=lerp(.92,1.08,frac(seed*float(i+11)*3.71));
+        float d=(length((q-center)/radii)-1)*min(radii.x,min(radii.y,radii.z));
+        result=CloudSmoothUnion(result,d,3.5);
+    }
+    // Three separated scales; broad lobes dominate, fine detail stays subordinate.
+    result+=(CloudNoise(q*.047+origin*.004)-.5)*relief.x;
+    if(result<9)result+=(CloudCellDistance(q*.065)-.5)*relief.y*lerp(.35,1,CloudNoise(q*.024+origin*.017));
+    result+=(CloudNoise(q*.34+9)-.5)*relief.z;
+    return result*min(1,min(width,depth))*scale;
+}
+float4 RefinedDistantCumulus(float3 eye,float3 ray,float4 composition,float3 sunTravel,float3 sunColor,float3 sky,float4 placement,float coverage,float3 shadowColor,float3 lightColor,float4 relief,float4 layout) {
+    float pixelAngle=max(length(ddx(ray)),length(ddy(ray)));
+    float tileSize=max(composition.y,100),height=composition.z,scale=clamp(placement.w,.5,1.5);
+    float2 baseCell=floor((eye.xz-placement.xy)/tileSize);
+    float nearest=1e6,alpha=0,hitSeed=0;float3 hit=0,hitOrigin=0;
+    [loop] for(int z=-2;z<=2;++z) [loop] for(int x=-2;x<=2;++x) {
+        float2 cell=baseCell+float2(x,z);float seed=CloudHash(float3(cell,3.37));
+        float jitter=lerp(.16,.46,saturate(layout.x));
+        float2 centerXZ=placement.xy+(cell+.5)*tileSize+(float2(CloudHash(float3(cell,4.7)),CloudHash(float3(cell,9.1)))-.5)*tileSize*jitter;
+        float dist=length(centerXZ-eye.xz);
+        // Cells entering the 5x5 neighborhood are outside the fully faded range.
+        float fade=smoothstep(130,185,dist)*(1-smoothstep(tileSize*1.65,tileSize*2.15,dist));
+        if(fade<.001)continue;
+        float3 origin=float3(centerXZ.x,placement.z+(seed-.5)*18*scale,centerXZ.y);
+        float variation=saturate(layout.x);
+        float width=lerp(1,lerp(.76,1.16,frac(seed*13.37+.17)),variation);
+        float depth=lerp(1,lerp(.72,1.36,frac(seed*9.71+.41)),variation);
+        float towerHeight=height*lerp(1,lerp(.60,1.28,frac(seed*13.7)),variation);
+        float angle=(frac(seed*5.83)-.5)*.8*variation;
+        float2x2 turn=float2x2(cos(angle),-sin(angle),sin(angle),cos(angle));
+        float3 o=(eye-origin)/scale,direction=ray/scale;
+        o.xz=mul(o.xz,turn)/float2(width,depth);direction.xz=mul(direction.xz,turn)/float2(width,depth);
+        float3 safeDirection=(step(0,direction)*2-1)*max(abs(direction),.00001);
+        float padding=.5*(relief.x+relief.y+relief.z)+2;
+        float3 a=(float3(-76,-28,-48)-padding-o)/safeDirection;
+        float3 b=(float3(76,max(38,towerHeight*1.2+28),48)+padding-o)/safeDirection;
+        float3 tMin=min(a,b),tMax=max(a,b);
+        float t=max(1,max(tMin.x,max(tMin.y,tMin.z))),end=min(tMax.x,min(tMax.y,tMax.z));
+        if(end<=t)continue;
+        if(t>=nearest||end<1)continue;
+        [loop] for(int step=0;step<clamp((int)layout.z,48,96);++step) {
+            if(t>=end||t>=nearest)break;
+            float3 samplePosition=eye+ray*t;
+            float d=RefinedCloudDistance(samplePosition,origin,seed,height,coverage,scale,relief,layout);
+            if(d<.15+pixelAngle*t*.35){nearest=t;hit=samplePosition;hitOrigin=origin;hitSeed=seed;alpha=fade;break;}
+            t+=max(.20,d*.48);
+        }
+    }
+    if(alpha<=0)return 0;
+    float e=.75*scale;
+    float3 n=normalize(float3(
+        RefinedCloudDistance(hit+float3(e,0,0),hitOrigin,hitSeed,height,coverage,scale,relief,layout)-RefinedCloudDistance(hit-float3(e,0,0),hitOrigin,hitSeed,height,coverage,scale,relief,layout),
+        RefinedCloudDistance(hit+float3(0,e,0),hitOrigin,hitSeed,height,coverage,scale,relief,layout)-RefinedCloudDistance(hit-float3(0,e,0),hitOrigin,hitSeed,height,coverage,scale,relief,layout),
+        RefinedCloudDistance(hit+float3(0,0,e),hitOrigin,hitSeed,height,coverage,scale,relief,layout)-RefinedCloudDistance(hit-float3(0,0,e),hitOrigin,hitSeed,height,coverage,scale,relief,layout)));
+    float3 lightDirection=normalize(-sunTravel);float occlusion=1;
+    [unroll] for(int j=1;j<=4;++j){float h=(3+j*5)*scale;
+        float d=RefinedCloudDistance(hit+lightDirection*h,hitOrigin,hitSeed,height,coverage,scale,relief,layout);
+        occlusion=min(occlusion,saturate(d/(h*.22)));}
+    float light=saturate(dot(n,lightDirection)*.55+.42)*lerp(.38,1,occlusion);
+    float3 middle=lerp(shadowColor,lightColor,.56);
+    float3 color=lerp(shadowColor,middle,smoothstep(.02,.60,light));
+    color=lerp(color,lightColor*sunColor,smoothstep(.40,.73,light));
+    color=lerp(color,sky,smoothstep(250,420,nearest)*.08);
+    return float4(color,saturate(alpha*composition.x));
+}

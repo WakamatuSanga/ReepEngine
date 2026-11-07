@@ -14,6 +14,8 @@ struct CloudCompositeConstants
     float cloudOverGameplayObjectStrength;
     float foregroundCloudAlphaReduction;
     uint compositeDebugMode;
+    uint enableSceneryReconstruction;
+    float3 sceneryPadding;
 };
 
 ConstantBuffer<CloudCompositeConstants> gComposite : register(b0);
@@ -42,6 +44,15 @@ float4 main(VertexShaderOutput input) : SV_TARGET0
 {
     float2 uv = saturate(input.texcoord);
     float4 cloud = gCloudTexture.Sample(gSampler, uv);
+    // Reconstruct only the new stochastic cloud layer. Actor pixels and all
+    // original comparison banks continue through their existing preservation.
+    if(gComposite.enableSceneryReconstruction!=0u && gComposite.compositeDebugMode==0u){
+        float2 d=1.0/max(gComposite.cloudTextureSize,float2(1,1));
+        cloud=cloud*.4+(gCloudTexture.Sample(gSampler,saturate(uv+float2(d.x,0)))+
+            gCloudTexture.Sample(gSampler,saturate(uv-float2(d.x,0)))+
+            gCloudTexture.Sample(gSampler,saturate(uv+float2(0,d.y)))+
+            gCloudTexture.Sample(gSampler,saturate(uv-float2(0,d.y))))*.15;
+    }
     float sceneDepth = LoadDepth(uv);
     float preserveMask = 0.0f;
 

@@ -58,6 +58,7 @@ void GameScene::DrawSceneRender() {
 
     auto& profiler = dxCommon->GetGpuProfiler();
     const auto mainToken = profiler.Begin(dxCommon->GetCommandList(), GpuTimestampProfiler::Stage::MainScene, {});
+    if(volumetricCloudPass)volumetricCloudPass->PrepareSceneryFlow(camera_.get(),cloudVolume_.get());
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
         const auto skyToken=profiler.Begin(dxCommon->GetCommandList(),GpuTimestampProfiler::Stage::Background,{});

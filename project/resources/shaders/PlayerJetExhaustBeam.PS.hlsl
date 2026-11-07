@@ -29,6 +29,26 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     float edgeSoftness = max(gBeam.qualityParams.y, 0.5f);
     float tipFadePower = max(gBeam.qualityParams.z, 0.2f);
 
+    if(mode==12u || mode==13u) {
+        float u=saturate(input.uv.x),edge=abs(input.uv.y*2-1);
+        float alpha=pow(saturate(1-edge),2.5)*smoothstep(0,.12,u)*(1-smoothstep(.85,1,u))*alphaScale;
+        if(alpha<=.001)discard;
+        float3 hue=mode==12u?float3(1,.82,.025):float3(1,.025,.24);
+        return MakeOutput(float4(hue*brightness,alpha));
+    }
+    // Modes 6/7 belong only to short normal projectiles. UV +2 selects the
+    // existing halo quad without changing its dimensions or projectile physics.
+    if(mode==6u || mode==7u) {
+        bool halo=input.uv.y>1.5;
+        float v=input.uv.y-(halo?2:0),u=saturate(input.uv.x);
+        float edge=abs(v*2-1);
+        float cap=smoothstep(0,.10,u)*(1-smoothstep(.90,1,u));
+        float band=halo?pow(saturate(1-edge),2.5):(1-smoothstep(.65,1,edge));
+        float alpha=band*cap*alphaScale*(halo?flickerStrength:1);
+        if(alpha<=.01)discard;
+        float3 hue=mode==6u?float3(1,.82,.025):float3(1,.025,.24);
+        return MakeOutput(float4(hue*brightness,alpha));
+    }
     if(mode==4u || mode==5u) {
         float u=saturate(input.uv.x),edge=abs(input.uv.y*2-1);
         float band=pow(saturate(1-edge),edgeSoftness);

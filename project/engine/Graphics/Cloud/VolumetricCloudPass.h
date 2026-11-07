@@ -46,6 +46,9 @@ public:
     ProjectedBounds BuildTitleBackgroundBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
     void ConfigureStillTitleBackground();
     void ConfigureTitleForegroundCopy(const Camera* camera, const CloudVolume* source, CloudVolume* copy);
+    // Synchronize shared scenery before the skybox and the existing cloud pass.
+    void PrepareSceneryFlow(const Camera*,const CloudVolume*);
+    const Vector3& GetSceneryFlowOffset() const {return accumulatedFlowOffset_;}
     void Render(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds);
     void DrawImGui();
     // The scene only asks whether diagnostic presentation owns this update.
@@ -143,7 +146,8 @@ private:
         Vector4 cameraTunnelDirectionRadius;
         Vector4 accumulatedFlowOffset;
         Vector4 accumulatedLayerFlowOffsets; // far x/z, sea x/z
-        Vector4 comparisonShadow{},comparisonHighlight{},comparisonSun{},comparisonSunColor{},targetComposition{},seaRefinement{};
+        Vector4 comparisonShadow{},comparisonHighlight{},comparisonSun{},comparisonSunColor{},targetComposition{},seaRefinement{},seaContour{},depthControl{},depthStyle{},depthSea{};
+        std::array<Vector4,16> bankCenters{},bankRadii{};
     };
 
     struct CloudCompositeConstants {
@@ -157,6 +161,8 @@ private:
         float cloudOverGameplayObjectStrength = 0.2f;
         float foregroundCloudAlphaReduction = 0.8f;
         uint32_t compositeDebugMode = 0;
+        uint32_t enableSceneryReconstruction = 0;
+        float sceneryPadding[3]{};
     };
 
     struct ResolvedCloudVolume {
@@ -229,7 +235,7 @@ private:
     bool diagnosticDisableDepthAwareUpsample_ = false;
     bool recreateCloudBufferRequested_ = false;
     bool hasValidCloudBuffer_ = false;
-    std::array<Vector4,11> comparisonState_{};
+    std::array<Vector4,14> comparisonState_{};
     bool cloudColorSrvAllocated_ = false;
     Vector3 currentCloudFlowDirection_{ 0.0f, 0.0f, -1.0f };
     bool gameplayFlowActive_ = false;

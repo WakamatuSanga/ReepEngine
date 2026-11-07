@@ -1,8 +1,11 @@
+#include "CloudDepthField.hlsli"
 #include "CloudSeaBackground.hlsli"
 struct TransformationMatrix {
     float4x4 WVP;
     float4 styleControl,styleZenith,styleHorizon,styleCloudShadow,styleCloudHighlight,styleSun,styleSunColor,styleCumulus,styleCamera,styleCumulusExtra,styleCumulusDistribution,styleCloudRelief,styleCloudLayout;
     float4 blueFraming;
+    float4 depthControl,depthStyle;
+    float4 bankCenters[16],bankRadii[16];
 };
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
 TextureCube<float4> gTexture : register(t0);
@@ -40,8 +43,12 @@ float4 main(VertexShaderOutput input) : SV_TARGET
         float3 tint=lerp(gTransformationMatrix.styleHorizon.rgb,gTransformationMatrix.styleZenith.rgb,altitude);
         color.rgb=lerp(color.rgb,tint,(gTransformationMatrix.styleCumulusDistribution.w>0?1:skyMask)*gTransformationMatrix.styleControl.x);
     }
+    if(gTransformationMatrix.depthControl.x>0)color.rgb=DepthCirrus(gTransformationMatrix.styleCamera.xyz,normalize(input.direction),color.rgb,gTransformationMatrix.depthStyle.x,gTransformationMatrix.styleCloudHighlight.rgb);
     if(gTransformationMatrix.styleCumulus.x>0) {
-        float4 cloud=DistantCumulus(gTransformationMatrix.styleCamera.xyz,normalize(input.direction),gTransformationMatrix.styleCumulus,gTransformationMatrix.styleSun.xyz,gTransformationMatrix.styleSunColor.rgb,color.rgb,gTransformationMatrix.styleCumulusExtra,gTransformationMatrix.styleCumulusDistribution.x,gTransformationMatrix.styleCloudShadow.rgb,gTransformationMatrix.styleCloudHighlight.rgb);
+        float4 cloud;
+        if(gTransformationMatrix.depthControl.x>0)cloud=DepthCumulus(gTransformationMatrix.styleCamera.xyz,normalize(input.direction),gTransformationMatrix.bankCenters,gTransformationMatrix.bankRadii,gTransformationMatrix.depthControl.y,clamp((int)gTransformationMatrix.depthStyle.y,32,96),gTransformationMatrix.styleSun.xyz,gTransformationMatrix.styleSunColor.rgb,color.rgb,gTransformationMatrix.styleCloudShadow.rgb,gTransformationMatrix.styleCloudHighlight.rgb);
+        else if(gTransformationMatrix.styleCloudRelief.w>0)cloud=RefinedDistantCumulus(gTransformationMatrix.styleCamera.xyz,normalize(input.direction),gTransformationMatrix.styleCumulus,gTransformationMatrix.styleSun.xyz,gTransformationMatrix.styleSunColor.rgb,color.rgb,gTransformationMatrix.styleCumulusExtra,gTransformationMatrix.styleCumulusDistribution.x,gTransformationMatrix.styleCloudShadow.rgb,gTransformationMatrix.styleCloudHighlight.rgb,gTransformationMatrix.styleCloudRelief,gTransformationMatrix.styleCloudLayout);
+        else cloud=DistantCumulus(gTransformationMatrix.styleCamera.xyz,normalize(input.direction),gTransformationMatrix.styleCumulus,gTransformationMatrix.styleSun.xyz,gTransformationMatrix.styleSunColor.rgb,color.rgb,gTransformationMatrix.styleCumulusExtra,gTransformationMatrix.styleCumulusDistribution.x,gTransformationMatrix.styleCloudShadow.rgb,gTransformationMatrix.styleCloudHighlight.rgb);
         color.rgb=lerp(color.rgb,cloud.rgb,cloud.a);
     }
     return color;
