@@ -1,9 +1,11 @@
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Object3d.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Utility/Logger.h"
 #include <string>
+#include <algorithm>
 
 using namespace MatrixMath;
 
@@ -75,6 +77,12 @@ void Object3d::Initialize(Object3dCommon* object3dCommon) {
     }
 }
 
+void Object3d::SetStyleTarget(RenderStyleComparison::Target target) {
+    styleTarget_=target;
+    if(target!=RenderStyleComparison::Target::None && !outlineTransformResource_ && object3dCommon_)
+        CreateAndMapObject3dBuffer(object3dCommon_,sizeof(TransformationMatrix),outlineTransformResource_,reinterpret_cast<void**>(&outlineTransformData_),"outlineTransformResource_");
+}
+
 void Object3d::Update() {
     if (!initialized_ || !transformationMatrixData_) {
         return;
@@ -97,6 +105,7 @@ void Object3d::Update() {
         transformationMatrixData_->WVP = MakeIdentity4x4();
     }
 
+    transformationMatrixData_->outline={};
     transformationMatrixData_->World = worldMatrix;
     transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
 }
@@ -115,6 +124,10 @@ void Object3d::Draw() {
         return;
     }
 
+    const auto style=RenderStyleComparison::ResolveSurface(styleTarget_);
+    directionalLightData_->styleControl=style.control;directionalLightData_->styleShadow=style.shadow;
+    directionalLightData_->styleHighlight=style.highlight;directionalLightData_->styleRim=style.rim;
+    directionalLightData_->styleBands=style.bands;directionalLightData_->styleSun=style.sun;directionalLightData_->styleSunColor=style.sunColor;
     commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootConstantBufferView(4, environmentMapResource_->GetGPUVirtualAddress());
@@ -130,6 +143,16 @@ void Object3d::Draw() {
     }
 
     if (model_) {
+        const float width=RenderStyleComparison::AircraftOutlinePixels(styleTarget_);
+        if(width>0 && outlineTransformData_ && outlineTransformResource_){
+            auto* dx=object3dCommon_->GetDxCommon();*outlineTransformData_=*transformationMatrixData_;
+            outlineTransformData_->outline={width,2.f/(std::max)(1u,dx->GetRenderTextureWidth()),2.f/(std::max)(1u,dx->GetRenderTextureHeight()),1};
+            object3dCommon_->CommonDrawOutlineSetting();
+            commandList->SetGraphicsRootConstantBufferView(1,outlineTransformResource_->GetGPUVirtualAddress());
+            model_->Draw(materialOverride_);
+            object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
+            commandList->SetGraphicsRootConstantBufferView(1,transformationMatrixResource_->GetGPUVirtualAddress());
+        }
         model_->Draw(materialOverride_);
     }
 }
@@ -143,6 +166,7 @@ bool Object3d::CreateTransformationMatrixResource() {
         "transformationMatrixResource_")) {
         return false;
     }
+    *transformationMatrixData_={};
     transformationMatrixData_->WVP = MakeIdentity4x4();
     transformationMatrixData_->World = MakeIdentity4x4();
     transformationMatrixData_->WorldInverseTranspose = MakeIdentity4x4();
@@ -158,6 +182,8 @@ bool Object3d::CreateDirectionalLightResource() {
         "directionalLightResource_")) {
         return false;
     }
+    static_assert(sizeof(DirectionalLight)==160);
+    *directionalLightData_={};
     directionalLightData_->color = { 1.0f, 1.0f, 1.0f, 1.0f };
     directionalLightData_->direction = { 0.0f, -1.0f, 0.0f };
     directionalLightData_->intensity = 1.0f;

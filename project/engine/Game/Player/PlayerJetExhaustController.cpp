@@ -1,4 +1,5 @@
 #include "PlayerJetExhaustController.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "PlayerJetExhaustBeamCore.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/SrvManager.h"
@@ -326,6 +327,14 @@ void PlayerJetExhaustController::ApplyRuntimeSettings(float deltaTime) {
         outerSpeed * 1.15f,
         affectedByRailFlow_,
         railFlowScale_);
+    // The existing outer flame (not the small nozzle glow) occluded the armor.
+    // Only the target player's runtime type is narrowed; source presets/title stay intact.
+    if(player_ && RenderStyleComparison::IsTargetPresentation()) {
+        const auto& target=RenderStyleComparison::GetSettings().presentation;
+        const float scale=std::clamp(target.outerFlameScale,.25f,1.f),alpha=std::clamp(target.outerFlameAlpha,.1f,1.f);
+        outerType.startScale*=scale;outerType.endScale*=scale;
+        outerType.baseColor.w*=alpha;outerType.startColor.w*=alpha;outerType.endColor.w*=alpha;
+    }
     // UpdateParticle uses these type colours for existing particles too, so the
     // display fade includes the entire trail, not just newly emitted particles.
     coreType.baseColor.w *= displayOpacity_;

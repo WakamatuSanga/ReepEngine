@@ -1,4 +1,6 @@
-﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "Engine/Game/Effect/ProjectileBeamVisual.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletManager.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "LockedWingMissileExhaustController.h"
@@ -101,6 +103,8 @@ void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* cam
     lockAmmo_ = kMaxLockAmmo;
     object3dCommon_ = object3dCommon;
     camera_ = camera;
+    normalBeamVisual_=std::make_unique<ProjectileBeamVisual>();
+    normalBeamVisual_->Initialize(object3dCommon_,camera_);
     player_ = player;
     fireTimer_ = fireInterval_;
     inputBlockedReason_ = "Initialized";
@@ -120,6 +124,7 @@ void PlayerBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* cam
 }
 
 void PlayerBulletManager::Finalize() {
+    normalBeamVisual_.reset();
     cameraShakeController_ = nullptr;
     DeleteAllBullets();
     ClearAimCorridorContext();
@@ -213,11 +218,15 @@ void PlayerBulletManager::Update(float deltaTime) {
 
 void PlayerBulletManager::Draw() {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerDrawMs);
+    const bool beams=normalBeamVisual_&&normalBeamVisual_->IsReady()&&RenderStyleComparison::IsTargetPresentation()&&RenderStyleComparison::GetSettings().presentation.stage>=2;
+    if(beams)normalBeamVisual_->Begin();
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
-            instance.bullet->Draw();
+            if(beams&&instance.projectileType==PlayerProjectileType::NormalShot)normalBeamVisual_->Add(*instance.bullet,true);
+            else instance.bullet->Draw();
         }
     }
+
     if (showBulletCollisionRadius_) {
         for (PlayerBulletInstance& instance : bullets_) {
             if (instance.bullet) {
@@ -228,6 +237,12 @@ void PlayerBulletManager::Draw() {
     if (lockedWingMissileExhaustController_) {
         lockedWingMissileExhaustController_->Draw();
     }
+}
+
+void PlayerBulletManager::DrawAfterCloud() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerDrawMs);
+    if(normalBeamVisual_&&RenderStyleComparison::IsTargetPresentation()&&RenderStyleComparison::GetSettings().presentation.stage>=2)
+        normalBeamVisual_->Draw(true);
 }
 
 void PlayerBulletManager::DrawImGui() {
@@ -411,7 +426,7 @@ void PlayerBulletManager::FireFromPlayer() {
     const Vector3 cameraForward = GetCameraForward(*camera_);
     const Vector3 initialDirection = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
     const Vector3 startPosition = AddVector3(
-        player_->GetWorldPosition(), ScaleVector3(initialDirection, muzzleOffset_));
+        player_->GetDisplayWorldPosition(), ScaleVector3(initialDirection, muzzleOffset_*RenderStyleComparison::PlayerDisplayScale()));
     const Vector3 direction = ResolveFinalShotDirection(startPosition, initialDirection);
     if (!lastShotSpawnDataValid_) {
         inputBlockedReason_ = "発射口または目標が無効なため弾を生成しません";

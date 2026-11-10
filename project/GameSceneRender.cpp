@@ -1,4 +1,5 @@
-﻿#include "GameScene.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
@@ -40,6 +41,7 @@
 #include "Engine/Level/LevelSceneRuntime.h"
 
 void GameScene::DrawSceneRender() {
+    RenderStyleComparison::GameDrawScope styleScope;
     auto dxCommon = MyGame::GetInstance()->GetDxCommon();
     auto object3dCommon = MyGame::GetInstance()->GetObject3dCommon();
     auto skyboxCommon = MyGame::GetInstance()->GetSkyboxCommon();
@@ -56,9 +58,12 @@ void GameScene::DrawSceneRender() {
 
     auto& profiler = dxCommon->GetGpuProfiler();
     const auto mainToken = profiler.Begin(dxCommon->GetCommandList(), GpuTimestampProfiler::Stage::MainScene, {});
+    if(volumetricCloudPass)volumetricCloudPass->PrepareSceneryFlow(camera_.get(),cloudVolume_.get());
     if (isSkyboxVisible_) {
         skyboxCommon->CommonDrawSetting();
+        const auto skyToken=profiler.Begin(dxCommon->GetCommandList(),GpuTimestampProfiler::Stage::Background,{});
         skybox_->Draw();
+        profiler.End(dxCommon->GetCommandList(),skyToken);
     }
 
     ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
@@ -92,15 +97,19 @@ void GameScene::DrawSceneRender() {
     if (shouldDrawDebugVisuals && levelSceneRuntime_) {
         levelSceneRuntime_->Draw();
     }
+    const auto aircraftToken=profiler.Begin(commandList,GpuTimestampProfiler::Stage::Aircraft,{});
     if (player_ && aircraftVisible) {
         player_->Draw();
     }
+    profiler.End(commandList,aircraftToken);
     if (playerBulletManager_ && !deathActive) {
         playerBulletManager_->Draw();
     }
+    const auto enemyAircraftToken=profiler.Begin(commandList,GpuTimestampProfiler::Stage::Aircraft,{});
     if (enemyManager_ && !deathActive) {
         enemyManager_->Draw();
     }
+    profiler.End(commandList,enemyAircraftToken);
     if (enemyBulletManager_ && !deathActive) {
         enemyBulletManager_->Draw();
     }
@@ -161,6 +170,10 @@ void GameScene::DrawSceneRender() {
     }
 
     const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
+    if(!deathActive){
+        if(playerBulletManager_)playerBulletManager_->DrawAfterCloud();
+        if(enemyBulletManager_)enemyBulletManager_->DrawAfterCloud();
+    }
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }

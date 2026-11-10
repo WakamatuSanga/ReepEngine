@@ -1,11 +1,11 @@
-struct TransformationMatrix
-{
+struct TransformationMatrix {
     float4x4 WVP;
+    float4 styleControl,styleZenith,styleHorizon,styleCloudShadow,styleCloudHighlight,styleSun,styleSunColor,styleCumulus,styleCamera,styleCumulusExtra,styleCumulusDistribution,styleCloudRelief,styleCloudLayout;
     float4 blueFraming;
+    float4 depthControl,depthStyle;
+    float4 bankCenters[16],bankRadii[16];
 };
-
 ConstantBuffer<TransformationMatrix> gTransformationMatrix : register(b0);
-
 struct VertexShaderInput
 {
     float4 position : POSITION0;

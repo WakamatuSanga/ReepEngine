@@ -1,4 +1,6 @@
-﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Engine/Game/Effect/ProjectileBeamVisual.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyBulletManager.h"
 #include "EnemyBullet.h"
 #include "Engine/Game/GameState/StageCombatState.h"
@@ -30,6 +32,8 @@ EnemyBulletManager::~EnemyBulletManager() = default;
 void EnemyBulletManager::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object3dCommon_ = object3dCommon;
     camera_ = camera;
+    normalBeamVisual_=std::make_unique<ProjectileBeamVisual>();
+    normalBeamVisual_->Initialize(object3dCommon_,camera_);
     if (!object3dCommon_) {
         Logger::Log("[EnemyBulletManager] Initialize warning: Object3dCommon is null");
     }
@@ -43,6 +47,7 @@ bool EnemyBulletManager::PrepareForPresentation() {
 }
 
 void EnemyBulletManager::Finalize() {
+    normalBeamVisual_.reset();
     DeleteAllBullets();
     object3dCommon_ = nullptr;
     camera_ = nullptr;
@@ -73,11 +78,14 @@ void EnemyBulletManager::Update(float deltaTime) {
 
 void EnemyBulletManager::Draw() {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyDrawMs);
+    const bool beams=normalBeamVisual_&&normalBeamVisual_->IsReady()&&RenderStyleComparison::IsTargetPresentation()&&RenderStyleComparison::GetSettings().presentation.stage>=2;
+    if(beams)normalBeamVisual_->Begin();
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
-            bullet->Draw();
+            if(beams)normalBeamVisual_->Add(*bullet,false);else bullet->Draw();
         }
     }
+
 
     if (showEnemyBulletRadius_) {
         for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
@@ -86,6 +94,12 @@ void EnemyBulletManager::Draw() {
             }
         }
     }
+}
+
+void EnemyBulletManager::DrawAfterCloud() {
+    FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyDrawMs);
+    if(normalBeamVisual_&&RenderStyleComparison::IsTargetPresentation()&&RenderStyleComparison::GetSettings().presentation.stage>=2)
+        normalBeamVisual_->Draw(false);
 }
 
 void EnemyBulletManager::DrawImGui() {

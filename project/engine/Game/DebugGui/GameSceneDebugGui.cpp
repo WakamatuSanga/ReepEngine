@@ -1,4 +1,5 @@
-﻿#include "Engine/Game/GameState/StageCombatState.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 #include "GameSceneDebugGui.h"
 #include "GameScene.h"
 #include "SceneManager.h"
@@ -269,6 +270,8 @@ void GameSceneDebugGui::DrawManagerDebugWindows(DirectXCommon* dxCommon, Volumet
             scene_->playerBulletManager_.get()); }, false });
     if (scene_->boostController_) panels.push_back({ "boostController", "Boost操作・状態", C::Player, [this] { scene_->boostController_->DrawImGui();
  }, false });
+    panels.push_back({"renderStyleComparison","画風比較・雲海の目標",C::Rendering,[]{RenderStyleComparison::DrawImGui();},false});
+    panels.push_back({"cloudSeaComposition","積雲・下方の雲海を調整",C::Rendering,[]{RenderStyleComparison::DrawCloudImGui();},false});
     if (scene_->playerJetExhaustController_) panels.push_back({ "playerJetExhaustController", "機体のジェット排気", C::Rendering, [this] { scene_->playerJetExhaustController_->DrawImGui(); }, false });
     if (scene_->playerSonicBoostRingController_) panels.push_back({ "playerSonicBoostRingController", "Boostリング", C::Rendering, [this] { scene_->playerSonicBoostRingController_->DrawImGui(); }, false });
     if (scene_->playerBarrelRollRingController_) panels.push_back({ "playerBarrelRollRingController", "ロールリング", C::Rendering, [this] { scene_->playerBarrelRollRingController_->DrawImGui(); }, false });

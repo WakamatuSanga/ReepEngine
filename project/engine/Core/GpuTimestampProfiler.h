@@ -11,7 +11,7 @@
 class GpuTimestampProfiler {
 public:
     enum class Role { Frame, Game, TitleBackground, TitleForeground };
-    enum class Stage { Frame, Raymarch, Composite, ParticleUpdate, MainScene, AfterCloud, Post };
+    enum class Stage { Frame, Raymarch, Composite, ParticleUpdate, MainScene, AfterCloud, Post, Aircraft, Background, NormalShots };
     enum class Path { Frame, Direct, LowResolution, Culled, Disabled };
     enum class State { Pending, Measured, Culled, Disabled, Reused, NotApplicable, CapacityExceeded, Invalid };
     struct Context {

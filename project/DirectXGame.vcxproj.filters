@@ -1,6 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <None Include="resources\shaders\CloudSeaBackground.hlsli" />
+    <None Include="resources\shaders\CloudDepthField.hlsli" />
+    <None Include="resources\shaders\ProjectileLaser.PS.hlsl" />
     <Filter Include="ソース ファイル">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
@@ -218,6 +221,7 @@
     <ClCompile Include="engine\Graphics\Camera\Camera.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Appearance\RenderStyleComparison.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudVolume.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -435,6 +439,7 @@
     <ClCompile Include="engine\Game\Effect\GameplaySpeedLineController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Effect\ProjectileBeamVisual.cpp" />
     <ClCompile Include="engine\Game\Effect\CombatEffectController.cpp">
       <Filter>ソース ファイル\engine\Game\Effect</Filter>
     </ClCompile>
@@ -515,8 +520,8 @@
     <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamCore.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
     </ClCompile>
-    <ClCompile Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.cpp">
-      <Filter>ソース ファイル\engine\Game\Player</Filter>
+    <ClCompile Include="engine\Graphics\Primitive\BeamBatchRenderer.cpp">
+      <Filter>ソース ファイル\engine\Graphics\Effect</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\Player\PlayerSonicBoostRingController.cpp">
       <Filter>ソース ファイル\engine\Game\Player</Filter>
@@ -938,6 +943,7 @@
     <ClCompile Include="engine\Graphics\Skybox\SkyboxCommon.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Cloud\CloudSceneryLayout.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPass.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -1046,6 +1052,7 @@
     <ClInclude Include="engine\Graphics\Camera\Camera.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Appearance\RenderStyleComparison.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudVolume.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -1152,6 +1159,7 @@
     <ClInclude Include="engine\Game\Effect\GameplaySpeedLineController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Game\Effect\ProjectileBeamVisual.h" />
     <ClInclude Include="engine\Game\Effect\CombatEffectController.h">
       <Filter>ヘッダー ファイル\engine\Game\Effect</Filter>
     </ClInclude>
@@ -1220,6 +1228,7 @@
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamCore.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Primitive\BeamBatchRenderer.h" />
     <ClInclude Include="engine\Game\Player\PlayerJetExhaustBeamRenderer.h">
       <Filter>ヘッダー ファイル\engine\Game\Player</Filter>
     </ClInclude>
@@ -1513,6 +1522,7 @@
     <ClInclude Include="engine\Graphics\Skybox\SkyboxCommon.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Cloud\CloudSceneryLayout.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPass.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

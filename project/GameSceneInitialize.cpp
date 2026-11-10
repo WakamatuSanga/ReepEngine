@@ -302,6 +302,7 @@ void GameScene::InitializeSceneResources() {
     gameplaySpeedLineController_->Initialize(MyGame::GetInstance()->GetDxCommon(),
         SrvManager::GetInstance(), camera_.get(), railShooterCameraRig_.get(), boostController_.get());
     MyGame::GetInstance()->GetVolumetricCloudPass()->SetFlowReferenceRig(railShooterCameraRig_.get());
+    skybox_->SetSceneryReferenceRig(railShooterCameraRig_.get(),MyGame::GetInstance()->GetVolumetricCloudPass());
     railShooterEventActionBridge_ = std::make_unique<RailShooterEventActionBridge>();
     railShooterEventActionBridge_->Initialize(levelSceneRuntime_->GetEventRuntime(), railShooterCameraRig_.get());
     enemySpawnActionBridge_ = std::make_unique<EnemySpawnActionBridge>();

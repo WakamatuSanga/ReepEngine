@@ -1,9 +1,11 @@
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "VolumetricCloudPass.h"
 #include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "VolumetricCloudPipelineResources.h"
 
 #include "CloudVolume.h"
+#include "CloudSceneryLayout.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -11,6 +13,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cmath>
+#include <cstring>
 
 using namespace MatrixMath;
 
@@ -224,6 +227,10 @@ VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildProjectedBounds(c
     return result;
 }
 
+void VolumetricCloudPass::PrepareSceneryFlow(const Camera* camera,const CloudVolume* volume){
+    if(camera&&volume&&passKind_==PassKind::Game&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3&&RenderStyleComparison::GetCloudSettings().depthLayout)UpdateCloudFlow(camera,volume);
+}
+
 void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudVolume, const ProjectedBounds& projectedBounds)
 {
     assert(dxCommon_);
@@ -244,6 +251,9 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
         RecordGpuSkipped(!settings_.isEnabled_ || settings_.forceMode_ == ForceMode::ForceSkip);
         return;
     }
+    const auto style=passKind_==PassKind::Game?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
+    const std::array<Vector4,14> state{style.cloudShadow,style.cloudHighlight,style.sun,style.sunColor,style.cumulus,style.cumulusExtra,style.cumulusDistribution,style.seaShape,style.cloudRelief,style.cloudLayout,style.seaRefinement,style.seaContour,style.depthControl,style.depthStyle};
+    if(std::memcmp(state.data(),comparisonState_.data(),sizeof(state))!=0){comparisonState_=state;hasValidCloudBuffer_=false;}
     ++diagnosticInvocation_;
     diagnosticReallocated_ = false;
 
@@ -252,6 +262,12 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
     } else {
         RenderDirect(camera, cloudVolume, projectedBounds);
     }
+}
+
+float VolumetricCloudPass::GetCloudResolutionScale() const {
+    if(passKind_==PassKind::Game&&!comparison_.IsActive()&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3)
+        return std::clamp(RenderStyleComparison::GetCloudSettings().resolution,.125f,.5f);
+    return settings_.cloudResolutionScale_;
 }
 
 void VolumetricCloudPass::SetExternalFlowMultiplier(float multiplier)
@@ -372,7 +388,11 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->absorption = parameters.absorption;
     constantData_->windOffset = settings_.enableCloudFlow_ ? Vector3{ 0.0f, 0.0f, 0.0f } : cloudVolume->GetWindOffset();
     constantData_->noiseScale = parameters.noiseScale;
-    constantData_->sunDirection = Normalize(parameters.sunDirection);
+    const auto style=passKind_==PassKind::Game?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
+    constantData_->comparisonShadow=style.cloudShadow;constantData_->comparisonHighlight=style.cloudHighlight;
+    constantData_->comparisonSun=style.sun;constantData_->comparisonSunColor=style.sunColor;constantData_->targetComposition={style.cumulusDistribution.w,style.cumulusDistribution.z,0,style.cumulusDistribution.y};
+    if(style.cumulusDistribution.w>0)constantData_->density*=std::clamp(style.cumulus.w,0.f,1.f);
+    constantData_->sunDirection=style.sun.w>0?Vector3{style.sun.x,style.sun.y,style.sun.z}:Normalize(parameters.sunDirection);
     constantData_->detailNoiseScale = parameters.detailNoiseScale;
     constantData_->cloudColor = parameters.color;
     constantData_->lightAbsorption = parameters.lightAbsorption;
@@ -382,6 +402,7 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->sunIntensity = parameters.sunIntensity;
     constantData_->viewStepCount = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.viewStepCount, 1u)) * settings_.viewStepScale_ + 0.5f));
     constantData_->lightStepCount = (std::max)(1u, static_cast<uint32_t>(static_cast<float>((std::max)(parameters.lightStepCount, 1u)) * settings_.lightStepScale_ + 0.5f));
+    if(style.cumulusDistribution.w>0&&!comparison_.IsActive())constantData_->viewStepCount=(std::max)(1u,static_cast<uint32_t>(constantData_->viewStepCount*std::clamp(RenderStyleComparison::GetCloudSettings().viewSteps,.25f,1.f)));
     constantData_->debugViewMode = static_cast<uint32_t>(settings_.debugViewMode_);
     constantData_->lodFactorScale = (settings_.forceMode_ == ForceMode::ForceAggressiveLod) ? 1.75f : 1.0f;
     constantData_->disableDistanceLod = (settings_.forceMode_ == ForceMode::ForceMaxQuality) ? 1u : 0u;
@@ -389,6 +410,17 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     static_assert(offsetof(CloudPassConstants, renderInfo) == 208);
     static_assert(sizeof(CloudPassConstants) % 16 == 0);
     constantData_->volumeShapeMode = appearance ? 1u : 0u;
+    if(style.cumulusDistribution.w>0){constantData_->volumeShapeMode=1;constantData_->ambientLighting=.28f;constantData_->lightAbsorption=.65f;}
+    constantData_->seaRefinement=style.seaRefinement;constantData_->seaContour=style.seaContour;
+    if(style.seaRefinement.w>0) {
+        constantData_->volumeShapeMode=static_cast<uint32_t>(std::clamp(style.seaContour.x,1.f,3.f));
+        constantData_->noiseScale*=std::clamp(style.seaRefinement.x,.75f,2.f);
+    }
+    constantData_->depthControl=style.depthControl;constantData_->depthStyle=style.depthStyle;
+    const auto& composition=RenderStyleComparison::GetCloudSettings();
+    const auto scenery=CloudSceneryLayout::Build(camera,flowReferenceRig_,composition,accumulatedFlowOffset_);
+    constantData_->bankCenters=style.depthControl.x>0?scenery.centers:std::array<Vector4,16>{};constantData_->bankRadii=style.depthControl.x>0?scenery.radii:std::array<Vector4,16>{};
+    constantData_->depthSea=style.depthControl.x>0?Vector4{scenery.referenceY-composition.seaBelow,composition.seaThickness*.5f,composition.enableSea?1.f:0.f,composition.seaWidth*.5f}:Vector4{};
     constantData_->padding1 = 0.0f;
     constantData_->padding2 = 0.0f;
     const uint32_t depthWidth = dxCommon_ ? dxCommon_->GetRenderTextureWidth() : WinApp::kClientWidth;
@@ -441,6 +473,7 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
         settings_.cameraForwardTunnelRadius_
     };
     UpdateQualityConstantBuffer();
+    if(style.cumulusDistribution.w>0){constantData_->farCloudLayer.x=0;constantData_->cloudSeaLayer.x=0;}
 }
 
 Vector3 VolumetricCloudPass::Normalize(const Vector3& value)

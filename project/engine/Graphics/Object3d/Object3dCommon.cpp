@@ -250,6 +250,15 @@ void Object3dCommon::CreateGraphicsPipelineStates()
         b.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
         CreatePSO(BlendMode::kNormal, b);
     }
+    // The selected aircraft alone draw an inverted hull. Keep depth and normal MRT intact.
+    {
+        auto outline=graphicsPipelineStateDesc;
+        outline.RasterizerState.CullMode=D3D12_CULL_MODE_FRONT;
+        outline.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ZERO;
+        outline.BlendState.RenderTarget[1].RenderTargetWriteMask=0;
+        hr=dxCommon_->GetDevice()->CreateGraphicsPipelineState(&outline,IID_PPV_ARGS(&outlineState_));
+        assert(SUCCEEDED(hr));
+    }
     // kAdd
     {
         D3D12_BLEND_DESC b{};
@@ -335,4 +344,9 @@ void Object3dCommon::CommonDrawSetting(BlendMode blendMode)
     dxCommon_->GetCommandList()->SetPipelineState(graphicsPipelineStates_[(size_t)blendMode].Get());
     // プリミティブトポロジーをセット
     dxCommon_->GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void Object3dCommon::CommonDrawOutlineSetting(){
+    CommonDrawSetting(BlendMode::kNormal);
+    dxCommon_->GetCommandList()->SetPipelineState(outlineState_.Get());
 }

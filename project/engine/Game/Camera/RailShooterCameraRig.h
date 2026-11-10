@@ -88,6 +88,9 @@ public:
     void PrepareForPresentation();
     void DrawImGui();
 
+    // Read-only scenery sampling; never changes rail progression or camera pose.
+    float GetSceneryDistance() const;
+    Matrix4x4 SampleSceneryFrame(float absoluteDistance) const;
     bool IsCameraRigActive() const;
     RailFlightPoseSnapshot GetRailFlightPoseSnapshot(float lookAheadDistance) const;
     ProjectileRailFrame GetProjectileRailFrame() const;

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Engine/math/Matrix4x4.h"
 #include <array>
 #include <cstddef>
@@ -9,6 +9,7 @@
 
 class AimCorridorTargetingController;
 class AimCorridorVisualController;
+class ProjectileBeamVisual;
 class Camera;
 class CameraShakeController;
 class EnemyBullet;
@@ -83,6 +84,7 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void Draw();
+    void DrawAfterCloud();
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
@@ -257,6 +259,7 @@ private:
     void RecordAimShot();
     bool ShouldBlockFireInput();
 
+    std::unique_ptr<ProjectileBeamVisual> normalBeamVisual_;
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
     int lockAmmo_ = kMaxLockAmmo;

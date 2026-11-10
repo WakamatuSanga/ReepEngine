@@ -1,4 +1,5 @@
-﻿#include "GameScene.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
@@ -94,6 +95,7 @@ void GameScene::PrepareForPresentation() {
         railShooterCameraRig_->UpdatePlayerFollow(0,0);
     }
     player_->RefreshCameraPresentation(0);
+    RenderStyleComparison::InitializeGameplay(*camera_);
     stageStart_ = std::make_unique<StageStartSequenceController>();
     stageStart_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), camera_.get(), player_.get(),
         railShooterCameraRig_.get(), playerJetExhaustController_.get());

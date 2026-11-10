@@ -1,4 +1,5 @@
-﻿#include "PlayerJetExhaustController.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "PlayerJetExhaustController.h"
 #include "BoostController.h"
 #include "Player.h"
 #include "PlayerJetExhaustBeamCore.h"
@@ -58,8 +59,9 @@ void PlayerJetExhaustController::Update(float deltaTime) {
     if (!player_) return;
     displayOpacity_ = 1.0f;
     displayLocalParticles_ = false;
-    UpdateVisualPose(deltaTime, player_->GetWorldPosition(), player_->GetVisualModelRotation(),
-        player_->GetBaseForward(), { 1.0f, 1.0f, 1.0f },
+    const float visual=RenderStyleComparison::PlayerDisplayScale();
+    UpdateVisualPose(deltaTime, player_->GetDisplayWorldPosition(), player_->GetVisualModelRotation(),
+        player_->GetBaseForward(), { visual, visual, visual },
         boostController_ ? boostController_->GetCurrentBoostPower() : 0.0f);
 }
 

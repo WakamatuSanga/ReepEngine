@@ -1,0 +1,67 @@
+#pragma once
+
+#include "Engine/math/Matrix4x4.h"
+
+#include <cstdint>
+#include <memory>
+#include <d3d12.h>
+#include <vector>
+#include <wrl.h>
+
+class Camera;
+class DirectXCommon;
+
+class BeamBatchRenderer {
+public:
+    struct Vertex {
+        Vector3 position;
+        Vector2 uv;
+        Vector3 normal{};
+        float layer=0;
+    };
+
+    bool Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha = false, bool normalProjectileBlend = false, size_t initialVertexCapacity = 0);
+    bool IsInitialized() const { return initialized_; }
+    void Draw(
+        const std::vector<Vertex>& vertices,
+        const Camera* camera,
+        float brightness,
+        float alphaScale,
+        float flickerStrength,
+        float edgeSoftness,
+        float tipFadePower,
+        float time,
+        uint32_t mode,
+        float nozzleClipDepth = 0.0f,
+        const Vector4* projectileColorCore = nullptr);
+
+private:
+    struct Constants {
+        Matrix4x4 viewProjection;
+        Vector4 params;
+        Vector4 qualityParams;
+        Vector4 projectileColorCore;
+        Vector4 projectileCamera;
+    };
+
+    bool CreateRootSignature();
+    bool CreatePipelineState(bool preserveDestinationAlpha, bool normalProjectileBlend);
+    bool EnsureVertexCapacity(size_t vertexCount);
+
+    struct PipelineBundle;
+    std::shared_ptr<PipelineBundle> pipelines_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> solidProjectilePipeline_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> energyShellPipeline_;
+
+    DirectXCommon* dxCommon_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;
+    Microsoft::WRL::ComPtr<ID3D12Resource> constantResource_;
+    Vertex* vertexData_ = nullptr;
+    Constants* constantData_ = nullptr;
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView_{};
+    size_t vertexCapacity_ = 0;
+    bool initialized_ = false;
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> normalProjectilePipeline_;
+};

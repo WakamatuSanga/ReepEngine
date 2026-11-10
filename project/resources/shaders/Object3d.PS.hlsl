@@ -5,6 +5,7 @@ struct DirectionalLight
     float intensity;
     float3 cameraPosition;
     float shininess;
+    float4 styleControl,styleShadow,styleHighlight,styleRim,styleBands,styleSun,styleSunColor;
 };
 
 struct Material
@@ -85,6 +86,7 @@ struct VertexShaderOutput
     float3 worldPos : TEXCOORD1;
     float3 tangent : TANGENT;
     float jointWarning : TEXCOORD2;
+    nointerpolation float outline : TEXCOORD3;
 };
 
 struct PixelShaderOutput
@@ -191,6 +193,45 @@ float3 ComputeSimplePbrLighting(float3 baseColor, float3 N, float3 worldPos, flo
     return ambient + diffuse + specular;
 }
 
+float3 ComputeAnimeLighting(float3 baseColor, float3 N, float3 worldPos)
+{
+    float3 L = normalize(-gDirectionalLight.direction);
+    float3 V = normalize(gDirectionalLight.cameraPosition - worldPos);
+    float ndl = saturate(dot(N,L));
+    // Derivative widening keeps the two soft boundaries stable in motion.
+    float width = max(gDirectionalLight.styleControl.z, fwidth(ndl));
+    float floorValue = gDirectionalLight.styleControl.w;
+    float band = smoothstep(.5f-width,.5f+width,ndl);
+    if (gDirectionalLight.styleControl.y > 2.5f)
+        band = .5f * (smoothstep(.32f-width,.32f+width,ndl) + smoothstep(.68f-width,.68f+width,ndl));
+    float3 diffuse = baseColor * lerp(gDirectionalLight.styleShadow.rgb * floorValue, 1.0f, band);
+    float4 h = gDirectionalLight.styleHighlight;
+    float ndh = saturate(dot(N,normalize(L+V)));
+    float highlightWidth = max(.02f, fwidth(ndh));
+    float highlight = smoothstep(1-h.y-highlightWidth,1-h.y+highlightWidth,ndh) * h.x * ndl;
+    float rim = pow(1-saturate(dot(N,V)),h.w) * h.z * (.3f+.7f*ndl);
+    return diffuse * gDirectionalLight.color.rgb * gDirectionalLight.intensity + baseColor*.08f
+        + highlight * gDirectionalLight.color.rgb + rim * gDirectionalLight.styleRim.rgb;
+}
+
+float3 ComputeEmphasizedLighting(float3 baseColor,float3 N,float3 worldPos) {
+    float3 L=normalize(gDirectionalLight.styleSun.w>0?-gDirectionalLight.styleSun.xyz:-gDirectionalLight.direction);
+    float3 lightColor=gDirectionalLight.styleSun.w>0?gDirectionalLight.styleSunColor.rgb:gDirectionalLight.color.rgb;
+    float3 V=normalize(gDirectionalLight.cameraPosition-worldPos);
+    float ndl=saturate(dot(N,L));float4 b=gDirectionalLight.styleBands;
+    float x=pow(ndl,b.w),w=max(gDirectionalLight.styleControl.z,fwidth(x));
+    float lo=smoothstep(b.x-w,b.x+w,x),hi=smoothstep(b.y-w,b.y+w,x);
+    float luma=dot(baseColor,float3(.2126,.7152,.0722));
+    float3 shadow=lerp(baseColor,luma.xxx,.2)*gDirectionalLight.styleShadow.rgb*gDirectionalLight.styleControl.w;
+    float3 mid=baseColor*lerp(gDirectionalLight.styleShadow.rgb,1,.20)*b.z;
+    float bright=gDirectionalLight.styleSun.w>0?.95:.82;
+    float3 diffuse=gDirectionalLight.styleControl.y>2.5?lerp(lerp(shadow,mid,lo),baseColor*bright,hi):lerp(shadow,baseColor*bright,lo);
+    float4 h=gDirectionalLight.styleHighlight;float ndh=saturate(dot(N,normalize(L+V))),hw=max(.012,fwidth(ndh));
+    float spec=smoothstep(1-h.y-hw,1-h.y+hw,ndh)*h.x*ndl;
+    float rim=pow(1-saturate(dot(N,V)),h.w)*h.z*(.65+.35*ndl)*(1-.4*ndl);
+    return diffuse*lightColor*gDirectionalLight.intensity+baseColor*.025+spec*lightColor+rim*gDirectionalLight.styleRim.rgb;
+}
+
 PixelShaderOutput main(VertexShaderOutput input)
 {
     float4 transformedUV = mul(float4(input.uv, 0.0f, 1.0f), gMaterial.uvTransform);
@@ -228,6 +269,7 @@ PixelShaderOutput main(VertexShaderOutput input)
     if (gMaterial.enableLighting != 0)
     {
         float3 N = ResolveSurfaceNormal(input, transformedUV.xy);
+        float3 baseColor=outputColor.rgb;
         if (gMaterial.usePBR != 0)
         {
             outputColor.rgb = ComputeSimplePbrLighting(outputColor.rgb, N, input.worldPos, transformedUV.xy);
@@ -253,6 +295,10 @@ PixelShaderOutput main(VertexShaderOutput input)
             // 合成
             outputColor.rgb = outputColor.rgb * (diffuse + ambient) + specular;
         }
+        if(gDirectionalLight.styleControl.x>0) {
+            float3 anime=gDirectionalLight.styleBands.w>0?ComputeEmphasizedLighting(baseColor,normalize(input.normal),input.worldPos):ComputeAnimeLighting(baseColor,N,input.worldPos);
+            outputColor.rgb=lerp(outputColor.rgb,anime,gDirectionalLight.styleControl.x);
+        }
     }
 
     if (gEnvironmentMapData.enableEnvironmentMap != 0)
@@ -261,7 +307,7 @@ PixelShaderOutput main(VertexShaderOutput input)
         float3 V = normalize(gDirectionalLight.cameraPosition - input.worldPos);
         float3 reflection = reflect(-V, N);
         float3 reflectionColor = gEnvironmentTexture.Sample(gSampler, reflection).rgb;
-        outputColor.rgb = lerp(outputColor.rgb, reflectionColor, saturate(gEnvironmentMapData.intensity));
+        outputColor.rgb = lerp(outputColor.rgb, reflectionColor, saturate(gEnvironmentMapData.intensity)*(1-.75*gDirectionalLight.styleControl.x));
     }
 
     if (gDissolveData.enableDissolve != 0)
@@ -301,6 +347,12 @@ PixelShaderOutput main(VertexShaderOutput input)
         outputColor.rgb = lerp(outputColor.rgb, warningColor, saturate(input.jointWarning));
     }
 
+    if(gDirectionalLight.styleControl.x>0 && gDirectionalLight.styleRim.w>0) {
+        float3 L=normalize(gDirectionalLight.styleSun.w>0?-gDirectionalLight.styleSun.xyz:-gDirectionalLight.direction);
+        float3 N=gDirectionalLight.styleBands.w>0?normalize(input.normal):ResolveSurfaceNormal(input,transformedUV.xy);
+        outputColor.rgb=gDirectionalLight.styleRim.w<1.5?(gDirectionalLight.styleShadow.w<1.5?float3(.03,1,.08):float3(1,.03,.8)):saturate(dot(N,L)).xxx;
+    }
+    if(input.outline>0)outputColor.rgb=float3(.012,.024,.062);
     PixelShaderOutput output;
     output.color = outputColor;
     output.normal = float4(ResolveSurfaceNormal(input, transformedUV.xy) * 0.5f + 0.5f, 1.0f);

@@ -1,10 +1,14 @@
 #pragma once
 #include "SkyboxCommon.h"
-#include "Engine/Graphics/Camera/Camera.h"
+
 #include "Matrix4x4.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <string>
+#include <array>
+class Camera;
+class RailShooterCameraRig;
+class VolumetricCloudPass;
 
 class Skybox {
 public:
@@ -14,7 +18,10 @@ public:
 
     struct TransformationMatrix {
         Matrix4x4 WVP;
+        Vector4 styleControl{},styleZenith{},styleHorizon{},styleCloudShadow{},styleCloudHighlight{},styleSun{},styleSunColor{},styleCumulus{},styleCamera{},styleCumulusExtra{},styleCumulusDistribution{},styleCloudRelief{},styleCloudLayout{};
         Vector4 blueFraming{}; // x: title-only strength, zero keeps the original sky.
+        Vector4 depthControl{},depthStyle{};
+        std::array<Vector4,16> bankCenters{},bankRadii{};
     };
 
 public:
@@ -22,6 +29,7 @@ public:
     void Update();
     void Draw();
 
+    void SetSceneryReferenceRig(const RailShooterCameraRig* rig,const VolumetricCloudPass* pass=nullptr){sceneryRig_=rig;sceneryCloudPass_=pass;}
     void SetCamera(Camera* camera) { camera_ = camera; }
     void SetTexture(const std::string& filePath);
     void SetTextureIndex(uint32_t textureIndex) { textureIndex_ = textureIndex; }
@@ -36,6 +44,8 @@ private:
 private:
     SkyboxCommon* skyboxCommon_ = nullptr;
     Camera* camera_ = nullptr;
+    const RailShooterCameraRig* sceneryRig_=nullptr;
+    const VolumetricCloudPass* sceneryCloudPass_=nullptr;
     float blueFramingStrength_ = 0.0f;
 
     Transform transform_{ {100.0f, 100.0f, 100.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };

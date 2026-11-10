@@ -1,4 +1,8 @@
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Skybox.h"
+#include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Cloud/CloudSceneryLayout.h"
+#include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <cassert>
 
@@ -34,6 +38,16 @@ void Skybox::Draw() {
     assert(skyboxCommon_);
 
     ID3D12GraphicsCommandList* commandList = skyboxCommon_->GetDxCommon()->GetCommandList();
+    const auto style=RenderStyleComparison::ResolveBackground();
+    transformationMatrixData_->styleControl=style.control;transformationMatrixData_->styleZenith=style.zenith;transformationMatrixData_->styleHorizon=style.horizon;
+    transformationMatrixData_->styleCloudShadow=style.cumulusShadow;transformationMatrixData_->styleCloudHighlight=style.cumulusLight;
+    transformationMatrixData_->styleSun=style.sun;transformationMatrixData_->styleSunColor=style.sunColor;transformationMatrixData_->styleCumulus=style.cumulus;
+    transformationMatrixData_->styleCumulusExtra=style.cumulusExtra;transformationMatrixData_->styleCumulusDistribution=style.cumulusDistribution;
+    transformationMatrixData_->styleCloudRelief=style.cloudRelief;transformationMatrixData_->styleCloudLayout=style.cloudLayout;
+    transformationMatrixData_->depthControl=style.depthControl;transformationMatrixData_->depthStyle=style.depthStyle;
+    const auto scenery=style.depthControl.x>0?CloudSceneryLayout::Build(camera_,sceneryRig_,RenderStyleComparison::GetCloudSettings(),sceneryCloudPass_?sceneryCloudPass_->GetSceneryFlowOffset():Vector3{}):CloudSceneryLayout{};
+    transformationMatrixData_->bankCenters=scenery.centers;transformationMatrixData_->bankRadii=scenery.radii;
+    const Vector3 position=camera_?camera_->GetViewTranslate():Vector3{};transformationMatrixData_->styleCamera={position.x,position.y,position.z,0};
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, transformationMatrixResource_->GetGPUVirtualAddress());
     commandList->SetGraphicsRootDescriptorTable(1, TextureManager::GetInstance()->GetSrvHandleGPU(textureIndex_));
@@ -77,6 +91,7 @@ void Skybox::CreateVertexResource() {
 void Skybox::CreateTransformationMatrixResource() {
     transformationMatrixResource_ = skyboxCommon_->GetDxCommon()->CreateBufferResource(sizeof(TransformationMatrix));
     transformationMatrixResource_->Map(0, nullptr, reinterpret_cast<void**>(&transformationMatrixData_));
+    *transformationMatrixData_={};
     transformationMatrixData_->WVP = MakeIdentity4x4();
     transformationMatrixData_->blueFraming = {};
 }

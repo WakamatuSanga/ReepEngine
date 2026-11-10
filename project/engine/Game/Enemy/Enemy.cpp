@@ -1,4 +1,5 @@
-﻿#include "Enemy.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Enemy.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -173,6 +174,7 @@ void Enemy::Initialize(Object3dCommon* object3dCommon, Camera* camera, const std
     object_ = std::make_unique<Object3d>();
     object_->Initialize(object3dCommon_);
     object_->SetCamera(camera_);
+    object_->SetStyleTarget(RenderStyleComparison::Target::NormalEnemy);
     object_->SetEnvironmentMapEnabled(false);
 
     LoadModel();

@@ -1,4 +1,5 @@
-﻿#include "Engine/Core/DebugUiWorkspace.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
+#include "Engine/Core/DebugUiWorkspace.h"
 #include "Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
@@ -86,6 +87,7 @@ void Player::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     object_ = std::make_unique<Object3d>();
     object_->Initialize(object3dCommon_);
     object_->SetCamera(camera_);
+    object_->SetStyleTarget(RenderStyleComparison::Target::Player);
     object_->SetEnvironmentMapEnabled(false);
     hitRadiusObject_ = std::make_unique<Object3d>();
     hitRadiusObject_->Initialize(object3dCommon_);
@@ -198,7 +200,7 @@ void Player::Update(float deltaTime) {
     UpdateObjectTransform();
     if (afterimages_ && !normalFlightPresentation_) afterimages_->Update(safeDeltaTime,
         flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_, IsBarrelRolling(), model_,
-        { modelScale_, visualFinalRotation_, worldPosition_ });
+        GetVisualTransform());
     if (!normalFlightPresentation_) {
         object_->Update();
         if (hitRadiusObject_) hitRadiusObject_->Update();
@@ -211,7 +213,7 @@ void Player::RefreshCameraPresentation(float deltaTime) {
     UpdateObjectTransform();
     if (afterimages_) {
         afterimages_->Update(deltaTime, flightEffectsActive_ && normalFlightPresentation_ && !normalFlightSuppressed_,
-            IsBarrelRolling(), model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+            IsBarrelRolling(), model_, GetVisualTransform());
         afterimages_->RefreshCamera();
     }
     // Object3d caches WVP in Update, so commit it only after the final camera.
@@ -238,7 +240,7 @@ void Player::Draw() {
 void Player::DrawAfterimages() { if (afterimages_) afterimages_->Draw(); }
 void Player::ClearFlightTransient() {
     SetBoostTrajectory(0, {}, 0, {});
-    if (afterimages_) afterimages_->Update(0, false, false, model_, { modelScale_, visualFinalRotation_, worldPosition_ });
+    if (afterimages_) afterimages_->Update(0, false, false, model_, GetVisualTransform());
 }
 uint32_t Player::GetAfterimageDrawCount() const { return afterimages_ ? afterimages_->GetDrawCount() : 0; }
 void Player::SetCameraShakeController(CameraShakeController* controller) {

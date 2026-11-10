@@ -1,3 +1,4 @@
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "VolumetricCloudPass.h"
 #include "Engine/Game/Player/FlightTuning.h"
 
@@ -99,6 +100,18 @@ VolumetricCloudPass::ResolvedCloudVolume VolumetricCloudPass::ResolveCloudVolume
         resolved.halfExtents.y = (std::max)(settings_.cloudVolumeHeight_ * 0.5f, 1.0f);
     }
 
+    if(passKind_==PassKind::Game&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3){
+        const auto& c=RenderStyleComparison::GetCloudSettings();
+        resolved.center.y=cameraPosition.y-std::clamp(c.seaBelow,10.f,120.f);
+        resolved.halfExtents.y=std::clamp(c.seaThickness,10.f,100.f)*.5f;
+        resolved.halfExtents.x=std::clamp(c.seaWidth,60.f,400.f)*.5f;
+        resolved.halfExtents.z=std::clamp(c.seaDepth,80.f,500.f)*.5f;
+    }
+    if(passKind_==PassKind::Game&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3&&RenderStyleComparison::GetCloudSettings().depthLayout){
+        // Bound the union, while density uses a separate unchanged lower sea slab.
+        resolved.center.y=cameraPosition.y-5;resolved.halfExtents.y=65;
+        resolved.halfExtents.x=(std::max)(resolved.halfExtents.x,120.f);
+    }
     return resolved;
 }
 

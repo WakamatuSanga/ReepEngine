@@ -9,6 +9,7 @@
 #include <string>
 
 
+namespace RenderStyleComparison { enum class Target : uint32_t; }
 class Object3d {
     struct EnvironmentMapData {
         int32_t enableEnvironmentMap;
@@ -51,6 +52,7 @@ public:
         Matrix4x4 WVP;
         Matrix4x4 World;
         Matrix4x4 WorldInverseTranspose; // 非均一スケール対応
+        Vector4 outline{}; // width px, reciprocal render size x/y, enable
     };
 
     struct DirectionalLight {
@@ -59,6 +61,7 @@ public:
         float intensity;
         Vector3 cameraPosition; // 鏡面反射用カメラ座標
         float shininess;        // 光沢度
+        Vector4 styleControl{},styleShadow{},styleHighlight{},styleRim{},styleBands{},styleSun{},styleSunColor{};
     };
 
 public:
@@ -67,6 +70,7 @@ public:
     void Draw();
     bool IsValid() const { return initialized_; }
 
+    void SetStyleTarget(RenderStyleComparison::Target target);
     void SetModel(Model* model) { model_ = model; }
     void SetMaterialBufferOverride(D3D12_GPU_VIRTUAL_ADDRESS address) { materialOverride_ = address; }
     void SetCamera(Camera* camera) { camera_ = camera; }
@@ -136,6 +140,9 @@ private:
 
     Microsoft::WRL::ComPtr<ID3D12Resource> ringAppearanceResource_;
     RingAppearanceData* ringAppearanceData_ = nullptr;
+    Microsoft::WRL::ComPtr<ID3D12Resource> outlineTransformResource_;
+    TransformationMatrix* outlineTransformData_=nullptr;
+    RenderStyleComparison::Target styleTarget_{};
     bool initialized_ = false;
     D3D12_GPU_VIRTUAL_ADDRESS materialOverride_ = 0;
 };
