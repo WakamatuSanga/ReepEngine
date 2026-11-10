@@ -20,7 +20,7 @@ public:
         float layer=0;
     };
 
-    bool Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha = false, bool normalProjectileBlend = false);
+    bool Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha = false, bool normalProjectileBlend = false, size_t initialVertexCapacity = 0);
     bool IsInitialized() const { return initialized_; }
     void Draw(
         const std::vector<Vertex>& vertices,
@@ -32,13 +32,16 @@ public:
         float tipFadePower,
         float time,
         uint32_t mode,
-        float nozzleClipDepth = 0.0f);
+        float nozzleClipDepth = 0.0f,
+        const Vector4* projectileColorCore = nullptr);
 
 private:
     struct Constants {
         Matrix4x4 viewProjection;
         Vector4 params;
         Vector4 qualityParams;
+        Vector4 projectileColorCore;
+        Vector4 projectileCamera;
     };
 
     bool CreateRootSignature();
@@ -48,6 +51,7 @@ private:
     struct PipelineBundle;
     std::shared_ptr<PipelineBundle> pipelines_;
     Microsoft::WRL::ComPtr<ID3D12PipelineState> solidProjectilePipeline_;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> energyShellPipeline_;
 
     DirectXCommon* dxCommon_ = nullptr;
     Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource_;

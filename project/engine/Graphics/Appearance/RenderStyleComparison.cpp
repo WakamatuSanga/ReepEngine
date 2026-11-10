@@ -9,7 +9,14 @@
 
 namespace RenderStyleComparison {
 namespace {
-Settings settings;
+Settings settings = [] {
+    Settings startup;
+    startup.mode = Mode::AircraftAndBackground;
+    startup.candidate = Candidate::CloudSeaTarget;
+    startup.presentation.cloudVariant = CloudVariant::Depth;
+    startup.presentation.beamVariant = BeamVariant::Depth;
+    return startup;
+}();
 bool gameDraw=false,sunCaptured=false;
 Vector3 referenceSun{-.52f,-.78f,.35f};
 Vector4 Color(Vector3 c,float w=0) { return {c.x,c.y,c.z,w}; }
@@ -55,7 +62,23 @@ CloudCompositionSettings MakeDepthCloudSettings() {
     c.seaShadowColor={.23f,.48f,.77f};c.shadowColor=c.seaShadowColor;
     c.lightColor=c.seaLightColor={1,.99f,.94f};return c;
 }
+NormalBeamSettings MakeLaserBeamSettings() {
+    NormalBeamSettings b{true,.92f,1.30f,.26f,true,1.75f,1.15f,.68f,.28f};
+    b.energyProfile=true;b.coreWidth=.22f;return b;
+}
+NormalBeamSettings MakeCoreBloomBeamSettings() {
+    auto beam = MakeLaserBeamSettings();
+    beam.coreWidth = .25f;
+    beam.enemyCoreWidth = .25f;
+    beam.coreWhiteness = .10f;
+    beam.enemyCoreWhiteness = .035f;
+    beam.coreBrightness = 1.12f;
+    beam.brightness = 1.10f;
+    return beam;
+}
 NormalBeamSettings& GetNormalBeamSettings() {
+    if(settings.presentation.beamVariant==BeamVariant::CoreBloom)return settings.presentation.coreBloomBeams;
+    if(settings.presentation.beamVariant==BeamVariant::DepthLegacy)return settings.presentation.legacyDepthBeams;
     if(settings.presentation.beamVariant==BeamVariant::Depth)return settings.presentation.depthBeams;
     return settings.presentation.beamVariant==BeamVariant::Adjusted
         ? settings.presentation.adjustedBeams : settings.presentation.previousBeams;
@@ -121,23 +144,44 @@ namespace {
 void DrawBeamControls(){
     if(!ImGui::CollapsingHeader("短い通常ビームの視認性"))return;
     auto& p=settings.presentation;int variant=static_cast<int>(p.beamVariant);
-    const char* variants[]{"調整前：加算", "前候補：有色の芯", "立体レーザー"};
-    if(ImGui::Combo("通常ビームの比較",&variant,variants,3))p.beamVariant=static_cast<BeamVariant>(variant);
+    const char* variants[]{"調整前：加算", "前候補：有色の芯", "今回：黄色／赤のレーザー", "直前：角柱／ピンク", "試作：細い芯と光のにじみ"};
+    if (ImGui::Combo("通常ビームの比較", &variant, variants, IM_ARRAYSIZE(variants))) {
+        p.beamVariant = static_cast<BeamVariant>(variant);
+        if (p.beamVariant == BeamVariant::CoreBloom) {
+            p.coreBloomStrength = CoreBloomStrength::Weak;
+        }
+    }
+    if (p.beamVariant == BeamVariant::CoreBloom) {
+        int strength = static_cast<int>(p.coreBloomStrength);
+        const char* strengths[]{"なし", "弱め", "強め"};
+        if (ImGui::Combo("芯のにじみ", &strength, strengths, IM_ARRAYSIZE(strengths))) {
+            p.coreBloomStrength = static_cast<CoreBloomStrength>(strength);
+        }
+        return;
+    }
     auto& b=GetNormalBeamSettings();
     ImGui::BeginDisabled(b.solidPrism);
     ImGui::Checkbox("通常弾専用の有色コア",&b.opaqueCore);
     ImGui::EndDisabled();
-    if(p.beamVariant==BeamVariant::Depth){
-        ImGui::Checkbox("本体を実体のある角柱で描画",&b.solidPrism);
+    if(p.beamVariant==BeamVariant::Depth||p.beamVariant==BeamVariant::DepthLegacy){
+        ImGui::BeginDisabled(b.energyProfile);ImGui::Checkbox("本体を実体のある角柱で描画",&b.solidPrism);ImGui::EndDisabled();
         ImGui::SliderFloat("レーザー本体の太さ",&b.widthScale,1,2.5f);
         ImGui::SliderFloat("レーザー本体の長さ",&b.lengthScale,.75f,1.5f);
-        ImGui::SliderFloat("芯の明るい色",&b.coreWhiteness,.3f,.85f);
+        ImGui::SliderFloat(b.energyProfile?"自機の芯の白さ":"芯の明るい色",&b.coreWhiteness,.3f,.85f);
+        if(b.energyProfile){
+            ImGui::ColorEdit3("自機通常弾の色",&b.playerColorSRGB.x);
+            ImGui::ColorEdit3("敵通常弾の色",&b.enemyColorSRGB.x);
+            ImGui::SliderFloat("自機の芯の幅",&b.coreWidth,.10f,.38f);
+            ImGui::SliderFloat("敵の芯の幅",&b.enemyCoreWidth,.08f,.30f);
+            ImGui::SliderFloat("敵の芯の白さ",&b.enemyCoreWhiteness,.10f,.55f);
+            ImGui::SliderFloat("芯の発光",&b.coreBrightness,1,2.5f);
+        }
         ImGui::SliderFloat("短い光跡の割合",&b.trailRatio,0,.45f);
     }
     ImGui::SliderFloat("通常ビームの不透明度",&b.opacity,.1f,1);
     ImGui::SliderFloat("通常ビームの色・明度",&b.brightness,.5f,2);
-    if(b.opaqueCore)ImGui::SliderFloat("通常ビームの周辺光",&b.haloOpacity,0,.3f);
-    if(ImGui::Button("通常ビームだけ初期値へ"))b=p.beamVariant==BeamVariant::Depth?NormalBeamSettings{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f}:p.beamVariant==BeamVariant::Adjusted?NormalBeamSettings{true,.98f,1.55f,.10f}:NormalBeamSettings{};
+    if(b.opaqueCore)ImGui::SliderFloat("通常ビームの周辺光",&b.haloOpacity,0,b.energyProfile?.4f:.3f);
+    if(ImGui::Button("通常ビームだけ初期値へ"))b=p.beamVariant==BeamVariant::Depth?MakeLaserBeamSettings():p.beamVariant==BeamVariant::DepthLegacy?NormalBeamSettings{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f}:p.beamVariant==BeamVariant::Adjusted?NormalBeamSettings{true,.98f,1.55f,.10f}:NormalBeamSettings{};
     ImGui::TextWrapped("通常弾の表示のみ。長さ・幅・速度・威力・深度、ロック弾、排気、特殊ビームは維持します。");
 }
 void DrawCloudControls(){

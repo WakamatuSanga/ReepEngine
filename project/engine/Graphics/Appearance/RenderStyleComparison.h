@@ -8,7 +8,8 @@ enum class Mode { Original, Aircraft, AircraftAndBackground };
 enum class Target : uint32_t { None, Player, NormalEnemy, BackgroundModel };
 enum class Candidate { Initial, Emphasized, CloudSeaTarget };
 enum class CloudVariant { Previous, Refined, Adjusted, Depth };
-enum class BeamVariant { Previous, Adjusted, Depth };
+enum class BeamVariant { Previous, Adjusted, Depth, DepthLegacy, CoreBloom };
+enum class CoreBloomStrength { None, Weak, Strong };
 enum class Diagnostic { None, TargetColor, LightDirection };
 struct SurfaceSettings {
     float strength=.65f; int levels=3; float softness=.08f, shadowFloor=.35f;
@@ -55,7 +56,12 @@ struct NormalBeamSettings {
     float opacity=.90f,brightness=1.25f,haloOpacity=.10f;
     bool solidPrism=false;
     float widthScale=1.75f,lengthScale=1.15f,coreWhiteness=.72f,trailRatio=.30f;
+    bool energyProfile=false;
+    float coreWidth=.34f,enemyCoreWidth=.16f,enemyCoreWhiteness=.30f,coreBrightness=1.75f;
+    Vector3 playerColorSRGB{1,.88f,.02f},enemyColorSRGB{1,.035f,.015f};
 };
+NormalBeamSettings MakeLaserBeamSettings();
+NormalBeamSettings MakeCoreBloomBeamSettings();
 struct TargetSettings {
     int stage=3; // 1: aircraft/light/color, 2: normal shots, 3: distant composition
     float playerScale=1.10f, outlinePixels=1.0f;
@@ -71,7 +77,10 @@ struct TargetSettings {
     BeamVariant beamVariant=BeamVariant::Previous;
     NormalBeamSettings previousBeams;
     NormalBeamSettings adjustedBeams{true,.98f,1.55f,.10f};
-    NormalBeamSettings depthBeams{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f};
+    NormalBeamSettings depthBeams=MakeLaserBeamSettings();
+    NormalBeamSettings legacyDepthBeams{true,.90f,1.30f,.16f,true,1.75f,1.15f,.72f,.30f};
+    NormalBeamSettings coreBloomBeams=MakeCoreBloomBeamSettings();
+    CoreBloomStrength coreBloomStrength=CoreBloomStrength::Weak;
 };
 CandidateSettings MakeEmphasizedCandidate();
 CandidateSettings MakeTargetCandidate();

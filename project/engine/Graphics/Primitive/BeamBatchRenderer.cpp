@@ -13,7 +13,7 @@ struct BeamBatchRenderer::PipelineBundle {
     ID3D12Device* device=nullptr;
     bool preserveAlpha=false,projectiles=false;
     Microsoft::WRL::ComPtr<ID3D12RootSignature> root;
-    Microsoft::WRL::ComPtr<ID3D12PipelineState> additive,alpha,solid;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> additive,alpha,solid,energyShell;
 };
 
 namespace {
@@ -24,7 +24,7 @@ namespace {
     }
 }
 
-bool BeamBatchRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha, bool normalProjectileBlend) {
+bool BeamBatchRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestinationAlpha, bool normalProjectileBlend, size_t initialVertexCapacity) {
     initialized_ = false;
     dxCommon_ = dxCommon;
     constantData_ = nullptr;
@@ -49,13 +49,13 @@ bool BeamBatchRenderer::Initialize(DirectXCommon* dxCommon, bool preserveDestina
         if(shared->device==dxCommon_->GetDevice()&&shared->preserveAlpha==preserveDestinationAlpha&&shared->projectiles==normalProjectileBlend)pipelines_=shared;
         ++it;
     }
-    if(pipelines_){rootSignature_=pipelines_->root;pipelineState_=pipelines_->additive;normalProjectilePipeline_=pipelines_->alpha;solidProjectilePipeline_=pipelines_->solid;}
+    if(pipelines_){rootSignature_=pipelines_->root;pipelineState_=pipelines_->additive;normalProjectilePipeline_=pipelines_->alpha;solidProjectilePipeline_=pipelines_->solid;energyShellPipeline_=pipelines_->energyShell;}
     else {
         if(!CreateRootSignature()||!CreatePipelineState(preserveDestinationAlpha,normalProjectileBlend))return false;
         pipelines_=std::make_shared<PipelineBundle>();pipelines_->device=dxCommon_->GetDevice();pipelines_->preserveAlpha=preserveDestinationAlpha;pipelines_->projectiles=normalProjectileBlend;
-        pipelines_->root=rootSignature_;pipelines_->additive=pipelineState_;pipelines_->alpha=normalProjectilePipeline_;pipelines_->solid=solidProjectilePipeline_;cache.push_back(pipelines_);
+        pipelines_->root=rootSignature_;pipelines_->additive=pipelineState_;pipelines_->alpha=normalProjectilePipeline_;pipelines_->solid=solidProjectilePipeline_;pipelines_->energyShell=energyShellPipeline_;cache.push_back(pipelines_);
     }
-    initialized_ = EnsureVertexCapacity(normalProjectileBlend?4096*72:kInitialVertexCapacity);
+    initialized_ = EnsureVertexCapacity(initialVertexCapacity?initialVertexCapacity:normalProjectileBlend?4096*72:kInitialVertexCapacity);
     return initialized_;
 }
 
@@ -69,7 +69,7 @@ void BeamBatchRenderer::Draw(
     float tipFadePower,
     float time,
     uint32_t mode,
-    float nozzleClipDepth) {
+    float nozzleClipDepth, const Vector4* projectileColorCore) {
     if (!initialized_ || !dxCommon_ || !camera || vertices.empty() || !constantData_ || !rootSignature_ || !pipelineState_) {
         return;
     }
@@ -89,18 +89,21 @@ void BeamBatchRenderer::Draw(
     };
     constantData_->qualityParams = {
         std::clamp(alphaScale, 0.0f, 1.0f),
-        std::clamp(edgeSoftness, 0.5f, 8.0f),
+        (mode==10u||mode==11u||mode==16u||mode==17u)?std::clamp(edgeSoftness,.05f,.45f):std::clamp(edgeSoftness, 0.5f, 8.0f),
         std::clamp(tipFadePower, 0.2f, 4.0f),
         nozzleClipDepth,
     };
 
+    constantData_->projectileColorCore=projectileColorCore?*projectileColorCore:Vector4{};
+    const auto eye=camera->GetViewTranslate();constantData_->projectileCamera={eye.x,eye.y,eye.z,1};
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
     if (!commandList) {
         return;
     }
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
-    if ((mode == 8u || mode == 9u) && solidProjectilePipeline_) commandList->SetPipelineState(solidProjectilePipeline_.Get());
-    else commandList->SetPipelineState((mode == 6u || mode == 7u) && normalProjectilePipeline_ ? normalProjectilePipeline_.Get() : pipelineState_.Get());
+    if ((mode==16u||mode==17u)&&energyShellPipeline_) commandList->SetPipelineState(energyShellPipeline_.Get());
+    else if ((mode == 8u || mode == 9u || mode==10u || mode==11u) && solidProjectilePipeline_) commandList->SetPipelineState(solidProjectilePipeline_.Get());
+    else commandList->SetPipelineState((mode == 6u || mode == 7u || mode == 14u || mode == 15u) && normalProjectilePipeline_ ? normalProjectilePipeline_.Get() : pipelineState_.Get());
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, constantResource_->GetGPUVirtualAddress());
@@ -203,6 +206,11 @@ bool BeamBatchRenderer::CreatePipelineState(bool preserveDestinationAlpha, bool 
         desc.RasterizerState.DepthClipEnable=TRUE;
         desc.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ALL;
         hr=dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc,IID_PPV_ARGS(&solidProjectilePipeline_));
+        assert(SUCCEEDED(hr));
+        // Transparent energy shell tests opaque scene depth; the real 3D core
+        // is drawn afterwards and retains depth writes. Legacy PSOs are unchanged.
+        desc.DepthStencilState.DepthWriteMask=D3D12_DEPTH_WRITE_MASK_ZERO;
+        hr=dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc,IID_PPV_ARGS(&energyShellPipeline_));
         assert(SUCCEEDED(hr));
     }
     return SUCCEEDED(hr);

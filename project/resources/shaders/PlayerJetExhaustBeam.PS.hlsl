@@ -3,6 +3,8 @@ struct BeamConstants
     float4x4 viewProjection;
     float4 params;        // x: brightness, y: flicker strength, z: time, w: mode
     float4 qualityParams; // x: alpha scale, y: edge softness, z: tip fade power, w: nozzle clip Z
+    float4 projectileColorCore; // Linear RGB hue, core emission
+    float4 projectileCamera;
 };
 
 ConstantBuffer<BeamConstants> gBeam : register(b0);
@@ -29,6 +31,17 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     float edgeSoftness = max(gBeam.qualityParams.y, 0.5f);
     float tipFadePower = max(gBeam.qualityParams.z, 0.2f);
 
+    if(mode==14u || mode==15u){
+        bool trail=input.uv.y>1.5;
+        float u=saturate(input.uv.x),v=input.uv.y-(trail?2:0),edge=abs(v*2-1);
+        float band=pow(saturate(1-edge),trail?2.3:3.0);
+        float cap=trail?pow(u,1.35):smoothstep(0,.09,u)*(1-smoothstep(.90,1,u));
+        // Tint the background locally. Pure additive red over blue otherwise reads
+        // as purple, even when the normal projectile's source color is red.
+        float alpha=band*cap*saturate(alphaScale*3.2)*(trail?.84:1)*pow(saturate(input.beamNearFade),2);
+        if(alpha<=.001)discard;
+        return MakeOutput(float4(gBeam.projectileColorCore.rgb*brightness,alpha));
+    }
     if(mode==12u || mode==13u) {
         float u=saturate(input.uv.x),edge=abs(input.uv.y*2-1);
         float alpha=pow(saturate(1-edge),2.5)*smoothstep(0,.12,u)*(1-smoothstep(.85,1,u))*alphaScale;
