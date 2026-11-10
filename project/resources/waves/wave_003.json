@@ -13,6 +13,7 @@
       "screenX": 0.0,
       "screenY": 0.16,
       "depth": 62.0,
+      "hitPoints": 5,
       "movePattern": "StraightApproach",
       "attackPattern": "SingleShot"
     }

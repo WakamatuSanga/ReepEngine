@@ -1,5 +1,6 @@
 ﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerDamageFeedbackController.h"
+#include "BoostController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 
 #include "Engine/Game/Effect/CombatEffectController.h"
@@ -50,6 +51,7 @@ void PlayerDamageFeedbackController::Initialize(
 
 void PlayerDamageFeedbackController::Finalize() {
     deathSequence_ = nullptr;
+    boost_ = nullptr;
     ApplyBlinkAlpha(1.0f);
     flashSprite_.reset();
     spriteCommon_ = nullptr;
@@ -69,7 +71,7 @@ void PlayerDamageFeedbackController::Update(float unscaledDeltaTime) {
     }
 
     float blinkAlpha = 1.0f;
-    if (enableDamageFeedback_ && IsInvincible() && !IsDead()) {
+    if (enableDamageFeedback_ && (debugForceInvincible_ || invincibleTimer_ > 0.0f) && !IsDead()) {
         const float wave = std::sin(blinkTimer_ * blinkRate_ * kTwoPi) * 0.5f + 0.5f;
         blinkAlpha = 0.55f + 0.45f * wave;
     }
@@ -166,7 +168,7 @@ bool PlayerDamageFeedbackController::ApplyDamage(const Vector3& position, int da
 }
 
 bool PlayerDamageFeedbackController::IsInvincible() const {
-    return debugForceInvincible_ || invincibleTimer_ > 0.0f;
+    return debugForceInvincible_ || invincibleTimer_ > 0.0f || (boost_ && boost_->IsEvadeActive());
 }
 
 void PlayerDamageFeedbackController::ResetHp() {

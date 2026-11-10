@@ -311,7 +311,7 @@ Vector3 PlayerBulletManager::ResolveFinalShotDirection(
     }
 
     lastMuzzlePosition_ = muzzleWorldPosition;
-    lastShotSpawnDataValid_ = IsFinite(muzzleWorldPosition) && std::isfinite(bulletSpeed_);
+    lastShotSpawnDataValid_ = IsFinite(muzzleWorldPosition) && std::isfinite(normalBulletSpeed_);
     if (!lastShotSpawnDataValid_) {
         lastAimFallbackUsed_ = true;
         lastShotFallbackReason_ = "発射口座標または弾速が非有限のため、弾を生成しません。";

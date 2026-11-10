@@ -28,6 +28,7 @@ public:
     void SetDamageFeedbackController(PlayerDamageFeedbackController* controller);
     void Finalize();
     void Update();
+    void ResetPlayerSweep() { hasPreviousPlayerPosition_ = false; }
     void SetEvadeController(BoostController* controller) { evadeController_ = controller; }
     void DrawImGui();
 

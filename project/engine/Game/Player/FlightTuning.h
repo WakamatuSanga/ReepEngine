@@ -20,9 +20,8 @@ struct FlightTuning {
     float rollDuration = 0.30f;
     float ghostLifetime = 0.135f;
     float ghostAlpha = 0.27f;
-    float boostDuration = 1.8f;
+    float boostDuration = 3.80f;
     float boostTimeScale = 0.35f;
-    float timeResponse = 0.055f;
     float orbitExtra = 0.35f;
     float orbitVertical = 0.45f;
     float depthShrink = 0.32f;

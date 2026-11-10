@@ -96,22 +96,6 @@ Matrix4x4 MakeAxisAngleRotation(const Vector3& axis, float radians) {
     return result;
 }
 
-Vector3 ExtractEulerXYZ(const Matrix4x4& matrix) {
-    const float sinY = std::clamp(-matrix.m[0][2], -1.0f, 1.0f);
-    const float rotateY = std::asin(sinY);
-    const float cosY = std::cos(rotateY);
-
-    float rotateX = 0.0f;
-    float rotateZ = 0.0f;
-    if (std::fabs(cosY) > 0.0001f) {
-        rotateX = std::atan2(matrix.m[1][2], matrix.m[2][2]);
-        rotateZ = std::atan2(matrix.m[0][1], matrix.m[0][0]);
-    } else {
-        rotateX = std::atan2(-matrix.m[2][1], matrix.m[1][1]);
-    }
-    return { rotateX, rotateY, rotateZ };
-}
-
 Vector3 TransformDirection(const Vector3& direction, const Matrix4x4& matrix) {
     return {
         direction.x * matrix.m[0][0] +
@@ -230,7 +214,11 @@ void Player::SetGameplayMovementViewport(float distance, float height, float fov
 }
 
 Vector2 Player::GetPresentationOffset() const {
-    if (!normalFlightPresentation_ || !gameplayMovementViewportValid_) return { localOffsetX_, localOffsetY_ };
+    return GetPresentationOffset({localOffsetX_, localOffsetY_});
+}
+
+Vector2 Player::GetPresentationOffset(Vector2 localOffset) const {
+    if (!normalFlightPresentation_ || !gameplayMovementViewportValid_) return localOffset;
     const auto map = [](float input, float limit, float minimum, float maximum) {
         float neutral = std::clamp(0.0f, minimum, maximum);
         if (neutral == minimum && maximum > minimum) neutral += (maximum - minimum) * 0.20f;
@@ -243,8 +231,8 @@ Vector2 Player::GetPresentationOffset() const {
     const float roomX = roomY * gameplayViewportAspect_;
     const Vector2 minimum{ -roomX, gameplayViewportHeight_ - roomY };
     const Vector2 maximum{ roomX, gameplayViewportHeight_ + roomY };
-    Vector2 result{ map(localOffsetX_, moveLimitX_, minimum.x, maximum.x),
-        map(localOffsetY_, moveLimitY_, minimum.y, maximum.y) };
+    Vector2 result{ map(localOffset.x, moveLimitX_, minimum.x, maximum.x),
+        map(localOffset.y, moveLimitY_, minimum.y, maximum.y) };
     if (boostEnvelope_ > 0.0f) {
         const auto orbit = [this](float value, float minimum, float maximum, float offset) {
             const float half = (maximum - minimum) * 0.5f;
@@ -263,10 +251,24 @@ Vector2 Player::GetPresentationOffset() const {
 }
 
 Vector2 Player::GetGameplayViewportNdc() const {
-    const Vector2 offset = GetPresentationOffset();
+    return GetGameplayViewportNdc(GetPresentationOffset());
+}
+
+Vector2 Player::GetGameplayViewportNdc(Vector2 offset) const {
     const float halfY = (gameplayReferenceDistance_ + (std::max)(0.0f, boostDepth_)) * gameplayViewportTanY_;
     return { offset.x / (std::max)(.001f, halfY * gameplayViewportAspect_),
         (offset.y - gameplayViewportHeight_) / (std::max)(.001f, halfY) };
+}
+
+Vector3 Player::PredictSteadyMovementPosition(float seconds) const {
+    const auto input = GetMoveInput();
+    const float length = std::sqrt(input.x * input.x + input.y * input.y);
+    if (!UsesGameplayViewport() || boostEnvelope_ > 0.0f || length == 0.0f) return worldPosition_;
+    const float travel = moveSpeed_ * seconds / length;
+    const Vector2 localOffset{
+        std::clamp(localOffsetX_ + input.x * travel, -moveLimitX_, moveLimitX_),
+        std::clamp(localOffsetY_ + input.y * travel, -moveLimitY_, moveLimitY_)};
+    return GetGameplayViewportPoint(GetGameplayViewportNdc(GetPresentationOffset(localOffset)), gameplayReferenceDistance_);
 }
 
 Vector3 Player::GetGameplayViewportPoint(const Vector2& ndc, float depth) const {
@@ -388,14 +390,14 @@ void Player::UpdateObjectTransform() {
             GetModelForwardDirection(modelForwardAxis_), GetActionVisualRotationOffset().z + boostRollRadians_);
         const Matrix4x4 attitude = MatrixMath::Multipty(
             MakeEulerRotation(currentVisualTilt_), MakeEulerRotation(boostAttitude_));
-        visualFinalRotation_ = ExtractEulerXYZ(MatrixMath::Multipty(
+        visualFinalRotation_ = MatrixMath::ExtractEulerXYZ(MatrixMath::Multipty(
             MatrixMath::Multipty(MatrixMath::Multipty(localRoll, modelRotation), attitude),
             MakeEulerRotation(visualBaseRotation_)));
     } else if (std::fabs(railFlightVisualBankRadians_) > 0.000001f) {
         const Matrix4x4 existingRotation = MakeEulerRotation(existingFinalRotation);
         const Matrix4x4 railBankRotation =
             MakeAxisAngleRotation(baseForward_, railFlightVisualBankRadians_);
-        visualFinalRotation_ = ExtractEulerXYZ(
+        visualFinalRotation_ = MatrixMath::ExtractEulerXYZ(
             MatrixMath::Multipty(existingRotation, railBankRotation));
     }
 

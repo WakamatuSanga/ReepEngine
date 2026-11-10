@@ -81,20 +81,24 @@ void PlayerEnemyBulletCollision::Update() {
 
     lastPlayerPosition_ = player_->GetWorldPosition();
     const bool evading = evadeController_ && evadeController_->IsEvadeActive();
-    bulletManager_->EvaluateEvade(hasPreviousPlayerPosition_ ? previousPlayerPosition_ : lastPlayerPosition_,
-        lastPlayerPosition_, player_->GetHitRadius(), evading);
+    const float evadeFraction = evading ? 1.0f : (evadeController_ ? evadeController_->GetEvadeSweepFraction() : 0.0f);
+    const Vector3& evadeEnd = !evading && evadeFraction > 0.0f ? player_->GetBoostStepEndPosition() : lastPlayerPosition_;
+    const Vector3 playerStart = hasPreviousPlayerPosition_ ? previousPlayerPosition_ : lastPlayerPosition_;
+    bulletManager_->EvaluateEvade(playerStart,
+        evadeEnd, player_->GetHitRadius(), evading || evadeFraction > 0.0f, evadeFraction);
     previousPlayerPosition_ = lastPlayerPosition_;
     hasPreviousPlayerPosition_ = true;
     if (evading) { lastBlockedReason_ = "スロー回避中：敵弾ダメージなし"; return; }
     lastPlayerHitRadius_ = player_->GetHitRadius();
     lastPlayerDamageReduction_ = player_->GetDamageReduction();
-    if (bulletManager_->CheckHitAndKillFirstSphere(
+    if (bulletManager_->CheckHitAndKillFirstSweptSphere(
+        evadeFraction > 0.0f ? evadeEnd : playerStart,
         lastPlayerPosition_,
         lastPlayerHitRadius_,
         &lastHitPosition_,
         &lastDistance_,
         &lastRadiusSum_,
-        &lastBulletRadius_, player_->IsInvincible())) {
+        &lastBulletRadius_, player_->IsInvincible(), evadeFraction)) {
         lastHit_ = true;
         ++hitCount_;
         if (player_->IsInvincible()) {

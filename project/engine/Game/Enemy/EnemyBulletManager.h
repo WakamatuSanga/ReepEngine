@@ -37,9 +37,12 @@ public:
     size_t ClearBulletsInRadius(const Vector3& center, float radius);
     size_t ClearBulletsInRadius(const Vector3& center, float radius, std::vector<Vector3>* clearedPositions, size_t maxRecordedPositions);
     bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition);
-    bool CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius, bool playerCanceled = false);
+    bool CheckHitAndKillFirstSweptSphere(const Vector3& startCenter, const Vector3& center, float radius,
+        Vector3* hitPosition, float* lastDistance, float* lastRadiusSum, float* lastBulletRadius,
+        bool playerCanceled, float startFraction);
     void SetCombatState(StageCombatState* state) { combatState_ = state; }
-    void EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active);
+    void EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active,
+        float bulletStepFraction = 1.0f);
     size_t GetBulletCount() const;
     size_t GetActiveCount() const;
 

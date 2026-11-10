@@ -121,6 +121,7 @@ RailShooterCameraRig::~RailShooterCameraRig() = default;
 
 void RailShooterCameraRig::Initialize(Camera* camera, LevelRailRuntime* railRuntime) {
     stageStartPresentationActive_ = false;
+    gameplayStartRailAttempted_ = false;
     ResetGameplayInputHistory();
     presentationReturnActive_ = false;
     gameplayBaseInitialized_ = false;
@@ -168,6 +169,7 @@ void RailShooterCameraRig::PrepareForPresentation() {
 
 void RailShooterCameraRig::Update(float deltaTime) {
     PrepareForPresentation();
+    if (gameplayStartRailActive_ && runtimeContextInitialized_ && !gameModeActive_) return;
     if (UsesGameplayComposition() && !gameplayBaseInitialized_) {
         if (!IsCameraRigActive() || (mode_ == Mode::Rail && !currentEvaluationValid_)) {
             // Initialize/initial-camera loading already captured the logical
@@ -419,7 +421,10 @@ void RailShooterCameraRig::UpdateRailBlend(float deltaTime) {
 
 void RailShooterCameraRig::UpdateRailFinishedStraight(float deltaTime) {
     currentEvaluationValid_ = false;
-    currentPosition_ = AddVector3(currentPosition_, ScaleVector3(currentForward_, straightSpeed_ * deltaTime));
+    effectiveRailSpeed_ = straightSpeed_ * externalEncounterRailSpeedMultiplier_;
+    const float advance = effectiveRailSpeed_ * deltaTime;
+    lastRailAdvance_ = advance;
+    currentPosition_ = AddVector3(currentPosition_, ScaleVector3(currentForward_, advance));
     BuildBasis(currentForward_, currentUp_, currentRight_, currentUp_);
 }
 

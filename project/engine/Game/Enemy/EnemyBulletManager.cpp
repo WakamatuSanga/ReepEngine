@@ -58,11 +58,6 @@ void EnemyBulletManager::Update(float deltaTime) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyUpdateMs);
     for (std::unique_ptr<EnemyBullet>& bullet : bullets_) {
         if (bullet) {
-            bullet->CapturePreviousPosition();
-            if (projectileRailMotionAdapter_) {
-                projectileRailMotionAdapter_->ApplyToProjectile(
-                    *bullet, ProjectileRailMotionAdapter::ProjectileKind::Enemy);
-            }
             bullet->Update(deltaTime);
             if (projectileRailMotionAdapter_ && bullet->IsDead()) {
                 projectileRailMotionAdapter_->RecordDespawn(
@@ -224,12 +219,8 @@ EnemyBullet* EnemyBulletManager::SpawnBullet(const Vector3& position, const Vect
     bullet->SetModelRotationOffset(defaultModelRotationOffset_);
     bullet->SetRadius(defaultRadius_);
     bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
-    if (projectileRailMotionAdapter_) {
-        projectileRailMotionAdapter_->RegisterProjectile(*bullet);
-    }
 
     bullet->SetCombatLifetimeId(++nextCombatLifetimeId_);
-    bullet->CapturePreviousPosition();
     EnemyBullet* bulletPtr = bullet.get();
     bullets_.push_back(std::move(bullet));
     FrameTimer::GetInstance().AddBulletMetric(FrameTimer::BulletMetric::EnemySpawnCount);
@@ -306,16 +297,17 @@ size_t EnemyBulletManager::ClearBulletsInRadius(
 }
 
 bool EnemyBulletManager::CheckHitAndKillFirstSphere(const Vector3& center, float radius, Vector3* hitPosition) {
-    return CheckHitAndKillFirstSphere(center, radius, hitPosition, nullptr, nullptr, nullptr);
+    return CheckHitAndKillFirstSweptSphere(center, center, radius, hitPosition, nullptr, nullptr, nullptr, false, 1.0f);
 }
 
-bool EnemyBulletManager::CheckHitAndKillFirstSphere(
+bool EnemyBulletManager::CheckHitAndKillFirstSweptSphere(
+    const Vector3& startCenter,
     const Vector3& center,
     float radius,
     Vector3* hitPosition,
     float* lastDistance,
     float* lastRadiusSum,
-    float* lastBulletRadius, bool playerCanceled) {
+    float* lastBulletRadius, bool playerCanceled, float startFraction) {
     const float safeRadius = (std::max)(0.0f, radius);
     if (lastDistance) {
         *lastDistance = -1.0f;
@@ -332,7 +324,12 @@ bool EnemyBulletManager::CheckHitAndKillFirstSphere(
         }
 
         const float combinedRadius = safeRadius + bullet->GetRadius();
-        const float distanceSquared = DistanceSquared(center, bullet->GetPosition());
+        const float closestFraction = bullet->GetClosestStepFraction(startCenter, center, {1.0f, 1.0f, 1.0f}, startFraction);
+        const float playerFraction = startFraction < 1.0f ? (closestFraction - startFraction) / (1.0f - startFraction) : 1.0f;
+        const Vector3 closestCenter{std::lerp(startCenter.x, center.x, playerFraction),
+            std::lerp(startCenter.y, center.y, playerFraction), std::lerp(startCenter.z, center.z, playerFraction)};
+        const Vector3 closestBullet = bullet->GetStepPosition(closestFraction);
+        const float distanceSquared = DistanceSquared(closestCenter, closestBullet);
         if (lastDistance) {
             *lastDistance = std::sqrt(distanceSquared);
         }
@@ -344,7 +341,7 @@ bool EnemyBulletManager::CheckHitAndKillFirstSphere(
         }
         if (distanceSquared <= combinedRadius * combinedRadius) {
             if (hitPosition) {
-                *hitPosition = bullet->GetPosition();
+                *hitPosition = closestBullet;
             }
             if (bullet->IsCancelable()) {
                 if (playerCanceled && combatState_) combatState_->RecordBulletCancel(*bullet);
@@ -387,7 +384,8 @@ void EnemyBulletManager::RemoveDeadBullets() {
 }
 
 
-void EnemyBulletManager::EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active) {
+void EnemyBulletManager::EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active,
+    float bulletStepFraction) {
     const float outerScale = std::clamp(StageCombatState::GetTuning().nearMissScale, 1.05f, 3.0f);
     for (auto& bullet : bullets_) {
         if (!bullet || bullet->IsDead() || !bullet->IsActive()) continue;
@@ -395,7 +393,8 @@ void EnemyBulletManager::EvaluateEvade(const Vector3& previousPlayer, const Vect
         const auto& a = bullet->GetPreviousPosition();
         const auto& b = bullet->GetPosition();
         const Vector3 start{a.x-previousPlayer.x, a.y-previousPlayer.y, a.z-previousPlayer.z};
-        const Vector3 end{b.x-player.x, b.y-player.y, b.z-player.z};
+        const Vector3 end{std::lerp(a.x, b.x, bulletStepFraction)-player.x,
+            std::lerp(a.y, b.y, bulletStepFraction)-player.y, std::lerp(a.z, b.z, bulletStepFraction)-player.z};
         const Vector3 step{end.x-start.x, end.y-start.y, end.z-start.z};
         const float length2 = step.x*step.x + step.y*step.y + step.z*step.z;
         const float t = length2 > .0000001f ? std::clamp(-(start.x*step.x+start.y*step.y+start.z*step.z)/length2, 0.0f, 1.0f) : 0;

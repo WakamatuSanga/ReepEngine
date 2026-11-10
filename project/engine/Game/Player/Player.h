@@ -5,6 +5,7 @@
 #include <string>
 
 class Camera;
+class BoostController;
 class CombatEffectController;
 class CombatSlowMotionController;
 class EnemyBulletManager;
@@ -37,7 +38,7 @@ public:
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
-    void Update(float deltaTime);
+    void Update(float deltaTime, BoostController* boost = nullptr, float normalMovementDeltaTime = -1.0f);
     void RefreshCameraPresentation(float deltaTime);
     Transform GetVisualTransform() const;
     Vector3 GetDisplayWorldPosition() const;
@@ -71,6 +72,8 @@ public:
     BaseMode GetBaseMode() const { return baseMode_; }
     const Vector3& GetBasePosition() const { return basePosition_; }
     const Vector3& GetWorldPosition() const { return worldPosition_; }
+    Vector3 PredictSteadyMovementPosition(float seconds) const;
+    const Vector3& GetBoostStepEndPosition() const { return boostStepEndPosition_; }
     Vector2 GetMoveInput() const {
         return lastInputApplied_ ? Vector2{ lastRawMoveInput_.x, lastRawMoveInput_.y } : Vector2{};
     }
@@ -119,6 +122,8 @@ public:
     bool ShouldCenterFadeAffectJetExhaust() const { return affectCenterFadeToJetExhaust_; }
 
 private:
+    Vector2 GetPresentationOffset(Vector2 localOffset) const;
+    Vector2 GetGameplayViewportNdc(Vector2 presentationOffset) const;
     void LoadModel();
     void ResetPosition();
     void UpdateWorldPosition();
@@ -135,6 +140,7 @@ private:
     std::unique_ptr<PlayerActionController> actionController_;
     std::unique_ptr<PlayerAfterimageController> afterimages_;
     float boostEnvelope_ = 0.0f;
+    Vector3 boostStepEndPosition_{};
     Vector2 boostOrbit_{};
     float boostDepth_ = 0.0f;
     Vector3 boostAttitude_{};

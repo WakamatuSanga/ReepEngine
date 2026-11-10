@@ -4,7 +4,7 @@
   "delay": 0.0,
   "clearCondition": "AllDead",
   "nextWaveId": "wave_002",
-  "clearDelayAfterAllDead": 3.5,
+  "clearDelayAfterAllDead": 0.5,
   "clearDelayAfterAllEscaped": 0.0,
   "enemies": [
     {
@@ -12,8 +12,13 @@
       "spawnTime": 0.0,
       "screenX": -0.45,
       "screenY": 0.14,
-      "depth": 55.0,
-      "movePattern": "StraightApproach",
+      "depth": 28.0,
+      "hitPoints": 5,
+      "formationForwardSpeed": -1.30,
+      "formationApproachDepth": 8.5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
       "attackPattern": "SingleShot"
     },
     {
@@ -21,8 +26,11 @@
       "spawnTime": 0.3,
       "screenX": 0.0,
       "screenY": 0.16,
-      "depth": 62.0,
-      "movePattern": "StraightApproach",
+      "depth": 30.0,
+      "hitPoints": 5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
       "attackPattern": "SingleShot"
     },
     {
@@ -30,8 +38,65 @@
       "spawnTime": 0.6,
       "screenX": 0.45,
       "screenY": 0.14,
-      "depth": 69.0,
-      "movePattern": "StraightApproach",
+      "depth": 32.0,
+      "hitPoints": 5,
+      "formationForwardSpeed": -1.30,
+      "formationApproachDepth": 8.5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 2.0,
+      "screenX": -0.51,
+      "screenY": 0.25,
+      "depth": 29.0,
+      "hitPoints": 5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 2.25,
+      "screenX": -0.24,
+      "screenY": 0.12,
+      "depth": 30.0,
+      "hitPoints": 5,
+      "formationForwardSpeed": -1.10,
+      "formationApproachDepth": 8.5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 5.5,
+      "screenX": 0.48,
+      "screenY": 0.25,
+      "depth": 29.0,
+      "hitPoints": 5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
+      "attackPattern": "SingleShot"
+    },
+    {
+      "enemyType": "StraightDrone",
+      "spawnTime": 5.75,
+      "screenX": 0.24,
+      "screenY": 0.12,
+      "depth": 30.0,
+      "hitPoints": 5,
+      "formationForwardSpeed": -1.10,
+      "formationApproachDepth": 8.5,
+      "anchorHold": 6.2,
+      "anchorExitDuration": 1.15,
+      "movePattern": "RailFormation",
       "attackPattern": "SingleShot"
     }
   ]

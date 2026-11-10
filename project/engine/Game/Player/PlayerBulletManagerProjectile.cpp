@@ -1,7 +1,6 @@
 #include "PlayerBulletManager.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Enemy/EnemyBullet.h"
-#include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
 #include "Engine/Utility/Logger.h"
 #include <algorithm>
 
@@ -38,9 +37,6 @@ EnemyBullet* PlayerBulletManager::SpawnBullet(
     instance.bullet->SetUseLightweightVisual(useLightweightBulletVisual_);
     instance.runtimeId = AllocateBulletRuntimeId();
     instance.damage = (std::max)(1, damage);
-    if (projectileRailMotionAdapter_) {
-        projectileRailMotionAdapter_->RegisterProjectile(*instance.bullet);
-    }
 
     EnemyBullet* bulletPtr = instance.bullet.get();
     bullets_.push_back(std::move(instance));

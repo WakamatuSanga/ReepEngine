@@ -101,34 +101,6 @@ void PlayerBulletManager::UpdateLockedWingShot(
         return;
     }
 
-    if (projectileRailMotionAdapter_) {
-        Vector3 transported{};
-        if (projectileRailMotionAdapter_->TransportDirectionForProjectile(
-                bullet,
-                ProjectileRailMotionAdapter::ProjectileKind::Player,
-                state.currentFlightDirection,
-                transported)) {
-            Vector3 normalized{};
-            if (TryNormalize(transported, normalized)) {
-                state.currentFlightDirection = normalized;
-            } else {
-                ++lockedWingDirectionFallbackCount_;
-            }
-        }
-        if (projectileRailMotionAdapter_->TransportDirectionForProjectile(
-                bullet,
-                ProjectileRailMotionAdapter::ProjectileKind::Player,
-                state.currentEjectionDownDirection,
-                transported)) {
-            Vector3 normalized{};
-            if (TryNormalize(transported, normalized)) {
-                state.currentEjectionDownDirection = normalized;
-            } else {
-                ++lockedWingDirectionFallbackCount_;
-            }
-        }
-    }
-
     Vector3 flightDirection{};
     if (!TryNormalize(state.currentFlightDirection, flightDirection)) {
         ++lockedWingDirectionFallbackCount_;
@@ -221,6 +193,18 @@ void PlayerBulletManager::UpdateLockedWingShot(
         Scale(
             flightDirection,
             state.baseBulletSpeed * cruiseOverlap));
+    // A new shot already starts at this frame's muzzle. After that, fade
+    // out the rail motion at the same rate as the missile's thrust builds.
+    const float launchOverlap = (std::min)(state.totalElapsed, ignitionEnd) - previousElapsed;
+    if (!state.firstUpdate && projectileRailMotionAdapter_
+        && launchOverlap > 0.0f && safeDeltaTime > kMinimumVectorLength) {
+        const float railWeight = std::clamp(
+            (launchOverlap - ignitionTravelTime) / safeDeltaTime, 0.0f, 1.0f);
+        const Vector3 railDisplacement =
+            projectileRailMotionAdapter_->GetLockedWingLaunchRailDisplacement(bullet.GetPosition());
+        frameDisplacement = Add(frameDisplacement, Scale(railDisplacement, railWeight));
+    }
+    state.firstUpdate = false;
     Vector3 movementVelocity = safeDeltaTime > kMinimumVectorLength
         ? Scale(frameDisplacement, 1.0f / safeDeltaTime)
         : endVelocity;
@@ -441,7 +425,7 @@ void PlayerBulletManager::DrawLockedWingMissileIgnitionImGui() {
     ImGui::Text(
         "対象方向を追尾へ使用: %s",
         ToJapaneseBool(lastLockedWingHomingEnabled_));
-    ImGui::Text("レール速度を未加算: はい");
+    ImGui::TextUnformatted("分離・待機中はレールに追従し、点火加速に合わせて追従を解除します。");
     ImGui::Text("カメラ速度を未加算: はい");
 
     ImGui::SeparatorText("分離・待機・点火の統計");

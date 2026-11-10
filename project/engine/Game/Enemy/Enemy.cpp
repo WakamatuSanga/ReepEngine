@@ -329,6 +329,12 @@ void Enemy::SetPosition(const Vector3& position) {
     UpdateObjectTransform();
 }
 
+void Enemy::TranslateSpawnPath(const Vector3& delta) {
+    spawnStartPosition_ = AddVector3(spawnStartPosition_, delta);
+    spawnTargetPosition_ = AddVector3(spawnTargetPosition_, delta);
+    SetPosition(AddVector3(position_, delta));
+}
+
 void Enemy::SetRotation(const Vector3& rotation) {
     rotation_ = rotation;
     finalSpawnRotation_ = rotation_;

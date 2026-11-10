@@ -19,16 +19,17 @@ RailShooterCameraRig::GetProjectileRailFrame() const {
     frame.right = projectileRailRight_;
     frame.up = projectileRailUp_;
     frame.forward = projectileRailForward_;
-    frame.railDistance = railDistance_;
+    frame.railDistance = GetSceneryDistance();
     frame.railRevision = railRuntime_ ? railRuntime_->GetRebuildCount() : 0;
     frame.continuityRevision = projectileRailContinuityRevision_;
     frame.railIndex = selectedRailIndex_;
-    frame.railActive = IsCameraRigActive() && mode_ == Mode::Rail;
-    frame.running = frame.railActive && autoPlay_;
+    frame.railActive = HasGameplayRail();
+    frame.running = frame.railActive && gameModeActive_ && externalEncounterRailSpeedMultiplier_ > 0.0f &&
+        ((mode_ == Mode::Rail && autoPlay_) || mode_ == Mode::RailFinishedStraight);
     frame.runtimeV2Active = frame.railActive && runtimeV2PoseValid_ && !forceLegacyForward_;
     frame.gameModeActive = gameModeActive_;
     frame.valid = frame.railActive &&
-        currentEvaluationValid_ &&
+        (currentEvaluationValid_ || mode_ == Mode::RailFinishedStraight) &&
         IsFinite(frame.position) &&
         IsFinite(frame.right) &&
         IsFinite(frame.up) &&

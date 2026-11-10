@@ -11,6 +11,8 @@
 #include "Engine/Game/Enemy/EnemyBullet.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/ProjectileRailMotionAdapter.h"
+#include "Engine/Game/RailShooter/EnemyWaveManager.h"
+#include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Input/Input.h"
@@ -56,14 +58,6 @@ namespace {
         return { value.x / length, value.y / length, value.z / length };
     }
 
-    Vector3 MakeRotationFromForward(const Vector3& forward) {
-        const Vector3 normalized = Normalize(forward, { 0.0f, 0.0f, 1.0f });
-        const float horizontal = std::sqrt(normalized.x * normalized.x + normalized.z * normalized.z);
-        const float yaw = std::atan2(normalized.x, normalized.z);
-        const float pitch = std::atan2(-normalized.y, horizontal);
-        return { pitch, yaw, 0.0f };
-    }
-
     Vector3 GetCameraForward(const Camera& camera) {
         const Matrix4x4& matrix = camera.GetWorldMatrix();
         return Normalize({ matrix.m[2][0], matrix.m[2][1], matrix.m[2][2] }, { 0.0f, 0.0f, 1.0f });
@@ -78,15 +72,6 @@ namespace {
 #endif
     }
 
-    const char* ToVisualDirectionSourceLabel(PlayerBulletManager::VisualDirectionSource source) {
-        switch (source) {
-        case PlayerBulletManager::VisualDirectionSource::AimDirection:
-            return "Aim Direction";
-        case PlayerBulletManager::VisualDirectionSource::FinalVelocity:
-        default:
-            return "Final Velocity";
-        }
-    }
 }
 
 PlayerBulletManager::PlayerBulletManager() = default;
@@ -194,10 +179,6 @@ void PlayerBulletManager::Update(float deltaTime) {
     }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
-            if (projectileRailMotionAdapter_) {
-                projectileRailMotionAdapter_->ApplyToProjectile(
-                    *instance.bullet, ProjectileRailMotionAdapter::ProjectileKind::Player);
-            }
             UpdateLockedWingShot(instance, safeDeltaTime);
             instance.bullet->Update(safeDeltaTime);
             UpdateLockedWingMissileExhaust(instance);
@@ -269,12 +250,7 @@ void PlayerBulletManager::DrawImGui() {
     DrawAimImGui();
     DrawLockedWingShotImGui();
     ImGui::SeparatorText("プレイヤー弾モデル向き補正 (Player Bullet Model Rotation Offset)");
-    int visualSourceIndex = static_cast<int>(visualDirectionSource_);
-    const char* visualSourceItems[] = { "Aim Direction", "Final Velocity" };
-    if (ImGui::Combo("Player Bullet Forward Source", &visualSourceIndex, visualSourceItems, 2)) {
-        visualDirectionSource_ = static_cast<VisualDirectionSource>(visualSourceIndex);
-    }
-    ImGui::Text("Current Forward Source: %s", ToVisualDirectionSourceLabel(visualDirectionSource_));
+    ImGui::TextUnformatted("Normal Bullet Forward Source: World Velocity");
     ImGui::Text("Player Bullet Forward Axis: +Z + offset");
     bool bulletRotationOffsetChanged = false;
     if (ImGui::Button("Yaw +90##PlayerBullet")) {
@@ -320,7 +296,7 @@ void PlayerBulletManager::DrawImGui() {
         currentBulletRotation_.y,
         currentBulletRotation_.z);
     ImGui::SeparatorText("弾パラメータ (Bullet)");
-    ImGui::DragFloat("Bullet Speed", &bulletSpeed_, 0.1f, 0.0f, 200.0f, "%.2f");
+    ImGui::DragFloat("Normal Bullet Speed", &normalBulletSpeed_, 0.1f, 0.0f, 200.0f, "%.2f");
     ImGui::DragFloat("Bullet Radius", &bulletRadius_, 0.01f, 0.001f, 20.0f, "%.3f");
     ImGui::Text("Normal Bullet Damage: 1");
     ImGui::DragInt("Missile Damage (Boss)", &bulletDamage_, 1.0f, 1, 999);
@@ -424,44 +400,38 @@ void PlayerBulletManager::FireFromPlayer() {
     }
 
     const Vector3 cameraForward = GetCameraForward(*camera_);
-    const Vector3 initialDirection = ResolveAimDirection(player_->GetWorldPosition(), cameraForward);
+    const Vector3 muzzleBase = player_->GetDisplayWorldPosition();
+    const Vector3 initialDirection = ResolveAimDirection(muzzleBase, cameraForward);
     const Vector3 startPosition = AddVector3(
-        player_->GetDisplayWorldPosition(), ScaleVector3(initialDirection, muzzleOffset_*RenderStyleComparison::PlayerDisplayScale()));
+        muzzleBase, ScaleVector3(initialDirection, muzzleOffset_ * RenderStyleComparison::PlayerDisplayScale()));
+    if (lastUsedAimMode_ == AimMode::AimCorridor && !lastAimFallbackUsed_ && enemyWaveManager_) {
+        enemyWaveManager_->TryGetFormationAimPoint(aimCorridorVisualController_->GetMainReticleScreenRect(),
+            startPosition, normalBulletSpeed_, bulletLifeTime_, lastAimPoint_);
+    }
     const Vector3 direction = ResolveFinalShotDirection(startPosition, initialDirection);
     if (!lastShotSpawnDataValid_) {
         inputBlockedReason_ = "発射口または目標が無効なため弾を生成しません";
         return;
     }
 
-    Vector3 velocity = ScaleVector3(direction, bulletSpeed_);
-    if (lastUsedAimMode_ != AimMode::AimCorridor && inheritCameraVelocity_
-        && !(projectileRailMotionAdapter_
-            && projectileRailMotionAdapter_->ShouldSuppressCameraVelocityInheritance())) {
+    Vector3 velocity = ScaleVector3(direction, normalBulletSpeed_);
+    if (!aimGameModeActive_ && lastUsedAimMode_ != AimMode::AimCorridor && inheritCameraVelocity_) {
         velocity = AddVector3(velocity, ScaleVector3(cameraVelocity_, inheritCameraVelocityFactor_));
     }
 
     lastFirePosition_ = startPosition;
-    lastFireDirection_ = direction;
+    lastFireDirection_ = Normalize(velocity, direction);
     lastMuzzlePosition_ = startPosition;
     lastShotVelocity_ = velocity;
-    lastVisualDirection_ = visualDirectionSource_ == VisualDirectionSource::AimDirection
-        ? direction
-        : Normalize(velocity, direction);
-    currentBulletRotation_ = AddVector3(
-        AddVector3(MakeRotationFromForward(lastVisualDirection_), defaultRotation_),
-        playerBulletModelRotationOffset_);
+    lastVisualDirection_ = lastFireDirection_;
     if (EnemyBullet* bullet = SpawnBullet(startPosition, velocity, 1)) {
+        currentBulletRotation_ = bullet->GetVisualModelRotation();
         if (cameraShakeController_) cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::Shot);
         RecordAimShot();
         if (projectileRailMotionAdapter_) {
             projectileRailMotionAdapter_->RecordShot(
                 ProjectileRailMotionAdapter::ProjectileKind::Player,
-                startPosition, lastAimPoint_, direction, velocity);
-        }
-        if (visualDirectionSource_ == VisualDirectionSource::AimDirection) {
-            bullet->SetVisualForwardOverride(direction);
-        } else {
-            bullet->ClearVisualForwardOverride();
+                startPosition, lastAimPoint_, lastFireDirection_, velocity);
         }
     }
 }

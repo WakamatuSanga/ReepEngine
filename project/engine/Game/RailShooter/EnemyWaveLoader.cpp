@@ -183,6 +183,29 @@ namespace {
                     if (!ParseFloat(entry.depth)) {
                         return Fail("Invalid depth.");
                     }
+                } else if (key == "hitPoints") {
+                    float hitPoints = 0.0f;
+                    if (!ParseFloat(hitPoints) || hitPoints < 1.0f || hitPoints > 999.0f ||
+                        std::floor(hitPoints) != hitPoints) {
+                        return Fail("Invalid hitPoints.");
+                    }
+                    entry.hitPoints = static_cast<int>(hitPoints);
+                } else if (key == "formationForwardSpeed") {
+                    if (!ParseFloat(entry.formationForwardSpeed)) {
+                        return Fail("Invalid formationForwardSpeed.");
+                    }
+                } else if (key == "formationApproachDepth") {
+                    if (!ParseFloat(entry.formationApproachDepth) || entry.formationApproachDepth < 0.0f) {
+                        return Fail("Invalid formationApproachDepth.");
+                    }
+                } else if (key == "anchorHold") {
+                    if (!ParseFloat(entry.anchorHold) || entry.anchorHold < 0.0f) {
+                        return Fail("Invalid anchorHold.");
+                    }
+                } else if (key == "anchorExitDuration") {
+                    if (!ParseFloat(entry.anchorExitDuration) || entry.anchorExitDuration <= 0.0f) {
+                        return Fail("Invalid anchorExitDuration.");
+                    }
                 } else if (key == "movePattern" || key == "move_pattern") {
                     if (!ParseString(entry.movePattern)) {
                         return Fail("Invalid movePattern.");

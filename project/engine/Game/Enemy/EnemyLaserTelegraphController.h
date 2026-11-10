@@ -24,6 +24,7 @@ public:
     void UpdateWarning(const void* owner, const Vector3& origin, const Vector3& direction);
     void LockWarning(const void* owner, const Vector3& origin, const Vector3& targetPosition, const Vector3& direction);
     void StartBeam(const void* owner, const Vector3& origin, const Vector3& direction);
+    void UpdateBeamOrigin(const void* owner, const Vector3& origin);
     void ClearOwner(const void* owner);
 
     bool IsEnabled() const { return enableLaserTelegraph_; }

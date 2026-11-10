@@ -3,6 +3,7 @@
 #include "Enemy.h"
 #include "EnemyBulletManager.h"
 #include "EnemyManager.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
@@ -82,6 +83,7 @@ void EnemyAttackController::Finalize() {
     player_ = nullptr;
     deathSequence_ = nullptr;
     camera_ = nullptr;
+    railRig_ = nullptr;
 }
 
 void EnemyAttackController::Update(float deltaTime) {
@@ -152,7 +154,6 @@ void EnemyAttackController::FireFromActiveEnemies() {
         return;
     }
 
-    lastTargetPosition_ = player_->GetWorldPosition();
     for (Enemy* enemy : enemies) {
         if (!enemy || !enemy->CanAttack()) {
             continue;
@@ -174,6 +175,7 @@ void EnemyAttackController::FireFromActiveEnemies() {
         }
 
         const Vector3 enemyPosition = enemy->GetPosition();
+        lastTargetPosition_ = ResolveShotTarget(enemyPosition);
         const Vector3 direction = Normalize(SubtractVector3(lastTargetPosition_, enemyPosition), { 0.0f, 0.0f, -1.0f });
         const Vector3 velocity = ScaleVector3(direction, bulletSpeed_);
         lastFireDirection_ = direction;
@@ -184,6 +186,53 @@ void EnemyAttackController::FireFromActiveEnemies() {
             ++lastShooterCount_;
         }
     }
+}
+
+Vector3 EnemyAttackController::ResolveShotTarget(const Vector3& muzzle) const {
+    const auto currentPosition = player_->GetWorldPosition();
+    if (!railRig_ || !railRig_->UsesGameplayComposition() || !std::isfinite(bulletSpeed_) || bulletSpeed_ <= 0.0f) {
+        return currentPosition;
+    }
+
+    const auto railFrame = railRig_->GetProjectileRailFrame();
+    const float railSpeed = railFrame.valid && railFrame.running ? railRig_->GetEffectiveRailSpeed() : 0.0f;
+    const auto currentRail = railSpeed > 0.0f ? railRig_->SampleSceneryFrame(railFrame.railDistance) : Matrix4x4{};
+    constexpr float steeringLeadLimit = 0.95f;
+    const auto predict = [&](float time) {
+        // Predict held input only up to the screen limits, then carry it along the unshaken rail.
+        const auto point = player_->PredictSteadyMovementPosition((std::min)(time, steeringLeadLimit));
+        if (railSpeed <= 0.0f) return point;
+        const auto futureRail = railRig_->SampleSceneryFrame(railFrame.railDistance + railSpeed * time);
+        const Vector3 relative = SubtractVector3(point, {currentRail.m[3][0], currentRail.m[3][1], currentRail.m[3][2]});
+        Vector3 position{futureRail.m[3][0], futureRail.m[3][1], futureRail.m[3][2]};
+        for (int axis = 0; axis < 3; ++axis) {
+            const float local = relative.x * currentRail.m[axis][0] + relative.y * currentRail.m[axis][1]
+                + relative.z * currentRail.m[axis][2];
+            position.x += local * futureRail.m[axis][0];
+            position.y += local * futureRail.m[axis][1];
+            position.z += local * futureRail.m[axis][2];
+        }
+        return position;
+    };
+    const auto canReach = [&](float time) {
+        return Length(SubtractVector3(predict(time), muzzle)) <= bulletSpeed_ * time;
+    };
+
+    // Find the first crossing. On a moving rail the ship can pass the shot's reach again.
+    constexpr float step = 1.0f / 12.0f;
+    constexpr int samples = 36;
+    for (int sample = 1; sample <= samples; ++sample) {
+        float late = sample * step;
+        if (!canReach(late)) continue;
+        float early = (sample - 1) * step;
+        for (int iteration = 0; iteration < 10; ++iteration) {
+            const float middle = 0.5f * (early + late);
+            if (canReach(middle)) late = middle;
+            else early = middle;
+        }
+        return predict(late);
+    }
+    return currentPosition;
 }
 
 bool EnemyAttackController::IsEnemyAllowedToAttack(const Enemy& enemy, std::string& reason) const {

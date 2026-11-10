@@ -35,8 +35,10 @@ public:
     void SetUseLightweightVisual(bool useLightweightVisual);
     void SetModelPath(const std::string& modelPath);
     void Kill(const std::string& reason = "外部処理");
-    void CapturePreviousPosition() { previousPosition_ = position_; }
     const Vector3& GetPreviousPosition() const { return previousPosition_; }
+    Vector3 GetStepPosition(float fraction) const;
+    float GetClosestStepFraction(const Vector3& startCenter, const Vector3& endCenter,
+        const Vector3& axes, float startFraction = 0.0f) const;
     bool TryClaimScore() { if (scoreClaimed_) return false; scoreClaimed_ = true; return true; }
     bool HasScoreClaim() const { return scoreClaimed_; }
     bool IsCancelable() const { return cancelable_; }
@@ -54,10 +56,6 @@ public:
     const Vector3& GetVisualModelRotation() const { return visualModelRotation_; }
     const Vector3& GetVisualForwardOverride() const { return visualForwardOverride_; }
     const std::string& GetDeathReason() const { return deathReason_; }
-    uint64_t GetProjectileRailFrameSequence() const { return projectileRailFrameSequence_; }
-    uint64_t GetProjectileSpawnSequence() const { return projectileSpawnSequence_; }
-    void SetProjectileRailFrameSequence(uint64_t sequence) { projectileRailFrameSequence_ = sequence; }
-    void SetProjectileSpawnSequence(uint64_t sequence) { projectileSpawnSequence_ = sequence; }
     bool HasVisualForwardOverride() const { return hasVisualForwardOverride_; }
     float GetRadius() const { return radius_; }
     float GetLifeTime() const { return lifeTime_; }
@@ -92,8 +90,6 @@ private:
     float radius_ = 0.15f;
     float lifeTime_ = 6.0f;
     float currentTime_ = 0.0f;
-    uint64_t projectileRailFrameSequence_ = 0;
-    uint64_t projectileSpawnSequence_ = 0;
     bool isActive_ = true;
     bool isDead_ = false;
     bool useFallbackModel_ = false;

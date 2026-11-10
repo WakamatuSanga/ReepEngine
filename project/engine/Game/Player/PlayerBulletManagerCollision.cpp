@@ -40,12 +40,13 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             continue;
         }
 
-        const Vector3 bulletPosition = bullet->GetPosition();
-        const Vector3 delta{ bulletPosition.x - center.x, bulletPosition.y - center.y, bulletPosition.z - center.z };
         const float bulletRadius = bullet->GetRadius();
         const float axisX = safeRadius * safeScale.x + bulletRadius;
         const float axisY = safeRadius * safeScale.y + bulletRadius;
         const float axisZ = safeRadius * safeScale.z + bulletRadius;
+        const Vector3 bulletPosition = bullet->GetStepPosition(
+            bullet->GetClosestStepFraction(center, center, {axisX, axisY, axisZ}));
+        const Vector3 delta{ bulletPosition.x - center.x, bulletPosition.y - center.y, bulletPosition.z - center.z };
         const float normalizedDistanceSq =
             (delta.x * delta.x) / (axisX * axisX) +
             (delta.y * delta.y) / (axisY * axisY) +
@@ -116,7 +117,9 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
 
         const float bulletRadius = bullet->GetRadius();
         const float combinedRadius = safeRadius + bulletRadius;
-        const float distanceSquared = DistanceSquaredLocal(center, bullet->GetPosition());
+        const Vector3 bulletPosition = bullet->GetStepPosition(
+            bullet->GetClosestStepFraction(center, center, {1.0f, 1.0f, 1.0f}));
+        const float distanceSquared = DistanceSquaredLocal(center, bulletPosition);
         const float distance = std::sqrt(distanceSquared);
         if (closestDistance == closestInitial || distance < closestDistance) {
             closestDistance = distance;
@@ -129,7 +132,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             }
             RecordLockedWingHomingHit(instance);
             if (hitPosition) {
-                *hitPosition = bullet->GetPosition();
+                *hitPosition = bulletPosition;
             }
             if (damage) {
                 *damage = instance.damage;

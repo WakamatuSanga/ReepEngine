@@ -36,10 +36,6 @@ bool KrakenTentacleWaveEncounterController::PublishCompletion() {
         EnterError("撃破完了時にダメージを無効化できませんでした。");
         return false;
     }
-    if (!SetRailHold(false)) {
-        EnterError("撃破完了時にレール進行を復帰できませんでした。");
-        return false;
-    }
     if (!waveManager_->SetExternalWaveObjectiveCompleted(true) ||
         !waveManager_->IsExternalWaveObjectiveCompleted()) {
         ++objectiveCompletionFailureCount_;

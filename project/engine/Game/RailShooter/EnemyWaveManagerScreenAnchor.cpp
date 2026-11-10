@@ -50,11 +50,46 @@ void EnemyWaveManager::ConfigureScreenAnchorSpawn(Enemy* enemy, const EnemyWaveS
     const float rotationDegrees = spawn.rotationDuringDrop != 0.0f ? spawn.rotationDuringDrop : screenAnchorRotationDuringDrop_;
     enemy->SetScale({ scale, scale, scale });
     enemy->StartSpawnAnimationFrom(
-        ComputeScreenPosition(spawn.screenX, spawnY, spawn.depth),
+        ComputeAnchorPosition(spawn.screenX, spawnY, spawn.depth),
         targetPosition,
         dropDuration,
         rotationDegrees,
         0.0f);
+}
+
+void EnemyWaveManager::UpdateScreenAnchorEnemy(WaveEnemyRuntime& runtime, float deltaTime) {
+    Enemy& enemy = *runtime.enemy;
+    const Vector3 anchor = ComputeAnchorPosition(runtime.screenX, runtime.screenY, runtime.depth);
+    if (!enemy.CanAttack()) {
+        enemy.TranslateSpawnPath(SubtractVector3(anchor, runtime.railPosition));
+        runtime.railPosition = anchor;
+        return;
+    }
+
+    lastScreenAnchorPosition_ = anchor;
+    if (!runtime.anchorExiting) {
+        enemy.SetPosition(anchor);
+        enemy.SetForward(ComputeLaserDirection(enemy));
+        runtime.anchorAge += deltaTime;
+        const bool holdFinished = runtime.anchorHold > 0.0f && runtime.anchorAge >= runtime.anchorHold;
+        const bool attackInProgress = runtime.laserState == LaserState::WarningTracking
+            || runtime.laserState == LaserState::WarningLocked || runtime.laserState == LaserState::Beam;
+        if (!holdFinished || attackInProgress) {
+            UpdateLaserTelegraph(runtime, deltaTime);
+            return;
+        }
+        runtime.anchorExiting = true;
+    }
+
+    runtime.anchorExitAge += deltaTime;
+    const float progress = std::clamp(runtime.anchorExitAge / runtime.anchorExitDuration, 0.0f, 1.0f);
+    const float easeIn = progress * progress;
+    const float exitX = runtime.screenX < 0.0f ? -1.5f : 1.5f;
+    const Vector3 exit = ComputeAnchorPosition(
+        std::lerp(runtime.screenX, exitX, easeIn), std::lerp(runtime.screenY, 1.85f, easeIn), runtime.depth);
+    enemy.SetPosition(exit);
+    enemy.SetForward(SubtractVector3(exit, anchor));
+    if (progress >= 1.0f) EscapeWaveEnemy(runtime);
 }
 
 void EnemyWaveManager::UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float deltaTime) {
@@ -124,6 +159,7 @@ void EnemyWaveManager::UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float del
         }
         break;
     case LaserState::Beam:
+        laserController_->UpdateBeamOrigin(runtime.enemy, origin);
         runtime.laserTimer += deltaTime;
         if (runtime.laserTimer >= laserController_->GetBeamDuration()) {
             runtime.laserTimer = 0.0f;

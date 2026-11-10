@@ -1,9 +1,11 @@
 ﻿#include "EnemyWaveManager.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Enemy/Enemy.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Enemy/EnemyLaserTelegraphController.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/RailShooter/EnemyWaveLoader.h"
+#include "Engine/Game/UI/AimCorridorVisualController.h"
 #include "Engine/Game/UI/WarningUIController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelEventRuntime.h"
@@ -154,6 +156,7 @@ void EnemyWaveManager::Finalize() {
     enemyManager_ = nullptr;
     camera_ = nullptr;
     player_ = nullptr;
+    railRig_ = nullptr;
     warningUIController_ = nullptr;
     waves_.clear();
     waveIndexById_.clear();
@@ -212,17 +215,23 @@ void EnemyWaveManager::Update(float deltaTime) {
                 continue;
             }
 
-            const Vector3 spawnPosition = ComputeSpawnPosition(spawn);
-            const Vector3 spawnForward = ComputeSpawnForward(spawnPosition);
+            const bool followsRail = spawn.movePattern == "RailFormation" && railRig_ && railRig_->HasGameplayRail();
+            const float railDistance = followsRail ? railRig_->GetSceneryDistance() : 0.0f;
+            Vector3 spawnForward;
+            const Vector3 spawnPosition = followsRail
+                ? ComputeRailPosition(railDistance + spawn.depth, spawn.screenX, spawn.screenY, &spawnForward)
+                : ComputeSpawnPosition(spawn);
+            if (!followsRail) spawnForward = ComputeSpawnForward(spawnPosition);
             activeWave.spawned[i] = true;
             ++activeWave.spawnedCount;
             lastWaveSpawnedCount_ = activeWave.spawnedCount;
 
-            if (Enemy* spawnedEnemy = enemyManager_->SpawnEnemyAt(spawnPosition, spawn.enemyType, spawnForward)) {
+            if (Enemy* spawnedEnemy = enemyManager_->SpawnEnemy(spawn.enemyType, spawnPosition, spawnForward,
+                spawn.hitPoints, followsRail)) {
                 if (IsScreenAnchorMovePattern(spawn.movePattern)) {
                     ConfigureScreenAnchorSpawn(spawnedEnemy, spawn, spawnPosition);
                 }
-                RegisterWaveEnemy(spawnedEnemy, spawn, activeWave.waveIndex);
+                RegisterWaveEnemy(spawnedEnemy, spawn, activeWave.waveIndex, railDistance, spawnPosition);
                 ++spawnedEnemyCount_;
                 lastWaveSpawnedCount_ = activeWave.spawnedCount;
                 lastSpawnPosition_ = spawnPosition;
@@ -388,7 +397,28 @@ std::string EnemyWaveManager::ResolveWaveIdFromAction(const FiredEventAction& ac
 }
 
 Vector3 EnemyWaveManager::ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn) const {
+    if (IsScreenAnchorMovePattern(spawn.movePattern)) return ComputeAnchorPosition(spawn.screenX, spawn.screenY, spawn.depth);
     return ComputeScreenPosition(spawn.screenX, spawn.screenY, spawn.depth);
+}
+
+Vector3 EnemyWaveManager::ComputeAnchorPosition(float screenX, float screenY, float depth) const {
+    if (!railRig_ || !railRig_->UsesGameplayComposition()) return ComputeScreenPosition(screenX, screenY, depth);
+    const auto& frame = railRig_->GetGameplayReferenceFrame();
+    const Vector3 right{frame.m[0][0], frame.m[0][1], frame.m[0][2]};
+    const Vector3 up{frame.m[1][0], frame.m[1][1], frame.m[1][2]};
+    const Vector3 forward{frame.m[2][0], frame.m[2][1], frame.m[2][2]};
+    const Vector3 origin{frame.m[3][0], frame.m[3][1], frame.m[3][2]};
+    return AddVector3(AddVector3(origin, ScaleVector3(forward, depth)),
+        AddVector3(ScaleVector3(right, screenX * spawnWidth_), ScaleVector3(up, screenY * spawnHeight_)));
+}
+
+Vector3 EnemyWaveManager::ComputeRailPosition(float distance, float screenX, float screenY, Vector3* forward) const {
+    const auto frame = railRig_->SampleSceneryFrame(distance);
+    if (forward) *forward = {frame.m[2][0], frame.m[2][1], frame.m[2][2]};
+    const Vector3 right{frame.m[0][0], frame.m[0][1], frame.m[0][2]};
+    const Vector3 up{frame.m[1][0], frame.m[1][1], frame.m[1][2]};
+    const Vector3 origin{frame.m[3][0], frame.m[3][1], frame.m[3][2]};
+    return AddVector3(origin, AddVector3(ScaleVector3(right, screenX * spawnWidth_), ScaleVector3(up, screenY * spawnHeight_)));
 }
 
 Vector3 EnemyWaveManager::ComputeScreenPosition(float screenX, float screenY, float depth) const {
@@ -425,7 +455,8 @@ Vector3 EnemyWaveManager::ResolveApproachTarget() const {
     return { 0.0f, 0.0f, 0.0f };
 }
 
-void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex) {
+void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex,
+    float railDistance, const Vector3& spawnPosition) {
     if (!enemy) {
         return;
     }
@@ -441,6 +472,13 @@ void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry
     runtime.dropDuration = spawn.dropDuration;
     runtime.enemyScale = spawn.enemyScale;
     runtime.rotationDuringDrop = spawn.rotationDuringDrop;
+    runtime.railFormation = spawn.movePattern == "RailFormation";
+    runtime.formationForwardSpeed = spawn.formationForwardSpeed;
+    runtime.formationApproachDepth = spawn.formationApproachDepth;
+    runtime.railDistance = railDistance;
+    runtime.railPosition = spawnPosition;
+    runtime.anchorHold = spawn.anchorHold;
+    runtime.anchorExitDuration = spawn.anchorExitDuration;
     waveEnemies_.push_back(std::move(runtime));
 }
 
@@ -458,7 +496,8 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
             if (laserController_) {
                 laserController_->ClearOwner(runtime.enemy);
             }
-            MarkWaveEnemyEnded(runtime, runtime.enemy && runtime.enemy->IsDead() ? WaveEnemyEndReason::Dead : WaveEnemyEndReason::Escaped);
+            const bool died = runtime.enemy && enemyManager_->OwnsEnemy(runtime.enemy) && runtime.enemy->IsDead();
+            MarkWaveEnemyEnded(runtime, died ? WaveEnemyEndReason::Dead : WaveEnemyEndReason::Escaped);
         }
     }
     waveEnemies_.erase(
@@ -471,7 +510,6 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
     const Vector3 cameraRight = camera_ ? GetCameraRight(*camera_) : Vector3{ 1.0f, 0.0f, 0.0f };
     const Vector3 cameraUp = camera_ ? GetCameraUp(*camera_) : Vector3{ 0.0f, 1.0f, 0.0f };
     const Vector3 cameraPosition = camera_ ? camera_->GetTranslate() : Vector3{ 0.0f, 0.0f, 0.0f };
-    size_t despawnedThisFrame = 0;
     screenAnchorEnemyCount_ = 0;
 
     for (WaveEnemyRuntime& runtime : waveEnemies_) {
@@ -482,13 +520,12 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
 
         if (screenAnchorEnabled_ && IsScreenAnchorMovePattern(runtime.movePattern)) {
             ++screenAnchorEnemyCount_;
-            if (enemy->CanAttack()) {
-                const Vector3 anchorPosition = ComputeScreenPosition(runtime.screenX, runtime.screenY, runtime.depth);
-                lastScreenAnchorPosition_ = anchorPosition;
-                enemy->SetPosition(anchorPosition);
-                enemy->SetForward(ComputeLaserDirection(*enemy));
-                UpdateLaserTelegraph(runtime, safeDeltaTime);
-            }
+            UpdateScreenAnchorEnemy(runtime, safeDeltaTime);
+            continue;
+        }
+
+        if (runtime.railFormation) {
+            UpdateRailFormation(runtime, safeDeltaTime);
             continue;
         }
 
@@ -503,10 +540,7 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
             const float side = Dot(fromCamera, cameraRight);
             const float height = Dot(fromCamera, cameraUp);
             if (depth < -5.0f || depth > 180.0f || std::fabs(side) > 90.0f || std::fabs(height) > 70.0f || Length(fromCamera) > 220.0f) {
-                MarkWaveEnemyEnded(runtime, WaveEnemyEndReason::Escaped);
-                enemy->Kill();
-                runtime.enemy = nullptr;
-                ++despawnedThisFrame;
+                EscapeWaveEnemy(runtime);
                 continue;
             }
         }
@@ -541,7 +575,6 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
         enemy->SetPosition(AddVector3(enemyPosition, ScaleVector3(direction, speed * safeDeltaTime)));
     }
 
-    despawnedOutOfCameraCount_ += despawnedThisFrame;
     for (WaveEnemyRuntime& runtime : waveEnemies_) {
         if (!runtime.ended && (!runtime.enemy || runtime.enemy->IsDead())) {
             MarkWaveEnemyEnded(runtime, WaveEnemyEndReason::Dead);
@@ -550,6 +583,118 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
     waveEnemies_.erase(
         std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [](const WaveEnemyRuntime& runtime) { return runtime.ended || !runtime.enemy || runtime.enemy->IsDead(); }),
         waveEnemies_.end());
+}
+
+Vector3 EnemyWaveManager::ComputeFormationPosition(const WaveEnemyRuntime& runtime, float railDistance,
+    float age, Vector3* forward) const {
+    const float exitTime = std::clamp((age - runtime.anchorHold) / runtime.anchorExitDuration, 0.0f, 1.0f);
+    const float exitBlend = exitTime * exitTime;
+    const float exitSide = runtime.screenX < 0.0f ? -1.0f : 1.0f;
+    float laneScale = 1.0f;
+    float depth = std::lerp(runtime.depth, runtime.depth * 0.5f, exitBlend) + runtime.formationForwardSpeed * age;
+    if (runtime.formationApproachDepth > 0.0f && runtime.formationApproachDepth < runtime.depth && runtime.anchorHold > 0.0f) {
+        // Reach the approach depth before peeling away. Match the initial drift and ease to a stop.
+        const float approachDuration = runtime.anchorHold * 0.85f;
+        const float t = std::clamp(age / approachDuration, 0.0f, 1.0f);
+        const float smooth = t * t * (3.0f - 2.0f * t);
+        const float initialTravel = std::clamp(-runtime.formationForwardSpeed * approachDuration,
+            0.0f, runtime.depth - runtime.formationApproachDepth);
+        depth = std::lerp(runtime.depth, runtime.formationApproachDepth, smooth) - initialTravel * t * (1.0f - t) * (1.0f - t);
+        // Tighten the lanes in proportion to depth so the drones stay in view as they close.
+        laneScale = depth / runtime.depth;
+    }
+    const float x = std::lerp(runtime.screenX * laneScale, exitSide * 1.45f, exitBlend);
+    const float y = runtime.screenY * laneScale + 0.35f * exitBlend;
+    if (railRig_ && railRig_->HasGameplayRail()) {
+        return ComputeRailPosition(railDistance + depth, x, y, forward);
+    }
+    if (forward) *forward = camera_ ? GetCameraForward(*camera_) : Vector3{0.0f, 0.0f, 1.0f};
+    return ComputeAnchorPosition(x, y, depth);
+}
+
+void EnemyWaveManager::UpdateRailFormation(WaveEnemyRuntime& runtime, float deltaTime) {
+    Enemy& enemy = *runtime.enemy;
+    const bool flying = enemy.CanAttack();
+    if (flying) runtime.anchorAge += deltaTime;
+    if (runtime.anchorAge >= runtime.anchorHold + runtime.anchorExitDuration) {
+        EscapeWaveEnemy(runtime);
+        return;
+    }
+    runtime.railDistance = railRig_ && railRig_->HasGameplayRail() ? railRig_->GetSceneryDistance() : 0.0f;
+    Vector3 forward{};
+    const Vector3 position = ComputeFormationPosition(runtime, runtime.railDistance, runtime.anchorAge, &forward);
+    if (flying) {
+        enemy.SetPosition(position);
+        enemy.SetForward(forward);
+    } else {
+        enemy.TranslateSpawnPath(SubtractVector3(position, runtime.railPosition));
+    }
+    runtime.railPosition = position;
+}
+
+bool EnemyWaveManager::TryGetFormationAimPoint(const AimReticleScreenRect& reticle, const Vector3& muzzle,
+    float bulletSpeed, float bulletLifetime, Vector3& aimPoint) const {
+    if (!reticle.valid || reticle.halfSizeUV.x <= 0.0f || reticle.halfSizeUV.y <= 0.0f
+        || !camera_ || !enemyManager_ || !railRig_ || !railRig_->HasGameplayRail()
+        || !std::isfinite(bulletSpeed) || bulletSpeed <= 0.0f
+        || !std::isfinite(bulletLifetime) || bulletLifetime <= 0.0f) return false;
+    const auto& projection = camera_->GetViewProjectionMatrix();
+    const float railSpeed = railRig_->GetProjectileRailFrame().running ? railRig_->GetEffectiveRailSpeed() : 0.0f;
+    float bestScore = 1.0f;
+    bool found = false;
+    for (const auto& runtime : waveEnemies_) {
+        const Enemy* enemy = runtime.enemy;
+        if (!runtime.railFormation || runtime.ended || !enemy || !enemyManager_->OwnsEnemy(enemy) || !enemy->CanAttack()) continue;
+        const Vector3 position = enemy->GetPosition();
+        const auto clip = [&projection, &position](int axis) {
+            return position.x * projection.m[0][axis] + position.y * projection.m[1][axis]
+                + position.z * projection.m[2][axis] + projection.m[3][axis];
+        };
+        const float w = clip(3);
+        if (w <= kMinVectorLength) continue;
+        const Vector2 uv{0.5f + 0.5f * clip(0) / w, 0.5f - 0.5f * clip(1) / w};
+        const float score = (std::max)(std::fabs(uv.x - reticle.centerUV.x) / reticle.halfSizeUV.x,
+            std::fabs(uv.y - reticle.centerUV.y) / reticle.halfSizeUV.y);
+        if (!std::isfinite(score) || score >= bestScore) continue;
+
+        // Solve the flight time once against the same path the formation uses.
+        // Subsequent camera or rail changes cannot steer an already fired round.
+        const auto predict = [&](float time) {
+            return ComputeFormationPosition(runtime, runtime.railDistance + railSpeed * time, runtime.anchorAge + time);
+        };
+        const float horizon = (std::min)(bulletLifetime, runtime.anchorHold + runtime.anchorExitDuration - runtime.anchorAge);
+        if (horizon <= 0.0f) continue;
+        const auto canReach = [&](float time) {
+            return Length(SubtractVector3(predict(time), muzzle)) <= bulletSpeed * time;
+        };
+        // A drone can cross the shot's reach before leaving it again during the lateral exit.
+        constexpr int samples = 12;
+        float early = 0.0f;
+        float late = 0.0f;
+        for (int sample = 1; sample <= samples; ++sample) {
+            late = horizon * (static_cast<float>(sample) / samples);
+            if (canReach(late)) break;
+            early = late;
+        }
+        if (early == late) continue;
+        for (int iteration = 0; iteration < 12; ++iteration) {
+            const float time = 0.5f * (early + late);
+            if (!canReach(time)) early = time;
+            else late = time;
+        }
+        aimPoint = predict(late);
+        bestScore = score;
+        found = true;
+    }
+    return found;
+}
+
+void EnemyWaveManager::EscapeWaveEnemy(WaveEnemyRuntime& runtime) {
+    MarkWaveEnemyEnded(runtime, WaveEnemyEndReason::Escaped);
+    if (laserController_) laserController_->ClearOwner(runtime.enemy);
+    runtime.enemy->Kill();
+    runtime.enemy = nullptr;
+    ++despawnedOutOfCameraCount_;
 }
 
 void EnemyWaveManager::ClearTrackedWaveEnemies() {

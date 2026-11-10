@@ -105,9 +105,16 @@ void GameScene::UpdateSceneRuntime() {
         cameraShakeController_->BeginFrame(camera_.get());
     }
 
-    const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
     const bool isDeathSequenceActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
     const bool isGameMode = runtimeModeController_ ? runtimeModeController_->IsGameMode() : true;
+    const bool isCameraRigActive = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive() &&
+        (isGameMode || !railShooterCameraRig_->IsConfiguredGameplayRailActive());
+    if (railShooterCameraRig_ && railShooterCameraRig_->IsConfiguredGameplayRailActive() &&
+        isGameMode != railShooterCameraRig_->UsesGameplayComposition()) {
+        if (playerBulletManager_) playerBulletManager_->DeleteAllBullets();
+        if (enemyBulletManager_) enemyBulletManager_->DeleteAllBullets();
+        if (playerEnemyBulletCollision_) playerEnemyBulletCollision_->ResetPlayerSweep();
+    }
     if (enemyWaveManager_) {
         enemyWaveManager_->SetGameModeActive(isGameMode);
     }
@@ -229,12 +236,15 @@ void GameScene::UpdateSceneRuntime() {
         runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
     }
 
+    const bool krakenCombatActive = krakenTentacleWaveEncounter_ &&
+        krakenTentacleWaveEncounter_->GetState() == KrakenTentacleWaveEncounterState::Active;
     const bool presentationBeforeUpdate = isDeathSequenceActive
         || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())
-        || (railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive());
-    if (stageCombatState_) stageCombatState_->SetGameplayActive(isGameMode && !presentationBeforeUpdate
-        && !(enemyWaveManager_ && enemyWaveManager_->IsStageComplete()));
-    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, isGameMode && !presentationBeforeUpdate, frameTimer.GetRawDeltaTime());
+        || (!krakenCombatActive && railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive());
+    const bool ordinaryCombat = isGameMode && !presentationBeforeUpdate
+        && !(enemyWaveManager_ && enemyWaveManager_->IsStageComplete());
+    if (stageCombatState_) stageCombatState_->SetGameplayActive(ordinaryCombat);
+    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, ordinaryCombat, frameTimer.GetRawDeltaTime());
     if (combatSlowMotionController_) {
         if (presentationBeforeUpdate) combatSlowMotionController_->Reset();
         combatSlowMotionController_->Update(unscaledDeltaTime);
@@ -243,11 +253,12 @@ void GameScene::UpdateSceneRuntime() {
     // they are never multiplied twice. Gameplay consumers receive this dt once.
     const float combatScale = combatSlowMotionController_ ? combatSlowMotionController_->GetTimeScale() : 1.0f;
     const float boostScale = boostController_ ? boostController_->GetTimeScale() : 1.0f;
-    gameplayDeltaTime = unscaledDeltaTime * (std::min)(combatScale, boostScale);
-    if (boostController_) boostController_->Update(gameplayDeltaTime);
+    gameplayDeltaTime = boostController_ ? boostController_->ResolveGameplayDeltaTime(unscaledDeltaTime, combatScale)
+        : unscaledDeltaTime * combatScale;
     if (volumetricCloudPass) volumetricCloudPass->SetGameplayFlowActive(isGameMode);
 
-    const float effectDeltaTime = (boostScale >= 0.9999f && combatSlowMotionController_ && !combatSlowMotionController_->ShouldUseScaledDeltaForEffects())
+    const float effectDeltaTime = (boostScale >= 0.9999f && (!boostController_ || !boostController_->HasMovementStep())
+        && combatSlowMotionController_ && !combatSlowMotionController_->ShouldUseScaledDeltaForEffects())
         ? unscaledDeltaTime
         : gameplayDeltaTime;
 
@@ -268,15 +279,14 @@ void GameScene::UpdateSceneRuntime() {
     }
     const bool gameplayCameraFollow = railShooterCameraRig_ && railShooterCameraRig_->UsesGameplayComposition();
     if (projectileRailMotionAdapter_) {
-        projectileRailMotionAdapter_->BeginFrame(!isDeathSequenceActive);
+        projectileRailMotionAdapter_->BeginFrame();
     }
     if (cameraShakeController_ && !gameplayCameraFollow) {
         cameraShakeController_->UpdateAndApply(gameplayDeltaTime, camera_.get());
     }
     if (levelSceneRuntime_) {
-        const bool cameraRigActiveForDebug = railShooterCameraRig_ && railShooterCameraRig_->IsCameraRigActive();
         levelSceneRuntime_->SetCameraRigPreviewState(
-            cameraRigActiveForDebug,
+            isCameraRigActive,
             !shouldDrawRailDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailDebugWhileActive()),
             !shouldDrawRailDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideRailPointsWhileActive()),
             !shouldDrawEventDebug || (railShooterCameraRig_ && railShooterCameraRig_->ShouldHideEventDebugWhileActive()),
@@ -306,7 +316,9 @@ void GameScene::UpdateSceneRuntime() {
         impactDistortionController_->BeginFrame();
     }
     if (player_) {
-        player_->Update(gameplayDeltaTime);
+        const float normalMovementDeltaTime = boostController_
+            ? boostController_->GetNormalMovementDeltaTime(unscaledDeltaTime, combatScale) : gameplayDeltaTime;
+        player_->Update(gameplayDeltaTime, boostController_.get(), normalMovementDeltaTime);
     }
     if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) { UpdateDeathPresentation(); return; }
     // Finalize the render camera after movement, before exhaust, reticle, locks

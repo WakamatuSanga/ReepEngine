@@ -19,6 +19,7 @@
 
 namespace {
 constexpr float kMinimumVectorLength = 0.00001f;
+constexpr float kLockedWingCruiseSpeed = 28.0f;
 constexpr Vector3 kRecommendedLeftWingOffset{ -1.0f, -0.35f, -0.33f };
 constexpr Vector3 kRecommendedRightWingOffset{ 1.0f, -0.35f, -0.33f };
 
@@ -238,10 +239,10 @@ PlayerBulletManager::LockedWingShotResult
 PlayerBulletManager::SpawnLockedWingShot(
     WingSide wing, const std::string& targetId, bool forcedTest) {
     if (lockAmmo_ <= 0) return LockedWingShotResult::SpawnFailed;
-    if (!player_ || !camera_ || !std::isfinite(bulletSpeed_)) {
+    if (!player_ || !camera_) {
         ++lockedWingSpawnFailureCount_;
         lastLockedWingStatus_ =
-            "プレイヤー、カメラ、または弾速が無効で生成できませんでした";
+            "プレイヤーまたはカメラが無効で生成できませんでした";
         return LockedWingShotResult::SpawnFailed;
     }
 
@@ -251,7 +252,6 @@ PlayerBulletManager::SpawnLockedWingShot(
     const Vector3 launchDirection = ResolveLockedWingLaunchDirection();
     const Vector3 ejectionDownDirection =
         ResolveLockedWingEjectionDownDirection();
-    const float baseBulletSpeed = (std::max)(bulletSpeed_, 0.0f);
     const float ejectionDropDuration =
         std::clamp(lockedWingEjectionDropDuration_, 0.01f, 0.30f);
     const float ejectionDropDistance =
@@ -291,7 +291,7 @@ PlayerBulletManager::SpawnLockedWingShot(
         std::clamp(lockedWingPreIgnitionHoldDuration_, 0.15f, 0.50f);
     launchState.ignitionRampDuration =
         std::clamp(lockedWingIgnitionRampDuration_, 0.01f, 0.50f);
-    launchState.baseBulletSpeed = baseBulletSpeed;
+    launchState.baseBulletSpeed = kLockedWingCruiseSpeed;
     launchState.currentSpeedRate = 0.0f;
     launchState.launchWing = wing;
     launchState.phase = LockedWingLaunchPhase::EjectionDrop;

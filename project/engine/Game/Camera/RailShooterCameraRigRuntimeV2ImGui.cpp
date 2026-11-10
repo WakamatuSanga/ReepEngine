@@ -97,7 +97,6 @@ void RailShooterCameraRig::DrawRuntimeV2TrialImGui() {
     ImGui::Text("目標Rail倍率: %.4f", targetRailSpeedMultiplier_);
     ImGui::Text("最終Rail Speed: %.3f", effectiveRailSpeed_);
     ImGui::DragFloat("Boost加速時間##BoostRailAcceleration", &boostRailAccelerationTime_, 0.01f, 0.01f, 0.5f, "%.2f秒");
-    ImGui::DragFloat("通常速度への復帰時間##BoostRailReturn", &boostRailReturnTime_, 0.01f, 0.05f, 1.5f, "%.2f秒");
     ImGui::Text("現在Rail Distance: %.3f", railDistance_);
     ImGui::Text("1フレームのRail進行量: %.6f", lastRailAdvance_);
     ImGui::Text("Boost倍率の適用回数: %llu", static_cast<unsigned long long>(boostMultiplierApplyCount_));
@@ -117,7 +116,6 @@ void RailShooterCameraRig::DrawRuntimeV2TrialImGui() {
     if (ImGui::Button("Rail Speed設定をリセット##ResetRailSpeed")) {
         boostRailSpeedMultiplier_ = 1.15f;
         boostRailAccelerationTime_ = 0.10f;
-        boostRailReturnTime_ = 0.45f;
         boostMultiplierApplyCount_ = 0;
         ResetBoostRailSpeedState();
     }

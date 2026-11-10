@@ -41,6 +41,8 @@ public:
     void SetEnemyId(const std::string& enemyId);
     void SetEnemyType(const std::string& enemyType);
     void SetPosition(const Vector3& position);
+    void TranslateSpawnPath(const Vector3& delta);
+    void SetSpawnHitPoints(int hitPoints) { hp_ = hitPoints; }
     void SetRotation(const Vector3& rotation);
     void SetScale(const Vector3& scale);
     void SetVelocity(const Vector3& velocity);

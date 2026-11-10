@@ -189,6 +189,10 @@ namespace {
                     if (!ParseRailArray(sceneData.rails)) {
                         return false;
                     }
+                } else if (key == "gameplayStartRail") {
+                    if (!ParseString(sceneData.gameplayStartRail)) {
+                        return Fail("Invalid gameplayStartRail.");
+                    }
                 } else if (!SkipValue()) {
                     return false;
                 }

@@ -111,8 +111,6 @@ bool EnemyBullet::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
     isActive_ = false;
     isDead_ = true;
     deathReason_ = "初期化中";
-    projectileRailFrameSequence_ = 0;
-    projectileSpawnSequence_ = 0;
     combatLifetimeId_ = 0;
     scoreClaimed_ = false;
     nearMissArmed_ = false;
@@ -153,8 +151,6 @@ void EnemyBullet::Finalize() {
     object_.reset();
     model_ = nullptr;
     deathReason_ = "終了済み";
-    projectileRailFrameSequence_ = 0;
-    projectileSpawnSequence_ = 0;
 }
 
 void EnemyBullet::Update(float deltaTime) {
@@ -169,6 +165,7 @@ void EnemyBullet::Update(float deltaTime) {
         return;
     }
 
+    previousPosition_ = position_;
     position_ = AddVector3(position_, ScaleVector3(velocity_, safeDeltaTime));
     UpdateObjectTransform();
     object_->Update();
@@ -297,8 +294,28 @@ void EnemyBullet::DrawImGui() {
 }
 
 void EnemyBullet::SetPosition(const Vector3& position) {
-    position_ = position;
+    previousPosition_ = position_ = position;
     UpdateObjectTransform();
+}
+
+Vector3 EnemyBullet::GetStepPosition(float fraction) const {
+    return {std::lerp(previousPosition_.x, position_.x, fraction),
+        std::lerp(previousPosition_.y, position_.y, fraction),
+        std::lerp(previousPosition_.z, position_.z, fraction)};
+}
+
+float EnemyBullet::GetClosestStepFraction(const Vector3& startCenter, const Vector3& endCenter,
+    const Vector3& axes, float startFraction) const {
+    const Vector3 first = GetStepPosition(startFraction);
+    const Vector3 start{(first.x - startCenter.x) / axes.x,
+        (first.y - startCenter.y) / axes.y, (first.z - startCenter.z) / axes.z};
+    const Vector3 end{(position_.x - endCenter.x) / axes.x,
+        (position_.y - endCenter.y) / axes.y, (position_.z - endCenter.z) / axes.z};
+    const Vector3 step{end.x - start.x, end.y - start.y, end.z - start.z};
+    const float lengthSquared = step.x * step.x + step.y * step.y + step.z * step.z;
+    if (lengthSquared <= 0.0000001f) return startFraction;
+    const float projection = -(start.x * step.x + start.y * step.y + start.z * step.z) / lengthSquared;
+    return std::lerp(startFraction, 1.0f, std::clamp(projection, 0.0f, 1.0f));
 }
 
 void EnemyBullet::SetVelocity(const Vector3& velocity) {
@@ -404,9 +421,14 @@ void EnemyBullet::UpdateObjectTransform() {
         lastVisualForward_ = Normalize(visualForwardSource, lastVisualForward_);
     }
     visualBaseRotation_ = MakeRotationFromForward(lastVisualForward_);
-    visualModelRotation_ = AddVector3(
-        AddVector3(visualBaseRotation_, rotation_),
-        modelRotationOffset_);
+    if (hasVisualForwardOverride_) {
+        visualModelRotation_ = AddVector3(AddVector3(visualBaseRotation_, rotation_), modelRotationOffset_);
+    } else {
+        // The normal bullet mesh is authored along +X. Apply its model-axis correction before the flight pitch and yaw.
+        const auto modelRotation = MatrixMath::MakeAffine({1, 1, 1}, AddVector3(rotation_, modelRotationOffset_), {});
+        const auto flightRotation = MatrixMath::MakeAffine({1, 1, 1}, visualBaseRotation_, {});
+        visualModelRotation_ = MatrixMath::ExtractEulerXYZ(MatrixMath::Multipty(modelRotation, flightRotation));
+    }
     object_->SetRotate(visualModelRotation_);
     object_->SetScale(scale_);
 }
