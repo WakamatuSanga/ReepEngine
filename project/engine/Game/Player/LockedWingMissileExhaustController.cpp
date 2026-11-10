@@ -3,6 +3,7 @@
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/SrvManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Effect/LockedWingSmokePass.h"
 #include "Engine/Graphics/Particle/GpuParticleEffectSerializer.h"
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
 
@@ -20,6 +21,10 @@ Vector3 Add(const Vector3& lhs, const Vector3& rhs) {
 
 Vector3 Scale(const Vector3& value, float scale) {
     return { value.x * scale, value.y * scale, value.z * scale };
+}
+
+Vector3 Subtract(const Vector3& lhs, const Vector3& rhs) {
+    return {lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
 }
 
 float Length(const Vector3& value) {
@@ -74,6 +79,7 @@ bool LockedWingMissileExhaustController::Initialize(
         particleSystem_.reset();
         return false;
     }
+    smoke_ = std::make_unique<LockedWingSmokePass>(*dxCommon_, *srvManager_);
     return true;
 }
 
@@ -82,6 +88,7 @@ void LockedWingMissileExhaustController::Finalize() {
         Reset(true);
     }
     particleSystem_.reset();
+    smoke_.reset();
     emitterTemplates_.clear();
     particleTypeTemplates_.clear();
     dxCommon_ = nullptr;
@@ -204,6 +211,7 @@ uint64_t LockedWingMissileExhaustController::Start(
     Slot& slot = slots_[slotIndex];
     slot.state = SlotState::Emitting;
     slot.drainRemaining = 0.0f;
+    slot.smokeStarted = false;
     const uint64_t handle = MakeHandle(slotIndex);
     if (!UpdateMissile(handle, projectilePosition, normalizedFlight)) {
         slot.state = SlotState::Free;
@@ -221,7 +229,8 @@ uint64_t LockedWingMissileExhaustController::Start(
 bool LockedWingMissileExhaustController::UpdateMissile(
     uint64_t handle,
     const Vector3& projectilePosition,
-    const Vector3& flightDirection) {
+    const Vector3& flightDirection,
+    std::span<const Vector3> flightPath) {
     uint32_t slotIndex = 0;
     if (!DecodeHandle(handle, slotIndex)
         || slots_[slotIndex].state != SlotState::Emitting) {
@@ -251,6 +260,7 @@ bool LockedWingMissileExhaustController::UpdateMissile(
     }
 
     Slot& slot = slots_[slotIndex];
+    EmitSmokeTrail(slot, exhaustPosition, exhaustDirection, flightPath);
     slot.position = exhaustPosition;
     slot.direction = exhaustDirection;
     lastHandle_ = handle;
@@ -258,6 +268,50 @@ bool LockedWingMissileExhaustController::UpdateMissile(
     lastExhaustPosition_ = exhaustPosition;
     lastExhaustDirection_ = exhaustDirection;
     return true;
+}
+
+void LockedWingMissileExhaustController::EmitSmokeTrail(
+    Slot& slot, const Vector3& nozzle, const Vector3& exhaustDirection,
+    std::span<const Vector3> flightPath) {
+    if (!smoke_ || !smoke_->IsEnabled()) {
+        slot.smokeStarted = false;
+        return;
+    }
+    // Start() only updates the flame emitter. The first simulation update supplies
+    // the actual nozzle after ignition, without smoking along the pre-ignition hold.
+    if (flightPath.empty()) return;
+    if (!slot.smokeStarted) {
+        slot.smokeStarted = true;
+        slot.smokeDistanceRemaining = LockedWingSmokePass::kSpacing;
+        smoke_->Emit(nozzle, exhaustDirection);
+        return;
+    }
+
+    Vector3 previous = slot.position;
+    const auto emitSegment = [&](const Vector3& endpoint, const Vector3& drift) {
+        const Vector3 step = Subtract(endpoint, previous);
+        const float length = Length(step);
+        if (length > 8.0f) {
+            // A camera/rail reset can reposition the source without flying this segment.
+            smoke_->Emit(endpoint, drift);
+            slot.smokeDistanceRemaining = LockedWingSmokePass::kSpacing;
+        } else if (length > kMinimumVectorLength) {
+            for (; slot.smokeDistanceRemaining <= length;
+                slot.smokeDistanceRemaining += LockedWingSmokePass::kSpacing) {
+                smoke_->Emit(Add(previous, Scale(step, slot.smokeDistanceRemaining / length)), drift);
+            }
+            slot.smokeDistanceRemaining -= length;
+        }
+        previous = endpoint;
+    };
+    for (size_t i = 1; i + 1 < flightPath.size(); ++i) {
+        Vector3 tangent{};
+        if (TryNormalize(Subtract(flightPath[i - 1], flightPath[i + 1]), tangent)) {
+            const Vector3 back = Scale(tangent, -1.0f);
+            emitSegment(Add(flightPath[i], Scale(back, exhaustRearOffset_)), back);
+        }
+    }
+    emitSegment(nozzle, exhaustDirection);
 }
 
 void LockedWingMissileExhaustController::Stop(uint64_t handle) {
@@ -288,6 +342,7 @@ void LockedWingMissileExhaustController::Update(float scaledDeltaTime) {
     const float safeDeltaTime = std::isfinite(scaledDeltaTime)
         ? std::clamp(scaledDeltaTime, 0.0f, 1.0f / 15.0f)
         : 0.0f;
+    if (smoke_) smoke_->Update(safeDeltaTime);
     ReleaseDrainedSlots(safeDeltaTime);
     ApplyRuntimeScale();
     particleSystem_->SetDeltaTime(safeDeltaTime);
@@ -309,7 +364,12 @@ void LockedWingMissileExhaustController::Draw() {
     }
 }
 
+void LockedWingMissileExhaustController::DrawSmoke() {
+    if (smoke_ && camera_) smoke_->Draw(*camera_);
+}
+
 void LockedWingMissileExhaustController::Reset(bool resetStatistics) {
+    if (smoke_) smoke_->Reset();
     for (uint32_t index = 0; index < kHardSlotCapacity; ++index) {
         Slot& slot = slots_[index];
         if (particleSystem_ && emittersPerSlot_ > 0) {
@@ -317,6 +377,7 @@ void LockedWingMissileExhaustController::Reset(bool resetStatistics) {
         }
         slot.state = SlotState::Free;
         slot.drainRemaining = 0.0f;
+        slot.smokeStarted = false;
         ++slot.generation;
         if (slot.generation == 0) {
             slot.generation = 1;

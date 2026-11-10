@@ -32,6 +32,14 @@ namespace {
         return x * x + y * y + z * z;
     }
 
+    Vector3 Subtract(const Vector3& a, const Vector3& b) {
+        return {a.x - b.x, a.y - b.y, a.z - b.z};
+    }
+
+    double Dot(const Vector3& a, const Vector3& b) {
+        return static_cast<double>(a.x) * b.x + static_cast<double>(a.y) * b.y + static_cast<double>(a.z) * b.z;
+    }
+
     KrakenTentacleCollisionQueryResult BuildResult(
         const Vector3& closestPoint,
         const Vector3& sphereCenter,
@@ -147,4 +155,46 @@ KrakenTentacleCollisionQueryResult QueryKrakenSphereSphereIntersection(
     }
     return BuildResult(
         firstCenter, secondCenter, firstRadius, secondRadius);
+}
+
+KrakenTentacleCollisionQueryResult QueryKrakenCapsuleSweptSphereIntersection(
+    const Vector3& capsuleStart, const Vector3& capsuleEnd, float capsuleRadius,
+    const Vector3& sweepStart, const Vector3& sweepEnd, float sphereRadius) {
+    if (!IsFinite(capsuleStart) || !IsFinite(capsuleEnd) ||
+        !IsFinite(sweepStart) || !IsFinite(sweepEnd) ||
+        !IsValidRadius(capsuleRadius) || !IsValidRadius(sphereRadius)) {
+        return {};
+    }
+
+    const Vector3 axis = Subtract(capsuleEnd, capsuleStart);
+    const Vector3 step = Subtract(sweepEnd, sweepStart);
+    const Vector3 offset = Subtract(capsuleStart, sweepStart);
+    const double axisLengthSquared = Dot(axis, axis);
+    const double stepLengthSquared = Dot(step, step);
+    if (stepLengthSquared <= 0.0) {
+        return axisLengthSquared > 0.0
+            ? QueryKrakenCapsuleSphereIntersection(capsuleStart, capsuleEnd, capsuleRadius, sweepStart, sphereRadius)
+            : BuildResult(capsuleStart, sweepStart, capsuleRadius, sphereRadius);
+    }
+
+    const double alongStep = Dot(step, offset);
+    if (axisLengthSquared <= 0.0) {
+        const double fraction = std::clamp(alongStep / stepLengthSquared, 0.0, 1.0);
+        return BuildResult(capsuleStart, AddScaled(sweepStart, step, fraction), capsuleRadius, sphereRadius);
+    }
+
+    const double alongAxis = Dot(axis, offset);
+    const double alignment = Dot(axis, step);
+    const double denominator = axisLengthSquared * stepLengthSquared - alignment * alignment;
+    double axisFraction = 0.0;
+    if (denominator > 1.0e-12 * axisLengthSquared * stepLengthSquared) {
+        axisFraction = std::clamp((alignment * alongStep - alongAxis * stepLengthSquared) / denominator, 0.0, 1.0);
+    }
+    const double unconstrainedStep = (alignment * axisFraction + alongStep) / stepLengthSquared;
+    const double stepFraction = std::clamp(unconstrainedStep, 0.0, 1.0);
+    if (stepFraction != unconstrainedStep) {
+        axisFraction = std::clamp((alignment * stepFraction - alongAxis) / axisLengthSquared, 0.0, 1.0);
+    }
+    return BuildResult(AddScaled(capsuleStart, axis, axisFraction),
+        AddScaled(sweepStart, step, stepFraction), capsuleRadius, sphereRadius);
 }

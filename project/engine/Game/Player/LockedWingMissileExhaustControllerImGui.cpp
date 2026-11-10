@@ -1,6 +1,7 @@
 #include "LockedWingMissileExhaustController.h"
 
 #include "Engine/Graphics/Particle/GpuParticleSystem.h"
+#include "Engine/Graphics/Effect/LockedWingSmokePass.h"
 
 #include <algorithm>
 
@@ -29,6 +30,7 @@ const char* ToJapaneseBool(bool value) {
 
 void LockedWingMissileExhaustController::DrawImGui() {
 #ifdef USE_IMGUI
+    if (smoke_) smoke_->DrawImGui();
     ImGui::SeparatorText("ミサイル噴射炎");
     ImGui::TextWrapped("専用JSON: %s", presetPath_.c_str());
     ImGui::TextWrapped("読込状態: %s", loadStatus_.c_str());

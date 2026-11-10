@@ -27,7 +27,7 @@ public:
     void SetVelocity(const Vector3& velocity);
     void SetRotation(const Vector3& rotation);
     void SetModelRotationOffset(const Vector3& rotationOffset);
-    void SetVisualForwardOverride(const Vector3& forward);
+    void SetVisualForwardOverride(const Vector3& forward, bool composeModelRotation = false);
     void ClearVisualForwardOverride();
     void SetScale(const Vector3& scale);
     void SetRadius(float radius);
@@ -95,6 +95,7 @@ private:
     bool useFallbackModel_ = false;
     bool useLightweightVisual_ = false;
     bool hasVisualForwardOverride_ = false;
+    bool composeOverrideModelRotation_ = false;
     bool initialized_ = false;
     Vector3 previousPosition_{};
     uint64_t combatLifetimeId_ = 0;

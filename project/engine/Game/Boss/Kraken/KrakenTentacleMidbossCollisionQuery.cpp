@@ -31,6 +31,21 @@ namespace {
         return IsFinite(center) && std::isfinite(radius) && radius > 0.0f;
     }
 
+    KrakenTentacleCollisionQueryResult QueryLockedWingSweep(
+        const Vector3& colliderStart, const Vector3& colliderEnd, float colliderRadius,
+        const PlayerBulletManager::PlayerBulletCollisionSnapshot& bullet,
+        KrakenTentacleCollisionQueryResult closest) {
+        const auto& sweep = bullet.lockedWingSweep;
+        for (size_t i = 1; i < sweep.count; ++i) {
+            const auto hit = QueryKrakenCapsuleSweptSphereIntersection(
+                colliderStart, colliderEnd, colliderRadius, sweep.points[i - 1], sweep.points[i], bullet.radius);
+            if (hit.valid && (!closest.valid || hit.centerDistance < closest.centerDistance)) {
+                closest = hit;
+            }
+        }
+        return closest;
+    }
+
     bool IsPairKeyLess(
         const KrakenTentacleCollisionPairKey& lhs,
         const KrakenTentacleCollisionPairKey& rhs) {
@@ -436,13 +451,15 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
         }
         for (const auto& bullet : bulletSnapshots) {
             ++diagnostics.collisionQueryTestCount;
-            const KrakenTentacleCollisionQueryResult result =
+            const auto endpoint =
                 QueryKrakenCapsuleSphereIntersection(
                     collider.worldStart,
                     collider.worldEnd,
                     collider.worldRadius,
                     bullet.worldPosition,
                     bullet.radius);
+            const auto result = QueryLockedWingSweep(
+                collider.worldStart, collider.worldEnd, collider.worldRadius, bullet, endpoint);
             diagnostics.invalidCollisionQueryCount += result.valid ? 0 : 1;
             const bool approachingWeakPoint = std::any_of(
                 tipSnapshots.begin(), tipSnapshots.end(), [&](const auto& weakPoint) {
@@ -474,12 +491,14 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
         }
         for (const auto& bullet : bulletSnapshots) {
             ++diagnostics.collisionQueryTestCount;
-            const KrakenTentacleCollisionQueryResult result =
+            const auto endpoint =
                 QueryKrakenSphereSphereIntersection(
                     collider.worldPosition,
                     collider.worldRadius,
                     bullet.worldPosition,
                     bullet.radius);
+            const auto result = QueryLockedWingSweep(
+                collider.worldPosition, collider.worldPosition, collider.worldRadius, bullet, endpoint);
             diagnostics.invalidCollisionQueryCount += result.valid ? 0 : 1;
             AddIntersectingPair(
                 currentCollisionPairs,

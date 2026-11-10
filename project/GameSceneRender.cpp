@@ -171,7 +171,7 @@ void GameScene::DrawSceneRender() {
 
     const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
     if(!deathActive){
-        if(playerBulletManager_)playerBulletManager_->DrawAfterCloud();
+        if(playerBulletManager_)playerBulletManager_->DrawAfterCloud(!shadowDebugSettings.disableEffects);
         if(enemyBulletManager_)enemyBulletManager_->DrawAfterCloud();
     }
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {

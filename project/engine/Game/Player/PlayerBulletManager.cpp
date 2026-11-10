@@ -220,8 +220,11 @@ void PlayerBulletManager::Draw() {
     }
 }
 
-void PlayerBulletManager::DrawAfterCloud() {
+void PlayerBulletManager::DrawAfterCloud(bool drawSmoke) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerDrawMs);
+    if (drawSmoke && lockedWingMissileExhaustController_) {
+        lockedWingMissileExhaustController_->DrawSmoke();
+    }
     if(normalBeamVisual_&&RenderStyleComparison::IsTargetPresentation()&&RenderStyleComparison::GetSettings().presentation.stage>=2)
         normalBeamVisual_->Draw(true);
 }

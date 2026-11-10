@@ -333,9 +333,10 @@ void EnemyBullet::SetModelRotationOffset(const Vector3& rotationOffset) {
     UpdateObjectTransform();
 }
 
-void EnemyBullet::SetVisualForwardOverride(const Vector3& forward) {
+void EnemyBullet::SetVisualForwardOverride(const Vector3& forward, bool composeModelRotation) {
     visualForwardOverride_ = Normalize(forward, lastVisualForward_);
     hasVisualForwardOverride_ = true;
+    composeOverrideModelRotation_ = composeModelRotation;
     UpdateObjectTransform();
 }
 
@@ -421,10 +422,10 @@ void EnemyBullet::UpdateObjectTransform() {
         lastVisualForward_ = Normalize(visualForwardSource, lastVisualForward_);
     }
     visualBaseRotation_ = MakeRotationFromForward(lastVisualForward_);
-    if (hasVisualForwardOverride_) {
+    if (hasVisualForwardOverride_ && !composeOverrideModelRotation_) {
         visualModelRotation_ = AddVector3(AddVector3(visualBaseRotation_, rotation_), modelRotationOffset_);
     } else {
-        // The normal bullet mesh is authored along +X. Apply its model-axis correction before the flight pitch and yaw.
+        // The bullet mesh is authored along +X. Apply its model-axis correction before the flight pitch and yaw.
         const auto modelRotation = MatrixMath::MakeAffine({1, 1, 1}, AddVector3(rotation_, modelRotationOffset_), {});
         const auto flightRotation = MatrixMath::MakeAffine({1, 1, 1}, visualBaseRotation_, {});
         visualModelRotation_ = MatrixMath::ExtractEulerXYZ(MatrixMath::Multipty(modelRotation, flightRotation));

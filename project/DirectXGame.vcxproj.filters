@@ -956,6 +956,9 @@
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Graphics\Effect\LockedWingSmokePass.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -1535,6 +1538,9 @@
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Effect\LockedWingSmokePass.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h">
       <Filter>ヘッダー ファイル\engine\Graphics\Shadow</Filter>
     </ClInclude>
@@ -1623,6 +1629,18 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\CopyImage.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\shaders\LockedWingSmoke.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\shaders\LockedWingSmokeComposite.PS.hlsl">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\shaders\LockedWingSmoke.hlsli">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="resources\shaders\VolumeNoise.hlsli">
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="resources\shaders\GpuParticle.hlsli">

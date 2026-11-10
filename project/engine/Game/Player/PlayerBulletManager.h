@@ -43,6 +43,11 @@ public:
         KrakenWeakPointHit,
     };
 
+    struct LockedWingSweep {
+        std::array<Vector3, 18> points{};
+        size_t count = 0;
+    };
+
     struct PlayerBulletCollisionSnapshot {
         uint64_t runtimeId = 0;
         Vector3 worldPosition{};
@@ -58,6 +63,7 @@ public:
         bool killed = false;
         bool homingReady = false;
         bool exhaustEnabled = false;
+        LockedWingSweep lockedWingSweep;
     };
 
     enum class WingSide : uint8_t {
@@ -80,7 +86,7 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void Draw();
-    void DrawAfterCloud();
+    void DrawAfterCloud(bool drawSmoke);
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
@@ -173,7 +179,12 @@ private:
     struct LockedWingLaunchState {
         std::string lockedTargetId;
         Vector3 currentFlightDirection{ 0.0f, 0.0f, 1.0f };
+        Vector3 visualFlightDirection{ 0.0f, 0.0f, 1.0f };
         Vector3 currentEjectionDownDirection{ 0.0f, -1.0f, 0.0f };
+        Vector3 centerPosition{};
+        Vector3 helixRight{};
+        Vector3 endVelocity{};
+        LockedWingSweep sweep;
         Vector3 targetWorldPosition{};
         Vector3 desiredDirection{ 0.0f, 0.0f, 1.0f };
         uint64_t sequence = 0;
@@ -184,8 +195,13 @@ private:
         float preIgnitionHoldDuration = 0.24f;
         float ignitionRampDuration = 0.15f;
         float baseBulletSpeed = 0.0f;
+        float helixLength = 0.0f;
+        float helixProgressDistance = 0.0f;
+        float previousHelixTargetDistance = 0.0f;
+        float closestHelixTargetDistance = 0.0f;
         float currentSpeedRate = 0.0f;
         float targetDistance = -1.0f;
+        float targetRadius = 0.0f;
         float directionDot = 1.0f;
         float angleErrorDegrees = 0.0f;
         float frameTurnDegrees = 0.0f;
@@ -206,6 +222,8 @@ private:
         bool targetLostStraightRecorded = false;
         bool exhaustFollowingDirection = false;
     };
+
+    static constexpr float kLockedWingCruiseSpeedMultiplier = 1.6f;
 
     struct PlayerBulletInstance {
         PlayerBulletInstance();
@@ -231,6 +249,11 @@ private:
     void UpdateLockedWingHoming(
         PlayerBulletInstance& instance,
         float cruiseDeltaTime);
+    Vector3 AdvanceLockedWingHelix(
+        LockedWingLaunchState& state, const Vector3& previousDirection,
+        const Vector3& previousPosition, float cruiseDeltaTime);
+    static Vector3 GetClosestProjectileStepPosition(
+        const PlayerBulletInstance& instance, const Vector3& center, const Vector3& axes);
     void UpdateLockedWingMissileExhaust(PlayerBulletInstance& instance);
     void UpdateLockedWingShotDiagnostics();
     void ResetLockedWingHomingDiagnostics(bool resetStatistics);

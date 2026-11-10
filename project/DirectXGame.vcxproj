@@ -452,6 +452,7 @@
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudSettings.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudResolutionComparison.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.cpp" />
+    <ClCompile Include="engine\Graphics\Effect\LockedWingSmokePass.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassLowRes.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassQuality.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\VolumetricCloudPassDiagnostics.cpp" />
@@ -657,6 +658,7 @@
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudSettings.h" />
     <ClInclude Include="engine\Graphics\Cloud\CloudResolutionComparison.h" />
     <ClInclude Include="engine\Graphics\Cloud\VolumetricCloudPipelineResources.h" />
+    <ClInclude Include="engine\Graphics\Effect\LockedWingSmokePass.h" />
     <ClInclude Include="engine\Graphics\Shadow\ScreenSpaceFakeShadowPass.h" />
     <ClInclude Include="engine\Core\WinApp.h" />
   </ItemGroup>
@@ -801,6 +803,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </None>
+    <None Include="resources\shaders\LockedWingSmoke.PS.hlsl" />
+    <None Include="resources\shaders\LockedWingSmokeComposite.PS.hlsl" />
+    <None Include="resources\shaders\LockedWingSmoke.hlsli" />
+    <None Include="resources\shaders\VolumeNoise.hlsli" />
     <None Include="resources\shaders\GpuParticle.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
