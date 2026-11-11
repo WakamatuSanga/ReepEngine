@@ -185,7 +185,8 @@ private:
     float visibleRectBonus_ = 0.15f;
     float targetHoldTime_ = 0.20f;
     float targetSwitchMargin_ = 0.15f;
-    float lockAcquireTime_ = 0.85f;
+    static constexpr float kDefaultLockAcquireTime = 0.55f;
+    float lockAcquireTime_ = kDefaultLockAcquireTime;
     float lockBreakGraceTime_ = 0.25f;
     int maximumCandidateCount_ = 32;
     int candidateCount_ = 0;

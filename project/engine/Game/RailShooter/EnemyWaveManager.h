@@ -123,6 +123,7 @@ private:
         bool railFormation = false;
         float formationForwardSpeed = 0.0f;
         float formationApproachDepth = 0.0f;
+        float formationEntryDuration = 0.0f;
         Vector3 railPosition{};
         float anchorHold = 0.0f;
         float anchorAge = 0.0f;

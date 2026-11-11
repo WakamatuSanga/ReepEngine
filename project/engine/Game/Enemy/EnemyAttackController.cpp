@@ -103,12 +103,9 @@ void EnemyAttackController::Update(float deltaTime) {
 
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     fireTimer_ += safeDeltaTime;
-    if (fireTimer_ < fireInterval_) {
-        return;
-    }
-
-    fireTimer_ = 0.0f;
-    FireFromActiveEnemies();
+    const bool groupShotDue = fireTimer_ >= fireInterval_;
+    if (groupShotDue) fireTimer_ = 0.0f;
+    ProcessEnemyShots(safeDeltaTime, groupShotDue, false);
 }
 
 void EnemyAttackController::DrawImGui() {
@@ -142,28 +139,36 @@ void EnemyAttackController::DrawImGui() {
 }
 
 void EnemyAttackController::FireFromActiveEnemies() {
+    ProcessEnemyShots(0.0f, true, true);
+}
+
+void EnemyAttackController::ProcessEnemyShots(float deltaTime, bool groupShotDue, bool force) {
     if (!enemyManager_ || !bulletManager_ || !player_) {
         lastBlockedReason_ = "Missing dependency";
         return;
     }
 
     const std::vector<Enemy*> enemies = enemyManager_->GetActiveEnemies();
-    lastShooterCount_ = 0;
+    if (groupShotDue) lastShooterCount_ = 0;
     if (enemies.empty()) {
-        lastBlockedReason_ = "No active enemies";
+        if (groupShotDue) lastBlockedReason_ = "No active enemies";
         return;
     }
 
+    int shooterCount = 0;
+    bool attemptedShot = false;
     for (Enemy* enemy : enemies) {
         if (!enemy || !enemy->CanAttack()) {
             continue;
         }
+        if (!force && !enemy->AdvanceShotTiming(deltaTime, groupShotDue, fireInterval_)) continue;
         if (IsExternalAttackEnemy(*enemy)) {
             lastBlockedReason_ = "External attack pattern";
             lastBlockedEnemyId_ = enemy->GetEnemyId();
             lastBlockedEnemyType_ = enemy->GetEnemyType();
             continue;
         }
+        attemptedShot = true;
 
         std::string blockReason;
         if (!IsEnemyAllowedToAttack(*enemy, blockReason)) {
@@ -183,9 +188,10 @@ void EnemyAttackController::FireFromActiveEnemies() {
             bulletManager_->RecordProjectileShot(
                 enemyPosition, lastTargetPosition_, direction, velocity);
             ++firedBulletCount_;
-            ++lastShooterCount_;
+            ++shooterCount;
         }
     }
+    if (attemptedShot) lastShooterCount_ = shooterCount;
 }
 
 Vector3 EnemyAttackController::ResolveShotTarget(const Vector3& muzzle) const {

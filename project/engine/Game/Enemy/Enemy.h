@@ -43,6 +43,11 @@ public:
     void SetPosition(const Vector3& position);
     void TranslateSpawnPath(const Vector3& delta);
     void SetSpawnHitPoints(int hitPoints) { hp_ = hitPoints; }
+    void SetShotTiming(float firstDelay, float interval) {
+        nextShotTime_ = firstDelay;
+        shotInterval_ = interval;
+    }
+    bool AdvanceShotTiming(float deltaTime, bool groupShotDue, float defaultInterval);
     void SetRotation(const Vector3& rotation);
     void SetScale(const Vector3& scale);
     void SetVelocity(const Vector3& velocity);
@@ -140,6 +145,8 @@ private:
     std::string resolvedModelPath_;
     std::string texturePath_;
     std::string loadStatus_ = "Not initialized";
+    float nextShotTime_ = -1.0f;
+    float shotInterval_ = 0.0f;
 
     Vector3 spawnStartPosition_{ 0.0f, 0.0f, 0.0f };
     Vector3 spawnTargetPosition_{ 0.0f, 0.0f, 0.0f };

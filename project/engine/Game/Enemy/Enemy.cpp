@@ -439,6 +439,17 @@ void Enemy::StartSpawnAnimationFrom(
     UpdateObjectTransform();
 }
 
+bool Enemy::AdvanceShotTiming(float deltaTime, bool groupShotDue, float defaultInterval) {
+    if (nextShotTime_ < 0.0f) {
+        return groupShotDue;
+    }
+    if (deltaTime <= 0.0f) return false;
+    nextShotTime_ -= deltaTime;
+    if (nextShotTime_ > 0.0f) return false;
+    nextShotTime_ = shotInterval_ > 0.0f ? shotInterval_ : defaultInterval;
+    return true;
+}
+
 void Enemy::Damage(int amount) {
     if (amount <= 0 || isDead_) {
         return;

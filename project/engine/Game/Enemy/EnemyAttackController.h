@@ -29,6 +29,7 @@ public:
 
 private:
     void FireFromActiveEnemies();
+    void ProcessEnemyShots(float deltaTime, bool groupShotDue, bool force);
     Vector3 ResolveShotTarget(const Vector3& muzzle) const;
     bool IsEnemyAllowedToAttack(const Enemy& enemy, std::string& reason) const;
     bool IsExternalAttackEnemy(const Enemy& enemy) const;

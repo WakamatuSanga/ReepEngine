@@ -198,6 +198,10 @@ namespace {
                     if (!ParseFloat(entry.formationApproachDepth) || entry.formationApproachDepth < 0.0f) {
                         return Fail("Invalid formationApproachDepth.");
                     }
+                } else if (key == "formationEntryDuration") {
+                    if (!ParseFloat(entry.formationEntryDuration) || entry.formationEntryDuration < 0.0f) {
+                        return Fail("Invalid formationEntryDuration.");
+                    }
                 } else if (key == "anchorHold") {
                     if (!ParseFloat(entry.anchorHold) || entry.anchorHold < 0.0f) {
                         return Fail("Invalid anchorHold.");
@@ -205,6 +209,14 @@ namespace {
                 } else if (key == "anchorExitDuration") {
                     if (!ParseFloat(entry.anchorExitDuration) || entry.anchorExitDuration <= 0.0f) {
                         return Fail("Invalid anchorExitDuration.");
+                    }
+                } else if (key == "shotStartDelay") {
+                    if (!ParseFloat(entry.shotStartDelay) || entry.shotStartDelay < 0.0f) {
+                        return Fail("Invalid shotStartDelay.");
+                    }
+                } else if (key == "shotInterval") {
+                    if (!ParseFloat(entry.shotInterval) || entry.shotInterval <= 0.0f) {
+                        return Fail("Invalid shotInterval.");
                     }
                 } else if (key == "movePattern" || key == "move_pattern") {
                     if (!ParseString(entry.movePattern)) {

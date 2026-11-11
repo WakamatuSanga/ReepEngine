@@ -25,6 +25,10 @@ namespace {
     constexpr size_t kMaxWaveLogCount = 128;
     constexpr float kMinVectorLength = 0.00001f;
 
+    float GetFormationEntryLane(float screenX) {
+        return screenX < 0.0f ? -1.65f : 1.65f;
+    }
+
     Vector3 AddVector3(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z };
     }
@@ -215,13 +219,20 @@ void EnemyWaveManager::Update(float deltaTime) {
                 continue;
             }
 
-            const bool followsRail = spawn.movePattern == "RailFormation" && railRig_ && railRig_->HasGameplayRail();
+            const bool isRailFormation = spawn.movePattern == "RailFormation";
+            const bool followsRail = isRailFormation && railRig_ && railRig_->HasGameplayRail();
+            const bool entersFromSide = isRailFormation && spawn.formationEntryDuration > 0.0f;
             const float railDistance = followsRail ? railRig_->GetSceneryDistance() : 0.0f;
-            Vector3 spawnForward;
-            const Vector3 spawnPosition = followsRail
-                ? ComputeRailPosition(railDistance + spawn.depth, spawn.screenX, spawn.screenY, &spawnForward)
-                : ComputeSpawnPosition(spawn);
-            if (!followsRail) spawnForward = ComputeSpawnForward(spawnPosition);
+            const float spawnX = entersFromSide ? GetFormationEntryLane(spawn.screenX) : spawn.screenX;
+            Vector3 spawnForward{};
+            Vector3 spawnPosition{};
+            if (followsRail) {
+                spawnPosition = ComputeRailPosition(railDistance + spawn.depth, spawnX, spawn.screenY, &spawnForward);
+            } else {
+                spawnPosition = entersFromSide
+                    ? ComputeAnchorPosition(spawnX, spawn.screenY, spawn.depth) : ComputeSpawnPosition(spawn);
+                spawnForward = ComputeSpawnForward(spawnPosition);
+            }
             activeWave.spawned[i] = true;
             ++activeWave.spawnedCount;
             lastWaveSpawnedCount_ = activeWave.spawnedCount;
@@ -475,10 +486,12 @@ void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry
     runtime.railFormation = spawn.movePattern == "RailFormation";
     runtime.formationForwardSpeed = spawn.formationForwardSpeed;
     runtime.formationApproachDepth = spawn.formationApproachDepth;
+    runtime.formationEntryDuration = spawn.formationEntryDuration;
     runtime.railDistance = railDistance;
     runtime.railPosition = spawnPosition;
     runtime.anchorHold = spawn.anchorHold;
     runtime.anchorExitDuration = spawn.anchorExitDuration;
+    enemy->SetShotTiming(spawn.shotStartDelay, spawn.shotInterval);
     waveEnemies_.push_back(std::move(runtime));
 }
 
@@ -603,7 +616,12 @@ Vector3 EnemyWaveManager::ComputeFormationPosition(const WaveEnemyRuntime& runti
         // Tighten the lanes in proportion to depth so the drones stay in view as they close.
         laneScale = depth / runtime.depth;
     }
-    const float x = std::lerp(runtime.screenX * laneScale, exitSide * 1.45f, exitBlend);
+    float laneX = runtime.screenX * laneScale;
+    if (age < runtime.formationEntryDuration) {
+        const float remaining = 1.0f - age / runtime.formationEntryDuration;
+        laneX = std::lerp(laneX, GetFormationEntryLane(runtime.screenX), remaining * remaining);
+    }
+    const float x = std::lerp(laneX, exitSide * 1.45f, exitBlend);
     const float y = runtime.screenY * laneScale + 0.35f * exitBlend;
     if (railRig_ && railRig_->HasGameplayRail()) {
         return ComputeRailPosition(railDistance + depth, x, y, forward);
