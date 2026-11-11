@@ -57,6 +57,12 @@ bool KrakenTentacleMidbossController::Impl::IsAttackState() const {
     case KrakenTentacleMidbossState::Slam:
     case KrakenTentacleMidbossState::ImpactHold:
     case KrakenTentacleMidbossState::Recovery:
+    case KrakenTentacleMidbossState::SweepPull:
+    case KrakenTentacleMidbossState::SweepWarning:
+    case KrakenTentacleMidbossState::SweepStrike:
+    case KrakenTentacleMidbossState::SweepWithdraw:
+    case KrakenTentacleMidbossState::SweepCounter:
+    case KrakenTentacleMidbossState::SweepReturn:
         return true;
     case KrakenTentacleMidbossState::Hidden:
     case KrakenTentacleMidbossState::Idle:
@@ -95,14 +101,20 @@ KrakenTentacleColliderAttackPhase
 KrakenTentacleMidbossController::Impl::GetColliderAttackPhase() const {
     switch (state) {
     case KrakenTentacleMidbossState::Windup:
+    case KrakenTentacleMidbossState::SweepPull:
+    case KrakenTentacleMidbossState::SweepWarning:
         return KrakenTentacleColliderAttackPhase::Windup;
     case KrakenTentacleMidbossState::WindupHold:
         return KrakenTentacleColliderAttackPhase::WindupHold;
     case KrakenTentacleMidbossState::Slam:
+    case KrakenTentacleMidbossState::SweepStrike:
         return KrakenTentacleColliderAttackPhase::Slam;
     case KrakenTentacleMidbossState::ImpactHold:
         return KrakenTentacleColliderAttackPhase::ImpactHold;
     case KrakenTentacleMidbossState::Recovery:
+    case KrakenTentacleMidbossState::SweepWithdraw:
+    case KrakenTentacleMidbossState::SweepCounter:
+    case KrakenTentacleMidbossState::SweepReturn:
         return KrakenTentacleColliderAttackPhase::Recovery;
     case KrakenTentacleMidbossState::Idle:
         return KrakenTentacleColliderAttackPhase::Completed;
@@ -116,6 +128,15 @@ KrakenTentacleMidbossController::Impl::GetColliderAttackPhase() const {
 }
 
 float KrakenTentacleMidbossController::Impl::GetCurrentStateDuration() const {
+    switch (state) {
+    case KrakenTentacleMidbossState::SweepPull: return sweep.settings.pull;
+    case KrakenTentacleMidbossState::SweepWarning: return sweep.settings.warning;
+    case KrakenTentacleMidbossState::SweepStrike: return sweep.settings.strike;
+    case KrakenTentacleMidbossState::SweepWithdraw: return sweep.settings.withdraw;
+    case KrakenTentacleMidbossState::SweepCounter: return sweep.settings.counter;
+    case KrakenTentacleMidbossState::SweepReturn: return sweep.settings.restore;
+    default: break;
+    }
     if (!IsAttackState()) {
         return 0.0f;
     }
@@ -136,12 +157,18 @@ float KrakenTentacleMidbossController::Impl::GetSlamProgress() const {
 
 void KrakenTentacleMidbossController::Impl::EnterState(
     KrakenTentacleMidbossState nextState) {
+    if (IsSweepState() && (nextState == KrakenTentacleMidbossState::Idle ||
+        nextState == KrakenTentacleMidbossState::Defeated)) {
+        InvalidateAttackDamageSequence();
+        sweep = {};
+    }
     state = nextState;
     stateElapsedTime = 0.0f;
     if (state == KrakenTentacleMidbossState::Idle) {
         ClearAttackTargetSnapshot();
         attackElapsedTime = 0.0f;
-    } else if (state == KrakenTentacleMidbossState::Windup) {
+    } else if (state == KrakenTentacleMidbossState::Windup ||
+        state == KrakenTentacleMidbossState::SweepPull) {
         attackElapsedTime = 0.0f;
     }
 }
@@ -156,6 +183,7 @@ void KrakenTentacleMidbossController::Impl::EnterHidden(
     health.SetDebugHpOne(false, !IsDefeatState() && !defeatStarted && !defeatCompleted);
 #endif
     state = KrakenTentacleMidbossState::Hidden;
+    sweep = {};
     ClearAttackTargetSnapshot();
     InvalidateAttackDamageSequence();
     stateElapsedTime = 0.0f;
@@ -210,7 +238,7 @@ void KrakenTentacleMidbossController::Impl::Hide() {
     EnterHidden({}, false);
 }
 
-bool KrakenTentacleMidbossController::Impl::StartAttack() {
+bool KrakenTentacleMidbossController::Impl::StartAttack(KrakenTentacleMidbossState initialState) {
     if (health.IsDefeatPending()) {
         ++diagnostics.attackStartRejectedCount;
         lastWarning =
@@ -241,7 +269,7 @@ bool KrakenTentacleMidbossController::Impl::StartAttack() {
     for (int joint : chains[selectedAttackChainIndex].joints) {
         attackEntryPose.push_back(skeleton->joints[joint].localRotate);
     }
-    EnterState(KrakenTentacleMidbossState::Windup);
+    EnterState(initialState);
     BeginAttackDamageSequence();
     wholeSlamDiagnostics.attackSequenceId = currentAttackSequenceId;
     return true;
@@ -280,7 +308,7 @@ void KrakenTentacleMidbossController::Impl::ReturnToBindPose() {
     attackElapsedTime = 0.0f;
     InvalidateAttackDamageSequence();
     if (IsVisible()) {
-        state = KrakenTentacleMidbossState::Idle;
+        EnterState(KrakenTentacleMidbossState::Idle);
     }
 }
 
@@ -384,6 +412,10 @@ void KrakenTentacleMidbossController::Impl::AdvanceState(float deltaTime) {
         }
         const float available = (std::max)(duration - stateElapsedTime, 0.0f);
         const float consumed = (std::min)(remaining, available);
+        if (state == KrakenTentacleMidbossState::SweepStrike && consumed > 0.0f) {
+            sweep.damageStart = (deltaTime - remaining) / deltaTime;
+            sweep.damageEnd = (deltaTime - remaining + consumed) / deltaTime;
+        }
         stateElapsedTime += consumed;
         attackElapsedTime += consumed;
         remaining -= consumed;
@@ -405,6 +437,25 @@ void KrakenTentacleMidbossController::Impl::AdvanceState(float deltaTime) {
             EnterState(KrakenTentacleMidbossState::Recovery);
             break;
         case KrakenTentacleMidbossState::Recovery:
+            EnterState(KrakenTentacleMidbossState::Idle);
+            break;
+        case KrakenTentacleMidbossState::SweepPull:
+            EnterState(CaptureSweepBand() ? KrakenTentacleMidbossState::SweepWarning
+                : KrakenTentacleMidbossState::Idle);
+            break;
+        case KrakenTentacleMidbossState::SweepWarning:
+            EnterState(KrakenTentacleMidbossState::SweepStrike);
+            break;
+        case KrakenTentacleMidbossState::SweepStrike:
+            EnterState(KrakenTentacleMidbossState::SweepWithdraw);
+            break;
+        case KrakenTentacleMidbossState::SweepWithdraw:
+            EnterState(KrakenTentacleMidbossState::SweepCounter);
+            break;
+        case KrakenTentacleMidbossState::SweepCounter:
+            EnterState(KrakenTentacleMidbossState::SweepReturn);
+            break;
+        case KrakenTentacleMidbossState::SweepReturn:
             EnterState(KrakenTentacleMidbossState::Idle);
             break;
         default:
@@ -481,6 +532,7 @@ bool KrakenTentacleMidbossController::Impl::PlaceInFrontOfCamera(bool captureBas
 void KrakenTentacleMidbossController::Impl::Update(float scaledDeltaTime) {
     diagnostics.cpuSkinningUpdateCount = 0;
     defeatBeganThisUpdate = false;
+    sweep.damageStart = sweep.damageEnd = 0.0f;
     if (!initialized) {
         lastScaledDeltaTime = 0.0f;
         return;

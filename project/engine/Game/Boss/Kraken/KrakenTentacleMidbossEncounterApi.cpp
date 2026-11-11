@@ -92,6 +92,10 @@ bool KrakenTentacleMidbossController::TryStartAttackForWaveEncounter() {
     return impl_ && impl_->StartAttack();
 }
 
+bool KrakenTentacleMidbossController::TryStartSweepForWaveEncounter() {
+    return impl_ && impl_->StartSweep();
+}
+
 std::size_t KrakenTentacleMidbossController::GetDetectedChainCount() const {
     return impl_ ? impl_->chains.size() : 0;
 }

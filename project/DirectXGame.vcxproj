@@ -361,6 +361,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossCollisionImGui.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamage.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossSweep.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamageImGui.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossHealth.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossProjectileDamage.cpp" />

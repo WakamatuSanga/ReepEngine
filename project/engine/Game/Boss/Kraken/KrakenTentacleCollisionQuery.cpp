@@ -198,3 +198,35 @@ KrakenTentacleCollisionQueryResult QueryKrakenCapsuleSweptSphereIntersection(
     return BuildResult(AddScaled(capsuleStart, axis, axisFraction),
         AddScaled(sweepStart, step, stepFraction), capsuleRadius, sphereRadius);
 }
+
+KrakenTentacleCollisionQueryResult QueryKrakenMovingCapsuleSphereIntersection(
+    const Vector3& previousStart, const Vector3& previousEnd,
+    const Vector3& currentStart, const Vector3& currentEnd, float capsuleRadius,
+    const Vector3& previousSphere, const Vector3& currentSphere, float sphereRadius) {
+    const Vector3 startMotion = Subtract(currentStart, previousStart);
+    const Vector3 endMotion = Subtract(currentEnd, previousEnd);
+    const Vector3 sphereMotion = Subtract(currentSphere, previousSphere);
+    const double maximumRelativeTravel = std::sqrt((std::max)(
+        DistanceSquared(startMotion, sphereMotion), DistanceSquared(endMotion, sphereMotion)));
+    if (!std::isfinite(maximumRelativeTravel)) return {};
+
+    double t = 0.0;
+    KrakenTentacleCollisionQueryResult closest{};
+    for (int i = 0; i < 48; ++i) {
+        auto sample = QueryKrakenCapsuleSphereIntersection(
+            AddScaled(previousStart, startMotion, t), AddScaled(previousEnd, endMotion, t),
+            capsuleRadius, AddScaled(previousSphere, sphereMotion, t), sphereRadius);
+        if (!sample.valid) return closest;
+        const double gap = static_cast<double>(sample.centerDistance) - sample.radiusSum;
+        if (gap <= 0.0001) {
+            sample.intersecting = true;
+            return sample;
+        }
+        if (!closest.valid || sample.centerDistance < closest.centerDistance) closest = sample;
+        if (t >= 1.0 || maximumRelativeTravel <= 0.0) break;
+        // The nearer endpoint cannot close this gap any faster. Advance only
+        // through time in which the moving capsule and sphere cannot touch.
+        t = (std::min)(1.0, t + gap / maximumRelativeTravel);
+    }
+    return closest;
+}

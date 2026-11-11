@@ -49,6 +49,12 @@ const char* KrakenStateText(KrakenTentacleMidbossState state) {
     case KrakenTentacleMidbossState::Slam: return "振り下ろし";
     case KrakenTentacleMidbossState::ImpactHold: return "衝撃保持";
     case KrakenTentacleMidbossState::Recovery: return "復帰中";
+    case KrakenTentacleMidbossState::SweepPull: return "横薙ぎ引き込み";
+    case KrakenTentacleMidbossState::SweepWarning: return "横薙ぎ予告";
+    case KrakenTentacleMidbossState::SweepStrike: return "横薙ぎ";
+    case KrakenTentacleMidbossState::SweepWithdraw: return "横薙ぎ後の退避";
+    case KrakenTentacleMidbossState::SweepCounter: return "横薙ぎ後の反撃";
+    case KrakenTentacleMidbossState::SweepReturn: return "横薙ぎ復帰";
     case KrakenTentacleMidbossState::Defeated: return "撃破済み";
     case KrakenTentacleMidbossState::Retreating: return "退場中";
     case KrakenTentacleMidbossState::RetreatCompleted: return "退場完了";

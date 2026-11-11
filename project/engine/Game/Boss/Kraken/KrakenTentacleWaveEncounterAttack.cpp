@@ -66,6 +66,21 @@ void KrakenTentacleWaveEncounterController::UpdateAttackScheduler(
     }
 
     const bool isFollowup = followupPhase_ == FollowupPhase::Interval;
+    if (!isFollowup && nextAttackIsSweep_) {
+        if (!kraken_->TryStartSweepForWaveEncounter()) {
+            ++attackRejectedCount_;
+            attackTimer_ = 0.0f;
+            currentAttackDelay_ = retryDelay_;
+            lastWarning_ = "横薙ぎを開始できなかったため、再試行待機に入りました。";
+            return;
+        }
+        ++attackStartCount_;
+        nextAttackIsSweep_ = false;
+        attackTimer_ = 0.0f;
+        currentAttackDelay_ = nextAttackInterval_;
+        lastWarning_ = "なし";
+        return;
+    }
     std::size_t chain = nextAttackChain_ % detectedChainCount_;
     bool selected = false;
     if (isFollowup) {
@@ -79,6 +94,7 @@ void KrakenTentacleWaveEncounterController::UpdateAttackScheduler(
         }
         if (!selected) {
             CancelFollowupAttack();
+            nextAttackIsSweep_ = true;
             lastWarning_ = "別の有効Chainがないため、2連続叩きつけを単発で終了しました。";
             return;
         }
@@ -89,6 +105,7 @@ void KrakenTentacleWaveEncounterController::UpdateAttackScheduler(
         ++attackRejectedCount_;
         if (isFollowup) {
             CancelFollowupAttack();
+            nextAttackIsSweep_ = true;
             lastWarning_ = "2本目の攻撃開始が拒否されたため、通常待機へ戻りました。";
             return;
         }
@@ -105,10 +122,13 @@ void KrakenTentacleWaveEncounterController::UpdateAttackScheduler(
     if (isFollowup) {
         followupPhase_ = FollowupPhase::None;
         firstAttackChain_ = 0;
+        nextAttackIsSweep_ = true;
     } else {
         if (nextAttackIsDouble_) {
             firstAttackChain_ = chain;
             followupPhase_ = FollowupPhase::AwaitRecovery;
+        } else {
+            nextAttackIsSweep_ = true;
         }
         // Advance the pattern once per attack group, not once per slam.
         nextAttackIsDouble_ = !nextAttackIsDouble_;

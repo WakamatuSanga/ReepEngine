@@ -103,7 +103,12 @@ void BeamBatchRenderer::Draw(
     commandList->SetGraphicsRootSignature(rootSignature_.Get());
     if ((mode==16u||mode==17u)&&energyShellPipeline_) commandList->SetPipelineState(energyShellPipeline_.Get());
     else if ((mode == 8u || mode == 9u || mode==10u || mode==11u) && solidProjectilePipeline_) commandList->SetPipelineState(solidProjectilePipeline_.Get());
-    else commandList->SetPipelineState((mode == 6u || mode == 7u || mode == 14u || mode == 15u) && normalProjectilePipeline_ ? normalProjectilePipeline_.Get() : pipelineState_.Get());
+    else {
+        const bool useAlphaBlend = mode == 6u || mode == 7u || mode == 14u || mode == 15u ||
+            mode == kWarningRectangleMode;
+        commandList->SetPipelineState(useAlphaBlend && normalProjectilePipeline_
+            ? normalProjectilePipeline_.Get() : pipelineState_.Get());
+    }
     commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     commandList->IASetVertexBuffers(0, 1, &vertexBufferView_);
     commandList->SetGraphicsRootConstantBufferView(0, constantResource_->GetGPUVirtualAddress());
@@ -193,8 +198,8 @@ bool BeamBatchRenderer::CreatePipelineState(bool preserveDestinationAlpha, bool 
     if (FAILED(hr)) return false;
     normalProjectilePipeline_.Reset();
     if (normalProjectileBlend) {
-        // Only the short projectile core replaces background color. Other modes
-        // keep the original additive PSO, depth test and destination alpha.
+        // Blend projectile cores and warning rectangles over the scene while
+        // keeping the original depth test and destination alpha.
         desc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
         hr = dxCommon_->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&normalProjectilePipeline_));
         assert(SUCCEEDED(hr));

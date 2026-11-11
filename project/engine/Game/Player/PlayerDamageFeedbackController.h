@@ -47,8 +47,8 @@ private:
     bool enableDamageFeedback_ = true;
     bool damageSparkEnabled_ = true;
     bool debugForceInvincible_ = false;
-    int maxHp_ = 3;
-    int hp_ = 3;
+    int maxHp_ = 10;
+    int hp_ = maxHp_;
     float invincibleDuration_ = 1.0f;
     float invincibleTimer_ = 0.0f;
     float blinkRate_ = 12.0f;

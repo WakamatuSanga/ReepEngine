@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+class BeamBatchRenderer;
 class Camera;
 class CombatEffectController;
 class EnemyDefeatEffectController;
@@ -441,7 +442,14 @@ struct KrakenTentacleMidbossController::Impl {
     void EnterHidden(const std::string& errorMessage, bool safetyRecovery);
     bool Show();
     void Hide();
-    bool StartAttack();
+    bool StartAttack(KrakenTentacleMidbossState initialState = KrakenTentacleMidbossState::Windup);
+    bool StartSweep();
+    bool IsSweepState() const;
+    bool SuppressSweepTarget(std::size_t chainIndex) const;
+    bool CaptureSweepBand();
+    bool ApplySweepPose();
+    void DrawSweepWarning();
+    void DrawSweepImGui();
     void StopAttack();
     void ReturnToIdle();
     void ReturnToBindPose();
@@ -524,6 +532,37 @@ struct KrakenTentacleMidbossController::Impl {
     KrakenTentaclePlacementDiagnostics placementDiagnostics{};
     KrakenTentacleAttackReachDiagnostics attackReachDiagnostics{};
     KrakenTentacleWholeSlamRuntimeDiagnostics wholeSlamDiagnostics{};
+    struct SweepSettings {
+        float pull = 0.25f;
+        float warning = 0.85f;
+        float strike = 0.35f;
+        float withdraw = 0.22f;
+        float counter = 1.45f;
+        float restore = 0.28f;
+        float bandHalfHeight = 0.48f;
+    };
+    static SweepSettings sweepSettings;
+    struct SweepRuntime {
+        struct WarningEdge {
+            float ndcY = 0.0f;
+            float ndcDepth = 0.0f;
+        };
+        SweepSettings settings{};
+        Vector3 bandCenter{};
+        Vector3 right{};
+        Vector3 up{};
+        WarningEdge warningTop{};
+        WarningEdge warningBottom{};
+        float entrySide = 1.0f;
+        float launchX = 0.0f;
+        float strikeEndX = 0.0f;
+        float withdrawOffsetX = 0.0f;
+        float damageStart = 0.0f;
+        float damageEnd = 0.0f;
+        Vector3 previousStart{}, previousEnd{}, previousPlayer{};
+        bool hasPreviousContactPose = false;
+    } sweep;
+    std::unique_ptr<BeamBatchRenderer> sweepWarningRenderer;
     KrakenTentacleMidbossEffectController effectController{};
     KrakenTentacleMidbossPendingCommand pendingCommand =
         KrakenTentacleMidbossPendingCommand::None;

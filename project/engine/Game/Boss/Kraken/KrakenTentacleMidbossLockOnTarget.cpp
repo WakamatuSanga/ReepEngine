@@ -30,7 +30,8 @@ bool KrakenTentacleMidbossController::TryGetWeakPointLockOnAnchorSnapshot(
         outSnapshot.chainIndex = snapshot.chainIndex;
         outSnapshot.worldCenter = snapshot.worldPosition;
         outSnapshot.worldRadius = snapshot.worldRadius;
-        outSnapshot.enabled = snapshot.enabled && !impl_->entranceActive;
+        outSnapshot.enabled = snapshot.enabled && !impl_->entranceActive &&
+            !impl_->SuppressSweepTarget(chainIndex);
         outSnapshot.valid = snapshot.valid;
         found = true;
     }

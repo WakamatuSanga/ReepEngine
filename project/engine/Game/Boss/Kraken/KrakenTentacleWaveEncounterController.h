@@ -177,6 +177,7 @@ private:
     std::size_t firstAttackChain_ = 0;
     FollowupPhase followupPhase_ = FollowupPhase::None;
     bool nextAttackIsDouble_ = false;
+    bool nextAttackIsSweep_ = false;
     std::size_t detectedChainCount_ = 0;
     float attackTimer_ = 0.0f;
     float currentAttackDelay_ = 1.25f;

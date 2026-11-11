@@ -829,6 +829,9 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackDamage.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossSweep.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossAttackDamage.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>

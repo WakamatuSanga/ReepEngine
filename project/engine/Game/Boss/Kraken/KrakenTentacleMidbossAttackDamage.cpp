@@ -69,6 +69,9 @@ GetAttackPlayerEnterEventsThisFrame() const {
 
 bool KrakenTentacleMidbossController::Impl::
 IsAttackDamagePhaseActive() const {
+    if (IsSweepState()) {
+        return sweep.damageEnd > sweep.damageStart;
+    }
     if (state != KrakenTentacleMidbossState::Slam &&
         state != KrakenTentacleMidbossState::ImpactHold) {
         return false;

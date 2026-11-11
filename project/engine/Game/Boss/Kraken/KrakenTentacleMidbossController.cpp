@@ -6,6 +6,7 @@
 #include "Engine/Graphics/Model/GltfSkeletonLoader.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
+#include "Engine/Graphics/Primitive/BeamBatchRenderer.h"
 
 #include <array>
 #include <filesystem>
@@ -56,6 +57,7 @@ bool KrakenTentacleMidbossController::Impl::FailInitialization(
     ++diagnostics.modelLoadFailureCount;
     lastError = message;
     state = KrakenTentacleMidbossState::Hidden;
+    sweep = {};
     initialized = false;
     modelLoaded = false;
     skeletonValid = false;
@@ -226,6 +228,8 @@ void KrakenTentacleMidbossController::Impl::Finalize() {
     defeatFinalizing = true;
     ResetCollisionQueryState(true);
     state = KrakenTentacleMidbossState::Hidden;
+    sweep = {};
+    sweepWarningRenderer.reset();
     if (skeleton && bindPose.size() == skeleton->joints.size()) {
         RestoreBindPose();
         UpdateSkeletonWorldTransforms(*skeleton);

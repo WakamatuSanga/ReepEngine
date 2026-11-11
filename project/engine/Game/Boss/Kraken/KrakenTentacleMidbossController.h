@@ -34,6 +34,12 @@ enum class KrakenTentacleMidbossState : std::uint8_t {
     Defeated,
     Retreating,
     RetreatCompleted,
+    SweepWarning,
+    SweepStrike,
+    SweepCounter,
+    SweepReturn,
+    SweepPull,
+    SweepWithdraw,
 };
 
 class KrakenTentacleMidbossController {
@@ -82,6 +88,7 @@ public:
         GetAttackPlayerEnterEventsThisFrame() const;
     void Update(float scaledDeltaTime);
     void Draw();
+    void DrawAfterCloud();
     void DrawDebug(
         float viewX,
         float viewY,
@@ -104,6 +111,7 @@ public:
     void HideForWaveEncounter();
     bool SetSelectedAttackChainForWaveEncounter(std::size_t chainIndex);
     bool TryStartAttackForWaveEncounter();
+    bool TryStartSweepForWaveEncounter();
     std::size_t GetDetectedChainCount() const;
     bool TryGetWeakPointLockOnAnchorSnapshot(
         std::size_t chainIndex,

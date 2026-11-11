@@ -31,6 +31,10 @@ namespace {
         return IsFinite(center) && std::isfinite(radius) && radius > 0.0f;
     }
 
+    Vector3 Lerp(const Vector3& a, const Vector3& b, float t) {
+        return {std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t), std::lerp(a.z, b.z, t)};
+    }
+
     KrakenTentacleCollisionQueryResult QueryLockedWingSweep(
         const Vector3& colliderStart, const Vector3& colliderEnd, float colliderRadius,
         const PlayerBulletManager::PlayerBulletCollisionSnapshot& bullet,
@@ -417,6 +421,46 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
 
     for (const KrakenTentacleMidbossCapsuleSnapshot& collider :
         capsuleSnapshots) {
+        const bool sweepTip = IsSweepState() && collider.role == KrakenColliderPreviewRole::Attack &&
+            collider.chainIndex == selectedAttackChainIndex;
+        if (sweepTip) {
+            if (currentAttackSequenceId != 0 && !safetyStopped &&
+                (attackDamageEnabled || collisionQueryEnabled) && collider.enabled && collider.valid &&
+                playerSnapshot.valid && sweep.damageEnd > sweep.damageStart) {
+                const Vector3 previousPlayer = sweep.hasPreviousContactPose ? sweep.previousPlayer : playerSnapshot.worldPosition;
+                Vector3 strikeEndStart = collider.worldStart;
+                Vector3 strikeEndEnd = collider.worldEnd;
+                if (state == KrakenTentacleMidbossState::SweepWithdraw) {
+                    // Query only up to the end of the strike if this update also
+                    // advances into the non-damaging withdrawal.
+                    const Vector3 offset{
+                        sweep.right.x * sweep.withdrawOffsetX,
+                        sweep.right.y * sweep.withdrawOffsetX,
+                        sweep.right.z * sweep.withdrawOffsetX};
+                    strikeEndStart = {strikeEndStart.x - offset.x, strikeEndStart.y - offset.y,
+                        strikeEndStart.z - offset.z};
+                    strikeEndEnd = {strikeEndEnd.x - offset.x, strikeEndEnd.y - offset.y,
+                        strikeEndEnd.z - offset.z};
+                }
+                const auto result = QueryKrakenMovingCapsuleSphereIntersection(
+                    sweep.hasPreviousContactPose ? sweep.previousStart : collider.worldStart,
+                    sweep.hasPreviousContactPose ? sweep.previousEnd : collider.worldEnd,
+                    strikeEndStart, strikeEndEnd, collider.worldRadius,
+                    Lerp(previousPlayer, playerSnapshot.worldPosition, sweep.damageStart),
+                    Lerp(previousPlayer, playerSnapshot.worldPosition, sweep.damageEnd), playerSnapshot.radius);
+                ++diagnostics.collisionQueryTestCount;
+                diagnostics.invalidCollisionQueryCount += result.valid ? 0 : 1;
+                AddIntersectingPair(currentCollisionPairs, collider.role,
+                    KrakenTentacleCollisionTargetKind::Player, collider.chainIndex,
+                    collider.colliderIndex, kPlayerRuntimeId, KrakenTentacleCollisionProjectileType::None,
+                    0.0f, playerSnapshot.worldPosition, result);
+            }
+            sweep.hasPreviousContactPose = collider.valid && playerSnapshot.valid;
+            sweep.previousStart = collider.worldStart;
+            sweep.previousEnd = collider.worldEnd;
+            sweep.previousPlayer = playerSnapshot.worldPosition;
+            continue;
+        }
         if (!collider.queryTarget) {
             continue;
         }
@@ -473,7 +517,7 @@ void KrakenTentacleMidbossController::Impl::UpdateCollisionQuery() {
             }
             AddIntersectingPair(
                 currentCollisionPairs,
-                collider.role,
+                KrakenColliderPreviewRole::Damage,
                 KrakenTentacleCollisionTargetKind::PlayerBullet,
                 collider.chainIndex,
                 collider.colliderIndex,
