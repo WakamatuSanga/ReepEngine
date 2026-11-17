@@ -85,6 +85,23 @@ bool CapsuleOverlapsRect(Vector2 a, Vector2 b, Vector2 radiusA, Vector2 radiusB,
     }
     return false;
 }
+
+bool CapsuleOverlapsCircle(Vector2 a, Vector2 b, Vector2 radiusA, Vector2 radiusB,
+    Vector2 center, Vector2 halfSize) {
+    a = {(a.x - center.x) / halfSize.x, (a.y - center.y) / halfSize.y};
+    b = {(b.x - center.x) / halfSize.x, (b.y - center.y) / halfSize.y};
+    const Vector2 v{b.x - a.x, b.y - a.y};
+    const float radius = 1.0f + radiusA.y / halfSize.y;
+    const float slope = (radiusB.y - radiusA.y) / halfSize.y;
+    // Minimize squared distance minus the square of the local projected radius.
+    const float c = a.x * a.x + a.y * a.y - radius * radius;
+    const float d = 2.0f * (a.x * v.x + a.y * v.y - radius * slope);
+    const float e = v.x * v.x + v.y * v.y - slope * slope;
+    if (c <= 0.0f || c + d + e <= 0.0f) return true;
+    if (e <= 0.0f) return false;
+    const float t = std::clamp(-d / (2.0f * e), 0.0f, 1.0f);
+    return c + t * (d + e * t) <= 0.0f;
+}
 }
 
 bool AimCorridorTargetingController::ProjectKrakenTarget(
@@ -142,11 +159,14 @@ bool AimCorridorTargetingController::ProjectKrakenTarget(
         const Vector2 bRadius = projectedRadius(b, segment.worldRadius, bUv);
         const Vector2 radius{ (std::max)(aRadius.x, bRadius.x), (std::max)(aRadius.y, bRadius.y) };
         anyProjected = true;
-        const bool visible = CapsuleOverlapsRect(aUv, bUv, aRadius, bRadius,
-            visibleRect_.minimum, visibleRect_.maximum);
+        const auto overlaps = [&](const ScreenRect& region) {
+            return mouseAimViewport_
+                ? CapsuleOverlapsCircle(aUv, bUv, aRadius, bRadius, region.center, region.halfSize)
+                : CapsuleOverlapsRect(aUv, bUv, aRadius, bRadius, region.minimum, region.maximum);
+        };
+        const bool visible = overlaps(visibleRect_);
         target.overlapsVisibleRect |= visible;
-        target.overlapsSoftRect |= CapsuleOverlapsRect(aUv, bUv, aRadius, bRadius,
-            softRect_.minimum, softRect_.maximum);
+        target.overlapsSoftRect |= overlaps(softRect_);
         target.boundsMinimum.x = (std::min)(target.boundsMinimum.x, (std::min)(aUv.x, bUv.x) - radius.x);
         target.boundsMinimum.y = (std::min)(target.boundsMinimum.y, (std::min)(aUv.y, bUv.y) - radius.y);
         target.boundsMaximum.x = (std::max)(target.boundsMaximum.x, (std::max)(aUv.x, bUv.x) + radius.x);
@@ -159,8 +179,9 @@ bool AimCorridorTargetingController::ProjectKrakenTarget(
         const float nearestDepth = depth(a) + (depth(b) - depth(a)) * t;
         const float depthScore = std::clamp((nearestDepth - minimumTargetDepth_) /
             (maximumTargetDepth_ - minimumTargetDepth_), 0.0f, 1.0f);
-        const float score = std::sqrt(PointSegmentDistanceSquared({}, normalizedA, normalizedB)) +
-            depthScore * depthScoreWeight_ - (visible ? visibleRectBonus_ : 0.0f);
+        const float centerScore = std::sqrt(PointSegmentDistanceSquared({}, normalizedA, normalizedB));
+        const float score = mouseAimViewport_ ? centerScore
+            : centerScore + depthScore * depthScoreWeight_ - (visible ? visibleRectBonus_ : 0.0f);
         if (score < target.score) {
             target.score = score;
             target.screenUv = { aUv.x + (bUv.x - aUv.x) * t, aUv.y + (bUv.y - aUv.y) * t };

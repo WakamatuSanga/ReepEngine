@@ -140,18 +140,25 @@ bool AimCorridorVisualController::Initialize(SpriteCommon* spriteCommon, Player*
 
     renderer_ = std::make_unique<AimCorridorVisualRenderer>();
     initialized_ = renderer_->Initialize(dxCommon_, nearTexturePath_, farTexturePath_);
-    if (initialized_ && renderer_->IsNearTextureLoaded()) {
-        mouseReticle_ = std::make_unique<Sprite>();
-        mouseReticle_->Initialize(spriteCommon_);
-        mouseReticle_->SetTexture(nearTexturePath_);
-        mouseReticle_->SetTextureSampling(true);
+    if (initialized_) {
+        for (size_t i = 0; i < mouseReticleRings_.size(); ++i) {
+            auto& ring = mouseReticleRings_[i];
+            ring = std::make_unique<Sprite>();
+            ring->Initialize(spriteCommon_);
+            ring->SetTexture("resources/ui/aim_corridor/Lock_On_UI.png");
+            // Match the selection diameter to the artwork rather than its transparent border.
+            ring->SetTextureLeftTop({108, 108});
+            ring->SetTextureSize({1038, 1038});
+            ring->SetTextureSampling(true);
+            ring->SetTextureAlertTint(i != 0);
+        }
     }
     Reset();
     return initialized_;
 }
 
 void AimCorridorVisualController::Finalize() {
-    mouseReticle_.reset();
+    for (auto& ring : mouseReticleRings_) ring.reset();
     spriteCommon_ = nullptr;
     if (renderer_) {
         renderer_->Finalize();

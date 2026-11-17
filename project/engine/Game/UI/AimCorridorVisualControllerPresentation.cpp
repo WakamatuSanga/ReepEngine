@@ -10,6 +10,11 @@
 
 namespace {
     constexpr float kPi = 3.14159265358979323846f;
+    constexpr float kMouseReticleScale = 1.15f;
+    constexpr float kOrangeRingDelay = 0.18f;
+    constexpr std::array<float, 3> kRingDegreesPerSecond{-60.0f, 100.0f, 150.0f};
+    constexpr std::array<float, 3> kRingSize{1.0f, 0.73f, 0.49f};
+    constexpr std::array<Vector4, 3> kRingColors{{{1, 1, 1, 1}, {1, 0.27f, 0.015f, 1}, {1, 0.025f, 0.025f, 1}}};
 
     Vector3 Subtract(const Vector3& lhs, const Vector3& rhs) {
         return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
@@ -124,8 +129,35 @@ void AimCorridorVisualController::UpdatePresentation() {
     }
 }
 
+AimReticleScreenRect AimCorridorVisualController::GetMouseReticleScreenRect(const GameViewport& gameViewport) const {
+    const auto& rect = gameViewport.GetGameViewportRect();
+    const Vector2 client = gameViewport.GetClientSize();
+    if (!mouseReticleRings_[0] || rect.width <= 1.0f || rect.height <= 1.0f || client.x <= 1.0f || client.y <= 1.0f) return {};
+    const Vector2 cursor = gameViewport.GetMouseNormalizedInGameViewport();
+    // World projection covers the back buffer, including the area under the menu strip.
+    const Vector2 center{(rect.left + cursor.x * rect.width) / client.x,
+        (rect.top + cursor.y * rect.height) / client.y};
+    const float radius = rect.height * mainReticleViewportHeightRatio_ * kMouseReticleScale * 0.5f;
+    const Vector2 half{radius / client.x, radius / client.y};
+    return {center, half, {center.x - half.x, center.y - half.y}, {center.x + half.x, center.y + half.y}, true};
+}
+
+void AimCorridorVisualController::UpdateMouseLockRings(std::string_view targetId, bool locked, float lockElapsed, float deltaTime) {
+    if (targetId != mouseRingTargetId_) {
+        mouseRingTargetId_ = targetId;
+        mouseRingAngles_.fill(0.0f);
+        mouseRingCount_ = 1;
+    }
+    if (targetId.empty()) return;
+    const size_t count = locked ? 3u : (lockElapsed >= kOrangeRingDelay ? 2u : 1u);
+    for (size_t i = 0; i < (std::min)(count, mouseRingCount_); ++i) {
+        mouseRingAngles_[i] = std::fmod(mouseRingAngles_[i] + deltaTime * kRingDegreesPerSecond[i] * kPi / 180.0f, 2.0f * kPi);
+    }
+    mouseRingCount_ = count;
+}
+
 bool AimCorridorVisualController::DrawMouseReticle(const GameViewport& gameViewport) {
-    if (!mouseReticle_ || !gameModeActive_ || !playerAlive_ || !enabled_ || forceHide_ ||
+    if (!gameModeActive_ || !playerAlive_ || !enabled_ || forceHide_ ||
         displayMode_ != DisplayMode::MainReticleOnly || debugDiamondPreview_ ||
         gameViewport.GetMode() != GameViewport::Mode::FullscreenGame ||
         !gameViewport.IsMouseInGameViewport() || !gameViewport.IsGameWindowActive()) {
@@ -133,6 +165,8 @@ bool AimCorridorVisualController::DrawMouseReticle(const GameViewport& gameViewp
     }
 
     const auto& rect = gameViewport.GetGameViewportRect();
+    const auto reticle = GetMouseReticleScreenRect(gameViewport);
+    if (!reticle.valid) return false;
     const Vector2 clientSize = gameViewport.GetClientSize();
     const auto viewport = dxCommon_->GetBackBufferViewport();
     if (clientSize.x <= 0.0f || clientSize.y <= 0.0f || viewport.Width <= 0.0f || viewport.Height <= 0.0f) {
@@ -151,22 +185,26 @@ bool AimCorridorVisualController::DrawMouseReticle(const GameViewport& gameViewp
         return false;
     }
 
-    const Vector2& uv = gameViewport.GetMouseNormalizedInGameViewport();
-    const Vector2 center{ rect.left + uv.x * rect.width, rect.top + uv.y * rect.height };
-    const float height = rect.height * mainReticleViewportHeightRatio_;
-    const Vector2 size{ height * renderer_->GetNearAspectRatio(), height };
-    mouseReticle_->SetCanvasSize(clientSize);
-    mouseReticle_->SetPosition({ center.x - size.x * 0.5f, center.y - size.y * 0.5f });
-    mouseReticle_->SetSize(size);
-    mouseReticle_->Update();
-
     auto* commandList = dxCommon_->GetCommandList();
     commandList->RSSetViewports(1, &viewport);
     commandList->RSSetScissorRects(1, &clip);
     spriteCommon_->CommonDrawSetting(true);
-    mouseReticle_->Draw();
+    const Vector2 center{reticle.centerUV.x * clientSize.x, reticle.centerUV.y * clientSize.y};
+    for (size_t i = 0; i < mouseRingCount_; ++i) {
+        auto& ring = *mouseReticleRings_[i];
+        const float half = reticle.halfSizeUV.y * clientSize.y * kRingSize[i];
+        const float angle = mouseRingAngles_[i];
+        const float c = std::cos(angle), s = std::sin(angle);
+        ring.SetCanvasSize(clientSize);
+        ring.SetPosition({center.x - half * (c - s), center.y - half * (s + c)});
+        ring.SetSize({2.0f * half, 2.0f * half});
+        ring.SetRotation(angle);
+        ring.SetColor(kRingColors[i]);
+        ring.Update();
+        ring.Draw();
+    }
     commandList->RSSetScissorRects(1, &scissor);
-    lastDrawCount_ = 1;
+    lastDrawCount_ = static_cast<uint32_t>(mouseRingCount_);
     return true;
 }
 

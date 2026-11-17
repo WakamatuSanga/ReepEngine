@@ -74,6 +74,7 @@ void VolumetricCloudPass::Initialize(DirectXCommon* dxCommon, SrvManager* srvMan
     CreateConstantBuffer();
     CreateCompositeConstantBuffer();
     passKind_ = PassKind::Game;
+    titleUsesGameplayAppearance_ = false;
     settings_.ApplyStartupDefaults();
     externalFlowMultiplier_ = 1.0f;
     currentCloudFlowSpeed_ = settings_.cloudBaseFlowSpeed_;
@@ -251,7 +252,7 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
         RecordGpuSkipped(!settings_.isEnabled_ || settings_.forceMode_ == ForceMode::ForceSkip);
         return;
     }
-    const auto style=passKind_==PassKind::Game?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
+    const auto style=UsesGameplayAppearance()?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
     const std::array<Vector4,14> state{style.cloudShadow,style.cloudHighlight,style.sun,style.sunColor,style.cumulus,style.cumulusExtra,style.cumulusDistribution,style.seaShape,style.cloudRelief,style.cloudLayout,style.seaRefinement,style.seaContour,style.depthControl,style.depthStyle};
     if(std::memcmp(state.data(),comparisonState_.data(),sizeof(state))!=0){comparisonState_=state;hasValidCloudBuffer_=false;}
     ++diagnosticInvocation_;
@@ -265,7 +266,7 @@ void VolumetricCloudPass::Render(const Camera* camera, const CloudVolume* cloudV
 }
 
 float VolumetricCloudPass::GetCloudResolutionScale() const {
-    if(passKind_==PassKind::Game&&!comparison_.IsActive()&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3)
+    if(UsesGameplayAppearance()&&!comparison_.IsActive()&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3)
         return std::clamp(RenderStyleComparison::GetCloudSettings().resolution,.125f,.5f);
     return settings_.cloudResolutionScale_;
 }
@@ -373,7 +374,7 @@ void VolumetricCloudPass::CreateConstantBuffer()
 
 void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const CloudVolume* cloudVolume, uint32_t renderWidth, uint32_t renderHeight)
 {
-    const bool appearance = passKind_ == PassKind::Game && settings_.appearanceMode_ != AppearanceMode::Legacy;
+    const bool appearance = UsesGameplayAppearance() && settings_.appearanceMode_ != AppearanceMode::Legacy;
     const auto parameters = appearance ? cloudVolume->GetAppearanceCandidateParameters(
         settings_.appearanceMode_ == AppearanceMode::ShapeAndLighting) : cloudVolume->GetParameters();
 
@@ -388,7 +389,7 @@ void VolumetricCloudPass::UpdateConstantBuffer(const Camera* camera, const Cloud
     constantData_->absorption = parameters.absorption;
     constantData_->windOffset = settings_.enableCloudFlow_ ? Vector3{ 0.0f, 0.0f, 0.0f } : cloudVolume->GetWindOffset();
     constantData_->noiseScale = parameters.noiseScale;
-    const auto style=passKind_==PassKind::Game?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
+    const auto style=UsesGameplayAppearance()?RenderStyleComparison::ResolveBackground():RenderStyleComparison::BackgroundData{};
     constantData_->comparisonShadow=style.cloudShadow;constantData_->comparisonHighlight=style.cloudHighlight;
     constantData_->comparisonSun=style.sun;constantData_->comparisonSunColor=style.sunColor;constantData_->targetComposition={style.cumulusDistribution.w,style.cumulusDistribution.z,0,style.cumulusDistribution.y};
     if(style.cumulusDistribution.w>0)constantData_->density*=std::clamp(style.cumulus.w,0.f,1.f);

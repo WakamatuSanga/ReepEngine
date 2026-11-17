@@ -44,6 +44,7 @@ private:
     float currentPixelSize_ = 0.0f;
     float currentAlpha_ = 0.0f;
     float pulsePhase_ = 0.0f;
+    float rotation_ = 0.0f;
 
     float markerScale_ = 1.30f;
     float minimumPixelSize_ = 80.0f;

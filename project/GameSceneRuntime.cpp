@@ -415,6 +415,13 @@ void GameScene::UpdateSceneRuntime() {
     if (aimCorridorTargetingController_) {
         aimCorridorTargetingController_->SetGameModeActive(isGameMode);
         aimCorridorTargetingController_->SetPlayerAlive(isPlayerAliveForAim);
+        auto* mouseViewport = playerBulletManager_ && playerBulletManager_->UsesMouseAim() ? gameViewport_.get() : nullptr;
+        bool mouseAcquisition = ordinaryCombat && mouseViewport && player_ && player_->IsEnabled() &&
+            playerBulletManager_->CanShowMouseAim() && mouseViewport->IsGameWindowActive();
+#ifdef USE_IMGUI
+        mouseAcquisition = mouseAcquisition && !imguiIO.MouseDrawCursor && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+#endif
+        aimCorridorTargetingController_->SetMouseAimViewport(mouseViewport, mouseAcquisition);
         aimCorridorTargetingController_->Update(gameplayDeltaTime, unscaledDeltaTime);
     }
     if (impactDistortionController_) {

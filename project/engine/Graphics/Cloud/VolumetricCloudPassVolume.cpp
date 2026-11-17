@@ -11,12 +11,22 @@
 
 void VolumetricCloudPass::ConfigureStillTitleBackground() {
     passKind_ = PassKind::TitleBackground;
+    titleUsesGameplayAppearance_ = false;
     settings_.ConfigureStillTitleBackground();
     currentCloudFlowSpeed_ = 0.0f;
     externalBoostExtraFlowSpeed_ = 0.0f;
     cloudFlowPhase_ = previousCloudFlowPhase_ = 0.0f;
     accumulatedFlowOffset_ = {};
     accumulatedLayerFlowOffsets_ = {};
+}
+
+void VolumetricCloudPass::ConfigureTitleGameplayBackground(const VolumetricCloudPass& gameplay) {
+    ConfigureStillTitleBackground();
+    settings_ = gameplay.settings_;
+    settings_.debugViewMode_ = DebugViewMode::Final;
+    settings_.forceMode_ = ForceMode::None;
+    titleUsesGameplayAppearance_ = true;
+    hasValidCloudBuffer_ = false;
 }
 
 void VolumetricCloudPass::ConfigureTitleForegroundCopy(
@@ -41,7 +51,8 @@ VolumetricCloudPass::ProjectedBounds VolumetricCloudPass::BuildTitleBackgroundBo
     ProjectedBounds result = BuildProjectedBounds(camera, cloudVolume);
     // The same shader also draws independent sky planes ABOVE the volume AABB.
     // Its box-only scissor/cull is not a valid bound for those background layers.
-    if (camera && cloudVolume && (settings_.enableFarCloudLayer_ || settings_.enableCloudSeaLayer_)) {
+    if (camera && cloudVolume && (settings_.enableFarCloudLayer_ || settings_.enableCloudSeaLayer_ ||
+        (titleUsesGameplayAppearance_ && RenderStyleComparison::IsTargetBackground()))) {
         result.isVisible = true;
         result.isPassSkipped = !settings_.isEnabled_ || settings_.forceMode_ == ForceMode::ForceSkip;
         result.useFullScreenScissor = true;
@@ -100,14 +111,14 @@ VolumetricCloudPass::ResolvedCloudVolume VolumetricCloudPass::ResolveCloudVolume
         resolved.halfExtents.y = (std::max)(settings_.cloudVolumeHeight_ * 0.5f, 1.0f);
     }
 
-    if(passKind_==PassKind::Game&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3){
+    if(UsesGameplayAppearance()&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3){
         const auto& c=RenderStyleComparison::GetCloudSettings();
         resolved.center.y=cameraPosition.y-std::clamp(c.seaBelow,10.f,120.f);
         resolved.halfExtents.y=std::clamp(c.seaThickness,10.f,100.f)*.5f;
         resolved.halfExtents.x=std::clamp(c.seaWidth,60.f,400.f)*.5f;
         resolved.halfExtents.z=std::clamp(c.seaDepth,80.f,500.f)*.5f;
     }
-    if(passKind_==PassKind::Game&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3&&RenderStyleComparison::GetCloudSettings().depthLayout){
+    if(UsesGameplayAppearance()&&RenderStyleComparison::IsTargetBackground()&&RenderStyleComparison::GetSettings().presentation.stage>=3&&RenderStyleComparison::GetCloudSettings().depthLayout){
         // Bound the union, while density uses a separate unchanged lower sea slab.
         resolved.center.y=cameraPosition.y-5;resolved.halfExtents.y=65;
         resolved.halfExtents.x=(std::max)(resolved.halfExtents.x,120.f);

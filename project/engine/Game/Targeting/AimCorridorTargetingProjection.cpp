@@ -1,4 +1,5 @@
 #include "AimCorridorTargetingController.h"
+#include "Engine/Core/GameViewport.h"
 
 #include "Engine/Game/Targeting/PlayerLockOnTargetProvider.h"
 #include "Engine/Game/UI/AimCorridorVisualController.h"
@@ -89,7 +90,9 @@ void AimCorridorTargetingController::ProjectTargets() {
         return;
     }
 
-    const AimReticleScreenRect& reticleRect = visualController_->GetMainReticleScreenRect();
+    const AimReticleScreenRect reticleRect = mouseAimViewport_
+        ? visualController_->GetMouseReticleScreenRect(*mouseAimViewport_)
+        : visualController_->GetMainReticleScreenRect();
     if (!reticleRect.valid) {
         return;
     }
@@ -225,10 +228,12 @@ void AimCorridorTargetingController::ProjectTargets() {
                 target.screenUv.x + target.screenRadius.x,
                 target.screenUv.y + target.screenRadius.y,
             };
-            target.overlapsVisibleRect = RectsOverlap(
-                target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
-            target.overlapsSoftRect = RectsOverlap(
-                target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
+            target.overlapsVisibleRect = mouseAimViewport_
+                ? CircleOverlapsBounds(visibleRect_, target.boundsMinimum, target.boundsMaximum)
+                : RectsOverlap(target.boundsMinimum, target.boundsMaximum, visibleRect_.minimum, visibleRect_.maximum);
+            target.overlapsSoftRect = mouseAimViewport_
+                ? CircleOverlapsBounds(softRect_, target.boundsMinimum, target.boundsMaximum)
+                : RectsOverlap(target.boundsMinimum, target.boundsMaximum, softRect_.minimum, softRect_.maximum);
             const float normalizedX = (target.screenUv.x - visibleRect_.center.x)
                 / (std::max)(softRect_.halfSize.x, 0.00001f);
             const float normalizedY = (target.screenUv.y - visibleRect_.center.y)
@@ -238,7 +243,7 @@ void AimCorridorTargetingController::ProjectTargets() {
                 (target.cameraDepth - minimumTargetDepth_) / (maximumTargetDepth_ - minimumTargetDepth_),
                 0.0f,
                 1.0f);
-            target.score = centerScore + normalizedDepth * depthScoreWeight_
+            target.score = mouseAimViewport_ ? centerScore : centerScore + normalizedDepth * depthScoreWeight_
                 - (target.overlapsVisibleRect ? visibleRectBonus_ : 0.0f);
             target.projectionValid = true;
         }
@@ -262,7 +267,12 @@ void AimCorridorTargetingController::ProjectTargets() {
                 ? "より良い候補との比較待ち"
                 : "補助捕捉矩形外";
         }
-        if (krakenDiagnostic ? target.overlapsVisibleRect : target.overlapsSoftRect) {
+        if (mouseAimViewport_ && !mouseAcquisitionActive_) {
+            target.overlapsVisibleRect = target.overlapsSoftRect = false;
+        }
+        const bool isCandidate = (mouseAimViewport_ || krakenDiagnostic)
+            ? target.overlapsVisibleRect : target.overlapsSoftRect;
+        if (isCandidate) {
             ++candidateCount_;
             if (!IsTargetHeld(target.runtimeId) && target.score < bestScore) {
                 bestScore = target.score;
@@ -282,6 +292,13 @@ void AimCorridorTargetingController::ProjectTargets() {
             diagnostic.rejectionReason = "既存スコアで別候補を選択";
         }
     }
+}
+
+bool AimCorridorTargetingController::CircleOverlapsBounds(
+    const ScreenRect& circle, const Vector2& minimum, const Vector2& maximum) {
+    const float x = (std::clamp(circle.center.x, minimum.x, maximum.x) - circle.center.x) / circle.halfSize.x;
+    const float y = (std::clamp(circle.center.y, minimum.y, maximum.y) - circle.center.y) / circle.halfSize.y;
+    return x * x + y * y <= 1.0f;
 }
 
 const AimCorridorTargetingController::ProjectedTarget*

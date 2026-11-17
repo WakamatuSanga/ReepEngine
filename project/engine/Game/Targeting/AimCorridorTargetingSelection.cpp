@@ -33,7 +33,7 @@ void AimCorridorTargetingController::SwitchCandidate(
     breakGraceElapsed_ = 0.0f;
     lockedHoldElapsed_ = 0.0f;
     lastSwitchReason_ = reason ? reason : "候補を変更";
-    if (nextIsKraken && target.overlapsVisibleRect) {
+    if (!mouseAimViewport_ && nextIsKraken && target.overlapsVisibleRect) {
         lockState_ = AimLockState::Locked;
         lockedTargetId_ = target.runtimeId;
         lockedTargetWorldPosition_ = target.worldPosition;
@@ -81,6 +81,10 @@ void AimCorridorTargetingController::ClearTarget(
 
 void AimCorridorTargetingController::UpdateSelection(float scaledDeltaTime) {
     const ProjectedTarget* current = FindProjectedTarget(candidateTargetId_);
+    if (mouseAimViewport_ && current && !current->overlapsVisibleRect) {
+        ClearTarget(false, "カーソル照準の範囲外");
+        current = nullptr;
+    }
     if (HasCandidate() && !current) {
         ClearTarget(true, "対象が死亡・削除・カメラ背後");
     }
@@ -116,7 +120,7 @@ void AimCorridorTargetingController::UpdateSelection(float scaledDeltaTime) {
     }
 
     if (lockState_ == AimLockState::Locked) {
-        if (IsTargetHeld(current->runtimeId)) {
+        if (!mouseAimViewport_ && IsTargetHeld(current->runtimeId)) {
             if (const ProjectedTarget* next = FindBestCandidate()) {
                 SwitchCandidate(*next, "成立済みロックを保持して次の候補を取得");
                 return;
@@ -187,6 +191,8 @@ void AimCorridorTargetingController::PublishVisualState(float unscaledDeltaTime)
     }
     if (visualController_) {
         visualController_->SetTargetingVisualState(visualState, visualProgress);
+        visualController_->UpdateMouseLockRings(mouseAimViewport_ && mouseAcquisitionActive_ ? candidateTargetId_ : std::string_view{},
+            publishedLockState == AimLockState::Locked, lockElapsed_, unscaledDeltaTime);
     }
 
     const bool markerVisible = gameModeActive_ && playerAlive_ && currentTargetValid_
