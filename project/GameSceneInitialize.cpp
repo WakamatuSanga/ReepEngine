@@ -234,6 +234,7 @@ void GameScene::InitializeSceneResources() {
     combatEffectController_->Initialize(primitiveEffectSystem_.get(), gpuParticleEffectPlayer_.get(), player_.get());
     playerDamageFeedbackController_ = std::make_unique<PlayerDamageFeedbackController>();
     playerDamageFeedbackController_->Initialize(spriteCommon, player_.get(), combatEffectController_.get());
+    playerDamageFeedbackController_->SetBoostController(boostController_.get());
     playerHudController_ = std::make_unique<PlayerHudController>();
     playerHudController_->Initialize(spriteCommon, playerDamageFeedbackController_.get(), playerBulletManager_.get(), boostController_.get());
     combatSlowMotionController_ = std::make_unique<CombatSlowMotionController>();
@@ -296,6 +297,7 @@ void GameScene::InitializeSceneResources() {
     playerEventTriggerBridge_ = std::make_unique<PlayerEventTriggerBridge>();
     playerEventTriggerBridge_->Initialize(player_.get(), levelSceneRuntime_->GetEventRuntime());
     railShooterCameraRig_ = std::make_unique<RailShooterCameraRig>();
+    enemyAttackController_->SetRailRig(railShooterCameraRig_.get());
     railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
     railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
     gameplaySpeedLineController_ = std::make_unique<GameplaySpeedLineController>();
@@ -310,6 +312,8 @@ void GameScene::InitializeSceneResources() {
     enemyWaveManager_ = std::make_unique<EnemyWaveManager>();
     enemyWaveManager_->Initialize(enemyManager_.get(), camera_.get());
     enemyWaveManager_->SetPlayer(player_.get());
+    enemyWaveManager_->SetRailRig(railShooterCameraRig_.get());
+    playerBulletManager_->SetEnemyWaveManager(enemyWaveManager_.get());
     enemyWaveManager_->SetLaserTelegraphController(enemyLaserTelegraphController_.get());
     enemyWaveManager_->SetWarningUIController(warningUIController_.get());
     InitializeKrakenWaveFoundation();

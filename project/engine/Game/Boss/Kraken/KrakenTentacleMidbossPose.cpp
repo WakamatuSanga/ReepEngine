@@ -165,6 +165,9 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
         lastError = "攻撃Poseの対象Chainが範囲外です。";
         return false;
     }
+    if (IsSweepState()) {
+        return ApplySweepPose();
+    }
 
     attackSettings = SanitizeKrakenTentacleAttackSettings(attackSettings);
     const KrakenTentacleAttackPoseTotals totals =

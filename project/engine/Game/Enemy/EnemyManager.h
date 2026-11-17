@@ -41,7 +41,8 @@ public:
 #endif
 
     Enemy* SpawnEnemy(const std::string& enemyType = "Default", Vector3 position = { 0.0f, 0.0f, 10.0f });
-    Enemy* SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward);
+    Enemy* SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward,
+        int hitPoints = 0, bool faceTravelDirection = false);
     Enemy* SpawnEnemyAt(const Vector3& position);
     Enemy* SpawnEnemyAt(const Vector3& position, const std::string& enemyType);
     Enemy* SpawnEnemyAt(const Vector3& position, const std::string& enemyType, const Vector3& forward);
@@ -50,6 +51,7 @@ public:
     size_t GetActiveCount() const;
     std::vector<Vector3> GetActiveEnemyPositions() const;
     std::vector<Enemy*> GetActiveEnemies() const;
+    bool OwnsEnemy(const Enemy* enemy) const;
     void CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const;
     bool TryGetEnemyTargetSnapshot(
         std::string_view enemyId,

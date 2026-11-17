@@ -13,6 +13,7 @@ class ProjectileBeamVisual;
 class Camera;
 class CameraShakeController;
 class EnemyBullet;
+class EnemyWaveManager;
 class GameViewport;
 class LockedWingMissileExhaustController;
 class Object3dCommon;
@@ -32,11 +33,6 @@ public:
         AimCorridor,
     };
 
-    enum class VisualDirectionSource {
-        AimDirection,
-        FinalVelocity,
-    };
-
     enum class PlayerProjectileType : uint8_t {
         NormalShot,
         LockedWingShot,
@@ -45,6 +41,11 @@ public:
     enum class PlayerProjectileKillReason : uint8_t {
         KrakenBodyHit,
         KrakenWeakPointHit,
+    };
+
+    struct LockedWingSweep {
+        std::array<Vector3, 18> points{};
+        size_t count = 0;
     };
 
     struct PlayerBulletCollisionSnapshot {
@@ -62,6 +63,7 @@ public:
         bool killed = false;
         bool homingReady = false;
         bool exhaustEnabled = false;
+        LockedWingSweep lockedWingSweep;
     };
 
     enum class WingSide : uint8_t {
@@ -84,7 +86,7 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void Draw();
-    void DrawAfterCloud();
+    void DrawAfterCloud(bool drawSmoke);
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
@@ -103,6 +105,7 @@ public:
     void SetCombatState(StageCombatState* state) { combatState_ = state; }
     void NotifyKrakenDefeated(uint64_t sequence);
     void SetProjectileRailMotionAdapter(ProjectileRailMotionAdapter* adapter) { projectileRailMotionAdapter_ = adapter; }
+    void SetEnemyWaveManager(const EnemyWaveManager* waves) { enemyWaveManager_ = waves; }
     EnemyBullet* SpawnBullet(const Vector3& position, const Vector3& velocity, int damage);
     void DeleteAllBullets();
     bool CheckHitAndKillFirstEllipsoid(
@@ -176,7 +179,12 @@ private:
     struct LockedWingLaunchState {
         std::string lockedTargetId;
         Vector3 currentFlightDirection{ 0.0f, 0.0f, 1.0f };
+        Vector3 visualFlightDirection{ 0.0f, 0.0f, 1.0f };
         Vector3 currentEjectionDownDirection{ 0.0f, -1.0f, 0.0f };
+        Vector3 centerPosition{};
+        Vector3 helixRight{};
+        Vector3 endVelocity{};
+        LockedWingSweep sweep;
         Vector3 targetWorldPosition{};
         Vector3 desiredDirection{ 0.0f, 0.0f, 1.0f };
         uint64_t sequence = 0;
@@ -187,8 +195,13 @@ private:
         float preIgnitionHoldDuration = 0.24f;
         float ignitionRampDuration = 0.15f;
         float baseBulletSpeed = 0.0f;
+        float helixLength = 0.0f;
+        float helixProgressDistance = 0.0f;
+        float previousHelixTargetDistance = 0.0f;
+        float closestHelixTargetDistance = 0.0f;
         float currentSpeedRate = 0.0f;
         float targetDistance = -1.0f;
+        float targetRadius = 0.0f;
         float directionDot = 1.0f;
         float angleErrorDegrees = 0.0f;
         float frameTurnDegrees = 0.0f;
@@ -197,6 +210,7 @@ private:
         LockedWingLaunchPhase phase = LockedWingLaunchPhase::EjectionDrop;
         LockedWingTargetLostReason targetLostReason =
             LockedWingTargetLostReason::None;
+        bool firstUpdate = true;
         bool exhaustEnabled = false;
         bool ignitionStarted = false;
         bool homingReady = false;
@@ -208,6 +222,8 @@ private:
         bool targetLostStraightRecorded = false;
         bool exhaustFollowingDirection = false;
     };
+
+    static constexpr float kLockedWingCruiseSpeedMultiplier = 1.6f;
 
     struct PlayerBulletInstance {
         PlayerBulletInstance();
@@ -233,6 +249,11 @@ private:
     void UpdateLockedWingHoming(
         PlayerBulletInstance& instance,
         float cruiseDeltaTime);
+    Vector3 AdvanceLockedWingHelix(
+        LockedWingLaunchState& state, const Vector3& previousDirection,
+        const Vector3& previousPosition, float cruiseDeltaTime);
+    static Vector3 GetClosestProjectileStepPosition(
+        const PlayerBulletInstance& instance, const Vector3& center, const Vector3& axes);
     void UpdateLockedWingMissileExhaust(PlayerBulletInstance& instance);
     void UpdateLockedWingShotDiagnostics();
     void ResetLockedWingHomingDiagnostics(bool resetStatistics);
@@ -268,6 +289,7 @@ private:
     Player* player_ = nullptr;
     GameViewport* gameViewport_ = nullptr;
     ProjectileRailMotionAdapter* projectileRailMotionAdapter_ = nullptr;
+    const EnemyWaveManager* enemyWaveManager_ = nullptr;
     std::unique_ptr<LockedWingMissileExhaustController> lockedWingMissileExhaustController_;
     const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     AimCorridorVisualController* aimCorridorVisualController_ = nullptr;
@@ -292,7 +314,7 @@ private:
     Vector3 currentBulletRotation_{ 0.0f, 0.0f, 0.0f };
     Vector2 mouseNdc_{ 0.0f, 0.0f };
     Vector2 mouseNormalized_{ 0.0f, 0.0f };
-    float bulletSpeed_ = 28.0f;
+    float normalBulletSpeed_ = 40.0f;
     float bulletRadius_ = 0.16f;
     float bulletLifeTime_ = 3.0f;
     float fireInterval_ = 0.16f;
@@ -305,7 +327,6 @@ private:
     int selectedBulletIndex_ = -1;
     AimMode aimMode_ = AimMode::AimCorridor;
     AimMode lastUsedAimMode_ = AimMode::AimCorridor;
-    VisualDirectionSource visualDirectionSource_ = VisualDirectionSource::FinalVelocity;
     bool enablePlayerShot_ = true;
     bool gameViewInputActive_ = false;
     bool showBulletCollisionRadius_ = false;

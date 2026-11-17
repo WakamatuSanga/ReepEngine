@@ -1,6 +1,7 @@
 #include "RailShooterCameraRig.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Level/LevelRailRuntime.h"
+#include "Engine/Level/LevelSceneRuntime.h"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -45,6 +46,20 @@ namespace {
     Vector3 GetCameraForward(const Camera& camera) {
         const Matrix4x4& matrix = camera.GetWorldMatrix();
         return Normalize({ matrix.m[2][0], matrix.m[2][1], matrix.m[2][2] }, { 0.0f, 0.0f, 1.0f });
+    }
+}
+
+void RailShooterCameraRig::StartConfiguredGameplayRail() {
+    if (gameplayStartRailAttempted_ || !levelSceneRuntime_) return;
+    gameplayStartRailAttempted_ = true;
+    const auto& rail = levelSceneRuntime_->GetSceneData().gameplayStartRail;
+    if (rail.empty() || (IsCameraRigActive() && !gameplayStartRailActive_)) return;
+
+    std::string result;
+    if (StartRailByKeyWithSource(rail, CameraRailStartMode::FromRailStart, "GameplayStart", result)) {
+        gameplayStartRailActive_ = true;
+        railEndBehavior_ = RailEndBehavior::ContinueStraight;
+        straightSpeed_ = railSpeed_;
     }
 }
 

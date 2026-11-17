@@ -155,7 +155,7 @@ void AimCorridorTargetingController::DrawImGui() {
             targetSwitchMargin_ = 0.15f;
             depthScoreWeight_ = 0.12f;
             visibleRectBonus_ = 0.15f;
-            lockAcquireTime_ = 0.85f;
+            lockAcquireTime_ = kDefaultLockAcquireTime;
             lockBreakGraceTime_ = 0.25f;
         }
         ImGui::SameLine();

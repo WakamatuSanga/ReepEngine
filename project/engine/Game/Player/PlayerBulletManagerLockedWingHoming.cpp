@@ -175,7 +175,7 @@ void PlayerBulletManager::UpdateLockedWingHoming(
     state.targetQuerySucceeded = true;
     ++lockedWingTargetQuerySuccessCount_;
     const Vector3 toTarget = Subtract(
-        targetSnapshot.worldPosition, instance.bullet->GetPosition());
+        targetSnapshot.worldPosition, state.centerPosition);
     const float targetDistance = Length(toTarget);
     if (!IsFinite(toTarget) || !std::isfinite(targetDistance)) {
         ++lockedWingNonFiniteDirectionCount_;
@@ -183,6 +183,7 @@ void PlayerBulletManager::UpdateLockedWingHoming(
         return;
     }
     state.targetDistance = targetDistance;
+    state.targetRadius = targetSnapshot.worldRadius;
 
     const float minimumDistance = std::clamp(
         lockedWingHomingMinimumTargetDistance_, 0.001f, 10.0f);
@@ -208,8 +209,10 @@ void PlayerBulletManager::UpdateLockedWingHoming(
         : 0.0f;
     const float turnRate = std::clamp(
         lockedWingHomingTurnRateDegreesPerSecond_, 30.0f, 1080.0f);
-    const float maximumTurnRadians =
-        turnRate * kDegreesToRadians * safeCruiseDeltaTime;
+    // Keep the turning radius at the higher cruise speed, and tighten it for close locks.
+    const float closeTarget = 1.0f - std::clamp(targetDistance / 6.0f, 0.0f, 1.0f);
+    const float maximumTurnRadians = turnRate * kDegreesToRadians * safeCruiseDeltaTime
+        * kLockedWingCruiseSpeedMultiplier * (1.0f + closeTarget);
     state.maximumFrameTurnDegrees =
         maximumTurnRadians * kRadiansToDegrees;
 

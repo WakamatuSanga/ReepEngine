@@ -4,6 +4,7 @@
   "delay": 0.0,
   "clearCondition": "Manual",
   "nextWaveId": "wave_003",
+  "clearDelayAfterAllDead": 0.8,
   "enemies": [
     {
       "enemyType": "LaserTelegraphDrone",
@@ -11,6 +12,9 @@
       "screenX": -0.45,
       "screenY": 0.38,
       "depth": 30.0,
+      "hitPoints": 5,
+      "anchorHold": 3.0,
+      "anchorExitDuration": 0.8,
       "movePattern": "ScreenAnchorDropIn",
       "attackPattern": "TelegraphLaser",
       "spawnScreenY": 0.95,
@@ -24,6 +28,9 @@
       "screenX": 0.45,
       "screenY": 0.38,
       "depth": 30.0,
+      "hitPoints": 5,
+      "anchorHold": 3.0,
+      "anchorExitDuration": 0.8,
       "movePattern": "ScreenAnchorDropIn",
       "attackPattern": "TelegraphLaser",
       "spawnScreenY": 0.95,

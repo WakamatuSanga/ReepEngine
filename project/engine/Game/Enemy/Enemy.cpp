@@ -329,6 +329,12 @@ void Enemy::SetPosition(const Vector3& position) {
     UpdateObjectTransform();
 }
 
+void Enemy::TranslateSpawnPath(const Vector3& delta) {
+    spawnStartPosition_ = AddVector3(spawnStartPosition_, delta);
+    spawnTargetPosition_ = AddVector3(spawnTargetPosition_, delta);
+    SetPosition(AddVector3(position_, delta));
+}
+
 void Enemy::SetRotation(const Vector3& rotation) {
     rotation_ = rotation;
     finalSpawnRotation_ = rotation_;
@@ -431,6 +437,17 @@ void Enemy::StartSpawnAnimationFrom(
     isActive_ = true;
     isDead_ = false;
     UpdateObjectTransform();
+}
+
+bool Enemy::AdvanceShotTiming(float deltaTime, bool groupShotDue, float defaultInterval) {
+    if (nextShotTime_ < 0.0f) {
+        return groupShotDue;
+    }
+    if (deltaTime <= 0.0f) return false;
+    nextShotTime_ -= deltaTime;
+    if (nextShotTime_ > 0.0f) return false;
+    nextShotTime_ = shotInterval_ > 0.0f ? shotInterval_ : defaultInterval;
+    return true;
 }
 
 void Enemy::Damage(int amount) {

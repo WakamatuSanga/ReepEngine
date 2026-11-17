@@ -225,6 +225,13 @@ void EnemyLaserTelegraphController::StartBeam(const void* owner, const Vector3& 
     lastStartedOwner_ = owner;
 }
 
+void EnemyLaserTelegraphController::UpdateBeamOrigin(const void* owner, const Vector3& origin) {
+    if (LaserEffect* effect = FindEffect(owner, EffectType::Beam)) {
+        effect->origin = origin;
+        lastOrigin_ = origin;
+    }
+}
+
 void EnemyLaserTelegraphController::ClearOwner(const void* owner) {
     for (LaserEffect& effect : effects_) {
         if (effect.owner == owner) {

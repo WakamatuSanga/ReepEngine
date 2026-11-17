@@ -90,6 +90,9 @@ void GameScene::PrepareForPresentation() {
         camera_.get(), cloudVolume_.get());
     // Resolve the ordinary initial framing with dt=0. No input, Wave or event simulation.
     if (railShooterCameraRig_) {
+        // The introduction uses the same cloud and camera reference as the first flight frame.
+        // StageStart owns Update until then, so selecting the rail here does not advance it.
+        railShooterCameraRig_->StartConfiguredGameplayRail();
         railShooterCameraRig_->SetRuntimeContext(player_.get(), boostController_.get(), runtimeModeController_->IsGameMode());
         railShooterCameraRig_->Update(0);
         railShooterCameraRig_->UpdatePlayerFollow(0,0);

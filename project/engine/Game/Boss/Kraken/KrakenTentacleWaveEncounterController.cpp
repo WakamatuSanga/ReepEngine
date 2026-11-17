@@ -160,6 +160,7 @@ bool KrakenTentacleWaveEncounterController::SetRailHold(bool hold) {
 void KrakenTentacleWaveEncounterController::DisableDamage() {
     CancelFollowupAttack();
     nextAttackIsDouble_ = false;
+    nextAttackIsSweep_ = false;
     if (!kraken_) {
         return;
     }

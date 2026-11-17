@@ -12,10 +12,12 @@
 #include <vector>
 
 class Camera;
+struct AimReticleScreenRect;
 class Enemy;
 class EnemyLaserTelegraphController;
 class EnemyManager;
 class Player;
+class RailShooterCameraRig;
 class WarningUIController;
 struct FiredEventAction;
 struct LevelSceneData;
@@ -33,6 +35,7 @@ public:
     void DrawImGui();
 
     void SetPlayer(const Player* player) { player_ = player; }
+    void SetRailRig(const RailShooterCameraRig* rig) { railRig_ = rig; }
     void SetLaserTelegraphController(EnemyLaserTelegraphController* laserController) { laserController_ = laserController; }
     void SetWarningUIController(WarningUIController* warningUIController) { warningUIController_ = warningUIController; }
     void SetGameModeActive(bool isGameMode);
@@ -49,6 +52,11 @@ public:
     const std::string& GetCurrentWaveId() const;
     uint64_t GetCurrentWaveRevision() const { return currentWaveRevision_; }
     bool IsCurrentWave(std::string_view waveId) const;
+    bool TryGetFormationAimPoint(const AimReticleScreenRect& reticle, const Vector3& muzzle,
+        float bulletSpeed, float bulletLifetime, Vector3& aimPoint) const;
+    bool IsWaitingForStartWarning(std::string_view waveId) const {
+        return pendingStartWarningActive_ && pendingStartWaveId_ == waveId;
+    }
     size_t GetCurrentWaveIndex() const { return currentWaveIndex_; }
 
     bool ConfigureExternalWaveObjective(std::string_view targetWaveId);
@@ -111,6 +119,17 @@ private:
         float dropDuration = 0.6f;
         float enemyScale = 1.4f;
         float rotationDuringDrop = 720.0f;
+        float railDistance = 0.0f;
+        bool railFormation = false;
+        float formationForwardSpeed = 0.0f;
+        float formationApproachDepth = 0.0f;
+        float formationEntryDuration = 0.0f;
+        Vector3 railPosition{};
+        float anchorHold = 0.0f;
+        float anchorAge = 0.0f;
+        float anchorExitDuration = 0.8f;
+        float anchorExitAge = 0.0f;
+        bool anchorExiting = false;
         Vector3 lockedApproachDirection{ 0.0f, 0.0f, -1.0f };
         Vector3 lockedLaserDirection{ 0.0f, 0.0f, 1.0f };
         Vector3 lockedLaserTargetPosition{ 0.0f, 0.0f, 0.0f };
@@ -138,10 +157,18 @@ private:
     std::string ResolveWaveIdFromAction(const FiredEventAction& action) const;
     Vector3 ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn) const;
     Vector3 ComputeScreenPosition(float screenX, float screenY, float depth) const;
+    Vector3 ComputeAnchorPosition(float screenX, float screenY, float depth) const;
+    Vector3 ComputeRailPosition(float distance, float screenX, float screenY, Vector3* forward = nullptr) const;
+    Vector3 ComputeFormationPosition(const WaveEnemyRuntime& runtime, float railDistance, float age,
+        Vector3* forward = nullptr) const;
+    void UpdateRailFormation(WaveEnemyRuntime& runtime, float deltaTime);
     Vector3 ComputeSpawnForward(const Vector3& spawnPosition) const;
     Vector3 ResolveApproachTarget() const;
-    void RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex);
+    void RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex,
+        float railDistance, const Vector3& spawnPosition);
     void UpdateWaveEnemyMovement(float deltaTime);
+    void UpdateScreenAnchorEnemy(WaveEnemyRuntime& runtime, float deltaTime);
+    void EscapeWaveEnemy(WaveEnemyRuntime& runtime);
     void ClearTrackedWaveEnemies();
     void ConfigureScreenAnchorSpawn(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, const Vector3& targetPosition);
     void UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float deltaTime);
@@ -180,6 +207,7 @@ private:
     EnemyManager* enemyManager_ = nullptr;
     const Camera* camera_ = nullptr;
     const Player* player_ = nullptr;
+    const RailShooterCameraRig* railRig_ = nullptr;
     EnemyLaserTelegraphController* laserController_ = nullptr;
     WarningUIController* warningUIController_ = nullptr;
     std::vector<EnemyWaveDefinition> waves_;

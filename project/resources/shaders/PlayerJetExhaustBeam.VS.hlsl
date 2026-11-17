@@ -30,7 +30,9 @@ struct VertexShaderOutput
 VertexShaderOutput main(VertexShaderInput input)
 {
     VertexShaderOutput output;
-    output.position = mul(float4(input.position, 1.0f), gBeam.viewProjection);
+    // BeamBatchRenderer::kWarningRectangleMode submits the fixed viewport coordinates.
+    float4 position = float4(input.position, 1.0f);
+    output.position = gBeam.params.w == 18.0f ? position : mul(position, gBeam.viewProjection);
     output.uv = input.uv;
     output.normal=input.normal;output.layer=input.layer;output.worldPosition=input.position;
     // Perspective interpolation retains clip Z at the fragment's world position.

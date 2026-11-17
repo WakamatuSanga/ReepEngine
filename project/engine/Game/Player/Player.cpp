@@ -1,6 +1,7 @@
 #include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Engine/Core/DebugUiWorkspace.h"
 #include "Player.h"
+#include "BoostController.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Game/Effect/CombatSlowMotionController.h"
 #include "Engine/Graphics/Model/Model.h"
@@ -121,7 +122,7 @@ void Player::Finalize() {
     model_ = nullptr;
 }
 
-void Player::Update(float deltaTime) {
+void Player::Update(float deltaTime, BoostController* boost, float normalMovementDeltaTime) {
     ++updateCount_;
     lastWPressed_ = false;
     lastAPressed_ = false;
@@ -165,6 +166,7 @@ void Player::Update(float deltaTime) {
         inputBlockedReason_ = "Input is missing";
     }
 
+    Vector2 moveDirection{};
     lastImGuiTextInputActive_ = IsEditingImGuiText();
     if (!enablePlayer_) {
         inputBlockedReason_ = "Player disabled";
@@ -181,13 +183,26 @@ void Player::Update(float deltaTime) {
             } else {
                 moveInput.x /= inputLength;
                 moveInput.y /= inputLength;
-                localOffsetX_ = std::clamp(localOffsetX_ + moveInput.x * moveSpeed_ * safeDeltaTime, -moveLimitX_, moveLimitX_);
-                localOffsetY_ = std::clamp(localOffsetY_ + moveInput.y * moveSpeed_ * safeDeltaTime, -moveLimitY_, moveLimitY_);
+                moveDirection = {moveInput.x, moveInput.y};
                 lastInputApplied_ = true;
             }
         }
     }
 
+    if (boost && boost->HasMovementStep()) {
+        const auto position = boost->MovePlayer(
+            {localOffsetX_, localOffsetY_}, moveDirection, {moveLimitX_, moveLimitY_});
+        localOffsetX_ = position.x;
+        localOffsetY_ = position.y;
+        UpdateWorldPosition();
+        boostStepEndPosition_ = worldPosition_;
+    }
+    const float moveDt = normalMovementDeltaTime < 0.0f ? safeDeltaTime
+        : std::clamp(normalMovementDeltaTime, 0.0f, 1.0f / 15.0f);
+    if (lastInputApplied_) {
+        localOffsetX_ = std::clamp(localOffsetX_ + moveDirection.x * moveSpeed_ * moveDt, -moveLimitX_, moveLimitX_);
+        localOffsetY_ = std::clamp(localOffsetY_ + moveDirection.y * moveSpeed_ * moveDt, -moveLimitY_, moveLimitY_);
+    }
     UpdateWorldPosition();
     if (!normalFlightPresentation_) UpdateCenterVisibilityAssist(safeDeltaTime);
     if (actionController_) {

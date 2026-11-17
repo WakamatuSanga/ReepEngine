@@ -6,12 +6,14 @@
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
 class Camera;
 class DirectXCommon;
 class GpuParticleSystem;
+class LockedWingSmokePass;
 class SrvManager;
 
 class LockedWingMissileExhaustController {
@@ -32,6 +34,7 @@ public:
     void Finalize();
     void Update(float scaledDeltaTime);
     void Draw();
+    void DrawSmoke();
     void DrawImGui();
 
     uint64_t Start(
@@ -41,7 +44,8 @@ public:
     bool UpdateMissile(
         uint64_t handle,
         const Vector3& projectilePosition,
-        const Vector3& flightDirection);
+        const Vector3& flightDirection,
+        std::span<const Vector3> flightPath = {});
     void Stop(uint64_t handle);
     void Reset(bool resetStatistics);
 
@@ -54,6 +58,8 @@ private:
         float drainRemaining = 0.0f;
         Vector3 position{};
         Vector3 direction{ 0.0f, 0.0f, -1.0f };
+        float smokeDistanceRemaining = 0.0f;
+        bool smokeStarted = false;
     };
 
     bool LoadPreset();
@@ -66,11 +72,14 @@ private:
         const Vector3& direction);
     void ApplyRuntimeScale();
     void ReleaseDrainedSlots(float scaledDeltaTime);
+    void EmitSmokeTrail(Slot& slot, const Vector3& nozzle, const Vector3& exhaustDirection,
+        std::span<const Vector3> flightPath);
 
     DirectXCommon* dxCommon_ = nullptr;
     SrvManager* srvManager_ = nullptr;
     Camera* camera_ = nullptr;
     std::unique_ptr<GpuParticleSystem> particleSystem_;
+    std::unique_ptr<LockedWingSmokePass> smoke_;
     std::vector<GpuParticle::Emitter> emitterTemplates_;
     std::vector<GpuParticle::ParticleType> particleTypeTemplates_;
     std::array<Slot, kHardSlotCapacity> slots_{};

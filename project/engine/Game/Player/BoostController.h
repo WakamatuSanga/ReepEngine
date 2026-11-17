@@ -7,6 +7,7 @@ class Camera;
 class Player;
 class PostEffectController;
 class VolumetricCloudPass;
+struct Vector2;
 
 class BoostController {
 public:
@@ -28,8 +29,12 @@ public:
 
     void Initialize(VolumetricCloudPass* cloudPass);
     void Finalize();
-    void Update(float deltaTime);
     void BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay, float realDeltaTime = -1.0f);
+    float ResolveGameplayDeltaTime(float deltaTime, float combatScale);
+    float GetNormalMovementDeltaTime(float deltaTime, float combatScale) const;
+    bool HasMovementStep() const { return movementBlend_ > 0.0f; }
+    float GetEvadeSweepFraction() const { return evadeSweepFraction_; }
+    Vector2 MovePlayer(Vector2 position, Vector2 input, Vector2 limits);
     void RefreshPresentation();
     void Cancel();
     float GetTimeScale() const { return currentTimeScale_; }
@@ -43,7 +48,7 @@ public:
     State GetState() const { return state_; }
     bool IsBoosting() const { return state_ == State::Boosting; }
     bool IsCoolingDown() const { return state_ == State::Cooldown; }
-    bool IsEvadeActive() const { return IsBoosting() && currentTimeScale_ < 0.9999f; }
+    bool IsEvadeActive() const { return IsBoosting(); }
     float GetCooldownRemaining() const { return boostCooldownTimer_; }
     float GetCooldownDuration() const { return boostCooldown_; }
     float GetCurrentBoostPower() const { return currentBoostPower_; }
@@ -59,8 +64,8 @@ public:
 private:
     void StartBoost(bool ignoreCooldown);
     void ResetBoost();
+    void ClearActiveEffects();
     void PushMultiplierToCloud();
-    void UpdateCloudFlowMultiplier(float deltaTime);
     void UpdateBoostPostEffect();
     bool ProjectPlayerToScreen(float& outX, float& outY) const;
     unsigned char ResolveInputKey() const;
@@ -82,23 +87,25 @@ private:
     bool lastInputTriggered_ = false;
     bool lastCanBoost_ = false;
 
-    float boostDuration_ = 1.4f;
+    float boostDuration_ = 0.20f;
     float boostCooldown_ = 3.0f;
     float boostTimer_ = 0.0f;
     float startSide_ = 1.0f;
     float startX_ = 0.0f;
+    float startY_ = 0.0f;
+    float boostFrameFraction_ = 0.0f;
+    float evadeSweepFraction_ = 0.0f;
+    float movementBlend_ = 0.0f;
+    float steeringBlend_ = 0.0f;
+    float steeringX_ = 0.0f;
+    float steeringY_ = 0.0f;
+    bool steeringInitialized_ = false;
     float currentTimeScale_ = 1.0f;
     float boostCooldownTimer_ = 0.0f;
-    float boostCloudFlowMultiplier_ = 2.0f;
     float boostVisualSpeedMultiplier_ = 2.0f;
-    float boostEaseInTime_ = 0.1f;
-    float boostEaseOutTime_ = 0.3f;
     float currentBoostPower_ = 0.0f;
-    float maxCloudBoostMultiplier_ = 2.0f;
     float maxCloudBoostExtraSpeed_ = 28.0f;
-    float cloudBoostMultiplierSmoothSpeed_ = 8.0f;
     float currentCloudFlowMultiplier_ = 1.0f;
-    float targetCloudFlowMultiplier_ = 1.0f;
     float currentCloudBoostExtraSpeed_ = 0.0f;
     float targetCloudBoostExtraSpeed_ = 0.0f;
     float radialBlurIntensity_ = 0.08f;

@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES 
 #include "Matrix4x4.h"
 #include <math.h>
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -194,6 +195,15 @@ Matrix4x4 MatrixMath::MakeRotateZ(float radian) {
 
     return result;// Z軸の回転行列を返す
 }
+Vector3 MatrixMath::ExtractEulerXYZ(const Matrix4x4& rotation) {
+    const float rotateY = std::asin(std::clamp(-rotation.m[0][2], -1.0f, 1.0f));
+    if (std::fabs(std::cos(rotateY)) <= 0.0001f) {
+        return {std::atan2(-rotation.m[2][1], rotation.m[1][1]), rotateY, 0.0f};
+    }
+    return {std::atan2(rotation.m[1][2], rotation.m[2][2]), rotateY,
+        std::atan2(rotation.m[0][1], rotation.m[0][0])};
+}
+
 // 3次元アフィン変換行列
 Matrix4x4 MatrixMath::MakeAffine(const Vector3& scale, const Vector3& rotate, const Vector3& translate) {
 

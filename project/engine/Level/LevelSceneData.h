@@ -50,6 +50,7 @@ struct LevelObject {
 
 struct LevelSceneData {
     std::string name;
+    std::string gameplayStartRail;
     LevelCameraStart cameraStart;
     std::vector<LevelObject> objects;
     std::vector<LevelRail> rails;

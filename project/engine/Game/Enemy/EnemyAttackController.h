@@ -9,6 +9,7 @@ class EnemyBulletManager;
 class EnemyManager;
 class Player;
 class PlayerDeathSequenceController;
+class RailShooterCameraRig;
 
 class EnemyAttackController {
 public:
@@ -24,9 +25,12 @@ public:
     void Finalize();
     void Update(float deltaTime);
     void DrawImGui();
+    void SetRailRig(const RailShooterCameraRig* railRig) { railRig_ = railRig; }
 
 private:
     void FireFromActiveEnemies();
+    void ProcessEnemyShots(float deltaTime, bool groupShotDue, bool force);
+    Vector3 ResolveShotTarget(const Vector3& muzzle) const;
     bool IsEnemyAllowedToAttack(const Enemy& enemy, std::string& reason) const;
     bool IsExternalAttackEnemy(const Enemy& enemy) const;
 
@@ -35,6 +39,7 @@ private:
     Player* player_ = nullptr;
     PlayerDeathSequenceController* deathSequence_ = nullptr;
     const Camera* camera_ = nullptr;
+    const RailShooterCameraRig* railRig_ = nullptr;
 
     bool enableShooting_ = true;
     bool enableOffscreenAttackGate_ = true;

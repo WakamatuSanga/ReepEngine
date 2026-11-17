@@ -14,6 +14,14 @@ struct EnemyWaveSpawnEntry {
     float dropDuration = 0.6f;
     float enemyScale = 1.4f;
     float rotationDuringDrop = 720.0f;
+    int hitPoints = 0;
+    float formationForwardSpeed = 0.0f;
+    float formationApproachDepth = 0.0f;
+    float formationEntryDuration = 0.0f;
+    float anchorHold = 0.0f;
+    float anchorExitDuration = 0.8f;
+    float shotStartDelay = -1.0f;
+    float shotInterval = 0.0f;
 };
 
 struct EnemyWaveDefinition {

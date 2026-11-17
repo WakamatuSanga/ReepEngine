@@ -149,9 +149,14 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
     phaseState.motionStateValid = IsVisible() && !IsDefeatState() && !entranceActive;
     phaseState.attackMotionActive = IsAttackState();
     phaseState.waitingForLoop = false;
+    auto phaseSettings = colliderPhaseSettings;
+    if (state == KrakenTentacleMidbossState::SweepStrike) {
+        phaseState.slamDuration = sweep.settings.strike;
+        phaseSettings.attackActiveStartRatio = 0.0f;
+    }
     const KrakenTentacleColliderPhaseContext phaseContext =
         BuildKrakenTentacleColliderPhaseContext(
-            phaseState, colliderPhaseSettings);
+            phaseState, phaseSettings);
 
     for (const KrakenTentacleColliderDefinitionResult& definitions :
         colliderDefinitions) {
@@ -167,10 +172,12 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
                     definition.recommendedLocalRadius,
                     colliderRadiusScale,
                     colliderGlobalRadiusScale);
+            const bool enabled = definition.role != KrakenColliderPreviewRole::Damage ||
+                !SuppressSweepTarget(definition.chainIndex);
             const KrakenTentacleColliderPhaseEvaluation phase =
                 EvaluateKrakenTentacleColliderPhase(
                     definition.role,
-                    true,
+                    enabled,
                     evaluation.valid,
                     definition.chainIndex,
                     phaseContext);
@@ -188,7 +195,12 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
             snapshot.worldEnd = evaluation.worldEnd;
             snapshot.worldCenter = evaluation.worldCenter;
             snapshot.worldRadius = evaluation.worldRadius;
+            if (IsSweepState() && definition.role == KrakenColliderPreviewRole::Attack &&
+                definition.chainIndex == selectedAttackChainIndex) {
+                snapshot.worldRadius = sweep.settings.bandHalfHeight;
+            }
             snapshot.worldLength = evaluation.worldLength;
+            snapshot.enabled = enabled;
             snapshot.valid = evaluation.valid;
             snapshot.zeroLength = evaluation.zeroLength;
             snapshot.phaseActive = phase.active;
@@ -217,6 +229,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
 
         const KrakenTentacleTipSphereColliderDefinition& definition =
             definitions.tipSphere;
+        const bool enabled = !SuppressSweepTarget(definition.chainIndex);
         const KrakenTentacleTipSphereColliderEvaluation evaluation =
             EvaluateKrakenTentacleTipSphereCollider(
                 *skeleton,
@@ -231,7 +244,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         const KrakenTentacleColliderPhaseEvaluation phase =
             EvaluateKrakenTentacleColliderPhase(
                 definition.role,
-                true,
+                enabled,
                 evaluation.valid,
                 definition.chainIndex,
                 phaseContext);
@@ -250,6 +263,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         snapshot.bindWorldPosition = evaluation.bindWorldPosition;
         snapshot.worldRadius = evaluation.worldRadius;
         snapshot.distanceFromBind = evaluation.distanceFromBind;
+        snapshot.enabled = enabled;
         snapshot.valid = evaluation.valid;
         snapshot.phaseActive = phase.active;
         snapshot.phaseReason = phase.reason;

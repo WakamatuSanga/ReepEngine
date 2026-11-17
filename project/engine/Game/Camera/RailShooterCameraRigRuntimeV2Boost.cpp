@@ -30,12 +30,15 @@ void RailShooterCameraRig::SetRuntimeContext(
     if (gameModeActive == gameModeActive_) return;
 
     InvalidateProjectileRailContinuity();
+    if (gameplayStartRailActive_) {
+        gameplayStartRailAttempted_ = false;
+        StartConfiguredGameplayRail();
+    }
     gameModeActive_ = gameModeActive;
     ResetGameplayInputHistory();
     playerFollowInitialized_ = false;
     presentationReturnActive_ = false;
-    // Keep the logical gameplay basis across editor/Game Mode switches.
-    // Only an explicit camera reset or initialization replaces that basis.
+    // Non-stage camera previews retain their logical basis across mode switches.
     ClearRuntimeV2ForceTests();
     ResetBoostRailSpeedState();
     hasPreviousRailForward_ = false;
@@ -46,24 +49,24 @@ void RailShooterCameraRig::SetRuntimeContext(
             ? boostRailSpeedMultiplier_ : 1.0f;
     } else {
         pendingGameModePoseSync_ = false;
+        if (gameplayStartRailActive_) effectiveRailSpeed_ = 0.0f;
     }
 }
 
 void RailShooterCameraRig::UpdateBoostRailSpeed(float deltaTime, bool advancing) {
     boostRailSpeedMultiplier_ = std::clamp(boostRailSpeedMultiplier_, 1.0f, 1.3f);
     boostRailAccelerationTime_ = std::clamp(boostRailAccelerationTime_, 0.01f, 0.5f);
-    boostRailReturnTime_ = std::clamp(boostRailReturnTime_, 0.05f, 1.5f);
     boostControllerActive_ = boostController_ != nullptr;
     boostStateActive_ = boostController_ && boostController_->IsBoosting();
     if (forceBoostRailSpeed_) boostStateActive_ = true;
     if (forceBoostRailSpeedOff_) boostStateActive_ = false;
 
     targetRailSpeedMultiplier_ = boostStateActive_ ? boostRailSpeedMultiplier_ : 1.0f;
-    const float responseTime = boostStateActive_ ? boostRailAccelerationTime_ : boostRailReturnTime_;
     const float safeDeltaTime = (std::max)(0.0f, deltaTime);
-    const float alpha = 1.0f - std::exp(-safeDeltaTime / (std::max)(responseTime, 0.001f));
-    currentRailSpeedMultiplier_ +=
-        (targetRailSpeedMultiplier_ - currentRailSpeedMultiplier_) * std::clamp(alpha, 0.0f, 1.0f);
+    const float alpha = 1.0f - std::exp(-safeDeltaTime / boostRailAccelerationTime_);
+    currentRailSpeedMultiplier_ = boostStateActive_
+        ? std::lerp(currentRailSpeedMultiplier_, targetRailSpeedMultiplier_, std::clamp(alpha, 0.0f, 1.0f))
+        : 1.0f;
     currentRailSpeedMultiplier_ = std::clamp(currentRailSpeedMultiplier_, 1.0f, boostRailSpeedMultiplier_);
     effectiveRailSpeed_ = railSpeed_ * existingRailSpeedScale_ *
         currentRailSpeedMultiplier_ * externalEncounterRailSpeedMultiplier_;

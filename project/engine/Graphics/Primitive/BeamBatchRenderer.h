@@ -13,6 +13,8 @@ class DirectXCommon;
 
 class BeamBatchRenderer {
 public:
+    static constexpr uint32_t kWarningRectangleMode = 18;
+
     struct Vertex {
         Vector3 position;
         Vector2 uv;

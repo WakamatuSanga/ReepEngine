@@ -91,6 +91,11 @@ public:
     // Read-only scenery sampling; never changes rail progression or camera pose.
     float GetSceneryDistance() const;
     Matrix4x4 SampleSceneryFrame(float absoluteDistance) const;
+    void StartConfiguredGameplayRail();
+    bool IsConfiguredGameplayRailActive() const { return gameplayStartRailActive_; }
+    bool HasGameplayRail() const {
+        return IsCameraRigActive() && (mode_ == Mode::Rail || mode_ == Mode::RailFinishedStraight || mode_ == Mode::RailEndStopped);
+    }
     bool IsCameraRigActive() const;
     RailFlightPoseSnapshot GetRailFlightPoseSnapshot(float lookAheadDistance) const;
     ProjectileRailFrame GetProjectileRailFrame() const;
@@ -166,6 +171,8 @@ private:
     static float ComputePitchDegrees(const Vector3& forward);
 
     bool stageStartPresentationActive_ = false;
+    bool gameplayStartRailAttempted_ = false;
+    bool gameplayStartRailActive_ = false;
     Camera* camera_ = nullptr;
     LevelRailRuntime* railRuntime_ = nullptr;
     const LevelSceneRuntime* levelSceneRuntime_ = nullptr;
@@ -237,7 +244,6 @@ private:
     float externalEncounterRailSpeedMultiplier_ = 1.0f;
     float targetRailSpeedMultiplier_ = 1.0f;
     float boostRailAccelerationTime_ = 0.10f;
-    float boostRailReturnTime_ = 0.45f;
     float selectedRailTotalLength_ = 0.0f;
     float railBlendTime_ = 0.5f;
     float railBlendElapsed_ = 0.0f;

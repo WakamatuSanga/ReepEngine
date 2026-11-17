@@ -314,6 +314,11 @@ void KrakenTentacleWaveEncounterController::PreRailUpdate(
             return;
         }
         if (!IsTargetWaveCurrent()) {
+            const bool warningPending = waveManager_->IsWaitingForStartWarning(
+                KrakenTentacleWaveEncounterConfig::kTargetWaveId);
+            if (railHoldEnabled_ != warningPending && !SetRailHold(warningPending)) {
+                EnterError("WARNING中のレール停止を設定できませんでした。");
+            }
             return;
         }
         const std::uint64_t revision = waveManager_->GetCurrentWaveRevision();

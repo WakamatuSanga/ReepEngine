@@ -101,34 +101,6 @@ void PlayerBulletManager::UpdateLockedWingShot(
         return;
     }
 
-    if (projectileRailMotionAdapter_) {
-        Vector3 transported{};
-        if (projectileRailMotionAdapter_->TransportDirectionForProjectile(
-                bullet,
-                ProjectileRailMotionAdapter::ProjectileKind::Player,
-                state.currentFlightDirection,
-                transported)) {
-            Vector3 normalized{};
-            if (TryNormalize(transported, normalized)) {
-                state.currentFlightDirection = normalized;
-            } else {
-                ++lockedWingDirectionFallbackCount_;
-            }
-        }
-        if (projectileRailMotionAdapter_->TransportDirectionForProjectile(
-                bullet,
-                ProjectileRailMotionAdapter::ProjectileKind::Player,
-                state.currentEjectionDownDirection,
-                transported)) {
-            Vector3 normalized{};
-            if (TryNormalize(transported, normalized)) {
-                state.currentEjectionDownDirection = normalized;
-            } else {
-                ++lockedWingDirectionFallbackCount_;
-            }
-        }
-    }
-
     Vector3 flightDirection{};
     if (!TryNormalize(state.currentFlightDirection, flightDirection)) {
         ++lockedWingDirectionFallbackCount_;
@@ -191,22 +163,8 @@ void PlayerBulletManager::UpdateLockedWingShot(
     const float cruiseOverlap = (std::max)(
         state.totalElapsed - (std::max)(previousElapsed, ignitionEnd),
         0.0f);
-    const Vector3 preHomingFlightDirection = flightDirection;
-    state.homingReady = state.phase == LockedWingLaunchPhase::Cruise;
-    if (state.homingReady) {
-        UpdateLockedWingHoming(instance, cruiseOverlap);
-        if (!TryNormalize(state.currentFlightDirection, flightDirection)) {
-            ++lockedWingDirectionFallbackCount_;
-            flightDirection = preHomingFlightDirection;
-        }
-    }
-    state.currentFlightDirection = flightDirection;
-
     if (state.phase == LockedWingLaunchPhase::IgnitionRamp) {
-        endVelocity = Scale(
-            preHomingFlightDirection, state.baseBulletSpeed * speedRate);
-    } else if (state.phase == LockedWingLaunchPhase::Cruise) {
-        endVelocity = Scale(flightDirection, state.baseBulletSpeed);
+        endVelocity = Scale(flightDirection, state.baseBulletSpeed * speedRate);
     }
     Vector3 frameDisplacement = Scale(
         ejectionDownDirection,
@@ -214,16 +172,47 @@ void PlayerBulletManager::UpdateLockedWingShot(
     frameDisplacement = Add(
         frameDisplacement,
         Scale(
-            preHomingFlightDirection,
-            state.baseBulletSpeed * ignitionTravelTime));
-    frameDisplacement = Add(
-        frameDisplacement,
-        Scale(
             flightDirection,
-            state.baseBulletSpeed * cruiseOverlap));
+            state.baseBulletSpeed * ignitionTravelTime));
+    // A new shot already starts at this frame's muzzle. After that, fade
+    // out the rail motion at the same rate as the missile's thrust builds.
+    const float launchOverlap = (std::min)(state.totalElapsed, ignitionEnd) - previousElapsed;
+    if (!state.firstUpdate && projectileRailMotionAdapter_
+        && launchOverlap > 0.0f && safeDeltaTime > kMinimumVectorLength) {
+        const float railWeight = std::clamp(
+            (launchOverlap - ignitionTravelTime) / safeDeltaTime, 0.0f, 1.0f);
+        const Vector3 railDisplacement =
+            projectileRailMotionAdapter_->GetLockedWingLaunchRailDisplacement(bullet.GetPosition());
+        frameDisplacement = Add(frameDisplacement, Scale(railDisplacement, railWeight));
+    }
+    state.firstUpdate = false;
+    const Vector3 startPosition = bullet.GetPosition();
+    Vector3 endPosition = Add(startPosition, frameDisplacement);
+    state.sweep.count = 0;
+    state.sweep.points[state.sweep.count++] = startPosition;
+    state.homingReady = state.phase == LockedWingLaunchPhase::Cruise;
+    if (state.homingReady) {
+        if (previousPhase != LockedWingLaunchPhase::Cruise) {
+            state.centerPosition = endPosition;
+            if (Length(frameDisplacement) > kMinimumVectorLength) {
+                state.sweep.points[state.sweep.count++] = endPosition;
+            }
+        }
+        UpdateLockedWingHoming(instance, cruiseOverlap);
+        if (cruiseOverlap > kMinimumVectorLength) {
+            endPosition = AdvanceLockedWingHelix(state, flightDirection, endPosition, cruiseOverlap);
+        }
+    } else {
+        state.visualFlightDirection = flightDirection;
+        state.endVelocity = endVelocity;
+    }
+    if (state.sweep.count == 1) {
+        state.sweep.points[state.sweep.count++] = endPosition;
+    }
+    frameDisplacement = {endPosition.x - startPosition.x, endPosition.y - startPosition.y, endPosition.z - startPosition.z};
     Vector3 movementVelocity = safeDeltaTime > kMinimumVectorLength
         ? Scale(frameDisplacement, 1.0f / safeDeltaTime)
-        : endVelocity;
+        : Vector3{};
 
     if (previousPhase == LockedWingLaunchPhase::EjectionDrop
         && state.phase != LockedWingLaunchPhase::EjectionDrop) {
@@ -249,29 +238,30 @@ void PlayerBulletManager::UpdateLockedWingShot(
             state.exhaustHandle = lockedWingMissileExhaustController_->Start(
                 state.exhaustHandle,
                 bullet.GetPosition(),
-                flightDirection);
+                state.visualFlightDirection);
         }
         state.exhaustEnabled = state.exhaustHandle != 0;
     }
 
-    if (!IsFinite(movementVelocity) || !IsFinite(endVelocity)) {
+    if (!IsFinite(movementVelocity) || !IsFinite(state.endVelocity)) {
         ++lockedWingNonFiniteVelocityCount_;
         movementVelocity = {};
-        endVelocity = {};
+        state.endVelocity = {};
+        state.sweep.count = 0;
     }
     state.currentSpeedRate = speedRate;
     bullet.SetVelocity(movementVelocity);
-    bullet.SetVisualForwardOverride(flightDirection);
+    bullet.SetVisualForwardOverride(state.visualFlightDirection, true);
 
     if (state.sequence == lastLockedWingShotSequence_) {
         lastLockedWingLaunchPhase_ = state.phase;
         hasLastLockedWingLaunchPhase_ = true;
         lastLockedWingLaunchElapsed_ = state.totalElapsed;
         lastLockedWingSpeedRate_ = speedRate;
-        lastLockedWingCurrentSpeed_ = Length(endVelocity);
-        lastLockedWingLaunchDirection_ = flightDirection;
+        lastLockedWingCurrentSpeed_ = Length(state.endVelocity);
+        lastLockedWingLaunchDirection_ = state.visualFlightDirection;
         lastLockedWingEjectionDownDirection_ = ejectionDownDirection;
-        lastLockedWingRelativeVelocity_ = endVelocity;
+        lastLockedWingRelativeVelocity_ = state.endVelocity;
         lastLockedWingExhaustEnabled_ = state.exhaustEnabled;
         lastLockedWingIgnitionStarted_ = state.ignitionStarted;
         lastLockedWingHomingReady_ = state.homingReady;
@@ -306,8 +296,7 @@ void PlayerBulletManager::UpdateLockedWingMissileExhaust(
         return;
     }
     LockedWingLaunchState& state = *instance.lockedWingLaunch;
-    if (!lockedWingMissileExhaustController_ || !instance.bullet
-        || instance.bullet->IsDead()) {
+    if (!instance.bullet || instance.bullet->IsDead()) {
         if (state.exhaustHandle != 0 && lockedWingMissileExhaustController_) {
             lockedWingMissileExhaustController_->Stop(state.exhaustHandle);
         }
@@ -319,31 +308,16 @@ void PlayerBulletManager::UpdateLockedWingMissileExhaust(
         }
         return;
     }
-    Vector3 phaseEndVelocity{};
-    if (state.phase == LockedWingLaunchPhase::EjectionDrop) {
-        const float dropSpeed = state.ejectionDropDistance
-            / (std::max)(state.ejectionDropDuration, 0.001f);
-        phaseEndVelocity =
-            Scale(state.currentEjectionDownDirection, dropSpeed);
-    } else if (state.phase == LockedWingLaunchPhase::IgnitionRamp
-        || state.phase == LockedWingLaunchPhase::Cruise) {
-        phaseEndVelocity = Scale(
-            state.currentFlightDirection,
-            state.baseBulletSpeed * state.currentSpeedRate);
-    }
-    instance.bullet->SetVelocity(phaseEndVelocity);
-    if (state.sequence == lastLockedWingShotSequence_) {
-        lastLockedWingCurrentSpeed_ = Length(phaseEndVelocity);
-        lastLockedWingRelativeVelocity_ = phaseEndVelocity;
-    }
-    if (!state.exhaustEnabled || state.exhaustHandle == 0) {
+    instance.bullet->SetVelocity(state.endVelocity);
+    if (!lockedWingMissileExhaustController_ || !state.exhaustEnabled || state.exhaustHandle == 0) {
         state.exhaustFollowingDirection = false;
         return;
     }
     if (!lockedWingMissileExhaustController_->UpdateMissile(
             state.exhaustHandle,
             instance.bullet->GetPosition(),
-            state.currentFlightDirection)) {
+            state.visualFlightDirection,
+            {state.sweep.points.data(), state.sweep.count})) {
         state.exhaustHandle = 0;
         state.exhaustEnabled = false;
         state.exhaustFollowingDirection = false;
@@ -441,7 +415,7 @@ void PlayerBulletManager::DrawLockedWingMissileIgnitionImGui() {
     ImGui::Text(
         "対象方向を追尾へ使用: %s",
         ToJapaneseBool(lastLockedWingHomingEnabled_));
-    ImGui::Text("レール速度を未加算: はい");
+    ImGui::TextUnformatted("分離・待機中はレールに追従し、点火加速に合わせて追従を解除します。");
     ImGui::Text("カメラ速度を未加算: はい");
 
     ImGui::SeparatorText("分離・待機・点火の統計");

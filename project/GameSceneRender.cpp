@@ -6,6 +6,7 @@
 #include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
 #include "Engine/Game/Effect/GameplaySpeedLineController.h"
 #include "Engine/Game/Effect/ImpactDistortionController.h"
@@ -170,8 +171,9 @@ void GameScene::DrawSceneRender() {
     }
 
     const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
+    if (!deathActive && krakenTentacleMidboss_) krakenTentacleMidboss_->DrawAfterCloud();
     if(!deathActive){
-        if(playerBulletManager_)playerBulletManager_->DrawAfterCloud();
+        if(playerBulletManager_)playerBulletManager_->DrawAfterCloud(!shadowDebugSettings.disableEffects);
         if(enemyBulletManager_)enemyBulletManager_->DrawAfterCloud();
     }
     if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {

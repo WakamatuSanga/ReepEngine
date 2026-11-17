@@ -23,7 +23,6 @@ BoostController::~BoostController() = default;
 void BoostController::Initialize(VolumetricCloudPass* cloudPass) {
     cloudPass_ = cloudPass;
     currentCloudFlowMultiplier_ = 1.0f;
-    targetCloudFlowMultiplier_ = 1.0f;
     currentCloudBoostExtraSpeed_ = 0.0f;
     targetCloudBoostExtraSpeed_ = 0.0f;
     PushMultiplierToCloud();
@@ -42,11 +41,13 @@ void BoostController::Finalize() {
 }
 
 void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay, float realDeltaTime) {
-    const float realDt = std::clamp(unscaledDeltaTime, 0.0f, 1.0f / 15.0f);
+    const float realDt = (std::max)(0.0f, std::isfinite(realDeltaTime) && realDeltaTime >= 0.0f
+        ? realDeltaTime : unscaledDeltaTime);
     lastInputTriggered_ = lastCanBoost_ = false;
+    boostFrameFraction_ = evadeSweepFraction_ = movementBlend_ = 0.0f;
     if (!ordinaryGameplay || !enableBoost_) { Cancel(); return; }
     if (state_ == State::Cooldown) {
-        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - (std::max)(0.0f, std::isfinite(realDeltaTime) && realDeltaTime >= 0 ? realDeltaTime : unscaledDeltaTime));
+        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - realDt);
         if (boostCooldownTimer_ == 0) state_ = State::Idle;
     }
     Input* input = MyGame::GetInstance()->GetInput();
@@ -55,41 +56,75 @@ void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay,
         lastCanBoost_ = state_ == State::Idle && boostCooldownTimer_ <= 0;
         if (lastInputTriggered_ && lastCanBoost_) StartBoost(false);
     }
+    if (!IsBoosting()) return;
+
     const auto& tuning = FlightTuning::Get();
-    const float target = IsBoosting() ? tuning.boostTimeScale : 1.0f;
-    currentTimeScale_ += (target - currentTimeScale_) * (1.0f - std::exp(-realDt / tuning.timeResponse));
-    if (!IsBoosting() && std::fabs(currentTimeScale_ - 1) < 0.0001f) currentTimeScale_ = 1;
+    const float remaining = boostDuration_ - boostTimer_;
+    const bool finishes = realDt >= remaining - 0.000001f;
+    const float step = (std::min)(realDt, remaining);
+    const float previous = SmoothStep(boostTimer_ / boostDuration_);
+    boostTimer_ = finishes ? boostDuration_ : boostTimer_ + step;
+    const float u = boostTimer_ / boostDuration_;
+    boostFrameFraction_ = realDt > 0.0f ? step / realDt : 1.0f;
+    movementBlend_ = finishes ? 1.0f
+        : Saturate((SmoothStep(u) - previous) / (std::max)(0.000001f, 1.0f - previous));
+    steeringBlend_ = Saturate(step / .055f) * (1.0f - SmoothStep((u - .55f) / .30f));
+    if (finishes) {
+        boostCooldownTimer_ = (std::max)(0.0f, boostCooldown_ - (realDt - step));
+        state_ = boostCooldownTimer_ > 0.0f ? State::Cooldown : State::Idle;
+        ClearActiveEffects();
+        return;
+    }
+
+    constexpr float pi = 3.14159265358979323846f;
+    const float sine = std::sin(pi * u);
+    currentBoostPower_ = sine * sine;
+    currentTimeScale_ = tuning.boostTimeScale;
+    if (player_) {
+        const float depth = player_->GetGameplayReferenceDistance() * tuning.depthShrink * currentBoostPower_;
+        const float wave = std::sin(2.0f * pi * u);
+        player_->SetBoostTrajectory(currentBoostPower_,
+            { -startSide_ * tuning.orbitExtra, -tuning.orbitVertical * wave }, depth,
+            { .08f * wave * currentBoostPower_, -startSide_ * .20f * currentBoostPower_, 0 },
+            startSide_ * 2.0f * pi * SmoothStep(u));
+    }
+    currentCloudBoostExtraSpeed_ = std::clamp(maxCloudBoostExtraSpeed_, 0.0f, 30.0f) * currentBoostPower_;
+    targetCloudBoostExtraSpeed_ = currentCloudBoostExtraSpeed_;
+    const float baseCloudSpeed = cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0.0f;
+    currentCloudFlowMultiplier_ = baseCloudSpeed > .0001f
+        ? 1.0f + currentCloudBoostExtraSpeed_ / baseCloudSpeed : 1.0f;
+    PushMultiplierToCloud();
 }
 
-void BoostController::Update(float deltaTime) {
-    const float dt = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+float BoostController::ResolveGameplayDeltaTime(float deltaTime, float combatScale) {
+    const float slowed = deltaTime * boostFrameFraction_ * (std::min)(combatScale, FlightTuning::Get().boostTimeScale);
+    const float total = slowed + GetNormalMovementDeltaTime(deltaTime, combatScale);
+    evadeSweepFraction_ = total > 0.0f ? slowed / total : boostFrameFraction_;
+    return total;
+}
+
+float BoostController::GetNormalMovementDeltaTime(float deltaTime, float combatScale) const {
+    return deltaTime * (1.0f - boostFrameFraction_) * combatScale;
+}
+
+Vector2 BoostController::MovePlayer(Vector2 position, Vector2 input, Vector2 limits) {
     const auto& tuning = FlightTuning::Get();
-    boostDuration_ = tuning.boostDuration;
-    if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
-    if (IsBoosting()) {
-        boostTimer_ += dt;
-        const float u = std::clamp(boostTimer_ / boostDuration_, 0.0f, 1.0f);
-        constexpr float pi = 3.14159265358979323846f;
-        const float sine = std::sin(pi * u);
-        const float envelope = sine * sine;
-        currentBoostPower_ = Saturate((std::min)(SmoothStep(boostTimer_ / .10f), SmoothStep((boostDuration_ - boostTimer_) / .30f)));
-        const float wave = std::sin(2 * pi * u);
-        if (player_) {
-            const float distance = player_->GetGameplayReferenceDistance();
-            const float depth = distance * tuning.depthShrink / (1 - tuning.depthShrink) * envelope;
-            player_->SetBoostTrajectory(envelope,
-                { -startSide_ * (std::fabs(startX_) + tuning.orbitExtra), -tuning.orbitVertical * wave }, depth,
-                { .08f * wave * envelope, -startSide_ * .20f * envelope, startSide_ * .25f * envelope },
-                startSide_ * 2.0f * pi * u);
-        }
-        if (u >= 1) {
-            state_ = boostCooldown_ > 0 ? State::Cooldown : State::Idle;
-            boostTimer_ = 0; boostCooldownTimer_ = boostCooldown_; currentBoostPower_ = 0;
-            if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
-        }
+    const bool hasInput = input.x != 0.0f || input.y != 0.0f;
+    const Vector2 direction = hasInput ? input : Vector2{-startSide_, 0.0f};
+    if (!steeringInitialized_) {
+        steeringX_ = direction.x;
+        steeringY_ = direction.y;
+        steeringInitialized_ = true;
+    } else if (hasInput) {
+        // Finish along the chosen line so a last-frame reversal cannot move the landing point abruptly.
+        steeringX_ = std::lerp(steeringX_, direction.x, steeringBlend_);
+        steeringY_ = std::lerp(steeringY_, direction.y, steeringBlend_);
     }
-    UpdateCloudFlowMultiplier(dt);
-    PushMultiplierToCloud();
+    const Vector2 landing{
+        std::clamp(startX_ + steeringX_ * (.40f + tuning.orbitExtra), -1.0f, 1.0f) * limits.x,
+        std::clamp(startY_ + steeringY_ * (.30f + tuning.orbitVertical), -1.0f, 1.0f) * limits.y
+    };
+    return {std::lerp(position.x, landing.x, movementBlend_), std::lerp(position.y, landing.y, movementBlend_)};
 }
 void BoostController::RefreshPresentation() { UpdateBoostPostEffect(); }
 void BoostController::Cancel() { ResetBoost(); PushMultiplierToCloud(); }
@@ -101,7 +136,7 @@ void BoostController::DrawImGui() {
         int key = static_cast<int>(boostInputKey_);
         const char* keys[] = { "左Shift", "右Shift", "B" };
         if (ImGui::Combo("発動キー", &key, keys, 3)) boostInputKey_ = static_cast<InputKey>(key);
-        ImGui::Text("状態: %s / ゲーム経過 %.2f / 共通時間倍率 %.3f", GetStateName(), boostTimer_, currentTimeScale_);
+        ImGui::Text("状態: %s / 実時間経過 %.2f / 共通時間倍率 %.3f", GetStateName(), boostTimer_, currentTimeScale_);
         ImGui::Text("開始側 %.0f / 開始横位置 %.2f / 強度 %.2f", startSide_, startX_, currentBoostPower_);
         ImGui::Text("雲の基準 %.1f / 追加 %.1f / 実流速 %.1f", cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0,
             currentCloudBoostExtraSpeed_, cloudPass_ ? cloudPass_->GetCurrentCloudFlowSpeed() : 0);
@@ -155,6 +190,8 @@ void BoostController::StartBoost(bool ignoreCooldown) {
 
     boostDuration_ = FlightTuning::Get().boostDuration;
     startX_ = player_ ? std::clamp(player_->GetLocalOffsetX() / (std::max)(player_->GetMoveLimitX(), .001f), -1.0f, 1.0f) : 0;
+    startY_ = player_ ? std::clamp(player_->GetLocalOffsetY() / (std::max)(player_->GetMoveLimitY(), .001f), -1.0f, 1.0f) : 0;
+    steeringInitialized_ = false;
     startSide_ = startX_ < 0 ? -1.0f : 1.0f;
     state_ = State::Boosting;
     boostTimer_ = 0.0f;
@@ -165,35 +202,23 @@ void BoostController::StartBoost(bool ignoreCooldown) {
 }
 
 void BoostController::ResetBoost() {
-    currentTimeScale_ = 1;
-    if (player_) player_->ClearFlightTransient();
-    if (postEffectController_) postEffectController_->ClearBoostEffects();
     state_ = State::Idle;
-    boostTimer_ = 0.0f;
     boostCooldownTimer_ = 0.0f;
-    currentBoostPower_ = 0.0f;
-    currentCloudFlowMultiplier_ = 1.0f;
-    targetCloudFlowMultiplier_ = 1.0f;
-    currentCloudBoostExtraSpeed_ = 0.0f;
-    targetCloudBoostExtraSpeed_ = 0.0f;
-    UpdateBoostPostEffect();
+    boostFrameFraction_ = evadeSweepFraction_ = movementBlend_ = 0.0f;
+    ClearActiveEffects();
     inputBlockedReason_ = "Reset";
 }
 
-void BoostController::UpdateCloudFlowMultiplier(float deltaTime) {
-    const float baseCloudSpeed = cloudPass_ ? (std::max)(cloudPass_->GetCloudBaseFlowSpeed(), 0.0f) : 0.0f;
-    const float clampedExtraSpeed = std::clamp(maxCloudBoostExtraSpeed_, 0.0f, 30.0f);
-    targetCloudBoostExtraSpeed_ = clampedExtraSpeed * Saturate(currentBoostPower_);
-    const float smoothSpeed = (std::max)(cloudBoostMultiplierSmoothSpeed_, 0.0f);
-    const float t = smoothSpeed <= 0.0f ? 1.0f : 1.0f - std::exp(-std::clamp(deltaTime, 0.0f, 1.0f / 15.0f) * smoothSpeed);
-    currentCloudBoostExtraSpeed_ += (targetCloudBoostExtraSpeed_ - currentCloudBoostExtraSpeed_) * std::clamp(t, 0.0f, 1.0f);
-    if (!std::isfinite(currentCloudBoostExtraSpeed_)) {
-        currentCloudBoostExtraSpeed_ = 0.0f;
-    }
-    currentCloudBoostExtraSpeed_ = std::clamp(currentCloudBoostExtraSpeed_, 0.0f, 30.0f);
-
-    targetCloudFlowMultiplier_ = baseCloudSpeed > 0.0001f ? (baseCloudSpeed + targetCloudBoostExtraSpeed_) / baseCloudSpeed : 1.0f;
-    currentCloudFlowMultiplier_ = baseCloudSpeed > 0.0001f ? (baseCloudSpeed + currentCloudBoostExtraSpeed_) / baseCloudSpeed : 1.0f;
+void BoostController::ClearActiveEffects() {
+    currentTimeScale_ = 1.0f;
+    boostTimer_ = 0.0f;
+    currentBoostPower_ = 0.0f;
+    currentCloudFlowMultiplier_ = 1.0f;
+    currentCloudBoostExtraSpeed_ = 0.0f;
+    targetCloudBoostExtraSpeed_ = 0.0f;
+    if (player_) player_->SetBoostTrajectory(0, {}, 0, {});
+    if (postEffectController_) postEffectController_->ClearBoostEffects();
+    PushMultiplierToCloud();
 }
 
 void BoostController::UpdateBoostPostEffect() {

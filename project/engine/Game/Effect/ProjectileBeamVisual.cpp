@@ -45,12 +45,17 @@ bool ProjectileBeamVisual::IsReady()const{return state_->ready;}
 void ProjectileBeamVisual::Begin(){auto& s=*state_;s.vertices.clear();s.cores.clear();s.bodies.clear();s.shotCount=0;}
 void ProjectileBeamVisual::Add(const EnemyBullet& bullet,bool player){
     auto& s=*state_;if(!s.ready||!bullet.IsActive()||bullet.IsDead()||s.shotCount>=4096)return;
+    const Vector3 velocity = bullet.GetVelocity();
+    const float speed = Length(velocity);
+    if (!std::isfinite(speed) || speed <= .00001f) return;
     ++s.shotCount;const auto& laser=RenderStyleComparison::GetNormalBeamSettings();
     const auto& settings=RenderStyleComparison::GetSettings().presentation;
-    const auto head=bullet.GetPosition();const float speed=Length(bullet.GetVelocity());
-    const Vector3 forward=Unit(bullet.HasVisualForwardOverride()?bullet.GetVisualForwardOverride():bullet.GetVelocity(),{0,0,1});
-    const auto& m=s.camera->GetViewWorldMatrix();const Vector3 right{m.m[0][0],m.m[0][1],m.m[0][2]};
-    const auto side=Unit(Cross(forward,Sub(s.camera->GetViewTranslate(),head)),right);
+    const auto head=bullet.GetPosition();
+    const Vector3 forward = Mul(velocity, 1.0f / speed);
+    // The camera can turn the ribbon about the flight axis, with a perpendicular fallback when seen end-on.
+    const Vector3 axis = std::fabs(forward.y) < .9f ? Vector3{0,1,0} : Vector3{1,0,0};
+    const auto x = Unit(Cross(axis, forward), {1,0,0});
+    const auto side = Unit(Cross(forward, Sub(s.camera->GetViewTranslate(), head)), x);
     const float requested=std::clamp((player?settings.playerBeamLength:settings.enemyBeamLength)*(laser.solidPrism?laser.lengthScale:1),.05f,3.f);
     // The moving head is the existing collider center. No tail extends behind the muzzle at birth.
     const float length=(std::min)(requested,(std::max)(.035f,bullet.GetElapsedTime()*speed+.035f));
@@ -59,8 +64,7 @@ void ProjectileBeamVisual::Add(const EnemyBullet& bullet,bool player){
     if(laser.solidPrism){
         // A least-aligned world axis gives a finite square section at every angle.
         // Only the auxiliary halo/trail faces the camera.
-        const Vector3 axis=std::fabs(forward.y)<.9f?Vector3{0,1,0}:Vector3{1,0,0};
-        const auto x=Unit(Cross(axis,forward),{1,0,0}),y=Unit(Cross(forward,x),{0,1,0});
+        const auto y=Unit(Cross(forward,x),{0,1,0});
         auto prism=[&](std::vector<BeamBatchRenderer::Vertex>& vertices,float w,float inset,float layer){
             const auto a=Sum(tail,Mul(forward,inset)),b=Sub(head,Mul(forward,inset));
             Vector3 corners[8];for(int z=0;z<2;++z)for(int v=0;v<2;++v)for(int u=0;u<2;++u)corners[z*4+v*2+u]=Sum(z?b:a,Sum(Mul(x,(u?.5f:-.5f)*w),Mul(y,(v?.5f:-.5f)*w)));

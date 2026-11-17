@@ -56,6 +56,7 @@ namespace MatrixMath {
     Matrix4x4 MakeRotateX(float radian);
     Matrix4x4 MakeRotateY(float radian);
     Matrix4x4 MakeRotateZ(float radian);
+    Vector3 ExtractEulerXYZ(const Matrix4x4& rotation);
 
     // アフィン変換
     Matrix4x4 MakeAffine(const Vector3& scale,

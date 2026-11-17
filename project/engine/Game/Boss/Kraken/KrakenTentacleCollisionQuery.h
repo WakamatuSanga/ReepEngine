@@ -31,3 +31,12 @@ KrakenTentacleCollisionQueryResult QueryKrakenSphereSphereIntersection(
     float firstRadius,
     const Vector3& secondCenter,
     float secondRadius);
+
+KrakenTentacleCollisionQueryResult QueryKrakenCapsuleSweptSphereIntersection(
+    const Vector3& capsuleStart, const Vector3& capsuleEnd, float capsuleRadius,
+    const Vector3& sweepStart, const Vector3& sweepEnd, float sphereRadius);
+
+KrakenTentacleCollisionQueryResult QueryKrakenMovingCapsuleSphereIntersection(
+    const Vector3& previousStart, const Vector3& previousEnd,
+    const Vector3& currentStart, const Vector3& currentEnd, float capsuleRadius,
+    const Vector3& previousSphere, const Vector3& currentSphere, float sphereRadius);

@@ -31,6 +31,18 @@ float4 main(PixelShaderInput input) : SV_TARGET0
     float edgeSoftness = max(gBeam.qualityParams.y, 0.5f);
     float tipFadePower = max(gBeam.qualityParams.z, 0.2f);
 
+    // BeamBatchRenderer::kWarningRectangleMode
+    if (mode == 18u)
+    {
+        // The band meets the viewport sides. Light only its top and bottom.
+        float uvPerPixel = max(fwidth(input.uv.y), 0.00001f);
+        float edgePixels = min(input.uv.y, 1.0f - input.uv.y) / uvPerPixel;
+        float coverage = smoothstep(0.0f, 1.0f, edgePixels);
+        float glow = 1.0f - smoothstep(1.0f, 5.0f, edgePixels);
+        float alpha = alphaScale * coverage * (0.56f + 0.48f * glow);
+        return MakeOutput(float4(gBeam.projectileColorCore.rgb * brightness, alpha));
+    }
+
     if(mode==14u || mode==15u){
         bool trail=input.uv.y>1.5;
         float u=saturate(input.uv.x),v=input.uv.y-(trail?2:0),edge=abs(v*2-1);

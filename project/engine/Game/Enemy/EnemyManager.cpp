@@ -229,13 +229,15 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position) 
     return SpawnEnemy(enemyType, position, GetDefaultSpawnForward());
 }
 
-Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward) {
+Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, const Vector3& forward,
+    int hitPoints, bool faceTravelDirection) {
     if (!object3dCommon_ || !camera_) {
         return nullptr;
     }
 
     auto enemy = std::make_unique<Enemy>();
     enemy->Initialize(object3dCommon_, camera_, MakeEnemyId());
+    if (hitPoints > 0) enemy->SetSpawnHitPoints(hitPoints);
     enemy->SetEnemyType(enemyType);
     enemy->SetUseLightweightVisual(useLightweightEnemyVisual_);
     enemy->SetHitRadius(defaultHitRadius_);
@@ -244,12 +246,12 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
     const Vector3 spawnLookTarget = GetSpawnLookTarget();
     enemy->SetSpawnPresentationOptions(
         spawnFaceDownDuringSpawn_,
-        spawnFacePlayerOnComplete_,
+        spawnFacePlayerOnComplete_ && !faceTravelDirection,
         spawnResetRollOnActive_,
         spawnResetPitchOnActive_,
         spawnCollisionDuringSpawn_,
         spawnSpinAroundForward_ ? Enemy::SpawnSpinAxisMode::AroundForward : Enemy::SpawnSpinAxisMode::AroundWorldY,
-        spawnFacePlayerDuringSpawn_,
+        spawnFacePlayerDuringSpawn_ && !faceTravelDirection,
         spawnFacePlayerStartT_,
         spawnFacePlayerEndT_,
         spawnSpinFadeStartT_,
@@ -258,7 +260,7 @@ Enemy* EnemyManager::SpawnEnemy(const std::string& enemyType, Vector3 position, 
         spawnAlignDuration_,
         ToEnemyAlignSmoothType(spawnAlignSmoothType_),
         spawnLookTarget);
-    if (spawnFacePlayerOnComplete_) {
+    if (spawnFacePlayerOnComplete_ && !faceTravelDirection) {
         enemy->SetForward(SubtractVector3(spawnLookTarget, position));
     } else {
         enemy->SetForward(forward);
@@ -333,6 +335,10 @@ std::vector<Enemy*> EnemyManager::GetActiveEnemies() const {
         }
     }
     return activeEnemies;
+}
+
+bool EnemyManager::OwnsEnemy(const Enemy* enemy) const {
+    return std::any_of(enemies_.begin(), enemies_.end(), [enemy](const auto& entry) { return entry.get() == enemy; });
 }
 
 void EnemyManager::CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const {
