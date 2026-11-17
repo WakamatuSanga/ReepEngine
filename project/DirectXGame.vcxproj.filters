@@ -382,6 +382,9 @@
     <ClCompile Include="engine\Game\UI\PlayerHudController.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\UI\StageClearResultController.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -489,6 +492,9 @@
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\GameState\StageStartSequenceController.cpp">
+      <Filter>ソース ファイル\engine\Game\GameState</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\Game\GameState\StageClearSequenceController.cpp">
       <Filter>ソース ファイル\engine\Game\GameState</Filter>
     </ClCompile>
     <ClCompile Include="engine\Game\GameState\StageCombatState.cpp">
@@ -724,6 +730,7 @@
     <ClCompile Include="TitleForegroundPresentation.cpp" />
     <ClCompile Include="TitleForegroundPose.cpp" />
     <ClCompile Include="GameScenePresentation.cpp" />
+    <ClCompile Include="GameSceneClearPresentation.cpp" />
     <ClCompile Include="TitleScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -1213,6 +1220,12 @@
     </ClInclude>
     <ClInclude Include="engine\Game\GameState\StageStartSequenceController.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\GameState\StageClearSequenceController.h">
+      <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\UI\StageClearResultController.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\GameState\StageCombatState.h">
       <Filter>ヘッダー ファイル\engine\Game\GameState</Filter>

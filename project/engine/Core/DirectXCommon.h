@@ -59,7 +59,7 @@ public:
         float hybridNormalWeight = 1.0f;
         float depthNear = 0.1f;
         float depthFar = 100.0f;
-        float postEffectPadding = 0.0f;
+        float radialBlurAspectScale = 1.0f;
         std::array<float, 4> dissolveEdgeColor = { 1.0f, 0.5f, 0.1f, 1.0f };
         std::array<float, 4> outlineColor = { 0.0f, 0.0f, 0.0f, 1.0f };
     };
@@ -82,6 +82,13 @@ public:
     void PostDraw();
     void CreateRenderTexture(SrvManager* srvManager);
     void SetOffscreenRenderScale(float scale);
+    struct DepartureRadialBlur {
+        std::array<float, 2> center{};
+        float strength = 0.0f;
+        float clearRadius = 0.0f;
+        float aspect = 1.0f;
+    };
+    void SetDepartureRadialBlur(const DepartureRadialBlur& effect) { departureRadialBlur_ = effect; }
 
     // 最大SRV数（最大テクスチャ枚数）
     static const uint32_t kMaxSRVCount;
@@ -311,6 +318,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D12Resource> postEffectResource_;
     PostEffectParameters* postEffectData_ = nullptr;
     PostEffectParameters postEffectParameters_{};
+    DepartureRadialBlur departureRadialBlur_{};
     float offscreenRenderScale_ = 1.0f;
     uint32_t presentInterval_ = 1;
     bool fixedFpsWaitEnabled_ = true;

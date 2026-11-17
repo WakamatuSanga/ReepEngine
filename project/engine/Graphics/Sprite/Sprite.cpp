@@ -181,6 +181,9 @@ void Sprite::Draw() {
 void Sprite::SetTextureAlphaScale(float panel, float detail) {
     materialData_->textureAlphaScale = {std::clamp(panel, 0.0f, 3.0f), std::clamp(detail, 0.0f, 1.0f), 0, 1};
 }
+void Sprite::SetTextureDarkPanel(bool enabled) {
+    materialData_->textureAlphaScale.w = enabled ? 2.0f : 0.0f;
+}
 void Sprite::SetTextureAlertTint(bool enabled) {
     materialData_->textureAlphaScale.z = enabled ? 1.0f : 0.0f;
 }

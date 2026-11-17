@@ -27,6 +27,7 @@
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
@@ -108,16 +109,29 @@ void GameScene::PrepareForPresentation() {
     stageStart_ = std::make_unique<StageStartSequenceController>();
     stageStart_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), camera_.get(), player_.get(),
         railShooterCameraRig_.get(), playerJetExhaustController_.get());
+    stageClear_ = std::make_unique<StageClearSequenceController>();
+    stageClear_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), camera_.get(), player_.get(),
+        playerJetExhaustController_.get(), gameViewport_.get(), MyGame::GetInstance()->GetInput());
     cloudProjectedBounds_ = MyGame::GetInstance()->GetVolumetricCloudPass()->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
     if (playerHudController_) { playerHudController_->SetStartSequence(stageStart_.get()); playerHudController_->Update(0); }
     presentationPrepared_ = true;
 }
 
-bool GameScene::UsesFullscreenScenePresentation() const { return !stageStart_ || stageStart_->IsActive(); }
+bool GameScene::UsesFullscreenScenePresentation() const {
+    return !stageStart_ || stageStart_->IsActive() || (stageClear_ && stageClear_->IsActive());
+}
 bool GameScene::BlocksDebugUiForPresentation() const { return UsesFullscreenScenePresentation(); }
 void GameScene::OnPresentationRevealed() { if (stageStart_) stageStart_->OnPresentationRevealed(); }
-void GameScene::OnFramePresented() { if (stageStart_) stageStart_->OnFramePresented(); }
+void GameScene::OnFramePresented() {
+    if (stageStart_) stageStart_->OnFramePresented();
+    if (stageClear_) stageClear_->OnFramePresented();
+}
 void GameScene::DrawOverlay() {
+    if (stageClear_ && stageClear_->IsActive()) {
+        if (gameViewport_) gameViewport_->SetGameplayCursorHidden(false);
+        stageClear_->DrawOverlay();
+        return;
+    }
     if (playerHudController_) {
         if ((!stageStart_ || !stageStart_->IsActive()) && runtimeModeController_->IsDebugMode() && gameViewport_) {
             const auto& rect = gameViewport_->GetGameViewportRect();

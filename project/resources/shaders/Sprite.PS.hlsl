@@ -83,7 +83,15 @@ PixelShaderOutput main(VertexShaderOutput input)
 	
 	// 色合成
     output.color = gMaterial.color * textureColor;
-    if (gMaterial.textureAlphaScale.w > 0.5f)
+    if (gMaterial.textureAlphaScale.w > 1.5f)
+    {
+        // Preserve the pale trim and glyphs while raising the opacity of the dark panel.
+        float detail = smoothstep(0.22f, 0.42f, max(textureColor.r, textureColor.g));
+        float coverage = smoothstep(0.30f, 0.74f, textureColor.a);
+        output.color.rgb = gMaterial.color.rgb * lerp(float3(0.0014f, 0.0017f, 0.0022f), textureColor.rgb, detail);
+        output.color.a = gMaterial.color.a * max(textureColor.a, 0.995f * coverage);
+    }
+    else if (gMaterial.textureAlphaScale.w > 0.5f)
     {
         // Straight-alpha HUD PNG: green detail and dark blue panels retain
         // their original per-pixel opacity; default multipliers are both 1.

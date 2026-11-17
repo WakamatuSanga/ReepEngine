@@ -5,6 +5,7 @@
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/Enemy/EnemyBulletManager.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
@@ -41,6 +42,10 @@ void GameScene::Update() {
             return;
         }
     }
+    if (stageClear_ && stageClear_->IsActive()) {
+        UpdateStageClearPresentation();
+        return;
+    }
     if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) {
         UpdateDeathPresentation();
         return;
@@ -60,6 +65,7 @@ void GameScene::Finalize() {
     if (stageCombatState_) stageCombatState_->SetGameplayActive(false);
     if (stageStart_) stageStart_->Cancel();
     stageStart_.reset();
+    stageClear_.reset();
     presentationPrepared_ = false;
     if (auto* clouds = MyGame::GetInstance()->GetVolumetricCloudPass()) clouds->EndResolutionComparison();
     if (projectileRailMotionAdapter_) {

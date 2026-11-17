@@ -117,6 +117,12 @@ bool TitleCloudTransition::Start() {
     phase_ = Phase::Entering;
     elapsed_ = 0;
     coveredPresented_ = newScenePresented_ = coveredDrawn_ = clearDrawn_ = false;
+    enterAtLowerEdge_ = false;
+    return true;
+}
+bool TitleCloudTransition::StartAtLowerEdge() {
+    if (!Start()) return false;
+    enterAtLowerEdge_ = true;
     return true;
 }
 void TitleCloudTransition::Cancel() {
@@ -182,6 +188,10 @@ TitleCloudTransition::LayerPose TitleCloudTransition::GetLayerPose(size_t i, Vec
     Vector2 center = l.covered;
     float rotation = l.rotation;
     if (phase_ == Phase::Entering) {
+        if (enterAtLowerEdge_) {
+            // Advance the clear-only entry past the transparent margins of the cloud PNGs.
+            start.y = 1.0f + size.y / (2.0f * h) - 0.115f;
+        }
         const float p = Smooth(static_cast<float>((elapsed_ - l.enterDelay) / (activeSettings_.enterSeconds - l.enterDelay)));
         center = {start.x + (l.covered.x-start.x)*p, start.y + (l.covered.y-start.y)*p};
         rotation *= p;

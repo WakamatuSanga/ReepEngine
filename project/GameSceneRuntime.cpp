@@ -386,6 +386,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     UpdateKrakenTentacleMidboss(gameplayDeltaTime);
     if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) { UpdateDeathPresentation(); return; }
+    if (TryBeginStageClear()) return;
     PostKrakenUpdateKrakenTentacleWaveEncounter();
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);

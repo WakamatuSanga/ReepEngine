@@ -415,6 +415,8 @@ struct KrakenTentacleMidbossController::Impl {
     bool BeginDefeat();
     bool CaptureDefeatFrozenPose();
     bool ApplyDefeatFrozenPose();
+    void PrepareStageClearRetreat();
+    void ApplyStageClearRetreatPose();
     bool UpdateDefeatMotion(float deltaTime);
     void ResetDefeatState(bool resetSettings, bool restoreWorldPosition);
     void RecoverFromDefeat();
@@ -523,6 +525,14 @@ struct KrakenTentacleMidbossController::Impl {
 #endif
     KrakenProjectileDamageDiagnostics projectileDamageDiagnostics{};
     KrakenTentacleDefeatSettings defeatSettings{};
+    struct ClearRetreatArm {
+        Vector3 localSink{};
+        float delay = 0.0f;
+        bool visible = false;
+    };
+    std::vector<ClearRetreatArm> clearRetreatArms;
+    float clearRetreatDuration = 0.0f;
+    float clearRetreatElapsed = 0.0f;
     KrakenTentacleDefeatDiagnostics defeatDiagnostics{};
     // Session-only tuning survives Restart, including controller recreation.
     inline static KrakenTentaclePlacementSettings placementSettings{};
