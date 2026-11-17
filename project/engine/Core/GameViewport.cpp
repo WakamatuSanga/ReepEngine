@@ -67,6 +67,24 @@ Vector2 GameViewport::GetClientSize() const {
         static_cast<float>(winApp_?winApp_->GetClientHeight():WinApp::kClientHeight)};
 }
 
+bool GameViewport::IsGameWindowActive() const {
+    return winApp_ && winApp_->GetHwnd() && GetForegroundWindow() == winApp_->GetHwnd();
+}
+
+void GameViewport::SetGameplayCursorHidden(bool hidden) {
+    if (!winApp_) {
+        return;
+    }
+    const Rect& rect = gameViewportRect_;
+    const RECT area = hidden ? RECT{
+        static_cast<LONG>(std::ceil(rect.left)),
+        static_cast<LONG>(std::ceil(rect.top)),
+        static_cast<LONG>(std::ceil(rect.left + rect.width)),
+        static_cast<LONG>(std::ceil(rect.top + rect.height)),
+    } : RECT{};
+    winApp_->SetGameplayCursorArea(area);
+}
+
 void GameViewport::Initialize(WinApp* winApp) {
     winApp_ = winApp;
     ClearImGuiGameViewRect();
@@ -186,7 +204,7 @@ GameViewport::Ray GameViewport::GetMouseRayFromCamera(const Camera& camera) cons
         return ray;
     }
 
-    ray.origin = camera.GetTranslate();
+    ray.origin = camera.GetViewTranslate();
     ray.direction = Normalize(SubtractVector3(farWorld, nearWorld), { 0.0f, 0.0f, 1.0f });
     ray.valid = true;
     return ray;

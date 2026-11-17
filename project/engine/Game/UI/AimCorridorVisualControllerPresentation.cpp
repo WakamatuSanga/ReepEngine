@@ -2,6 +2,8 @@
 
 #include "AimCorridorVisualRenderer.h"
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Core/GameViewport.h"
+#include "Engine/Graphics/Sprite/Sprite.h"
 
 #include <algorithm>
 #include <cmath>
@@ -63,6 +65,7 @@ void AimCorridorVisualController::UpdatePresentation() {
         mainReticleCenterWorld_, mainReticleCenterScreenUv_);
     mainReticleDepth_ = Dot(Subtract(mainReticleCenterWorld_, cameraPosition_), cameraForward_);
 
+    // The world-space Aiming_1 footprint remains the lock-on and corridor-shot reference.
     const float farAspect = renderer_ ? renderer_->GetFarAspectRatio() : 0.0f;
     const bool aspectValid = std::isfinite(farAspect) && farAspect > 0.0f;
     const bool depthValid = std::isfinite(mainReticleDepth_) && mainReticleDepth_ > 0.0f;
@@ -121,6 +124,52 @@ void AimCorridorVisualController::UpdatePresentation() {
     }
 }
 
+bool AimCorridorVisualController::DrawMouseReticle(const GameViewport& gameViewport) {
+    if (!mouseReticle_ || !gameModeActive_ || !playerAlive_ || !enabled_ || forceHide_ ||
+        displayMode_ != DisplayMode::MainReticleOnly || debugDiamondPreview_ ||
+        gameViewport.GetMode() != GameViewport::Mode::FullscreenGame ||
+        !gameViewport.IsMouseInGameViewport() || !gameViewport.IsGameWindowActive()) {
+        return false;
+    }
+
+    const auto& rect = gameViewport.GetGameViewportRect();
+    const Vector2 clientSize = gameViewport.GetClientSize();
+    const auto viewport = dxCommon_->GetBackBufferViewport();
+    if (clientSize.x <= 0.0f || clientSize.y <= 0.0f || viewport.Width <= 0.0f || viewport.Height <= 0.0f) {
+        return false;
+    }
+    const float scaleX = viewport.Width / clientSize.x;
+    const float scaleY = viewport.Height / clientSize.y;
+    const auto scissor = dxCommon_->GetBackBufferScissorRect();
+    const D3D12_RECT clip{
+        (std::max)(scissor.left, static_cast<LONG>(std::ceil(viewport.TopLeftX + rect.left * scaleX))),
+        (std::max)(scissor.top, static_cast<LONG>(std::ceil(viewport.TopLeftY + rect.top * scaleY))),
+        (std::min)(scissor.right, static_cast<LONG>(std::ceil(viewport.TopLeftX + (rect.left + rect.width) * scaleX))),
+        (std::min)(scissor.bottom, static_cast<LONG>(std::ceil(viewport.TopLeftY + (rect.top + rect.height) * scaleY))),
+    };
+    if (clip.left >= clip.right || clip.top >= clip.bottom) {
+        return false;
+    }
+
+    const Vector2& uv = gameViewport.GetMouseNormalizedInGameViewport();
+    const Vector2 center{ rect.left + uv.x * rect.width, rect.top + uv.y * rect.height };
+    const float height = rect.height * mainReticleViewportHeightRatio_;
+    const Vector2 size{ height * renderer_->GetNearAspectRatio(), height };
+    mouseReticle_->SetCanvasSize(clientSize);
+    mouseReticle_->SetPosition({ center.x - size.x * 0.5f, center.y - size.y * 0.5f });
+    mouseReticle_->SetSize(size);
+    mouseReticle_->Update();
+
+    auto* commandList = dxCommon_->GetCommandList();
+    commandList->RSSetViewports(1, &viewport);
+    commandList->RSSetScissorRects(1, &clip);
+    spriteCommon_->CommonDrawSetting(true);
+    mouseReticle_->Draw();
+    commandList->RSSetScissorRects(1, &scissor);
+    lastDrawCount_ = 1;
+    return true;
+}
+
 void AimCorridorVisualController::DrawPresentation(float pulse) {
     const bool mainReticleOnly = displayMode_ == DisplayMode::MainReticleOnly;
     const AppearanceParameters& farAppearance = mainReticleOnly ? mainReticleAppearance_ : farAppearance_;
@@ -129,8 +178,10 @@ void AimCorridorVisualController::DrawPresentation(float pulse) {
     farFrame.center = mainReticleOnly ? mainReticleCenterWorld_ : farCenter_;
     farFrame.right = cameraRight_;
     farFrame.up = cameraUp_;
-    farFrame.width = mainReticleOnly ? effectiveMainReticleWorldWidth_ : farWorldWidth_;
     farFrame.height = mainReticleOnly ? effectiveMainReticleWorldHeight_ : effectiveFarWorldHeight_;
+    const bool useAiming2ForMain = mainReticleOnly && !debugDiamondPreview_ && renderer_->IsNearTextureLoaded();
+    farFrame.width = useAiming2ForMain ? farFrame.height * renderer_->GetNearAspectRatio()
+        : (mainReticleOnly ? effectiveMainReticleWorldWidth_ : farWorldWidth_);
     farFrame.alpha = currentAlpha_ * (forceFullAlpha_ ? 1.0f : farAppearance.alpha);
     farFrame.coreIntensity = farAppearance.coreIntensity;
     farFrame.glowIntensity = farAppearance.glowIntensity;
@@ -165,7 +216,7 @@ void AimCorridorVisualController::DrawPresentation(float pulse) {
         ? debugDiamondPreview_ && mainReticleSizeValid_ && previewAspectValid
         : true;
     lastDrawCount_ = renderer_->Draw(
-        camera_, farFrame, nearFrame, drawFar, drawNear, disableGlow_, showCoreOnly_);
+        camera_, farFrame, nearFrame, drawFar, drawNear, disableGlow_, showCoreOnly_, useAiming2ForMain);
 }
 
 void AimCorridorVisualController::ClampPresentationParameters() {

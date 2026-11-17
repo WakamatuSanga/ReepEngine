@@ -82,14 +82,31 @@ void EnemyWaveManager::UpdateScreenAnchorEnemy(WaveEnemyRuntime& runtime, float 
     }
 
     runtime.anchorExitAge += deltaTime;
-    const float progress = std::clamp(runtime.anchorExitAge / runtime.anchorExitDuration, 0.0f, 1.0f);
-    const float easeIn = progress * progress;
-    const float exitX = runtime.screenX < 0.0f ? -1.5f : 1.5f;
-    const Vector3 exit = ComputeAnchorPosition(
-        std::lerp(runtime.screenX, exitX, easeIn), std::lerp(runtime.screenY, 1.85f, easeIn), runtime.depth);
+    const Vector2 lane = ComputeScreenAnchorLane(runtime, runtime.anchorExitAge);
+    const Vector3 exit = ComputeAnchorPosition(lane.x, lane.y, runtime.depth);
     enemy.SetPosition(exit);
     enemy.SetForward(SubtractVector3(exit, anchor));
-    if (progress >= 1.0f) EscapeWaveEnemy(runtime);
+    if (runtime.anchorExitAge >= runtime.anchorExitDuration) EscapeWaveEnemy(runtime);
+}
+
+Vector2 EnemyWaveManager::ComputeScreenAnchorLane(const WaveEnemyRuntime& runtime, float exitAge) {
+    const float progress = std::clamp(exitAge / runtime.anchorExitDuration, 0.0f, 1.0f);
+    const float easeIn = progress * progress;
+    const float exitX = runtime.screenX < 0.0f ? -1.5f : 1.5f;
+    return { std::lerp(runtime.screenX, exitX, easeIn), std::lerp(runtime.screenY, 1.85f, easeIn) };
+}
+
+float EnemyWaveManager::GetScreenAnchorTimeUntilExit(const WaveEnemyRuntime& runtime) const {
+    float delay = (std::max)(0.0f, runtime.anchorHold - runtime.anchorAge);
+    if (laserController_) {
+        if (runtime.laserState == LaserState::Beam) {
+            delay = (std::max)(delay, laserController_->GetBeamDuration() - runtime.laserTimer);
+        } else if (runtime.laserState == LaserState::WarningTracking || runtime.laserState == LaserState::WarningLocked) {
+            delay = (std::max)(delay, laserController_->GetWarningDuration() - runtime.laserTimer
+                + laserController_->GetBeamDuration());
+        }
+    }
+    return delay;
 }
 
 void EnemyWaveManager::UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float deltaTime) {

@@ -9,7 +9,10 @@
 class AimCorridorVisualRenderer;
 class Camera;
 class DirectXCommon;
+class GameViewport;
 class Player;
+class Sprite;
+class SpriteCommon;
 
 struct AimReticleScreenRect {
     Vector2 centerUV{};
@@ -31,13 +34,14 @@ public:
     AimCorridorVisualController();
     ~AimCorridorVisualController();
 
-    bool Initialize(DirectXCommon* dxCommon, Player* player, Camera* camera);
+    bool Initialize(SpriteCommon* spriteCommon, Player* player, Camera* camera);
     void Finalize();
     void Reset();
     void SetGameModeActive(bool active);
     void SetPlayerAlive(bool alive);
     void Update(float unscaledDeltaTime);
-    void Draw();
+    void Draw(bool usesMouseAim);
+    bool DrawMouseReticle(const GameViewport& gameViewport);
     void DrawImGui();
     void SetTargetingVisualState(AimReticleVisualState state, float lockProgress);
 
@@ -106,6 +110,8 @@ private:
     Player* player_ = nullptr;
     Camera* camera_ = nullptr;
     std::unique_ptr<AimCorridorVisualRenderer> renderer_;
+    SpriteCommon* spriteCommon_ = nullptr;
+    std::unique_ptr<Sprite> mouseReticle_;
 
     std::string nearTexturePath_ = "resources/ui/aim_corridor/Aiming_2.png";
     std::string farTexturePath_ = "resources/ui/aim_corridor/Aiming_1.png";

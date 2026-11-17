@@ -358,7 +358,7 @@ void GameScene::UpdateSceneRuntime() {
         !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished());
     if (!aimCorridorVisualController_) {
         aimCorridorVisualController_ = std::make_unique<AimCorridorVisualController>();
-        aimCorridorVisualController_->Initialize(dxCommon, player_.get(), camera_.get());
+        aimCorridorVisualController_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), player_.get(), camera_.get());
     }
     if (!aimCorridorTargetingController_ && aimCorridorVisualController_) {
         aimCorridorTargetingController_ = std::make_unique<AimCorridorTargetingController>();

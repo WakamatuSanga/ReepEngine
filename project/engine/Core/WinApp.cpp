@@ -27,6 +27,7 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
             (msg == WM_ACTIVATE && LOWORD(wparam) == WA_INACTIVE) ||
             (msg == WM_ACTIVATEAPP && !wparam) || msg == WM_NCDESTROY) {
             app->clientLeftClick_ = false;
+            app->SetGameplayCursorArea({});
         }
     }
     if (msg == WM_NCDESTROY) SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
@@ -36,6 +37,11 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
         GetForegroundWindow() == hwnd && (lparam & (1LL << 30)) == 0) {
         app->ToggleFullscreen();
         return 0;
+    }
+
+    if (app && msg == WM_SETCURSOR && LOWORD(lparam) == HTCLIENT &&
+        !IsRectEmpty(&app->gameplayCursorArea_) && app->UpdateGameplayCursor()) {
+        return TRUE;
     }
 
 #ifdef USE_IMGUI
@@ -189,6 +195,45 @@ bool WinApp::WasLeftClickInClient() const {
         GetClientRect(hwnd, &client) && PtInRect(&client, clientLeftClickPosition_);
 }
 
+void WinApp::SetGameplayCursorArea(const RECT& clientArea) {
+    if (IsRectEmpty(&clientArea) && IsRectEmpty(&gameplayCursorArea_) && !gameplayCursorHidden_) {
+        return;
+    }
+    gameplayCursorArea_ = clientArea;
+    UpdateGameplayCursor();
+}
+
+bool WinApp::UpdateGameplayCursor() {
+    POINT cursor{};
+    RECT clientRect{};
+    const bool cursorInClient = hwnd && GetCursorPos(&cursor) && WindowFromPoint(cursor) == hwnd &&
+        ScreenToClient(hwnd, &cursor) && GetClientRect(hwnd, &clientRect) && PtInRect(&clientRect, cursor);
+    const bool hide = cursorInClient && GetForegroundWindow() == hwnd && PtInRect(&gameplayCursorArea_, cursor);
+
+    if (hide != gameplayCursorHidden_) {
+#ifdef USE_IMGUI
+        // The Win32 backend can also change the native cursor from NewFrame.
+        if (ImGui::GetCurrentContext()) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (hide) {
+                restoreImGuiCursorChanges_ = (io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0;
+                io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+            } else if (restoreImGuiCursorChanges_) {
+                io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+                restoreImGuiCursorChanges_ = false;
+            }
+        }
+#endif
+        if (!hide && cursorInClient) {
+            SetCursor(wc.hCursor);
+        }
+        gameplayCursorHidden_ = hide;
+    }
+    if (hide) {
+        SetCursor(nullptr);
+    }
+    return hide;
+}
 
 
 // --------------------
@@ -197,6 +242,7 @@ bool WinApp::WasLeftClickInClient() const {
 void WinApp::Finalize() {
 
     if (hwnd) {
+        SetGameplayCursorArea({});
         SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
         clientLeftClick_ = false;
         //CloseWindow(hwnd); // もともと main.cpp の最後にあったやつ

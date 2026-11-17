@@ -216,7 +216,7 @@ void GameScene::DrawSceneRender() {
         impactDistortionController_->Draw();
     }
     if (!stageStartActive && aimCorridorVisualController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
-        aimCorridorVisualController_->Draw();
+        aimCorridorVisualController_->Draw(playerBulletManager_ && playerBulletManager_->UsesMouseAim());
     }
     if (!stageStartActive && aimCorridorTargetingController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
         aimCorridorTargetingController_->Draw();

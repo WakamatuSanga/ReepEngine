@@ -15,6 +15,8 @@
 #include <cctype>
 #include <cmath>
 #include <filesystem>
+#include <numbers>
+#include <optional>
 #include <utility>
 
 #ifdef USE_IMGUI
@@ -55,6 +57,84 @@ namespace {
             return fallback;
         }
         return { value.x / length, value.y / length, value.z / length };
+    }
+
+    bool TryIntersectEnemy(const Enemy& enemy, const Vector3& origin,
+        const Vector3& direction, float& distance, float aimPadding = 0.0f) {
+        const Vector3 scale = enemy.IsUsingEllipsoidHitShape()
+            ? enemy.GetHitScale() : Vector3{1.0f, 1.0f, 1.0f};
+        const float radius = enemy.GetHitRadius();
+        const Vector3 axes{scale.x * radius + aimPadding,
+            scale.y * radius + aimPadding, scale.z * radius + aimPadding};
+        const Vector3 delta = SubtractVector3(origin, enemy.GetPosition());
+        const Vector3 offset{delta.x / axes.x, delta.y / axes.y, delta.z / axes.z};
+        const Vector3 ray{direction.x / axes.x, direction.y / axes.y, direction.z / axes.z};
+        const float a = Dot(ray, ray);
+        const float b = Dot(offset, ray);
+        const float discriminant = b * b - a * (Dot(offset, offset) - 1.0f);
+        if (!std::isfinite(discriminant) || discriminant < 0.0f || a <= 0.0f) return false;
+        const float root = std::sqrt(discriminant);
+        if (-b + root < 0.0f) return false;
+        distance = (std::max)(0.0f, (-b - root) / a);
+        return std::isfinite(distance);
+    }
+
+    template <typename PredictPosition>
+    bool TryGetShotIntercept(const PredictPosition& predict, const Vector3& muzzle,
+        float bulletSpeed, float horizon, Vector3& aimPoint) {
+        if (horizon <= 0.0f) return false;
+        const auto canReach = [&](float time) {
+            const std::optional<Vector3> point = predict(time);
+            return point && Length(SubtractVector3(*point, muzzle)) <= bulletSpeed * time;
+        };
+        // A drone can cross the shot's reach before leaving it again during a lane change.
+        constexpr int samples = 12;
+        float early = 0.0f;
+        float late = 0.0f;
+        for (int sample = 1; sample <= samples; ++sample) {
+            late = horizon * (static_cast<float>(sample) / samples);
+            if (canReach(late)) break;
+            early = late;
+        }
+        if (early == late) return false;
+        for (int iteration = 0; iteration < 12; ++iteration) {
+            const float time = 0.5f * (early + late);
+            if (canReach(time)) late = time;
+            else early = time;
+        }
+        const std::optional<Vector3> point = predict(late);
+        if (!point) return false;
+        aimPoint = *point;
+        return true;
+    }
+
+    std::optional<Vector3> GetCursorPointAtEnemyDepth(const Vector3& enemyPosition,
+        const Vector3& eye, const Vector3& rayDirection, const Vector3& viewForward,
+        float depthPerUnit, const Vector3& muzzle, const Vector3& playerForward) {
+        const float enemyDepth = Dot(SubtractVector3(enemyPosition, eye), viewForward);
+        const float forwardTravel = Dot(SubtractVector3(enemyPosition, muzzle), viewForward);
+        if (!std::isfinite(forwardTravel) || forwardTravel <= kMinVectorLength) return std::nullopt;
+
+        const Vector3 cursorPoint = AddVector3(eye, ScaleVector3(rayDirection, enemyDepth / depthPerUnit));
+        const Vector3 shot = SubtractVector3(cursorPoint, muzzle);
+        const float forward = Dot(shot, playerForward);
+        const Vector3 side = SubtractVector3(shot, ScaleVector3(playerForward, forward));
+        const float sideLength = Length(side);
+        const float angle = std::atan2(sideLength, forward);
+        constexpr float radians = std::numbers::pi_v<float> / 180.0f;
+        constexpr float softLimitStart = 22.0f * radians;
+        constexpr float maxAngle = 32.0f * radians;
+        if (angle <= softLimitStart) return cursorPoint;
+        if (sideLength <= kMinVectorLength) return std::nullopt;
+
+        // The tangent at the start of the limit matches the unrestricted shot.
+        const float span = maxAngle - softLimitStart;
+        const float limitedAngle = softLimitStart + span * std::tanh((angle - softLimitStart) / span);
+        const Vector3 direction = AddVector3(ScaleVector3(playerForward, std::cos(limitedAngle)),
+            ScaleVector3(side, std::sin(limitedAngle) / sideLength));
+        const float depthRate = Dot(direction, viewForward);
+        if (depthRate <= kMinVectorLength) return std::nullopt;
+        return AddVector3(muzzle, ScaleVector3(direction, forwardTravel / depthRate));
     }
 
     Vector3 GetCameraForward(const Camera& camera) {
@@ -414,7 +494,10 @@ Vector3 EnemyWaveManager::ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn)
 
 Vector3 EnemyWaveManager::ComputeAnchorPosition(float screenX, float screenY, float depth) const {
     if (!railRig_ || !railRig_->UsesGameplayComposition()) return ComputeScreenPosition(screenX, screenY, depth);
-    const auto& frame = railRig_->GetGameplayReferenceFrame();
+    return TransformAnchorPosition(railRig_->GetGameplayReferenceFrame(), screenX, screenY, depth);
+}
+
+Vector3 EnemyWaveManager::TransformAnchorPosition(const Matrix4x4& frame, float screenX, float screenY, float depth) const {
     const Vector3 right{frame.m[0][0], frame.m[0][1], frame.m[0][2]};
     const Vector3 up{frame.m[1][0], frame.m[1][1], frame.m[1][2]};
     const Vector3 forward{frame.m[2][0], frame.m[2][1], frame.m[2][2]};
@@ -681,30 +764,161 @@ bool EnemyWaveManager::TryGetFormationAimPoint(const AimReticleScreenRect& retic
             return ComputeFormationPosition(runtime, runtime.railDistance + railSpeed * time, runtime.anchorAge + time);
         };
         const float horizon = (std::min)(bulletLifetime, runtime.anchorHold + runtime.anchorExitDuration - runtime.anchorAge);
-        if (horizon <= 0.0f) continue;
-        const auto canReach = [&](float time) {
-            return Length(SubtractVector3(predict(time), muzzle)) <= bulletSpeed * time;
-        };
-        // A drone can cross the shot's reach before leaving it again during the lateral exit.
-        constexpr int samples = 12;
-        float early = 0.0f;
-        float late = 0.0f;
-        for (int sample = 1; sample <= samples; ++sample) {
-            late = horizon * (static_cast<float>(sample) / samples);
-            if (canReach(late)) break;
-            early = late;
+        if (TryGetShotIntercept(predict, muzzle, bulletSpeed, horizon, aimPoint)) {
+            bestScore = score;
+            found = true;
         }
-        if (early == late) continue;
-        for (int iteration = 0; iteration < 12; ++iteration) {
-            const float time = 0.5f * (early + late);
-            if (!canReach(time)) early = time;
-            else late = time;
-        }
-        aimPoint = predict(late);
-        bestScore = score;
-        found = true;
     }
     return found;
+}
+
+bool EnemyWaveManager::TryGetCursorAimPoint(const Vector3& rayDirection, const Vector3& muzzle,
+    float bulletSpeed, float bulletLifetime, Vector3& aimPoint) const {
+    if (!camera_ || !enemyManager_ || !std::isfinite(bulletSpeed) || bulletSpeed <= 0.0f ||
+        !std::isfinite(bulletLifetime) || bulletLifetime <= 0.0f) return false;
+
+    const auto& viewWorld = camera_->GetViewWorldMatrix();
+    const Vector3 viewForward{viewWorld.m[2][0], viewWorld.m[2][1], viewWorld.m[2][2]};
+    const float depthPerUnit = Dot(rayDirection, viewForward);
+    if (!std::isfinite(depthPerUnit) || depthPerUnit <= kMinVectorLength) return false;
+    const Vector3 eye = camera_->GetViewTranslate();
+    const Vector3 rayOrigin = AddVector3(eye,
+        ScaleVector3(rayDirection, camera_->GetNearClip() / depthPerUnit));
+    const float rayLength = (camera_->GetFarClip() - camera_->GetNearClip()) / depthPerUnit;
+    float nearest = rayLength;
+    const Enemy* target = nullptr;
+    const auto activeEnemies = enemyManager_->GetActiveEnemies();
+    for (const Enemy* enemy : activeEnemies) {
+        float distance = 0.0f;
+        if (enemy->CanAttack() && TryIntersectEnemy(*enemy, rayOrigin, rayDirection, distance) && distance < nearest) {
+            nearest = distance;
+            target = enemy;
+        }
+    }
+    if (!target) {
+        // Convert 12 pixels at 720p to a world-space margin at each enemy's depth.
+        constexpr float aimMarginNdc = 2.0f * 12.0f / 720.0f;
+        const float marginPerDepth = aimMarginNdc / camera_->GetProjectionMatrix().m[1][1];
+        float bestMarginFraction = 1.0f;
+        for (const Enemy* enemy : activeEnemies) {
+            if (!enemy->CanAttack()) continue;
+            const float depth = Dot(SubtractVector3(enemy->GetPosition(), eye), viewForward);
+            if (depth < camera_->GetNearClip() || depth > camera_->GetFarClip()) continue;
+
+            const float padding = depth * marginPerDepth;
+            float distance = 0.0f;
+            if (!TryIntersectEnemy(*enemy, rayOrigin, rayDirection, distance, padding * bestMarginFraction) ||
+                distance >= rayLength) continue;
+
+            // The least extra padding needed is the screen-space miss distance.
+            float outside = 0.0f;
+            float inside = bestMarginFraction;
+            for (int iteration = 0; iteration < 6; ++iteration) {
+                const float fraction = 0.5f * (outside + inside);
+                float hitDistance = 0.0f;
+                if (TryIntersectEnemy(*enemy, rayOrigin, rayDirection, hitDistance, padding * fraction) &&
+                    hitDistance < rayLength) {
+                    inside = fraction;
+                } else {
+                    outside = fraction;
+                }
+            }
+            if (!target || inside < bestMarginFraction || distance < nearest) {
+                bestMarginFraction = inside;
+                nearest = distance;
+                target = enemy;
+            }
+        }
+    }
+    const bool useEnemyDepthOnly = target == nullptr;
+    if (useEnemyDepthOnly) {
+        const Vector3 viewRight{viewWorld.m[0][0], viewWorld.m[0][1], viewWorld.m[0][2]};
+        const Vector3 viewUp{viewWorld.m[1][0], viewWorld.m[1][1], viewWorld.m[1][2]};
+        const auto& projection = camera_->GetProjectionMatrix();
+        const float cursorX = Dot(rayDirection, viewRight) * projection.m[0][0] / depthPerUnit;
+        const float cursorY = Dot(rayDirection, viewUp) * projection.m[1][1] / depthPerUnit;
+        const float muzzleDepth = Dot(SubtractVector3(muzzle, eye), viewForward);
+        const float aspect = camera_->GetAspectRatio();
+        float bestScore = (std::numeric_limits<float>::max)();
+        float bestDepth = camera_->GetFarClip();
+        for (const Enemy* enemy : activeEnemies) {
+            if (!enemy->CanAttack()) continue;
+            const Vector3 offset = SubtractVector3(enemy->GetPosition(), eye);
+            const float depth = Dot(offset, viewForward);
+            if (depth <= (std::max)(muzzleDepth, camera_->GetNearClip()) || depth >= camera_->GetFarClip()) continue;
+            const float screenX = Dot(offset, viewRight) * projection.m[0][0] / depth;
+            const float screenY = Dot(offset, viewUp) * projection.m[1][1] / depth;
+            if (std::abs(screenX) > 1.0f || std::abs(screenY) > 1.0f) continue;
+
+            const float x = (screenX - cursorX) * aspect;
+            const float y = screenY - cursorY;
+            const float score = x * x + y * y;
+            if (score < bestScore || (score == bestScore && depth < bestDepth)) {
+                bestScore = score;
+                bestDepth = depth;
+                target = enemy;
+            }
+        }
+    }
+    if (!target) return false;
+
+    const Vector3 playerForward = player_
+        ? Normalize(player_->GetBaseForward(), viewForward) : viewForward;
+    const auto tryIntercept = [&](const auto& predict, float horizon) {
+        if (!useEnemyDepthOnly) return TryGetShotIntercept(predict, muzzle, bulletSpeed, horizon, aimPoint);
+        const auto predictCursorPoint = [&](float time) {
+            return GetCursorPointAtEnemyDepth(predict(time), eye, rayDirection, viewForward,
+                depthPerUnit, muzzle, playerForward);
+        };
+        return TryGetShotIntercept(predictCursorPoint, muzzle, bulletSpeed, horizon, aimPoint);
+    };
+
+    const auto tracked = std::find_if(waveEnemies_.begin(), waveEnemies_.end(),
+        [target](const WaveEnemyRuntime& runtime) { return !runtime.ended && runtime.enemy == target; });
+    const float railSpeed = railRig_ && railRig_->GetProjectileRailFrame().running ? railRig_->GetEffectiveRailSpeed() : 0.0f;
+    if (tracked != waveEnemies_.end()) {
+        const auto& runtime = *tracked;
+        if (runtime.railFormation) {
+            const auto predict = [&](float time) {
+                return ComputeFormationPosition(runtime, runtime.railDistance + railSpeed * time, runtime.anchorAge + time);
+            };
+            const float remaining = runtime.anchorHold + runtime.anchorExitDuration - runtime.anchorAge;
+            return tryIntercept(predict, (std::min)(bulletLifetime, remaining));
+        }
+        if (screenAnchorEnabled_ && IsScreenAnchorMovePattern(runtime.movePattern)) {
+            const bool canExit = runtime.anchorExiting || runtime.anchorHold > 0.0f;
+            const float timeToExit = runtime.anchorExiting ? -runtime.anchorExitAge : GetScreenAnchorTimeUntilExit(runtime);
+            const bool movingFrame = railSpeed > 0.0f && railRig_->UsesGameplayComposition();
+            const float currentDistance = movingFrame ? railRig_->GetSceneryDistance() : 0.0f;
+            Matrix4x4 anchorFromRail{};
+            if (movingFrame) {
+                anchorFromRail = MatrixMath::Multipty(railRig_->GetGameplayReferenceFrame(),
+                    MatrixMath::Inverse(railRig_->SampleSceneryFrame(currentDistance)));
+            }
+            const auto predict = [&](float time) {
+                const Vector2 lane = ComputeScreenAnchorLane(runtime, canExit ? time - timeToExit : 0.0f);
+                if (!movingFrame) return ComputeAnchorPosition(lane.x, lane.y, runtime.depth);
+
+                // Carry the stable anchor frame along the future rail, including its offset.
+                const auto frame = MatrixMath::Multipty(anchorFromRail,
+                    railRig_->SampleSceneryFrame(currentDistance + railSpeed * time));
+                return TransformAnchorPosition(frame, lane.x, lane.y, runtime.depth);
+            };
+            const float horizon = canExit ? (std::min)(bulletLifetime, timeToExit + runtime.anchorExitDuration) : bulletLifetime;
+            return tryIntercept(predict, horizon);
+        }
+    }
+
+    Vector3 velocity = target->GetVelocity();
+    if (tracked != waveEnemies_.end() && IsStraightApproachMovePattern(tracked->movePattern)) {
+        const Vector3 direction = tracked->hasLockedApproachDirection ? tracked->lockedApproachDirection
+            : Normalize(SubtractVector3(ResolveApproachTarget(), target->GetPosition()), target->GetForward());
+        velocity = AddVector3(velocity, ScaleVector3(direction, (std::max)(0.0f, approachSpeed_)));
+    }
+    const auto predict = [&](float time) {
+        return AddVector3(target->GetPosition(), ScaleVector3(velocity, time));
+    };
+    return tryIntercept(predict, bulletLifetime);
 }
 
 void EnemyWaveManager::EscapeWaveEnemy(WaveEnemyRuntime& runtime) {

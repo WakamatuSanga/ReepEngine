@@ -150,19 +150,29 @@ void PlayerBulletManager::Update(float deltaTime) {
         lastRightClickPressed_ = input->MouseTrigger(Input::MouseRight);
     }
 
-    bool inputBlocked = true;
-    if (input) {
-        inputBlocked = ShouldBlockFireInput();
+    const bool inputBlocked = !input || ShouldBlockFireInput() || !input->IsMouseStateValid();
+    bool normalShotBlocked = inputBlocked;
+    if (!normalShotBlocked && UsesMouseAim()) {
+        if (!gameViewport_) {
+            inputBlockedReason_ = "GameViewport is missing";
+            normalShotBlocked = true;
+        } else if (!gameViewport_->IsMouseInGameViewport()) {
+            inputBlockedReason_ = "Mouse is outside GameViewport";
+            normalShotBlocked = true;
+        }
     }
-    if (inputBlocked || !input || !input->IsMouseStateValid()) {
+    // A blocked/held button must be released before it can attack again.
+    if (normalShotBlocked) {
         normalShotInputArmed_ = false;
-        missileInputArmed_ = false;
-    } else {
-        // A blocked/held button must be released before it can attack again.
-        if (!lastLeftClickHeld_) normalShotInputArmed_ = true;
-        if (!input->MouseDown(Input::MouseRight)) missileInputArmed_ = true;
+    } else if (!lastLeftClickHeld_) {
+        normalShotInputArmed_ = true;
     }
-    const bool firing = !inputBlocked && input && normalShotInputArmed_ && lastLeftClickHeld_;
+    if (inputBlocked) {
+        missileInputArmed_ = false;
+    } else if (!input->MouseDown(Input::MouseRight)) {
+        missileInputArmed_ = true;
+    }
+    const bool firing = !normalShotBlocked && normalShotInputArmed_ && lastLeftClickHeld_;
     if (!firing || lastLeftClickPressed_) {
         fireTimer_ = (std::min)(fireInterval_, fireTimer_);
     }
@@ -174,7 +184,7 @@ void PlayerBulletManager::Update(float deltaTime) {
             lastCanFire_ = false;
         }
     }
-    if (!inputBlocked && input && missileInputArmed_ && lastRightClickPressed_) {
+    if (!inputBlocked && missileInputArmed_ && lastRightClickPressed_) {
         TrySpawnLockedWingShot();
     }
     for (PlayerBulletInstance& instance : bullets_) {
@@ -404,12 +414,18 @@ void PlayerBulletManager::FireFromPlayer() {
 
     const Vector3 cameraForward = GetCameraForward(*camera_);
     const Vector3 muzzleBase = player_->GetDisplayWorldPosition();
-    const Vector3 initialDirection = ResolveAimDirection(muzzleBase, cameraForward);
+    Vector3 cursorRayDirection{};
+    const Vector3 initialDirection = ResolveAimDirection(muzzleBase, cameraForward, cursorRayDirection);
     const Vector3 startPosition = AddVector3(
         muzzleBase, ScaleVector3(initialDirection, muzzleOffset_ * RenderStyleComparison::PlayerDisplayScale()));
-    if (lastUsedAimMode_ == AimMode::AimCorridor && !lastAimFallbackUsed_ && enemyWaveManager_) {
-        enemyWaveManager_->TryGetFormationAimPoint(aimCorridorVisualController_->GetMainReticleScreenRect(),
-            startPosition, normalBulletSpeed_, bulletLifeTime_, lastAimPoint_);
+    if (!lastAimFallbackUsed_ && enemyWaveManager_) {
+        if (lastUsedAimMode_ == AimMode::AimCorridor) {
+            enemyWaveManager_->TryGetFormationAimPoint(aimCorridorVisualController_->GetMainReticleScreenRect(),
+                startPosition, normalBulletSpeed_, bulletLifeTime_, lastAimPoint_);
+        } else if (lastUsedAimMode_ == AimMode::MouseRay || lastUsedAimMode_ == AimMode::MouseAimPlane) {
+            enemyWaveManager_->TryGetCursorAimPoint(cursorRayDirection, startPosition,
+                normalBulletSpeed_, bulletLifeTime_, lastAimPoint_);
+        }
     }
     const Vector3 direction = ResolveFinalShotDirection(startPosition, initialDirection);
     if (!lastShotSpawnDataValid_) {
@@ -514,16 +530,6 @@ bool PlayerBulletManager::ShouldBlockFireInput() {
     if (lastImGuiTextInputActive_) {
         inputBlockedReason_ = "ImGui text input is active";
         return true;
-    }
-    if (aimMode_ == AimMode::MouseRay || aimMode_ == AimMode::MouseAimPlane) {
-        if (!gameViewport_) {
-            inputBlockedReason_ = "GameViewport is missing";
-            return true;
-        }
-        if (!gameViewport_->IsMouseInGameViewport()) {
-            inputBlockedReason_ = "Mouse is outside GameViewport";
-            return true;
-        }
     }
     if (!player_ || !camera_) {
         inputBlockedReason_ = "Player or Camera is missing";

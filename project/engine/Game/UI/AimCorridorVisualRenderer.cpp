@@ -75,17 +75,17 @@ uint32_t AimCorridorVisualRenderer::Draw(
     bool drawFar,
     bool drawNear,
     bool disableGlow,
-    bool showCoreOnly) {
+    bool showCoreOnly,
+    bool useNearTextureForFar) {
     if (!initialized_ || !dxCommon_ || !camera || !vertexData_ || !constantData_) {
         return 0;
     }
 
     const std::array<FrameDraw, kFrameCount> frames = { farFrame, nearFrame };
     const std::array<bool, kFrameCount> drawFrames = { drawFar, drawNear };
-    for (uint32_t i = 0; i < kFrameCount; ++i) {
-        BuildFrameVertices(i, frames[i]);
-        WriteConstants(i, *camera, frames[i], disableGlow, showCoreOnly);
-    }
+    const std::array<const TextureState*, kFrameCount> frameTextures = {
+        &textures_[useNearTextureForFar ? 1 : 0], &textures_[1],
+    };
 
     ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
     if (!commandList) {
@@ -99,13 +99,16 @@ uint32_t AimCorridorVisualRenderer::Draw(
 
     uint32_t drawCount = 0;
     for (uint32_t i = 0; i < kFrameCount; ++i) {
-        if (!drawFrames[i] || !textures_[i].loaded || !IsDrawableFrame(frames[i])) {
+        const auto& texture = *frameTextures[i];
+        if (!drawFrames[i] || !texture.loaded || !IsDrawableFrame(frames[i])) {
             continue;
         }
+        BuildFrameVertices(i, frames[i]);
+        WriteConstants(i, *camera, frames[i], texture, disableGlow, showCoreOnly);
         commandList->SetGraphicsRootConstantBufferView(
             0,
             constantResource_->GetGPUVirtualAddress() + static_cast<UINT64>(constantStride_) * i);
-        commandList->SetGraphicsRootDescriptorTable(1, textures_[i].srvHandle);
+        commandList->SetGraphicsRootDescriptorTable(1, texture.srvHandle);
         commandList->DrawInstanced(kVerticesPerFrame, 1, i * kVerticesPerFrame, 0);
         ++drawCount;
     }
@@ -282,6 +285,7 @@ void AimCorridorVisualRenderer::WriteConstants(
     uint32_t frameIndex,
     const Camera& camera,
     const FrameDraw& frame,
+    const TextureState& texture,
     bool disableGlow,
     bool showCoreOnly) {
     Constants constants{};
@@ -293,8 +297,8 @@ void AimCorridorVisualRenderer::WriteConstants(
         std::clamp(frame.glowAlpha, 0.0f, 1.0f),
     };
     constants.sampling = {
-        textures_[frameIndex].inverseWidth,
-        textures_[frameIndex].inverseHeight,
+        texture.inverseWidth,
+        texture.inverseHeight,
         std::clamp(frame.glowRadiusTexels, 0.0f, 4.0f),
         std::clamp(frame.pulseScale, 0.5f, 1.5f),
     };

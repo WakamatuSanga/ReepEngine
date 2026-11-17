@@ -26,12 +26,15 @@ public:
     int32_t GetClientHeight() const;
     // A new press delivered to this window's client area in the current message pump.
     bool WasLeftClickInClient() const;
+    void SetGameplayCursorArea(const RECT& clientArea);
 
     // getter
     HWND      GetHwnd()      const { return hwnd; }
     HINSTANCE GetHInstance() const { return wc.hInstance; }
 
 private:
+    bool UpdateGameplayCursor();
+
     WNDCLASS wc{};    // ウィンドウクラス
     HWND     hwnd = nullptr;
     WINDOWPLACEMENT windowedPlacement_{ sizeof(WINDOWPLACEMENT) };
@@ -40,4 +43,9 @@ private:
     bool isFullscreen_ = false;
     bool clientLeftClick_ = false;
     POINT clientLeftClickPosition_{};
+    RECT gameplayCursorArea_{};
+    bool gameplayCursorHidden_ = false;
+#ifdef USE_IMGUI
+    bool restoreImGuiCursorChanges_ = false;
+#endif
 };

@@ -212,7 +212,7 @@ PlayerBulletManager::TrySpawnLockedWingShot() {
             lockedTargetValidation_.valid ? lockedTargetValidation_.targetId : std::string{}, true);
     }
     if (!aimGameModeActive_ || !aimPlayerAlive_ || !player_ || !camera_
-        || aimMode_ != AimMode::AimCorridor || !aimCorridorTargetingController_) {
+        || !aimCorridorTargetingController_) {
         return LockedWingShotResult::NotRequested;
     }
     const auto targets = aimCorridorTargetingController_->GetLockedTargetSnapshots();

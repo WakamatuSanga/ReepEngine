@@ -1,6 +1,7 @@
 #include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "GameScene.h"
 #include "MyGame.h"
+#include "SceneManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -26,9 +27,14 @@
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
 #include "Engine/Game/GameState/GameOverFlowController.h"
 #include "Engine/Core/GameViewport.h"
+
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#endif
 
 void GameScene::PrepareForPresentation() {
     // Title transitions call this after a fully covered Present; Restart uses
@@ -57,7 +63,7 @@ void GameScene::PrepareForPresentation() {
     // These owners used to be created during the first normal Update.
     if (!aimCorridorVisualController_) {
         aimCorridorVisualController_ = std::make_unique<AimCorridorVisualController>();
-        if (!aimCorridorVisualController_->Initialize(MyGame::GetInstance()->GetDxCommon(), player_.get(), camera_.get()))
+        if (!aimCorridorVisualController_->Initialize(MyGame::GetInstance()->GetSpriteCommon(), player_.get(), camera_.get()))
             throw std::runtime_error("Stage reticle could not be prepared");
     }
     if (!aimCorridorTargetingController_) {
@@ -117,6 +123,19 @@ void GameScene::DrawOverlay() {
             const auto& rect = gameViewport_->GetGameViewportRect();
             playerHudController_->DrawInRect(rect.left, rect.top, rect.width, rect.height);
         } else playerHudController_->Draw();
+    }
+    if (gameViewport_) {
+        bool showMouseReticle = stageCombatState_ && stageCombatState_->IsGameplayActive() &&
+            player_ && player_->IsEnabled() && playerBulletManager_ && playerBulletManager_->CanShowMouseAim() &&
+            aimCorridorVisualController_ && !SceneManager::GetInstance()->UsesFullscreenScenePresentationForNextUpdate();
+#ifdef USE_IMGUI
+        if (showMouseReticle && ImGui::GetCurrentContext()) {
+            const ImGuiIO& io = ImGui::GetIO();
+            showMouseReticle = !io.MouseDrawCursor && !io.WantTextInput &&
+                !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+        }
+#endif
+        gameViewport_->SetGameplayCursorHidden(showMouseReticle && aimCorridorVisualController_->DrawMouseReticle(*gameViewport_));
     }
     if (stageStart_) stageStart_->DrawOverlay();
     if (gameOverFlowController_) gameOverFlowController_->DrawOverlay();

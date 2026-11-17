@@ -4,6 +4,7 @@
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Game/Player/Player.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Sprite/Sprite.h"
 
 #include <algorithm>
 #include <cmath>
@@ -123,9 +124,10 @@ bool AimCorridorVisualController::IsMainReticlePresentationValid() const {
         && renderer_->IsFarTextureLoaded() && camera_;
 }
 
-bool AimCorridorVisualController::Initialize(DirectXCommon* dxCommon, Player* player, Camera* camera) {
+bool AimCorridorVisualController::Initialize(SpriteCommon* spriteCommon, Player* player, Camera* camera) {
     Finalize();
-    dxCommon_ = dxCommon;
+    spriteCommon_ = spriteCommon;
+    dxCommon_ = spriteCommon_ ? spriteCommon_->GetDxCommon() : nullptr;
     player_ = player;
     camera_ = camera;
     axisMode_ = AxisMode::CameraThroughAimOrigin;
@@ -138,11 +140,19 @@ bool AimCorridorVisualController::Initialize(DirectXCommon* dxCommon, Player* pl
 
     renderer_ = std::make_unique<AimCorridorVisualRenderer>();
     initialized_ = renderer_->Initialize(dxCommon_, nearTexturePath_, farTexturePath_);
+    if (initialized_ && renderer_->IsNearTextureLoaded()) {
+        mouseReticle_ = std::make_unique<Sprite>();
+        mouseReticle_->Initialize(spriteCommon_);
+        mouseReticle_->SetTexture(nearTexturePath_);
+        mouseReticle_->SetTextureSampling(true);
+    }
     Reset();
     return initialized_;
 }
 
 void AimCorridorVisualController::Finalize() {
+    mouseReticle_.reset();
+    spriteCommon_ = nullptr;
     if (renderer_) {
         renderer_->Finalize();
     }
@@ -255,9 +265,12 @@ void AimCorridorVisualController::Update(float unscaledDeltaTime) {
     isVisible_ = currentAlpha_ > 0.001f && HasDrawableTexture();
 }
 
-void AimCorridorVisualController::Draw() {
+void AimCorridorVisualController::Draw(bool usesMouseAim) {
     lastDrawCount_ = 0;
     if (!isVisible_ || !worldPlacementValid_ || !renderer_ || !camera_) {
+        return;
+    }
+    if (usesMouseAim && gameModeActive_ && displayMode_ == DisplayMode::MainReticleOnly && !debugDiamondPreview_) {
         return;
     }
 

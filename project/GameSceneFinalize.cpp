@@ -91,6 +91,7 @@ void GameScene::FinalizeSceneResources() {
         editorCameraController_->Finalize();
     }
     editorCameraController_.reset();
+    if (gameViewport_) gameViewport_->SetGameplayCursorHidden(false);
     runtimeModeController_.reset();
     gameViewport_.reset();
     blenderLiveSync_.reset();

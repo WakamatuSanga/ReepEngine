@@ -54,6 +54,8 @@ public:
     bool IsCurrentWave(std::string_view waveId) const;
     bool TryGetFormationAimPoint(const AimReticleScreenRect& reticle, const Vector3& muzzle,
         float bulletSpeed, float bulletLifetime, Vector3& aimPoint) const;
+    bool TryGetCursorAimPoint(const Vector3& rayDirection, const Vector3& muzzle,
+        float bulletSpeed, float bulletLifetime, Vector3& aimPoint) const;
     bool IsWaitingForStartWarning(std::string_view waveId) const {
         return pendingStartWarningActive_ && pendingStartWaveId_ == waveId;
     }
@@ -158,6 +160,9 @@ private:
     Vector3 ComputeSpawnPosition(const EnemyWaveSpawnEntry& spawn) const;
     Vector3 ComputeScreenPosition(float screenX, float screenY, float depth) const;
     Vector3 ComputeAnchorPosition(float screenX, float screenY, float depth) const;
+    Vector3 TransformAnchorPosition(const Matrix4x4& frame, float screenX, float screenY, float depth) const;
+    static Vector2 ComputeScreenAnchorLane(const WaveEnemyRuntime& runtime, float exitAge);
+    float GetScreenAnchorTimeUntilExit(const WaveEnemyRuntime& runtime) const;
     Vector3 ComputeRailPosition(float distance, float screenX, float screenY, Vector3* forward = nullptr) const;
     Vector3 ComputeFormationPosition(const WaveEnemyRuntime& runtime, float railDistance, float age,
         Vector3* forward = nullptr) const;
