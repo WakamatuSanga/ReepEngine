@@ -34,6 +34,7 @@ public:
     struct LayerPose { Vector2 center, size; float rotation; };
     void Initialize(SpriteCommon* common);
     bool Start();
+    bool StartAtLowerEdge();
     void Cancel();
     void Update(float dt);
     void Draw();
@@ -60,6 +61,7 @@ private:
     bool coveredDrawn_ = false;
     bool clearDrawn_ = false;
     bool imagesAvailable_ = false;
+    bool enterAtLowerEdge_ = false;
     Settings activeSettings_;
     SpriteCommon* common_ = nullptr;
     std::array<std::unique_ptr<Sprite>, 3> clouds_;

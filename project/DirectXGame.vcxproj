@@ -181,6 +181,7 @@
     <ClCompile Include="engine\Game\Field\InfluenceFieldManager.cpp" />
     <ClCompile Include="engine\Game\GameState\GameOverFlowController.cpp" />
     <ClCompile Include="engine\Game\GameState\StageStartSequenceController.cpp" />
+    <ClCompile Include="engine\Game\GameState\StageClearSequenceController.cpp" />
     <ClCompile Include="engine\Game\GameState\StageCombatState.cpp" />
     <ClCompile Include="engine\Game\GameState\PlayerDeathSequenceController.cpp" />
     <ClCompile Include="engine\Game\Player\BoostController.cpp" />
@@ -251,6 +252,7 @@
     <ClCompile Include="engine\Game\UI\AimCorridorVisualRenderer.cpp" />
     <ClCompile Include="engine\Game\UI\WarningUIController.cpp" />
     <ClCompile Include="engine\Game\UI\PlayerHudController.cpp" />
+    <ClCompile Include="engine\Game\UI\StageClearResultController.cpp" />
     <ClCompile Include="engine\Game\UI\PlayerHudControllerImGui.cpp" />
     <ClCompile Include="engine\Level\LevelEventConnectionVisualizer.cpp" />
     <ClCompile Include="engine\Level\LevelEventDebugView.cpp" />
@@ -446,6 +448,7 @@
     <ClCompile Include="TitleForegroundPresentation.cpp" />
     <ClCompile Include="TitleForegroundPose.cpp" />
     <ClCompile Include="GameScenePresentation.cpp" />
+    <ClCompile Include="GameSceneClearPresentation.cpp" />
     <ClCompile Include="TitleScene.cpp" />
     <ClCompile Include="TitleMissilePresentation.cpp" />
     <ClCompile Include="engine\Graphics\Cloud\CloudSceneryLayout.cpp" />
@@ -496,6 +499,8 @@
     <ClInclude Include="engine\Game\Field\InfluenceFieldManager.h" />
     <ClInclude Include="engine\Game\GameState\GameOverFlowController.h" />
     <ClInclude Include="engine\Game\GameState\StageStartSequenceController.h" />
+    <ClInclude Include="engine\Game\GameState\StageClearSequenceController.h" />
+    <ClInclude Include="engine\Game\UI\StageClearResultController.h" />
     <ClInclude Include="engine\Game\GameState\StageCombatState.h" />
     <ClInclude Include="engine\Game\GameState\PlayerDeathSequenceController.h" />
     <ClInclude Include="engine\Game\Player\BoostController.h" />

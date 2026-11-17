@@ -11,6 +11,7 @@ class AimCorridorTargetMarkerRenderer;
 class AimCorridorVisualController;
 class Camera;
 class DirectXCommon;
+class GameViewport;
 class PlayerLockOnTargetProvider;
 enum class PlayerLockOnTargetKind : uint8_t;
 struct PlayerLockOnTargetSnapshot;
@@ -37,6 +38,7 @@ public:
     void SetGameModeActive(bool active);
     void SetPlayerAlive(bool alive);
     void SetLockAmmoAvailable(bool available);
+    void SetMouseAimViewport(const GameViewport* viewport, bool acquisitionActive);
     void Update(float scaledDeltaTime, float unscaledDeltaTime);
     void Draw();
     void DrawImGui();
@@ -143,10 +145,13 @@ private:
         const Vector2& lhsMaximum,
         const Vector2& rhsMinimum,
         const Vector2& rhsMaximum);
+    static bool CircleOverlapsBounds(const ScreenRect& circle, const Vector2& minimum, const Vector2& maximum);
 
     DirectXCommon* dxCommon_ = nullptr;
     const PlayerLockOnTargetProvider* targetProvider_ = nullptr;
     Camera* camera_ = nullptr;
+    const GameViewport* mouseAimViewport_ = nullptr;
+    bool mouseAcquisitionActive_ = false;
     AimCorridorVisualController* visualController_ = nullptr;
     std::unique_ptr<AimCorridorTargetMarkerRenderer> markerRenderer_;
     std::vector<HeldLock> heldLocks_;

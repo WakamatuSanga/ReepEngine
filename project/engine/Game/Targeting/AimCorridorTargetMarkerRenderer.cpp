@@ -43,7 +43,7 @@ bool AimCorridorTargetMarkerRenderer::Initialize(DirectXCommon* dxCommon, Camera
         return false;
     }
     renderer_ = std::make_unique<AimCorridorVisualRenderer>();
-    const std::string markerTexture = "resources/ui/aim_corridor/Aiming_2.png";
+    const std::string markerTexture = "resources/ui/aim_corridor/Lock_On_UI.png";
     initialized_ = renderer_->Initialize(dxCommon_, markerTexture, markerTexture);
     Reset();
     return initialized_;
@@ -67,6 +67,7 @@ void AimCorridorTargetMarkerRenderer::Reset() {
     currentPixelSize_ = 0.0f;
     currentAlpha_ = 0.0f;
     pulsePhase_ = 0.0f;
+    rotation_ = 0.0f;
     drawable_ = false;
     lastDrawCount_ = 0;
 }
@@ -132,6 +133,7 @@ void AimCorridorTargetMarkerRenderer::Update(
     centerWorld_ = targetWorldPosition;
     currentAlpha_ = MoveToward(currentAlpha_, baseAlpha_, deltaTime * baseAlpha_ / (std::max)(fadeInTime_, 0.001f));
     pulsePhase_ = std::fmod(pulsePhase_ + deltaTime * pulseRate_ * kTwoPi, kTwoPi);
+    rotation_ = std::fmod(rotation_ + deltaTime * 150.0f * kTwoPi / 360.0f, kTwoPi);
     drawable_ = std::isfinite(worldWidth_) && std::isfinite(worldHeight_)
         && worldWidth_ > 0.001f && worldHeight_ > 0.001f;
 }
@@ -144,8 +146,9 @@ void AimCorridorTargetMarkerRenderer::Draw() {
     AimCorridorVisualRenderer::FrameDraw unused{};
     AimCorridorVisualRenderer::FrameDraw marker{};
     marker.center = centerWorld_;
-    marker.right = cameraRight_;
-    marker.up = cameraUp_;
+    const float c = std::cos(rotation_), s = std::sin(rotation_);
+    marker.right = {cameraRight_.x * c - cameraUp_.x * s, cameraRight_.y * c - cameraUp_.y * s, cameraRight_.z * c - cameraUp_.z * s};
+    marker.up = {cameraUp_.x * c + cameraRight_.x * s, cameraUp_.y * c + cameraRight_.y * s, cameraUp_.z * c + cameraRight_.z * s};
     marker.width = worldWidth_;
     marker.height = worldHeight_;
     marker.alpha = currentAlpha_;
@@ -154,15 +157,15 @@ void AimCorridorTargetMarkerRenderer::Draw() {
     marker.glowAlpha = glowAlpha_;
     marker.glowRadiusTexels = 1.15f;
     marker.pulseScale = 1.0f + std::sin(pulsePhase_) * pulseAmount_;
-    marker.coreTint = { 1.0f, 0.290196f, 0.164706f };
-    marker.glowTint = { 1.0f, 0.40f, 0.12f };
+    marker.coreTint = { 1.0f, 0.07f, 0.055f };
+    marker.glowTint = { 1.0f, 0.22f, 0.09f };
     marker.tintAmount = 1.0f;
     lastDrawCount_ = renderer_->Draw(camera_, unused, marker, false, true, false, false);
 }
 
 void AimCorridorTargetMarkerRenderer::DrawImGuiSection() {
 #ifdef USE_IMGUI
-    ImGui::Checkbox("ひし形マーカーを有効化##MarkerEnabled", &enabled_);
+    ImGui::Checkbox("ロック成立マーカーを有効化##MarkerEnabled", &enabled_);
     ImGui::DragFloat("マーカー透明度##MarkerAlpha", &baseAlpha_, 0.01f, 0.0f, 1.0f);
     ImGui::DragFloat("マーカー倍率##MarkerScale", &markerScale_, 0.01f, 1.0f, 2.5f);
     ImGui::DragFloat("最小マーカーサイズ##MarkerMinSize", &minimumPixelSize_, 1.0f, 16.0f, 512.0f, "%.0f px");

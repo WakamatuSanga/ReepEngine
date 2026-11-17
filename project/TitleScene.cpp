@@ -11,6 +11,7 @@
 #include "TitleForegroundPresentation.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
+#include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -72,14 +73,14 @@ void TitleScene::Initialize() {
     skybox_->SetCamera(camera_.get());
     skybox_->SetScale({ 100.0f, 100.0f, 100.0f });
     skybox_->SetTexture("resources/skybox/skybox.dds");
-    skybox_->SetBlueFramingStrength(0.16f);
 
     cloudVolume_ = std::make_unique<CloudVolume>();
     cloudVolume_->GetParameters() = CloudVolume::RecommendedDefaults();
     cloudVolume_->GetParameters().windSpeed = 0.0f;
     cloudPass_ = std::make_unique<VolumetricCloudPass>();
     cloudPass_->Initialize(game->GetDxCommon(), SrvManager::GetInstance());
-    cloudPass_->ConfigureStillTitleBackground();
+    cloudPass_->ConfigureTitleGameplayBackground(*game->GetVolumetricCloudPass());
+    skybox_->SetSceneryReferenceRig(nullptr, cloudPass_.get());
     sortieEffects_ = std::make_unique<TitleSortieEffects>();
     sortieEffects_->Initialize(game->GetDxCommon(), camera_.get());
 
@@ -97,6 +98,7 @@ void TitleScene::Initialize() {
         aircraft_->Initialize(game->GetObject3dCommon());
         aircraft_->SetCamera(camera_.get());
         aircraft_->SetModel(model_);
+        aircraft_->SetStyleTarget(RenderStyleComparison::Target::Player);
         aircraft_->SetEnvironmentMapEnabled(false);
         aircraft_->GetTransform() = aircraftStart_;
         exhaust_ = std::make_unique<PlayerJetExhaustController>();
@@ -212,6 +214,7 @@ void TitleScene::Update() {
 }
 
 void TitleScene::Draw() {
+    RenderStyleComparison::GameDrawScope styleScope;
     if (skybox_) {
         MyGame::GetInstance()->GetSkyboxCommon()->CommonDrawSetting();
         skybox_->Draw();

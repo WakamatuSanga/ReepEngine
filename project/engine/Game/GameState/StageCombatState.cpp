@@ -10,7 +10,7 @@
 namespace { StageCombatState::Tuning tuning; }
 StageCombatState::Tuning& StageCombatState::GetTuning() { return tuning; }
 void StageCombatState::Initialize(PlayerBulletManager* bullets) { bullets_ = bullets; Reset(); }
-void StageCombatState::Reset() { score_ = 0; progressFraction_ = 0; lastKrakenSequence_ = 0; gameplayActive_ = false; paused_ = false; }
+void StageCombatState::Reset() { score_ = 0; defeatCount_ = 0; progressFraction_ = 0; lastKrakenSequence_ = 0; gameplayActive_ = false; paused_ = false; }
 void StageCombatState::AddScore(uint64_t amount) {
     const auto room = static_cast<uint64_t>(99999 - score_);
     score_ += static_cast<int>((std::min)(room, amount));
@@ -22,6 +22,7 @@ void StageCombatState::UpdateProgress(float seconds, bool enabled) {
     if (whole >= 1) { AddScore(static_cast<uint64_t>((std::min)(whole, 99999.0))); progressFraction_ = (std::max)(0.0, progressFraction_ - whole); }
 }
 void StageCombatState::DefeatReward() {
+    ++defeatCount_;
     AddScore(static_cast<uint64_t>((std::max)(0, GetTuning().defeat)));
     if (bullets_) bullets_->RecoverLockAmmo();
 }

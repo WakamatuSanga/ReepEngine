@@ -2,6 +2,7 @@
 #include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Core/GameViewport.h"
@@ -91,6 +92,7 @@ void GameScene::FinalizeSceneResources() {
         editorCameraController_->Finalize();
     }
     editorCameraController_.reset();
+    if (gameViewport_) gameViewport_->SetGameplayCursorHidden(false);
     runtimeModeController_.reset();
     gameViewport_.reset();
     blenderLiveSync_.reset();

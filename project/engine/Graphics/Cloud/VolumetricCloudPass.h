@@ -45,6 +45,7 @@ public:
     ProjectedBounds BuildProjectedBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
     ProjectedBounds BuildTitleBackgroundBounds(const Camera* camera, const CloudVolume* cloudVolume) const;
     void ConfigureStillTitleBackground();
+    void ConfigureTitleGameplayBackground(const VolumetricCloudPass& gameplay);
     void ConfigureTitleForegroundCopy(const Camera* camera, const CloudVolume* source, CloudVolume* copy);
     // Synchronize shared scenery before the skybox and the existing cloud pass.
     void PrepareSceneryFlow(const Camera*,const CloudVolume*);
@@ -215,6 +216,8 @@ private:
     VolumetricCloudSettings settings_;
     enum class PassKind { Game, TitleBackground, TitleForeground };
     PassKind passKind_ = PassKind::Game;
+    bool titleUsesGameplayAppearance_ = false;
+    bool UsesGameplayAppearance() const { return passKind_ == PassKind::Game || titleUsesGameplayAppearance_; }
     uint64_t diagnosticInvocation_ = 0;
     bool diagnosticReallocated_ = false;
     bool comparisonSavedProfilerEnabled_ = false;

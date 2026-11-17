@@ -2,12 +2,22 @@
 
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
+#include "Engine/Graphics/Camera/Camera.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
 namespace {
+constexpr float kClearHitHold = 0.12f;
+constexpr float kClearArmInterval = 0.30f;
+constexpr float kClearArmSinkSeconds = 1.15f;
+
+float Smooth(float value) {
+    const float t = std::clamp(value, 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+}
+
 bool IsFinite(const Vector3& value) {
     return std::isfinite(value.x) && std::isfinite(value.y) &&
         std::isfinite(value.z);
@@ -33,6 +43,79 @@ bool IsFinitePose(const KrakenTentacleMidbossBindLocalPose& pose) {
     return IsFinite(pose.translate) && IsFinite(pose.rotate) &&
         IsFinite(pose.scale);
 }
+}
+
+void KrakenTentacleMidbossController::BeginStageClearRetreat() {
+    if (impl_ && impl_->state == KrakenTentacleMidbossState::Defeated) {
+        impl_->PrepareStageClearRetreat();
+    }
+}
+
+void KrakenTentacleMidbossController::Impl::PrepareStageClearRetreat() {
+    if (!camera || !skeleton || !defeatFrozenPoseValid || chains.empty()) return;
+    clearRetreatArms.assign(chains.size(), {});
+    clearRetreatElapsed = 0.0f;
+    clearRetreatDuration = kClearHitHold;
+    const Matrix4x4& view = camera->GetViewMatrix();
+    const float tanY = std::tan(camera->GetFovY() * 0.5f);
+    const float tanX = tanY * camera->GetAspectRatio();
+    const float downPerUnit = (std::max)(0.30f, view.m[1][1] + view.m[1][2] * tanY);
+    const auto& finalHit = projectileDamageDiagnostics.lastHit;
+    const size_t first = finalHit.valid && finalHit.hpAfter <= 0.0f && finalHit.event.chainIndex < chains.size()
+        ? finalHit.event.chainIndex : 0;
+    float delay = kClearHitHold;
+    for (size_t order = 0; order < chains.size(); ++order) {
+        const size_t index = (first + order) % chains.size();
+        auto& arm = clearRetreatArms[index];
+        float minX = std::numeric_limits<float>::infinity();
+        float minY = minX;
+        float maxX = -minX;
+        float maxY = -minX;
+        float sink = 14.0f;
+        for (const auto& bone : boneSnapshots) {
+            if (!bone.valid || bone.chainIndex != index) continue;
+            const auto point = TransformPosition(bone.worldPosition, view);
+            sink = (std::max)(sink, (point.y + (std::max)(point.z, 0.0f) * tanY + 7.0f) / downPerUnit);
+            if (point.z <= camera->GetNearClip()) continue;
+            const float x = point.x / (point.z * tanX);
+            const float y = point.y / (point.z * tanY);
+            minX = (std::min)(minX, x);
+            minY = (std::min)(minY, y);
+            maxX = (std::max)(maxX, x);
+            maxY = (std::max)(maxY, y);
+        }
+        arm.visible = minX < 1.35f && maxX > -1.35f && minY < 1.35f && maxY > -1.35f;
+        if (arm.visible) {
+            arm.delay = delay;
+            clearRetreatDuration = delay + kClearArmSinkSeconds;
+            delay += kClearArmInterval;
+        }
+        const Joint& root = skeleton->joints[chains[index].joints.front()];
+        const Matrix4x4 parentToWorld = root.parentIndex >= 0
+            ? MatrixMath::Multipty(skeleton->joints[root.parentIndex].skeletonSpaceMatrix, worldMatrix) : worldMatrix;
+        const Matrix4x4 worldToParent = MatrixMath::Inverse(parentToWorld);
+        arm.localSink = {-sink * worldToParent.m[1][0], -sink * worldToParent.m[1][1], -sink * worldToParent.m[1][2]};
+    }
+}
+
+void KrakenTentacleMidbossController::Impl::ApplyStageClearRetreatPose() {
+    for (size_t index = 0; index < clearRetreatArms.size(); ++index) {
+        const auto& arm = clearRetreatArms[index];
+        const auto& joints = chains[index].joints;
+        const float localTime = clearRetreatElapsed - arm.delay;
+        if (clearRetreatElapsed < kClearHitHold || (arm.visible && localTime <= 0.0f)) continue;
+        const float sink = arm.visible ? Smooth((localTime - 0.13f) / (kClearArmSinkSeconds - 0.13f)) : 1.0f;
+        Joint& root = skeleton->joints[joints.front()];
+        root.localTranslate.x += arm.localSink.x * sink;
+        root.localTranslate.y += arm.localSink.y * sink;
+        root.localTranslate.z += arm.localSink.z * sink;
+        if (!arm.visible) continue;
+        for (size_t jointIndex = 1; jointIndex < joints.size(); ++jointIndex) {
+            const float along = static_cast<float>(jointIndex) / static_cast<float>(joints.size() - 1);
+            const float curl = Smooth((localTime - (1.0f - along) * 0.28f) / 0.46f);
+            skeleton->joints[joints[jointIndex]].localRotate.x += curl * (0.04f + along * 0.11f);
+        }
+    }
 }
 
 void KrakenTentacleMidbossController::Impl::SetEffectContext(
@@ -108,6 +191,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyDefeatFrozenPose() {
         joint.localRotate = pose.rotate;
         joint.localScale = pose.scale;
     }
+    ApplyStageClearRetreatPose();
     return true;
 }
 
@@ -305,38 +389,43 @@ bool KrakenTentacleMidbossController::Impl::UpdateDefeatMotion(
         return true;
     }
 
-    const KrakenTentacleDefeatMotionPhase phase =
-        state == KrakenTentacleMidbossState::Defeated
-        ? KrakenTentacleDefeatMotionPhase::Defeated
-        : KrakenTentacleDefeatMotionPhase::Retreating;
-    const KrakenTentacleDefeatAdvanceResult advance =
-        AdvanceKrakenTentacleDefeatMotion(
-            phase,
-            stateElapsedTime,
-            deltaTime,
-            defeatStartWorldPosition,
-            defeatSettings);
-    if (!advance.valid) {
-        ++defeatDiagnostics.nonFinitePositionCount;
-        defeatDiagnostics.lastError = "撃破落下位置の評価に失敗しました。";
-        EnterHidden(defeatDiagnostics.lastError, true);
-        return true;
-    }
-    worldPosition = advance.motion.worldPosition;
-    stateElapsedTime = advance.stateElapsedTime;
-    defeatDiagnostics.retreatProgress = advance.motion.normalizedTime;
-    defeatDiagnostics.easedRetreatProgress = advance.motion.easedTime;
-    defeatDiagnostics.currentFallDistance =
-        (std::max)(0.0f, defeatStartWorldPosition.y - worldPosition.y);
-    if (advance.beganRetreat) {
-        state = KrakenTentacleMidbossState::Retreating;
-        ++defeatDiagnostics.retreatBeginCount;
-    }
-    if (!advance.completedNow) {
-        if (state == KrakenTentacleMidbossState::Retreating) {
-            ++defeatDiagnostics.retreatVisibleUpdateCount;
+    if (!clearRetreatArms.empty()) {
+        clearRetreatElapsed += deltaTime;
+        if (clearRetreatElapsed >= kClearHitHold && state == KrakenTentacleMidbossState::Defeated) {
+            state = KrakenTentacleMidbossState::Retreating;
+            ++defeatDiagnostics.retreatBeginCount;
         }
-        return true;
+        if (clearRetreatElapsed < clearRetreatDuration) {
+            if (state == KrakenTentacleMidbossState::Retreating) ++defeatDiagnostics.retreatVisibleUpdateCount;
+            return true;
+        }
+    } else {
+        const auto phase = state == KrakenTentacleMidbossState::Defeated
+            ? KrakenTentacleDefeatMotionPhase::Defeated : KrakenTentacleDefeatMotionPhase::Retreating;
+        const auto advance = AdvanceKrakenTentacleDefeatMotion(
+            phase, stateElapsedTime, deltaTime, defeatStartWorldPosition, defeatSettings);
+        if (!advance.valid) {
+            ++defeatDiagnostics.nonFinitePositionCount;
+            defeatDiagnostics.lastError = "撃破落下位置の評価に失敗しました。";
+            EnterHidden(defeatDiagnostics.lastError, true);
+            return true;
+        }
+        worldPosition = advance.motion.worldPosition;
+        stateElapsedTime = advance.stateElapsedTime;
+        defeatDiagnostics.retreatProgress = advance.motion.normalizedTime;
+        defeatDiagnostics.easedRetreatProgress = advance.motion.easedTime;
+        defeatDiagnostics.currentFallDistance =
+            (std::max)(0.0f, defeatStartWorldPosition.y - worldPosition.y);
+        if (advance.beganRetreat) {
+            state = KrakenTentacleMidbossState::Retreating;
+            ++defeatDiagnostics.retreatBeginCount;
+        }
+        if (!advance.completedNow) {
+            if (state == KrakenTentacleMidbossState::Retreating) {
+                ++defeatDiagnostics.retreatVisibleUpdateCount;
+            }
+            return true;
+        }
     }
 
     state = KrakenTentacleMidbossState::RetreatCompleted;
@@ -365,6 +454,7 @@ void KrakenTentacleMidbossController::Impl::AbortDefeatForHide() {
     defeatBeganThisUpdate = false;
     defeatFrozenPoseValid = false;
     defeatFrozenPose.clear();
+    clearRetreatArms.clear();
     attackDamageEnabled = false;
     projectileDamageEnabled = false;
     ResetCollisionQueryState(false);
@@ -383,6 +473,7 @@ void KrakenTentacleMidbossController::Impl::ResetDefeatState(
     defeatStartWorldPositionValid = false;
     defeatBeganThisUpdate = false;
     defeatFrozenPose.clear();
+    clearRetreatArms.clear();
     defeatStartWorldPosition = {};
     defeatSequenceId = 0;
     defeatDiagnostics = {};

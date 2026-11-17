@@ -4,6 +4,7 @@
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterConfig.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Game/RailShooter/EnemyWaveManager.h"
 #include "Engine/Graphics/Camera/Camera.h"
 
@@ -73,6 +74,7 @@ void KrakenTentacleWaveEncounterController::DrawImGui() {
     }
 
     const bool hasManager = waveManager_ != nullptr;
+    StageClearSequenceController::DrawImGui();
     DrawEntranceSettingsImGui();
     if (kraken_) {
         kraken_->DrawPlacementImGui();

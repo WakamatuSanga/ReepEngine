@@ -70,6 +70,7 @@ class Skybox;
 class StartupEnemySpawnController;
 class StageStartSequenceController;
 class StageCombatState;
+class StageClearSequenceController;
 class Sprite;
 class WarningUIController;
 struct Skeleton;
@@ -94,8 +95,11 @@ private:
     bool presentationPrepared_ = false;
     std::unique_ptr<StageStartSequenceController> stageStart_;
     std::unique_ptr<StageCombatState> stageCombatState_;
+    std::unique_ptr<StageClearSequenceController> stageClear_;
     void UpdateStageStartPresentation();
     void UpdateDeathPresentation();
+    bool TryBeginStageClear();
+    void UpdateStageClearPresentation();
     bool deathPresentationEntered_ = false;
 
     void InitializeSceneResources();

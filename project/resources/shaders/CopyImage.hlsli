@@ -42,7 +42,7 @@ struct PostEffectParameters
     float hybridNormalWeight;
     float depthNear;
     float depthFar;
-    float postEffectPadding;
+    float radialBlurAspectScale;
     float4 dissolveEdgeColor;
     float4 outlineColor;
 };

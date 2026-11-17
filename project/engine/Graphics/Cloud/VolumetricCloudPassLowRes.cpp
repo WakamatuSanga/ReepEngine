@@ -237,7 +237,7 @@ void VolumetricCloudPass::UpdateCompositeConstantBuffer()
     compositeConstantData_->cloudOverGameplayObjectStrength = std::clamp(settings_.cloudOverGameplayObjectStrength_, 0.0f, 1.0f);
     compositeConstantData_->foregroundCloudAlphaReduction = std::clamp(settings_.foregroundCloudAlphaReduction_, 0.0f, 1.0f);
     compositeConstantData_->compositeDebugMode = static_cast<uint32_t>((std::max)(settings_.cloudCompositeDebugMode_, 0));
-    compositeConstantData_->enableSceneryReconstruction = passKind_==PassKind::Game && RenderStyleComparison::IsTargetBackground() && RenderStyleComparison::GetSettings().presentation.stage>=3 && RenderStyleComparison::GetCloudSettings().depthLayout ? 1u : 0u;
+    compositeConstantData_->enableSceneryReconstruction = UsesGameplayAppearance() && RenderStyleComparison::IsTargetBackground() && RenderStyleComparison::GetSettings().presentation.stage>=3 && RenderStyleComparison::GetCloudSettings().depthLayout ? 1u : 0u;
 }
 
 void VolumetricCloudPass::DrawImGui()

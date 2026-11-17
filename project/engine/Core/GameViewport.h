@@ -31,6 +31,7 @@ public:
     void SetImGuiGameViewRect(float left, float top, float width, float height, bool hovered, bool focused);
     void ClearImGuiGameViewRect();
     void DrawImGui();
+    void SetGameplayCursorHidden(bool hidden);
 
     bool IsGameInputActive(bool editingImGuiInput, bool editorCameraFlyActive, bool gameplayBlocked);
     Ray GetMouseRayFromCamera(const Camera& camera) const;
@@ -38,6 +39,7 @@ public:
     const Rect& GetGameViewportRect() const { return gameViewportRect_; }
     Vector2 GetClientSize() const;
     Mode GetMode() const { return mode_; }
+    bool IsGameWindowActive() const;
     bool IsMouseInGameViewport() const { return mouseInGameViewport_; }
     bool IsGameViewHovered() const { return gameViewHovered_; }
     bool IsGameViewFocused() const { return gameViewFocused_; }

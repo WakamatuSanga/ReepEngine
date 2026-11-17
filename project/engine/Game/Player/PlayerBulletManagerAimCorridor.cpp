@@ -139,7 +139,7 @@ void PlayerBulletManager::SetAimRuntimeContext(
     if (enteringGameMode || respawned) {
         normalShotInputArmed_ = false;
         missileInputArmed_ = false;
-        aimMode_ = AimMode::AimCorridor;
+        aimMode_ = kDefaultNormalShotAimMode;
         debugAimModeForced_ = false;
         ResetAimDiagnostics();
         ResetLockedWingShotState(true);
@@ -151,7 +151,7 @@ void PlayerBulletManager::SetAimRuntimeContext(
         lockedTargetValidation_ = {};
     }
     if (aimGameModeActive_) {
-        aimMode_ = AimMode::AimCorridor;
+        aimMode_ = kDefaultNormalShotAimMode;
         debugAimModeForced_ = false;
     }
     if (!playerAlive) {
@@ -169,7 +169,7 @@ void PlayerBulletManager::ClearAimCorridorContext() {
     aimRuntimeStateInitialized_ = false;
     aimGameModeActive_ = false;
     aimPlayerAlive_ = true;
-    aimMode_ = AimMode::AimCorridor;
+    aimMode_ = kDefaultNormalShotAimMode;
     debugAimModeForced_ = false;
     ResetAimDiagnostics();
     ResetLockedWingShotState(true);
@@ -183,7 +183,7 @@ void PlayerBulletManager::ResetAimDiagnostics() {
     lastFireDirection_ = { 0.0f, 0.0f, 1.0f };
     lastShotVelocity_ = {};
     lastShotDirectionLength_ = 0.0f;
-    lastUsedAimMode_ = AimMode::AimCorridor;
+    lastUsedAimMode_ = aimMode_;
     lastAimFallbackUsed_ = false;
     lastShotSpawnDataValid_ = false;
     lastShotFallbackReason_ = "なし";
@@ -195,7 +195,8 @@ void PlayerBulletManager::ResetAimDiagnostics() {
 
 Vector3 PlayerBulletManager::ResolveAimDirection(
     const Vector3& muzzleBasePosition,
-    const Vector3& cameraForward) {
+    const Vector3& cameraForward,
+    Vector3& cursorRayDirection) {
     Vector3 cameraDirection{ 0.0f, 0.0f, 1.0f };
     TryNormalize(cameraForward, cameraDirection);
     std::string safeForwardSource;
@@ -265,6 +266,7 @@ Vector3 PlayerBulletManager::ResolveAimDirection(
     if (!mouseRay.valid) {
         return useFallback("カーソル光線が無効です", cameraDirection, "カメラ正面");
     }
+    cursorRayDirection = mouseRay.direction;
 
     if (aimMode_ == AimMode::MouseRay) {
         Vector3 rayDirection{};
@@ -402,7 +404,7 @@ void PlayerBulletManager::DrawAimImGui() {
     ImGui::EndDisabled();
 
     if (ImGui::Button("ゲームモード標準へ戻す##ReturnGameModeDefault")) {
-        aimMode_ = AimMode::AimCorridor;
+        aimMode_ = kDefaultNormalShotAimMode;
         debugAimModeForced_ = false;
     }
     ImGui::SameLine();
@@ -410,7 +412,7 @@ void PlayerBulletManager::DrawAimImGui() {
         ResetAimDiagnostics();
     }
     if (ImGui::Button("強制設定をすべて解除##ClearForcedAim")) {
-        aimMode_ = AimMode::AimCorridor;
+        aimMode_ = kDefaultNormalShotAimMode;
         debugAimModeForced_ = false;
         ClearLockedWingShotForceState();
     }
@@ -431,7 +433,7 @@ void PlayerBulletManager::DrawAimImGui() {
         && IsFinite(reticleWorldCenter) && IsFinite(reticleScreenUv);
 
     ImGui::Text("現在の照準モード: %s", ToJapaneseAimMode(aimMode_));
-    ImGui::Text("ゲームモード標準照準: エイムコリドー");
+    ImGui::Text("ゲームモード標準照準: %s", ToJapaneseAimMode(kDefaultNormalShotAimMode));
     ImGui::Text("ゲームモード実行中: %s", ToJapaneseBool(aimGameModeActive_));
     ImGui::Text("デバッグ強制設定: %s", ToJapaneseBool(debugAimModeForced_));
     ImGui::Text("エイムコリドー管理機能有効: %s", ToJapaneseBool(controllerActive));

@@ -26,6 +26,7 @@ public:
     void SetTextureSampling(bool clamp, float verticalEdgeFade = 0.0f);
     // Opt-in UI texture opacity separation; existing sprites use the original sample unchanged.
     void SetTextureAlphaScale(float panel, float detail);
+    void SetTextureDarkPanel(bool enabled);
     void SetTextureAlertTint(bool enabled);
     // Opt-in screen-space static; default sprites keep the original shading.
     void SetScreenNoise(bool enabled, float timeSeconds = 0, float grainPixels = 2);

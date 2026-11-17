@@ -40,6 +40,8 @@ void AimCorridorTargetingController::Finalize() {
     projectedTargets_.clear();
     krakenNaturalLockDiagnostics_.clear();
     visualController_ = nullptr;
+    mouseAimViewport_ = nullptr;
+    mouseAcquisitionActive_ = false;
     camera_ = nullptr;
     targetProvider_ = nullptr;
     dxCommon_ = nullptr;
@@ -83,7 +85,16 @@ void AimCorridorTargetingController::Reset() {
     if (visualController_) {
         visualController_->SetTargetingVisualState(
             AimCorridorVisualController::AimReticleVisualState::Normal, 0.0f);
+        visualController_->UpdateMouseLockRings({}, false, 0.0f, 0.0f);
     }
+}
+
+void AimCorridorTargetingController::SetMouseAimViewport(const GameViewport* viewport, bool acquisitionActive) {
+    if ((mouseAimViewport_ != nullptr) != (viewport != nullptr)) {
+        ClearTarget(false, "照準モード切替");
+    }
+    mouseAimViewport_ = viewport;
+    mouseAcquisitionActive_ = viewport && acquisitionActive;
 }
 
 void AimCorridorTargetingController::SetGameModeActive(bool active) {
@@ -151,6 +162,7 @@ void AimCorridorTargetingController::Draw() {
         markerRenderer_->Draw();
     }
     for (const HeldLock& lock : heldLocks_) {
+        if (mouseAimViewport_ && HasLockedTarget() && lock.targetId == lockedTargetId_) continue;
         lock.marker->Draw();
     }
 }

@@ -46,7 +46,8 @@ public:
         bool drawFar,
         bool drawNear,
         bool disableGlow,
-        bool showCoreOnly);
+        bool showCoreOnly,
+        bool useNearTextureForFar = false);
 
     bool IsInitialized() const { return initialized_; }
     bool IsNearTextureLoaded() const { return textures_[1].loaded; }
@@ -89,6 +90,7 @@ private:
         uint32_t frameIndex,
         const Camera& camera,
         const FrameDraw& frame,
+        const TextureState& texture,
         bool disableGlow,
         bool showCoreOnly);
 

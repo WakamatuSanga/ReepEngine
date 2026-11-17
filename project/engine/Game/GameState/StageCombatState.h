@@ -22,11 +22,13 @@ public:
     void RecordEvade(EnemyBullet& bullet);
     void AddScore(uint64_t amount);
     int GetScore() const { return score_; }
+    uint32_t GetDefeatCount() const { return defeatCount_; }
     void DrawImGui();
 private:
     void DefeatReward();
     PlayerBulletManager* bullets_ = nullptr;
     int score_ = 0;
+    uint32_t defeatCount_ = 0;
     double progressFraction_ = 0;
     uint64_t lastKrakenSequence_ = 0;
     bool gameplayActive_ = false;

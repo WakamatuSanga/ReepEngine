@@ -90,6 +90,8 @@ public:
     void DrawImGui();
 
     void SetGameViewInputActive(bool isActive);
+    bool UsesMouseAim() const { return aimMode_ == AimMode::MouseRay || aimMode_ == AimMode::MouseAimPlane; }
+    bool CanShowMouseAim() const { return UsesMouseAim() && gameViewInputActive_ && enablePlayerShot_; }
     void SetGameViewport(GameViewport* gameViewport);
     void SetUseLightweightBulletVisual(bool useLightweightVisual);
     void SetAimRuntimeContext(
@@ -271,7 +273,8 @@ private:
     void UpdateCameraVelocity(float deltaTime);
     void UpdateViewportDebugState();
     void ApplyModelRotationOffsetToBullets();
-    Vector3 ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward);
+    Vector3 ResolveAimDirection(const Vector3& muzzleBasePosition, const Vector3& cameraForward,
+        Vector3& cursorRayDirection);
     Vector3 ResolveFinalShotDirection(
         const Vector3& muzzleWorldPosition,
         const Vector3& fallbackDirection);
@@ -325,8 +328,9 @@ private:
     float lastShotDirectionLength_ = 0.0f;
     int bulletDamage_ = 1;
     int selectedBulletIndex_ = -1;
-    AimMode aimMode_ = AimMode::AimCorridor;
-    AimMode lastUsedAimMode_ = AimMode::AimCorridor;
+    static constexpr AimMode kDefaultNormalShotAimMode = AimMode::MouseAimPlane;
+    AimMode aimMode_ = kDefaultNormalShotAimMode;
+    AimMode lastUsedAimMode_ = kDefaultNormalShotAimMode;
     bool enablePlayerShot_ = true;
     bool gameViewInputActive_ = false;
     bool showBulletCollisionRadius_ = false;

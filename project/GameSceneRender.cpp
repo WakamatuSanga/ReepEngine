@@ -2,6 +2,7 @@
 #include "GameScene.h"
 #include "MyGame.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
+#include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/GpuTimestampProfiler.h"
 #include "Engine/Core/RuntimeModeController.h"
@@ -50,10 +51,15 @@ void GameScene::DrawSceneRender() {
     auto particleManager = ParticleManager::GetInstance();
     auto spriteCommon = MyGame::GetInstance()->GetSpriteCommon();
     const bool stageStartActive = stageStart_ && stageStart_->IsActive();
+    const bool clearActive = stageClear_ && stageClear_->IsActive();
     const bool deathActive = playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished();
-    const bool aircraftVisible = (!stageStartActive || stageStart_->IsAircraftVisible()) && (!deathActive || playerDeathSequenceController_->IsAircraftVisible());
+    const bool aircraftVisible = (!stageStartActive || stageStart_->IsAircraftVisible()) &&
+        (!deathActive || playerDeathSequenceController_->IsAircraftVisible()) &&
+        (!clearActive || stageClear_->IsAircraftVisible());
+    const bool combatVisible = !clearActive && !deathActive;
+    const bool effectsVisible = !clearActive || (aircraftVisible && !stageClear_->IsResultBackground());
     const bool shouldDrawDebugVisuals =
-        !stageStartActive && !deathActive && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
+        !stageStartActive && combatVisible && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
         runtimeModeController_ ? runtimeModeController_->GetShadowLikeDebugSettings() : RuntimeModeController::ShadowLikeDebugSettings{};
 
@@ -103,47 +109,47 @@ void GameScene::DrawSceneRender() {
         player_->Draw();
     }
     profiler.End(commandList,aircraftToken);
-    if (playerBulletManager_ && !deathActive) {
+    if (playerBulletManager_ && combatVisible) {
         playerBulletManager_->Draw();
     }
     const auto enemyAircraftToken=profiler.Begin(commandList,GpuTimestampProfiler::Stage::Aircraft,{});
-    if (enemyManager_ && !deathActive) {
+    if (enemyManager_ && combatVisible) {
         enemyManager_->Draw();
     }
     profiler.End(commandList,enemyAircraftToken);
-    if (enemyBulletManager_ && !deathActive) {
+    if (enemyBulletManager_ && combatVisible) {
         enemyBulletManager_->Draw();
     }
-    if (enemyLaserTelegraphController_ && !deathActive && !shadowDebugSettings.disableEffects) {
+    if (enemyLaserTelegraphController_ && combatVisible && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->Draw();
     }
-    if (influenceFieldManager_) {
+    if (!clearActive && influenceFieldManager_) {
         influenceFieldManager_->DrawDebug();
     }
-    if (!deathActive) DrawKrakenTentacleMidboss();
+    if (!deathActive && (!clearActive || stageClear_->NeedsTentacleUpdate())) DrawKrakenTentacleMidboss();
     if (deathActive) playerDeathSequenceController_->Draw();
-    if (!stageStartActive && !deathActive && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
+    if (!stageStartActive && combatVisible && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
     }
-    if (primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
+    if (effectsVisible && primitiveEffectSystem_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePrimitiveEffect) {
         primitiveEffectSystem_->Draw();
     }
-    if (combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    if (effectsVisible && combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         combatEffectController_->Draw();
     }
     if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->Draw();
     }
-    if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
         playerSonicBoostRingController_->Draw();
     }
-    if (playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
         playerBarrelRollRingController_->Draw();
     }
-    if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->Draw();
     }
-    if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
+    if (effectsVisible && enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->Draw();
     }
 
@@ -171,15 +177,16 @@ void GameScene::DrawSceneRender() {
     }
 
     const auto afterToken = profiler.Begin(commandList, GpuTimestampProfiler::Stage::AfterCloud, {});
-    if (!deathActive && krakenTentacleMidboss_) krakenTentacleMidboss_->DrawAfterCloud();
-    if(!deathActive){
+    if (clearActive) stageClear_->DrawDepartureEffects();
+    if (combatVisible && krakenTentacleMidboss_) krakenTentacleMidboss_->DrawAfterCloud();
+    if(combatVisible){
         if(playerBulletManager_)playerBulletManager_->DrawAfterCloud(!shadowDebugSettings.disableEffects);
         if(enemyBulletManager_)enemyBulletManager_->DrawAfterCloud();
     }
-    if (gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+    if (!clearActive && gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }
-    if (player_ && !shadowDebugSettings.disableEffects && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
+    if (combatVisible && player_ && !shadowDebugSettings.disableEffects) {
         auto rtv = dxCommon->GetRenderTextureRTV();
         auto dsv = dxCommon->GetDepthStencilView();
         dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
@@ -188,19 +195,19 @@ void GameScene::DrawSceneRender() {
     if (aircraftVisible && playerJetExhaustController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         playerJetExhaustController_->DrawAfterCloud();
     }
-    if (playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerSonicBoostRingController_ && !shadowDebugSettings.disableEffects) {
         playerSonicBoostRingController_->DrawAfterCloud();
     }
-    if (playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerBarrelRollRingController_ && !shadowDebugSettings.disableEffects) {
         playerBarrelRollRingController_->DrawAfterCloud();
     }
-    if (playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
+    if (!clearActive && playerBulletCancelEffectController_ && !shadowDebugSettings.disableEffects) {
         playerBulletCancelEffectController_->DrawAfterCloud();
     }
-    if (enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
+    if (effectsVisible && enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();
     }
-    if (enemyLaserTelegraphController_ && !deathActive && !shadowDebugSettings.disableEffects) {
+    if (enemyLaserTelegraphController_ && combatVisible && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->DrawAfterCloud();
     }
 
@@ -208,32 +215,32 @@ void GameScene::DrawSceneRender() {
         gpuParticleSystem_->Draw();
     }
 
-    if (!stageStartActive && isParticleVisible_ && !shadowDebugSettings.disableEffects) {
+    if (!stageStartActive && !clearActive && isParticleVisible_ && !shadowDebugSettings.disableEffects) {
         particleManager->Draw();
     }
 
-    if (impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
+    if (effectsVisible && impactDistortionController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disablePostEffects) {
         impactDistortionController_->Draw();
     }
-    if (!stageStartActive && aimCorridorVisualController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
-        aimCorridorVisualController_->Draw();
+    if (!stageStartActive && combatVisible && aimCorridorVisualController_) {
+        aimCorridorVisualController_->Draw(playerBulletManager_ && playerBulletManager_->UsesMouseAim());
     }
-    if (!stageStartActive && aimCorridorTargetingController_ && !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished())) {
+    if (!stageStartActive && combatVisible && aimCorridorTargetingController_) {
         aimCorridorTargetingController_->Draw();
     }
 
     spriteCommon->CommonDrawSetting();
-    if (!stageStartActive && playerDamageFeedbackController_) {
+    if (!stageStartActive && !clearActive && playerDamageFeedbackController_) {
         playerDamageFeedbackController_->Draw();
     }
     // HUD is composited in DrawOverlay after world post effects, before cloud transitions.
     if (shouldDrawDebugVisuals && isDebugSpriteVisible_) {
         debugSprite_->Draw();
     }
-    if (postEffectController_) {
+    if (!clearActive && postEffectController_) {
         postEffectController_->Draw();
     }
-    if (warningUIController_) {
+    if (!clearActive && warningUIController_) {
         warningUIController_->Draw();
     }
     profiler.End(commandList, afterToken);

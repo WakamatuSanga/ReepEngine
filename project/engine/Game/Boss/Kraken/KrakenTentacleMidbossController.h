@@ -81,6 +81,7 @@ public:
     bool IsDefeatPending() const;
     bool IsDefeatStarted() const;
     bool IsDefeatCompleted() const;
+    void BeginStageClearRetreat();
     std::uint64_t GetDefeatSequenceId() const;
     void SetAttackDamageEnabled(bool enabled);
     bool IsAttackDamageEnabled() const;

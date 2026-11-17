@@ -117,6 +117,7 @@ public:
     const std::string& GetEnemyId() const { return enemyId_; }
     const std::string& GetEnemyType() const { return enemyType_; }
     const Vector3& GetPosition() const { return position_; }
+    const Vector3& GetVelocity() const { return velocity_; }
     const Vector3& GetForward() const { return desiredForward_; }
     float GetHitRadius() const { return hitRadius_; }
     const Vector3& GetHitScale() const { return hitScale_; }

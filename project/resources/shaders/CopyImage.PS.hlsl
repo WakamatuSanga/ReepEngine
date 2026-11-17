@@ -26,7 +26,8 @@ float3 ApplyRadialBlur(float2 texcoord, float3 baseColor)
     float2 direction = texcoord - gPostEffectParameters.radialBlurCenter;
     float centerClearRadius = max(gPostEffectParameters.radialBlurCenterClearRadius, 0.0f);
     float outerEffectRadius = max(gPostEffectParameters.radialBlurOuterEffectRadius, centerClearRadius + 0.0001f);
-    float centerMask = smoothstep(centerClearRadius, outerEffectRadius, length(direction));
+    float centerMask = smoothstep(centerClearRadius, outerEffectRadius,
+        length(direction * float2(gPostEffectParameters.radialBlurAspectScale, 1.0f)));
     float effectiveStrength = gPostEffectParameters.radialBlurStrength * centerMask;
     if (effectiveStrength <= 0.0001f) {
         return baseColor;

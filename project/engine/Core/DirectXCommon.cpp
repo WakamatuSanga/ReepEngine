@@ -160,9 +160,18 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 
     const auto postToken = gpuProfiler_->Begin(commandList.Get(), GpuTimestampProfiler::Stage::Post, {});
     D3D12_RESOURCE_BARRIER barrier{};
+    constexpr size_t parameterStride = (sizeof(PostEffectParameters) + 0xff) & ~static_cast<size_t>(0xff);
+    const bool departureBlur = departureRadialBlur_.strength > 0.0001f;
     *postEffectData_ = postEffectParameters_;
-    const PostEffectParameters scenePostEffectParameters = postEffectParameters_;
-    const PostEffectParameters passthroughPostEffectParameters{};
+    if (departureBlur) {
+        postEffectData_->radialBlurEnabled = 1;
+        postEffectData_->radialBlurStrength = departureRadialBlur_.strength;
+        postEffectData_->radialBlurCenter = departureRadialBlur_.center;
+        postEffectData_->radialBlurSampleCount = 10;
+        postEffectData_->radialBlurCenterClearRadius = departureRadialBlur_.clearRadius;
+        postEffectData_->radialBlurOuterEffectRadius = departureRadialBlur_.clearRadius + 0.25f;
+        postEffectData_->radialBlurAspectScale = departureRadialBlur_.aspect;
+    }
 
     auto TransitionResource = [&](ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
         barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -178,7 +187,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
         D3D12_GPU_DESCRIPTOR_HANDLE sourceSRV,
         D3D12_CPU_DESCRIPTOR_HANDLE targetRTV,
         const D3D12_VIEWPORT& targetViewport,
-        const D3D12_RECT& targetScissor) {
+        const D3D12_RECT& targetScissor, size_t parameterOffset = 0) {
         ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
         commandList->SetDescriptorHeaps(1, descriptorHeaps);
         commandList->OMSetRenderTargets(1, &targetRTV, FALSE, nullptr);
@@ -190,7 +199,7 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
         commandList->SetGraphicsRootDescriptorTable(1, depthTextureSRVHandleGPU_);
         commandList->SetGraphicsRootDescriptorTable(2, normalTextureSRVHandleGPU_);
         commandList->SetGraphicsRootDescriptorTable(3, dissolveNoiseTextureSRVHandleGPU_);
-        commandList->SetGraphicsRootConstantBufferView(4, postEffectResource_->GetGPUVirtualAddress());
+        commandList->SetGraphicsRootConstantBufferView(4, postEffectResource_->GetGPUVirtualAddress() + parameterOffset);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         commandList->DrawInstanced(3, 1, 0, 0);
         };
@@ -226,9 +235,10 @@ void DirectXCommon::CopyRenderTextureToSwapChain()
 
     // Keep the post-effected image available to both the swapchain present path and the ImGui Game View.
     TransitionResource(finalOutputTextureResource_.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    *postEffectData_ = passthroughPostEffectParameters;
-    DrawFullscreenPass(copyPipelineState_.Get(), finalOutputTextureSRVHandleGPU_, backBufferRTV, viewport, scissorRect);
-    *postEffectData_ = scenePostEffectParameters;
+    // The departure blur is sampled once, in the scene pass. Keep its clean copy
+    // in a separate CBV so recording it cannot overwrite the scene parameters.
+    DrawFullscreenPass(copyPipelineState_.Get(), finalOutputTextureSRVHandleGPU_, backBufferRTV,
+        viewport, scissorRect, departureBlur ? parameterStride : 0);
     TransitionResource(normalTextureResource_.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET);
     TransitionResource(depthBuffer.Get(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
     gpuProfiler_->End(commandList.Get(), postToken);
@@ -690,10 +700,12 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
         1);
 
     const size_t postEffectBufferSize = (sizeof(PostEffectParameters) + 0xff) & ~static_cast<size_t>(0xff);
-    postEffectResource_ = CreateBufferResource(postEffectBufferSize);
+    postEffectResource_ = CreateBufferResource(postEffectBufferSize * 2);
     HRESULT hr = postEffectResource_->Map(0, nullptr, reinterpret_cast<void**>(&postEffectData_));
     assert(SUCCEEDED(hr));
     *postEffectData_ = postEffectParameters_;
+    auto* passthrough = reinterpret_cast<PostEffectParameters*>(reinterpret_cast<std::byte*>(postEffectData_) + postEffectBufferSize);
+    *passthrough = {};
     UpdateOffscreenViewportAndScissor();
 }
 

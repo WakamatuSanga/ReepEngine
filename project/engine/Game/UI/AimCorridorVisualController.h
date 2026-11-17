@@ -3,13 +3,18 @@
 #include "Engine/math/Matrix4x4.h"
 
 #include <cstdint>
+#include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 
 class AimCorridorVisualRenderer;
 class Camera;
 class DirectXCommon;
+class GameViewport;
 class Player;
+class Sprite;
+class SpriteCommon;
 
 struct AimReticleScreenRect {
     Vector2 centerUV{};
@@ -31,13 +36,16 @@ public:
     AimCorridorVisualController();
     ~AimCorridorVisualController();
 
-    bool Initialize(DirectXCommon* dxCommon, Player* player, Camera* camera);
+    bool Initialize(SpriteCommon* spriteCommon, Player* player, Camera* camera);
     void Finalize();
     void Reset();
     void SetGameModeActive(bool active);
     void SetPlayerAlive(bool alive);
     void Update(float unscaledDeltaTime);
-    void Draw();
+    void Draw(bool usesMouseAim);
+    bool DrawMouseReticle(const GameViewport& gameViewport);
+    AimReticleScreenRect GetMouseReticleScreenRect(const GameViewport& gameViewport) const;
+    void UpdateMouseLockRings(std::string_view targetId, bool locked, float lockElapsed, float deltaTime);
     void DrawImGui();
     void SetTargetingVisualState(AimReticleVisualState state, float lockProgress);
 
@@ -106,6 +114,11 @@ private:
     Player* player_ = nullptr;
     Camera* camera_ = nullptr;
     std::unique_ptr<AimCorridorVisualRenderer> renderer_;
+    SpriteCommon* spriteCommon_ = nullptr;
+    std::array<std::unique_ptr<Sprite>, 3> mouseReticleRings_;
+    std::array<float, 3> mouseRingAngles_{};
+    std::string mouseRingTargetId_;
+    size_t mouseRingCount_ = 1;
 
     std::string nearTexturePath_ = "resources/ui/aim_corridor/Aiming_2.png";
     std::string farTexturePath_ = "resources/ui/aim_corridor/Aiming_1.png";
