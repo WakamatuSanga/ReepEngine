@@ -1,6 +1,9 @@
 ﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "CombatEffectController.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
+#include "Engine/Game/Enemy/EnemyBreakupEffect.h"
+#include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 
 #include "GpuParticleEffectPlayer.h"
 #include "Engine/Game/Player/Player.h"
@@ -16,6 +19,9 @@
 #include <cstring>
 
 namespace {
+    const std::string kStage1HitSparks = "resources/effects/gpu/stage1_enemy_hit.json";
+    const std::string kStage1Defeat = "resources/effects/gpu/stage1_enemy_defeat.json";
+
     bool IsDeathEffectName(const char* effectType) {
         return effectType && std::string(effectType).find("Death") != std::string::npos;
     }
@@ -54,22 +60,35 @@ void CombatEffectController::Initialize(
 }
 
 bool CombatEffectController::PrepareForPresentation() {
+    if (!enemyDefeatEffectController_ || !enemyDefeatEffectController_->PrepareBreakup()) return false;
     if (!enableCombatEffects_ || !enableGpuParticleEffects_) return true;
     if (!gpuParticleEffectPlayer_) return false;
     // small_explosion is currently reachable only from the debug preview button.
     return (!enableHitSparks_ || gpuParticleEffectPlayer_->PrepareEffect(hitSparksJsonPath_))
-        && (!enableDeathExplosion_ || gpuParticleEffectPlayer_->PrepareEffect(deathExplosionJsonPath_));
+        && (!enableDeathExplosion_ || gpuParticleEffectPlayer_->PrepareEffect(deathExplosionJsonPath_))
+        && gpuParticleEffectPlayer_->PrepareBurstEffect(kStage1HitSparks);
 }
 
 void CombatEffectController::Finalize() {
     cameraShakeController_ = nullptr;
+    railCameraRig_ = nullptr;
+    enemyDefeatEffectController_ = nullptr;
     primitiveEffectSystem_ = nullptr;
     gpuParticleEffectPlayer_ = nullptr;
     player_ = nullptr;
 }
 
 void CombatEffectController::Update(float deltaTime, const Camera* camera) {
+    const auto rail = railCameraRig_ ? railCameraRig_->GetRailFlightPoseSnapshot(0.1f)
+                                    : RailShooterCameraRig::RailFlightPoseSnapshot{};
+    const Vector3 wind = rail.valid
+        ? Vector3{ -rail.currentForward.x, -rail.currentForward.y, -rail.currentForward.z }
+        : Vector3{};
+    if (enemyDefeatEffectController_) {
+        enemyDefeatEffectController_->SetBreakupWind(wind);
+    }
     if (gpuParticleEffectPlayer_) {
+        gpuParticleEffectPlayer_->SetBurstRailWind(rail.valid, wind);
         gpuParticleEffectPlayer_->Update(deltaTime, camera);
     }
 }
@@ -78,6 +97,29 @@ void CombatEffectController::Draw() {
     if (gpuParticleEffectPlayer_ && enableCombatEffects_ && enableGpuParticleEffects_) {
         gpuParticleEffectPlayer_->Draw();
     }
+}
+
+void CombatEffectController::DrawAfterCloud() {
+    if (gpuParticleEffectPlayer_ && enableCombatEffects_ && enableGpuParticleEffects_) {
+        gpuParticleEffectPlayer_->DrawAfterCloud();
+    }
+}
+
+void CombatEffectController::PlayStage1EnemyHit(const Vector3& hitPosition, const EnemyBreakupPose* defeatedEnemy) {
+    ++enemyHitEffectCount_;
+    if (defeatedEnemy) {
+        ++enemyDeathEffectCount_;
+    }
+    if (!enableCombatEffects_) {
+        return;
+    }
+    const bool sparks = gpuParticleEffectPlayer_ && enableGpuParticleEffects_ && enableHitSparks_
+        && gpuParticleEffectPlayer_->QueueBurst(kStage1HitSparks, hitPosition);
+    const bool defeatEffect = defeatedEnemy && enemyDefeatEffectController_
+        && enemyDefeatEffectController_->PlayStage1Defeat(*defeatedEnemy);
+    RecordEffect(defeatedEnemy ? "Stage1 Enemy Defeat" : "Stage1 Enemy Hit",
+        defeatedEnemy ? defeatedEnemy->transform.translate : hitPosition,
+        defeatEffect ? "Spawned stage 1 defeat effect" : (sparks ? "Queued hit sparks" : "No stage effect played"));
 }
 
 void CombatEffectController::DrawImGui() {
@@ -110,12 +152,16 @@ void CombatEffectController::DrawImGui() {
     DrawPathInput("Hit Sparks JSON Path", hitSparksJsonPath_);
     DrawPathInput("Small Explosion JSON Path", smallExplosionJsonPath_);
     DrawPathInput("Death Explosion JSON Path", deathExplosionJsonPath_);
+    ImGui::TextWrapped("%s", kStage1HitSparks.c_str());
+    ImGui::TextWrapped("Previous defeat preset: %s", kStage1Defeat.c_str());
     if (ImGui::Button("GPU Particle JSONを再読み込み (Reload GPU Particle Effects)")) {
         bool reloaded = gpuParticleEffectPlayer_ != nullptr;
         if (gpuParticleEffectPlayer_) {
             reloaded &= gpuParticleEffectPlayer_->ReloadEffect(hitSparksJsonPath_);
             reloaded &= gpuParticleEffectPlayer_->ReloadEffect(smallExplosionJsonPath_);
             reloaded &= gpuParticleEffectPlayer_->ReloadEffect(deathExplosionJsonPath_);
+            reloaded &= gpuParticleEffectPlayer_->ReloadEffect(kStage1HitSparks);
+            reloaded &= gpuParticleEffectPlayer_->ReloadEffect(kStage1Defeat);
         }
         lastEffectResult_ = reloaded ? "Reloaded GPU particle effects" : "Failed to reload one or more GPU particle effects";
     }
@@ -135,6 +181,15 @@ void CombatEffectController::DrawImGui() {
     Vector3 testPosition = { 0.0f, 0.0f, 0.0f };
     if (player_) {
         testPosition = player_->GetWorldPosition();
+    }
+    const Vector3 stage1TestPosition{testPosition.x, testPosition.y + 0.8f, testPosition.z};
+    if (ImGui::Button("ステージ1 命中テスト (Stage 1 Hit)")) {
+        PlayStage1EnemyHit(stage1TestPosition);
+    }
+    if (ImGui::Button("ステージ1 撃破テスト (Stage 1 Defeat)")) {
+        const EnemyBreakupPose preview{
+            { { 0.8f, 0.8f, 0.8f }, { 0.0f, 4.71238898f, 0.0f }, stage1TestPosition }, {}, false };
+        PlayStage1EnemyHit(stage1TestPosition, &preview);
     }
     if (ImGui::Button("Play Test Player Death Explosion")) {
         PlayPlayerDeathExplosion(testPosition);

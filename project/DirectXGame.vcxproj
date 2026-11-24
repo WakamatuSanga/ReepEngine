@@ -172,6 +172,7 @@
     <ClCompile Include="engine\Game\Effect\PostEffectController.cpp" />
     <ClCompile Include="engine\Game\Enemy\Enemy.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyDefeatEffectController.cpp" />
+    <ClCompile Include="engine\Game\Enemy\EnemyBreakupEffect.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyHitShape.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyAttackController.cpp" />
     <ClCompile Include="engine\Game\Enemy\EnemyLaserTelegraphController.cpp" />
@@ -490,6 +491,7 @@
     <ClInclude Include="engine\Game\Effect\PostEffectController.h" />
     <ClInclude Include="engine\Game\Enemy\Enemy.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyDefeatEffectController.h" />
+    <ClInclude Include="engine\Game\Enemy\EnemyBreakupEffect.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyAttackController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyLaserTelegraphController.h" />
     <ClInclude Include="engine\Game\Enemy\EnemyBullet.h" />

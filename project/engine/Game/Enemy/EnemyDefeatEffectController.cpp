@@ -1,10 +1,12 @@
 #include "Engine/Core/DebugUiWorkspace.h"
 #include "EnemyDefeatEffectController.h"
+#include "EnemyBreakupEffect.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Game/Player/PlayerJetExhaustBeamRenderer.h"
 #include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Effect/LockedWingSmokePass.h"
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -139,9 +141,14 @@ namespace {
 EnemyDefeatEffectController::EnemyDefeatEffectController() = default;
 EnemyDefeatEffectController::~EnemyDefeatEffectController() = default;
 
-bool EnemyDefeatEffectController::Initialize(DirectXCommon* dxCommon, Camera* camera) {
+bool EnemyDefeatEffectController::Initialize(
+    DirectXCommon* dxCommon, SrvManager* srvManager, Camera* camera, Object3dCommon* objects) {
     initialized_ = false;
     camera_ = camera;
+    breakup_ = std::make_unique<EnemyBreakupEffect>(objects, camera);
+    defeatSmoke_ = dxCommon && srvManager && camera_
+        ? std::make_unique<LockedWingSmokePass>(*dxCommon, *srvManager, LockedWingSmokePass::Style::Burst)
+        : nullptr;
     effects_.clear();
     renderer_ = std::make_unique<PlayerJetExhaustBeamRenderer>();
     initialized_ = dxCommon && camera_ && renderer_ && renderer_->Initialize(dxCommon);
@@ -159,6 +166,8 @@ void EnemyDefeatEffectController::Finalize() {
     initialized_ = false;
     effects_.clear();
     renderer_.reset();
+    breakup_.reset();
+    defeatSmoke_.reset();
     camera_ = nullptr;
 }
 
@@ -167,12 +176,18 @@ void EnemyDefeatEffectController::BeginFrame() {
 }
 
 void EnemyDefeatEffectController::Update(float deltaTime) {
+    const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
+    if (breakup_) {
+        breakup_->Update(safeDeltaTime);
+    }
+    if (defeatSmoke_) {
+        defeatSmoke_->Update(safeDeltaTime);
+    }
     if (!initialized_) {
         return;
     }
     ClampSettings();
     EnsureEffectSlots();
-    const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     time_ += safeDeltaTime;
     for (DefeatEffect& effect : effects_) {
         if (!effect.active) {
@@ -188,10 +203,37 @@ void EnemyDefeatEffectController::Update(float deltaTime) {
 
 void EnemyDefeatEffectController::Draw() {
     DrawLayer(false);
+    if (breakup_) {
+        breakup_->Draw();
+    }
 }
 
 void EnemyDefeatEffectController::DrawAfterCloud() {
     DrawLayer(true);
+    if (defeatSmoke_ && camera_) {
+        defeatSmoke_->Draw(*camera_);
+    }
+}
+
+bool EnemyDefeatEffectController::PrepareBreakup() {
+    return breakup_ && breakup_->Prepare();
+}
+
+bool EnemyDefeatEffectController::PlayStage1Defeat(const EnemyBreakupPose& pose) {
+    if (!enableDefeatEffect_) {
+        return false;
+    }
+    const Vector3& scale = pose.transform.scale;
+    const float smokeScale = (std::max)({std::fabs(scale.x), std::fabs(scale.y), std::fabs(scale.z)}) / 0.8f;
+    const bool smoke = defeatSmoke_ && defeatSmoke_->EmitBurst(pose.transform.translate, smokeScale);
+    const bool breakup = PrepareBreakup() && breakup_->Spawn(pose);
+    return smoke || breakup;
+}
+
+void EnemyDefeatEffectController::SetBreakupWind(const Vector3& direction) {
+    if (breakup_) {
+        breakup_->SetWind(direction);
+    }
 }
 
 void EnemyDefeatEffectController::SpawnDefeatEffect(const Vector3& position, float scale) {
@@ -313,6 +355,12 @@ void EnemyDefeatEffectController::DrawImGui() {
     }
 
     ImGui::Checkbox("Enable Enemy Defeat Effect", &enableDefeatEffect_);
+    if (breakup_) {
+        breakup_->DrawImGui();
+    }
+    if (defeatSmoke_) {
+        defeatSmoke_->DrawImGui();
+    }
     ImGui::Checkbox("Draw After Cloud", &drawAfterCloud_);
     if (ImGui::Button("Test Spawn Defeat Effect")) {
         const Vector3 position = camera_ ? AddVector3(camera_->GetTranslate(), ScaleVector3(ResolveCameraForward(), 7.0f)) : Vector3{};

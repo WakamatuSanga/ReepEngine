@@ -207,6 +207,9 @@ void GameScene::DrawSceneRender() {
     if (effectsVisible && enemyDefeatEffectController_ && !shadowDebugSettings.disableEffects) {
         enemyDefeatEffectController_->DrawAfterCloud();
     }
+    if (effectsVisible && combatEffectController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
+        combatEffectController_->DrawAfterCloud();
+    }
     if (enemyLaserTelegraphController_ && combatVisible && !shadowDebugSettings.disableEffects) {
         enemyLaserTelegraphController_->DrawAfterCloud();
     }

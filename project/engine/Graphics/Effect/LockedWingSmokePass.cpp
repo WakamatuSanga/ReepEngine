@@ -6,6 +6,7 @@
 #include "Engine/Graphics/Camera/Camera.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <vector>
@@ -22,6 +23,14 @@ constexpr UINT kTileCapacity = 48;
 constexpr UINT kTileStride = kTileCapacity + 1;
 constexpr DXGI_FORMAT kSmokeFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 constexpr float kClear[4]{};
+constexpr std::array<Vector3, 6> kBurstDirections{{
+    {0.0f, 0.12f, 0.0f},
+    {-0.88f, 0.15f, 0.20f},
+    {0.88f, -0.12f, -0.15f},
+    {-0.28f, 0.75f, 0.46f},
+    {0.29f, 0.50f, -0.62f},
+    {0.14f, -0.61f, 0.42f},
+}};
 
 struct GpuPuff {
     Vector4 centerAndRadius;
@@ -215,8 +224,13 @@ bool LockedWingSmokePass::RenderResources::EnsureBuffer(DirectXCommon& dx, SrvMa
     return true;
 }
 
-LockedWingSmokePass::LockedWingSmokePass(DirectXCommon& dx, SrvManager& srv)
-    : dx_(dx), srv_(srv), render_(std::make_unique<RenderResources>()) {
+LockedWingSmokePass::LockedWingSmokePass(DirectXCommon& dx, SrvManager& srv, Style style)
+    : dx_(dx), srv_(srv), style_(style), render_(std::make_unique<RenderResources>()) {
+    if (style_ == Style::Burst) {
+        density_ = 1.55f;
+        expansion_ = 1.2f;
+        lifetime_ = 0.8f;
+    }
     renderInitFailed_ = !render_->Initialize(dx_);
 }
 
@@ -230,17 +244,40 @@ void LockedWingSmokePass::Emit(const Vector3& nozzle, const Vector3& direction) 
     if (!IsEnabled()) {
         return;
     }
-    if (puffs_.size() == kPuffCapacity) {
-        puffs_.pop_front();
-    }
-    const unsigned seed = ++sequence_ * 747796405u + 2891336453u;
-    const float variation = static_cast<float>((seed >> 15) & 1023u) / 1023.0f;
+    const float variation = NextVariation();
     const float angle = variation * 6.2831853f;
-    puffs_.push_back({nozzle,
+    AppendPuff(nozzle,
         {direction.x * 0.8f + std::cos(angle) * 0.24f,
             direction.y * 0.8f + 0.20f + 0.17f * variation,
             direction.z * 0.8f + std::sin(angle) * 0.24f},
-        time_, 17.0f * variation});
+        variation, 1.0f);
+}
+
+bool LockedWingSmokePass::EmitBurst(const Vector3& center, float scale) {
+    if (style_ != Style::Burst || !IsEnabled()) {
+        return false;
+    }
+    const float safeScale = std::clamp(scale, 0.65f, 1.5f);
+    const float offset = 0.24f * safeScale;
+    const float speed = 1.6f * safeScale;
+    for (const auto& direction : kBurstDirections) {
+        AppendPuff({center.x + direction.x * offset, center.y + direction.y * offset, center.z + direction.z * offset},
+            {direction.x * speed, direction.y * speed + 0.18f, direction.z * speed},
+            NextVariation(), safeScale);
+    }
+    return true;
+}
+
+float LockedWingSmokePass::NextVariation() {
+    const unsigned seed = ++sequence_ * 747796405u + 2891336453u;
+    return static_cast<float>((seed >> 15) & 1023u) / 1023.0f;
+}
+
+void LockedWingSmokePass::AppendPuff(const Vector3& origin, const Vector3& drift, float variation, float scale) {
+    if (puffs_.size() == kPuffCapacity) {
+        puffs_.pop_front();
+    }
+    puffs_.push_back({origin, drift, time_, 17.0f * variation, scale});
 }
 
 void LockedWingSmokePass::Update(float deltaTime) {
@@ -267,6 +304,7 @@ void LockedWingSmokePass::Draw(const Camera& camera) {
         return;
     }
 
+    const bool burst = style_ == Style::Burst;
     const auto& projection = camera.GetProjectionMatrix();
     const SmokeConstants settings{camera.GetViewWorldMatrix(),
         {projection.m[0][0], projection.m[1][1], projection.m[2][2], projection.m[3][2]},
@@ -281,9 +319,10 @@ void LockedWingSmokePass::Draw(const Camera& camera) {
         const float age = time_ - puff.birthTime;
         const float fade = 1.0f - Smooth(0.38f * lifetime_, lifetime_, age);
         if (fade < 0.004f) continue;
-        const float bloom = Smooth(0.0f, 0.28f, age);
-        const float radius = (0.095f + expansion_ * (bloom * 0.34f + age * 0.12f))
-            * (0.88f + puff.seed * (0.24f / 17.0f));
+        const float bloom = Smooth(0.0f, burst ? 0.18f : 0.28f, age);
+        const float radius = ((burst ? 0.32f : 0.095f)
+            + expansion_ * (bloom * (burst ? 0.40f : 0.34f) + age * 0.12f))
+            * (0.88f + puff.seed * (0.24f / 17.0f)) * puff.scale;
         const float drift = age / (1.0f + 0.9f * age);
         const Vector3 center = TransformPoint(camera.GetViewMatrix(),
             {puff.origin.x + puff.drift.x * drift, puff.origin.y + puff.drift.y * drift,
@@ -291,13 +330,13 @@ void LockedWingSmokePass::Draw(const Camera& camera) {
         // Residual smoke can drift past the camera as the rail advances. Fade it
         // before it occupies the full screen, while leaving the narrow nozzle visible.
         const float screenRadius = radius * settings.projection.y / (std::max)(center.z, settings.nearPlane);
-        const float nearFade = 1.0f - Smooth(0.13f, 0.29f, screenRadius);
+        const float nearFade = 1.0f - Smooth(burst ? 0.27f : 0.13f, burst ? 0.58f : 0.29f, screenRadius);
         if (fade * nearFade < 0.004f) continue;
         const auto rect = ProjectPuff(center, radius, settings);
         if (rect.left >= rect.right || rect.top >= rect.bottom) continue;
         const UINT id = static_cast<UINT>(gpu.visiblePuffs.size());
-        gpu.visiblePuffs.push_back({{center.x, center.y, center.z, radius},
-            {fade * nearFade * (0.36f + 0.64f * bloom), puff.seed}});
+        const float opacity = burst ? 1.0f : 0.36f + 0.64f * bloom;
+        gpu.visiblePuffs.push_back({{center.x, center.y, center.z, radius}, {fade * nearFade * opacity, puff.seed}});
         bounds.left = (std::min)(bounds.left, rect.left);
         bounds.top = (std::min)(bounds.top, rect.top);
         bounds.right = (std::max)(bounds.right, rect.right);
@@ -342,7 +381,9 @@ void LockedWingSmokePass::Draw(const Camera& camera) {
     context.cloudHeight = height;
     context.viewSteps = 6;
     context.resolution = 0.5f;
-    const auto token = profiler.Begin(commands, GpuTimestampProfiler::Stage::MissileSmoke, context);
+    // The burst is included in the enclosing AfterCloud span.
+    const auto token = burst ? GpuTimestampProfiler::kInvalidToken
+        : profiler.Begin(commands, GpuTimestampProfiler::Stage::MissileSmoke, context);
     const D3D12_VIEWPORT lowViewport{0, 0, static_cast<float>(width), static_cast<float>(height), 0, 1};
     const D3D12_VIEWPORT fullViewport{0, 0, static_cast<float>(outputWidth), static_cast<float>(outputHeight), 0, 1};
     const D3D12_RECT fullScissor{0, 0, static_cast<LONG>(outputWidth), static_cast<LONG>(outputHeight)};
@@ -385,12 +426,13 @@ void LockedWingSmokePass::Draw(const Camera& camera) {
 
 void LockedWingSmokePass::DrawImGui() {
 #ifdef USE_IMGUI
-    ImGui::SeparatorText("立体排気煙");
-    if (ImGui::Checkbox("排気煙を描画", &enabled_) && !enabled_) Reset();
+    const bool burst = style_ == Style::Burst;
+    ImGui::SeparatorText(burst ? "ステージ1 撃破の立体煙" : "立体排気煙");
+    if (ImGui::Checkbox(burst ? "撃破の煙を描画" : "排気煙を描画", &enabled_) && !enabled_) Reset();
     ImGui::SliderFloat("煙の濃さ", &density_, 0.0f, 2.0f, "%.2f");
     ImGui::SliderFloat("煙の膨らみ", &expansion_, 0.3f, 1.8f, "%.2f");
-    ImGui::SliderFloat("煙の寿命", &lifetime_, 0.4f, 2.5f, "%.2f 秒");
+    ImGui::SliderFloat("煙の寿命", &lifetime_, burst ? 0.48f : 0.4f, burst ? 1.2f : 2.5f, "%.2f 秒");
     ImGui::Text("煙の点数 %zu / %u", puffs_.size(), kPuffCapacity);
-    if (renderInitFailed_) ImGui::TextDisabled("排気煙を初期化できませんでした");
+    if (renderInitFailed_) ImGui::TextDisabled(burst ? "撃破の煙を初期化できませんでした" : "排気煙を初期化できませんでした");
 #endif
 }

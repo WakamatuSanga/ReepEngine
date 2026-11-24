@@ -9,7 +9,12 @@
 class Camera;
 class CameraShakeController;
 class DirectXCommon;
+class EnemyBreakupEffect;
+class LockedWingSmokePass;
+class Object3dCommon;
 class PlayerJetExhaustBeamRenderer;
+class SrvManager;
+struct EnemyBreakupPose;
 
 enum class EnemyDefeatEffectSpawnResult : std::uint8_t {
     UnknownFailure,
@@ -26,7 +31,7 @@ public:
     EnemyDefeatEffectController();
     ~EnemyDefeatEffectController();
 
-    bool Initialize(DirectXCommon* dxCommon, Camera* camera);
+    bool Initialize(DirectXCommon* dxCommon, SrvManager* srvManager, Camera* camera, Object3dCommon* objects);
     void Finalize();
     void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
     void BeginFrame();
@@ -34,6 +39,9 @@ public:
     void Draw();
     void DrawAfterCloud();
     void DrawImGui();
+    bool PrepareBreakup();
+    bool PlayStage1Defeat(const EnemyBreakupPose& pose);
+    void SetBreakupWind(const Vector3& direction);
 
     EnemyDefeatEffectSpawnResult TrySpawnDefeatEffect(
         const Vector3& position, float scale = 1.0f);
@@ -58,6 +66,8 @@ private:
     int CountActiveEffects() const;
 
     std::unique_ptr<PlayerJetExhaustBeamRenderer> renderer_;
+    std::unique_ptr<EnemyBreakupEffect> breakup_;
+    std::unique_ptr<LockedWingSmokePass> defeatSmoke_;
     std::vector<DefeatEffect> effects_;
     Camera* camera_ = nullptr;
     CameraShakeController* cameraShakeController_ = nullptr;

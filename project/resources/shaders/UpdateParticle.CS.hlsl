@@ -54,6 +54,7 @@ struct ParticleType
     float3 chargeGatherTargetOffset;
     float streakLength;
     float streakWidth;
+    uint useTextureColor;
 };
 
 struct UpdateInfo
@@ -67,7 +68,7 @@ struct UpdateInfo
     uint influenceFieldCount;
     uint enableParticleInfluence;
     float particleInfluenceResponseScale;
-    float padding;
+    uint railFlowAsAcceleration;
     float4 railFlowDirectionSpeed;
     float4 railFlowSettings;
     float4 railFlowCameraPosition;
@@ -295,10 +296,15 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
         return;
     }
 
-    const float3 railFlowVelocity = GetRailFlowVelocity(particleType);
+    float3 railFlowVelocity = GetRailFlowVelocity(particleType);
+    if (gUpdateInfo.railFlowAsAcceleration != 0u)
+    {
+        particle.velocity += railFlowVelocity * gUpdateInfo.deltaTime;
+        railFlowVelocity = 0.0f;
+    }
     particle.translate += (particle.velocity + railFlowVelocity) * gUpdateInfo.deltaTime;
     if (particleType.streakLength > 0.0f && particleType.affectedByRailFlow != 0u
-        && gUpdateInfo.railFlowSettings.x > 0.5f) {
+        && gUpdateInfo.railFlowSettings.x > 0.5f && gUpdateInfo.railFlowAsAcceleration == 0u) {
         const float3 forward = -SafeNormalize(gUpdateInfo.railFlowDirectionSpeed.xyz, float3(0, 0, -1));
         const float depth = dot(particle.translate - gUpdateInfo.railFlowCameraPosition.xyz, forward);
         if (depth < -gUpdateInfo.railFlowSettings.w || depth > gUpdateInfo.railFlowSettings.z) {

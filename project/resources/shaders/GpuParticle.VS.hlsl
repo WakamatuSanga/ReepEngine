@@ -88,5 +88,6 @@ VertexShaderOutput main(uint vertexId : SV_VertexID, uint instanceId : SV_Instan
     output.color = particleColor;
     output.typeColor = particleType.baseColor;
     output.textureIndex = particleType.textureIndex;
+    output.useTextureColor = particleType.useTextureColor;
     return output;
 }

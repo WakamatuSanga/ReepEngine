@@ -242,7 +242,9 @@ void GameScene::InitializeSceneResources() {
     impactDistortionController_ = std::make_unique<ImpactDistortionController>();
     impactDistortionController_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get());
     enemyDefeatEffectController_ = std::make_unique<EnemyDefeatEffectController>();
-    enemyDefeatEffectController_->Initialize(MyGame::GetInstance()->GetDxCommon(), camera_.get());
+    enemyDefeatEffectController_->Initialize(
+        MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance(), camera_.get(), object3dCommon);
+    combatEffectController_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
     enemyManager_ = std::make_unique<EnemyManager>();
     enemyManager_->Initialize(object3dCommon, camera_.get());
     enemyManager_->SetPlayer(player_.get());
@@ -282,8 +284,6 @@ void GameScene::InitializeSceneResources() {
     playerBulletEnemyCollision_ = std::make_unique<PlayerBulletEnemyCollision>();
     playerBulletEnemyCollision_->Initialize(playerBulletManager_.get(), enemyManager_.get(), combatEffectController_.get());
     playerBulletEnemyCollision_->SetCameraShakeController(cameraShakeController_.get());
-    playerBulletEnemyCollision_->SetEnemyDefeatEffectController(enemyDefeatEffectController_.get());
-    playerBulletEnemyCollision_->SetImpactDistortionController(impactDistortionController_.get());
     playerEnemyBulletCollision_ = std::make_unique<PlayerEnemyBulletCollision>();
     playerEnemyBulletCollision_->Initialize(player_.get(), enemyBulletManager_.get(), playerDeathSequenceController_.get(), combatEffectController_.get());
     playerEnemyBulletCollision_->SetBulletCancelEffectController(playerBulletCancelEffectController_.get());
@@ -300,6 +300,7 @@ void GameScene::InitializeSceneResources() {
     enemyAttackController_->SetRailRig(railShooterCameraRig_.get());
     railShooterCameraRig_->Initialize(camera_.get(), levelSceneRuntime_->GetRailRuntime());
     railShooterCameraRig_->SetLevelSceneRuntime(levelSceneRuntime_.get());
+    combatEffectController_->SetRailCameraRig(railShooterCameraRig_.get());
     gameplaySpeedLineController_ = std::make_unique<GameplaySpeedLineController>();
     gameplaySpeedLineController_->Initialize(MyGame::GetInstance()->GetDxCommon(),
         SrvManager::GetInstance(), camera_.get(), railShooterCameraRig_.get(), boostController_.get());

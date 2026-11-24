@@ -256,6 +256,8 @@ private:
         const Vector3& previousPosition, float cruiseDeltaTime);
     static Vector3 GetClosestProjectileStepPosition(
         const PlayerBulletInstance& instance, const Vector3& center, const Vector3& axes);
+    static Vector3 GetProjectileImpactPosition(const PlayerBulletInstance& instance,
+        const Vector3& center, const Vector3& axes, const Vector3& closestPosition);
     void UpdateLockedWingMissileExhaust(PlayerBulletInstance& instance);
     void UpdateLockedWingShotDiagnostics();
     void ResetLockedWingHomingDiagnostics(bool resetStatistics);

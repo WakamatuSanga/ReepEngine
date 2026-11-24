@@ -54,6 +54,7 @@ struct ParticleType
     float3 chargeGatherTargetOffset;
     float streakLength;
     float streakWidth;
+    uint useTextureColor;
 };
 
 struct EmitterInfo
@@ -68,6 +69,7 @@ struct EmitterInfo
     float emitterConeHeight;
     uint emitterShape;
     float3 emitterDirection;
+    uint radialLaunch;
 };
 
 RWStructuredBuffer<Particle> gParticles : register(u0);
@@ -193,6 +195,10 @@ void main(uint3 dispatchThreadId : SV_DispatchThreadID)
     float3 emitterOffset = MakeEmitterOffset(baseSeed, useRandom, emitIndex, gEmitterInfo.emitCount);
     float3 emitterForward = SafeNormalize(gEmitterInfo.emitterDirection, float3(0.0f, 1.0f, 0.0f));
     float3 velocityDirection = SafeNormalize(emitterOffset + float3(0.001f, 0.25f, 0.001f), float3(0.0f, 1.0f, 0.0f));
+    if (gEmitterInfo.radialLaunch != 0u)
+    {
+        velocityDirection = SafeNormalize(emitterOffset, RandomUnitVector(baseSeed ^ 0x487712a1u));
+    }
     if (gEmitterInfo.emitterShape == 2u)
     {
         velocityDirection = SafeNormalize(emitterOffset + emitterForward * 0.25f, emitterForward);

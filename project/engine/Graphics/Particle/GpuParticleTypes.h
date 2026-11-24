@@ -90,6 +90,7 @@ struct ParticleType {
 	bool emissionByChargeRate = false;
 	uint32_t chargeGatherTargetMode = 1;
 	Vector3 chargeGatherTargetOffset = { 0.0f, 0.0f, 0.0f };
+	bool useTextureColor = false;
 };
 
 struct ParticleTypeForGPU {
@@ -134,8 +135,9 @@ struct ParticleTypeForGPU {
 	Vector3 chargeGatherTargetOffset;
 	float streakLength;
 	float streakWidth;
+	uint32_t useTextureColor;
 };
-static_assert(sizeof(ParticleTypeForGPU) == 208, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
+static_assert(sizeof(ParticleTypeForGPU) == 212, "Gpu particle type stride must match the HLSL StructuredBuffer layout.");
 static_assert(offsetof(ParticleTypeForGPU, startColor) == 16, "startColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, endColor) == 32, "endColor offset must match HLSL ParticleType.");
 static_assert(offsetof(ParticleTypeForGPU, drag) == 76, "drag offset must match HLSL ParticleType.");
@@ -195,7 +197,7 @@ struct UpdateInfo {
 	uint32_t influenceFieldCount = 0;
 	uint32_t enableParticleInfluence = 1;
 	float particleInfluenceResponseScale = 1.0f;
-	float padding = 0.0f;
+	uint32_t railFlowAsAcceleration = 0;
 	Vector4 railFlowDirectionSpeed = {0.0f, 0.0f, -1.0f, 0.0f};
 	Vector4 railFlowSettings = {0.0f, 1.0f, 24.0f, 8.0f};
 	Vector4 railFlowCameraPosition = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -308,6 +310,7 @@ struct State {
 	bool enableParticleInfluence = true;
 	float particleInfluenceResponseScale = 1.0f;
 	bool enableRailParticleFlow = true;
+	bool railFlowAsAcceleration = false;
 	float railFlowSpeed = 6.0f;
 	float railFlowScale = 1.0f;
 	Vector3 railFlowDirection = {0.0f, 0.0f, -1.0f};
@@ -322,6 +325,7 @@ struct State {
 	float chargeGatherBrightnessScale = 1.0f;
 	std::vector<ParticleType> particleTypes;
 	std::vector<Emitter> emitters;
+	std::vector<Emitter> burstEmitters;
 	std::vector<EmitBatchEstimate> emitBatchEstimates;
 };
 
