@@ -23,6 +23,7 @@ struct GpuParticleEffectPlayer::EffectInstance {
     std::string status = "Not loaded";
     bool loaded = false;
     bool playing = false;
+    bool burst = false;
 };
 
 GpuParticleEffectPlayer::GpuParticleEffectPlayer() = default;
@@ -67,10 +68,59 @@ void GpuParticleEffectPlayer::Update(float deltaTime, const Camera* camera) {
 void GpuParticleEffectPlayer::Draw() {
     DrawFollowingEffects();
     for (const std::unique_ptr<EffectInstance>& instance : effects_) {
-        if (!instance || !instance->system || !instance->loaded || !instance->playing) {
+        if (!instance->loaded || !instance->playing || instance->burst) {
             continue;
         }
         instance->system->Draw();
+    }
+}
+
+void GpuParticleEffectPlayer::DrawAfterCloud() {
+    for (const auto& instance : effects_) {
+        if (!instance->loaded || !instance->playing || !instance->burst) {
+            continue;
+        }
+        instance->system->Draw();
+        instance->playing = instance->system->HasPendingBursts() || instance->system->GetActiveCountEstimate() > 0;
+    }
+}
+
+bool GpuParticleEffectPlayer::PrepareBurstEffect(const std::string& jsonPath) {
+    EffectInstance* instance = FindOrCreateInstance(jsonPath);
+    if (!instance) {
+        return false;
+    }
+    if (!instance->burst) {
+        if (!instance->system->SetAfterCloudRendering()) {
+            return false;
+        }
+        instance->burst = true;
+        instance->loaded = false;
+    }
+    return instance->loaded || LoadInstance(*instance);
+}
+
+bool GpuParticleEffectPlayer::QueueBurst(const std::string& jsonPath, const Vector3& position) {
+    if (PrepareBurstEffect(jsonPath)) {
+        EffectInstance& instance = *FindInstance(jsonPath);
+        if (instance.system->QueueBurst(instance.data, position)) {
+            instance.playing = true;
+            ++playCount_;
+            RecordResult(jsonPath, position, "Queued GPU particle burst");
+            return true;
+        }
+    }
+    ++failedPlayCount_;
+    RecordResult(jsonPath, position, "Failed to queue GPU particle burst");
+    return false;
+}
+
+void GpuParticleEffectPlayer::SetBurstRailWind(bool enabled, const Vector3& direction) {
+    constexpr float kRailAcceleration = 10.0f;
+    for (const auto& instance : effects_) {
+        if (instance->burst) {
+            instance->system->SetRailParticleFlow(enabled, {}, direction, kRailAcceleration, 1.0f, 0.0f, 0.0f, true);
+        }
     }
 }
 
@@ -97,7 +147,7 @@ bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& jsonPat
         RecordResult(jsonPath, position, instance->status);
         return false;
     }
-    if (!instance->system || !instance->system->PlayEffectDataAt(instance->data, position)) {
+    if (instance->burst || !instance->system || !instance->system->PlayEffectDataAt(instance->data, position)) {
         ++failedPlayCount_;
         RecordResult(jsonPath, position, "Failed to play GPU particle effect");
         return false;
@@ -112,7 +162,7 @@ bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& jsonPat
 bool GpuParticleEffectPlayer::PlayGpuParticleEffectAt(const std::string& path, const Vector3& position,
     float scale, float brightness, float amount, float lifetime) {
     auto* instance=FindOrCreateInstance(path);
-    if(!instance||(!instance->loaded&&!LoadInstance(*instance)))return false;
+    if(!instance||instance->burst||(!instance->loaded&&!LoadInstance(*instance)))return false;
     auto data=instance->data;scale=std::clamp(scale,.1f,4.0f);brightness=std::clamp(brightness,0.0f,3.0f);
     amount=std::clamp(amount,.1f,2.0f);lifetime=std::clamp(lifetime,.2f,3.0f);
     for(auto& type:data.particleTypes){type.startScale*=scale;type.endScale*=scale;type.speedMin*=scale;type.speedMax*=scale;
@@ -211,7 +261,19 @@ bool GpuParticleEffectPlayer::LoadInstance(EffectInstance& instance) {
     for (const auto& type : instance.data.particleTypes) {
         if (!type.texturePath.empty()) TextureManager::GetInstance()->LoadTexture(type.texturePath);
     }
-    instance.system->ApplyEffectData(instance.data); // textures and upload buffers only; no emission
+    if (instance.burst) {
+        auto runtimeData = instance.data;
+        for (auto& emitter : runtimeData.emitters) {
+            emitter.enabled = false;
+        }
+        runtimeData.runtime.useFreeListEmit = true;
+        runtimeData.runtime.useDeadList = true;
+        runtimeData.runtime.autoRecycleDeadList = true;
+        instance.system->ApplyEffectData(runtimeData);
+        instance.system->SetRailParticleFlow(false, {}, {}, 0.0f, 1.0f, 0.0f, 0.0f, true);
+    } else {
+        instance.system->ApplyEffectData(instance.data);
+    }
     instance.playing = false;
     instance.loaded = true;
     instance.status = "Loaded";

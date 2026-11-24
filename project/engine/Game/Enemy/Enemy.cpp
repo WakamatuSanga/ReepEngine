@@ -1,5 +1,6 @@
 #include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Enemy.h"
+#include "EnemyBreakupEffect.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Model/ModelManager.h"
@@ -170,6 +171,8 @@ void Enemy::Initialize(Object3dCommon* object3dCommon, Camera* camera, const std
     isDead_ = false;
     state_ = State::Active;
     hp_ = 10;
+    previousMotionPosition_ = position_;
+    worldMotionVelocity_ = {};
 
     object_ = std::make_unique<Object3d>();
     object_->Initialize(object3dCommon_);
@@ -200,6 +203,10 @@ void Enemy::Update(float deltaTime) {
     } else {
         position_ = AddVector3(position_, ScaleVector3(velocity_, safeDeltaTime));
     }
+    worldMotionVelocity_ = safeDeltaTime > 0.0f
+        ? ScaleVector3(SubtractVector3(position_, previousMotionPosition_), 1.0f / safeDeltaTime)
+        : Vector3{};
+    previousMotionPosition_ = position_;
     UpdateObjectTransform();
     object_->Update();
 }
@@ -211,6 +218,11 @@ void Enemy::Draw() {
 
     object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
     object_->Draw();
+}
+
+EnemyBreakupPose Enemy::CaptureBreakupPose() const {
+    return { { scale_, visualModelRotation_, position_ }, worldMotionVelocity_,
+        useFallbackModel_ || modelPath_ != kDefaultModelPath };
 }
 
 void Enemy::DrawImGui() {
@@ -433,6 +445,8 @@ void Enemy::StartSpawnAnimationFrom(
     alignStartRotation_ = rotation_;
     alignTargetRotation_ = AddVector3(rotation_, modelRotationOffset_);
     position_ = spawnStartPosition_;
+    previousMotionPosition_ = position_;
+    worldMotionVelocity_ = {};
     state_ = State::Spawning;
     isActive_ = true;
     isDead_ = false;
@@ -475,6 +489,8 @@ void Enemy::Revive(int hp) {
     isDead_ = false;
     isActive_ = true;
     state_ = State::Active;
+    previousMotionPosition_ = position_;
+    worldMotionVelocity_ = {};
 }
 
 void Enemy::LoadModel() {

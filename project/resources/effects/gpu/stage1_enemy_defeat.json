@@ -1,0 +1,69 @@
+{
+  "emitters": [
+    {
+      "enabled": true,
+      "position": [0, 0, 0],
+      "shape": "Sphere",
+      "radius": 0,
+      "emitCount": 1,
+      "randomSeed": 17,
+      "particleTypeIndex": 0
+    },
+    {
+      "enabled": true,
+      "position": [0, 0, 0],
+      "shape": "Sphere",
+      "radius": 0.15,
+      "emitCount": 9,
+      "randomSeed": 67,
+      "particleTypeIndex": 1
+    }
+  ],
+  "particleTypes": [
+    {
+      "name": "Stage 1 Explosion Sprite",
+      "texturePath": "resources/particle/stage1-explosion-sprite.png",
+      "useTextureColor": true,
+      "baseColor": [1, 1, 1, 1],
+      "startColor": [1, 1, 1, 1],
+      "endColor": [1, 1, 1, 0],
+      "startScale": 1.6,
+      "endScale": 3.3,
+      "lifeTimeMin": 0.26,
+      "lifeTimeMax": 0.26,
+      "speedMin": 0,
+      "speedMax": 0,
+      "gravity": 0,
+      "drag": 0,
+      "affectedByInfluenceField": false,
+      "affectedByRailFlow": false
+    },
+    {
+      "name": "Stage 1 Enemy Debris",
+      "texturePath": "resources/human/white.png",
+      "baseColor": [0.16, 0.13, 0.12, 1],
+      "startColor": [0.16, 0.13, 0.12, 1],
+      "endColor": [0.07, 0.06, 0.06, 0],
+      "startScale": 0.19,
+      "endScale": 0.075,
+      "lifeTimeMin": 0.52,
+      "lifeTimeMax": 0.68,
+      "speedMin": 1.45,
+      "speedMax": 4.1,
+      "gravity": -3.6,
+      "drag": 0.48,
+      "affectedByInfluenceField": false,
+      "affectedByRailFlow": true,
+      "railFlowScale": 0.38
+    }
+  ],
+  "runtime": {
+    "randomEnabled": true,
+    "useFreeListEmit": true,
+    "useDeadList": true,
+    "autoRecycleDeadList": true,
+    "updateEnabled": true,
+    "maxActiveParticles": 1024,
+    "maxEmitPerFrame": 1024
+  }
+}

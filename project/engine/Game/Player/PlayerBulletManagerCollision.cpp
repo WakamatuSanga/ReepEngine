@@ -13,6 +13,32 @@ float DistanceSquaredLocal(const Vector3& a, const Vector3& b) {
     const float dz = a.z - b.z;
     return dx * dx + dy * dy + dz * dz;
 }
+
+bool FindSegmentEntry(const Vector3& start, const Vector3& end, const Vector3& center,
+    const Vector3& axes, Vector3& impact) {
+    const Vector3 offset{ (start.x - center.x) / axes.x,
+        (start.y - center.y) / axes.y, (start.z - center.z) / axes.z };
+    const Vector3 direction{ (end.x - start.x) / axes.x,
+        (end.y - start.y) / axes.y, (end.z - start.z) / axes.z };
+    const float startDistance = DistanceSquaredLocal(offset, {}) - 1.0f;
+    if (startDistance <= 0.0f) {
+        impact = start;
+        return true;
+    }
+    const float lengthSquared = DistanceSquaredLocal(direction, {});
+    const float projection = offset.x * direction.x + offset.y * direction.y + offset.z * direction.z;
+    const float discriminant = projection * projection - lengthSquared * startDistance;
+    if (lengthSquared <= 0.0f || projection >= 0.0f || discriminant < 0.0f) {
+        return false;
+    }
+    const float entry = startDistance / (-projection + std::sqrt(discriminant));
+    if (entry > 1.0f) {
+        return false;
+    }
+    impact = { start.x + (end.x - start.x) * entry, start.y + (end.y - start.y) * entry,
+        start.z + (end.z - start.z) * entry };
+    return true;
+}
 } // namespace
 
 Vector3 PlayerBulletManager::GetClosestProjectileStepPosition(
@@ -49,6 +75,26 @@ Vector3 PlayerBulletManager::GetClosestProjectileStepPosition(
         start = end;
     }
     return closest;
+}
+
+Vector3 PlayerBulletManager::GetProjectileImpactPosition(const PlayerBulletInstance& instance,
+    const Vector3& center, const Vector3& axes, const Vector3& closestPosition) {
+    if (axes.x <= 0.0f || axes.y <= 0.0f || axes.z <= 0.0f) {
+        return closestPosition;
+    }
+    Vector3 impact = closestPosition;
+    if (instance.lockedWingLaunch && instance.lockedWingLaunch->sweep.count >= 2) {
+        const auto& sweep = instance.lockedWingLaunch->sweep;
+        for (size_t index = 1; index < sweep.count; ++index) {
+            if (FindSegmentEntry(sweep.points[index - 1], sweep.points[index], center, axes, impact)) {
+                break;
+            }
+        }
+    } else {
+        FindSegmentEntry(instance.bullet->GetStepPosition(0.0f), instance.bullet->GetStepPosition(1.0f),
+            center, axes, impact);
+    }
+    return impact;
 }
 
 bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
@@ -100,7 +146,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             }
             RecordLockedWingHomingHit(instance);
             if (hitPosition) {
-                *hitPosition = bulletPosition;
+                *hitPosition = GetProjectileImpactPosition(instance, center, { axisX, axisY, axisZ }, bulletPosition);
             }
             if (damage) {
                 *damage = instance.damage;
@@ -168,7 +214,8 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             }
             RecordLockedWingHomingHit(instance);
             if (hitPosition) {
-                *hitPosition = bulletPosition;
+                *hitPosition = GetProjectileImpactPosition(instance, center,
+                    { combinedRadius, combinedRadius, combinedRadius }, bulletPosition);
             }
             if (damage) {
                 *damage = instance.damage;

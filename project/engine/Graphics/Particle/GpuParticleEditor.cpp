@@ -227,6 +227,7 @@ ParticleTypeEditResult DrawParticleTypeInspector(GpuParticle::State& state, int 
 		result.changed = true;
 		result.textureChanged = true;
 	}
+	result.changed |= ImGui::Checkbox("テクスチャの色を使う (Use Texture Color)", &type.useTextureColor);
 	if (ImGui::Button("テクスチャ再読込 (Reload Texture)")) {
 		result.textureChanged = true;
 	}

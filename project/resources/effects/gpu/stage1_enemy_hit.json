@@ -1,0 +1,42 @@
+{
+  "emitters": [
+    {
+      "enabled": true,
+      "position": [0, 0, 0],
+      "shape": "Sphere",
+      "radius": 0.025,
+      "emitCount": 12,
+      "randomSeed": 41,
+      "particleTypeIndex": 0
+    }
+  ],
+  "particleTypes": [
+    {
+      "name": "Stage 1 Hit Sparks",
+      "texturePath": "resources/particle/circle2.png",
+      "baseColor": [1, 0.65, 0.14, 1],
+      "startColor": [1, 0.72, 0.16, 1],
+      "endColor": [0.92, 0.19, 0.02, 0],
+      "startScale": 0.12,
+      "endScale": 0.04,
+      "lifeTimeMin": 0.28,
+      "lifeTimeMax": 0.43,
+      "speedMin": 2.4,
+      "speedMax": 6.2,
+      "gravity": -1.0,
+      "drag": 0.8,
+      "affectedByInfluenceField": false,
+      "affectedByRailFlow": true,
+      "railFlowScale": 1.0
+    }
+  ],
+  "runtime": {
+    "randomEnabled": true,
+    "useFreeListEmit": true,
+    "useDeadList": true,
+    "autoRecycleDeadList": true,
+    "updateEnabled": true,
+    "maxActiveParticles": 1024,
+    "maxEmitPerFrame": 1024
+  }
+}

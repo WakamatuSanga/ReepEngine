@@ -20,6 +20,7 @@ public:
     void Finalize();
     void Update(float deltaTime, const Camera* camera);
     void Draw();
+    void DrawAfterCloud();
     void DrawImGui();
 
     bool PlayGpuParticleEffectAt(const std::string& jsonPath, const Vector3& position);
@@ -28,6 +29,9 @@ public:
     void StopEffect(const std::string& jsonPath);
     bool PrepareEffect(const std::string& jsonPath);
     bool ReloadEffect(const std::string& jsonPath);
+    bool PrepareBurstEffect(const std::string& jsonPath);
+    bool QueueBurst(const std::string& jsonPath, const Vector3& position);
+    void SetBurstRailWind(bool enabled, const Vector3& direction);
 
     using FollowHandle = uint64_t;
     struct DamageSource {

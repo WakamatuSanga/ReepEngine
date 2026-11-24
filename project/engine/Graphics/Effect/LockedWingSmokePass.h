@@ -11,11 +11,14 @@ class SrvManager;
 
 class LockedWingSmokePass {
 public:
-    LockedWingSmokePass(DirectXCommon& dx, SrvManager& srv);
+    enum class Style { Exhaust, Burst };
+
+    LockedWingSmokePass(DirectXCommon& dx, SrvManager& srv, Style style = Style::Exhaust);
     ~LockedWingSmokePass();
 
     bool IsEnabled() const { return enabled_ && !renderInitFailed_; }
     void Emit(const Vector3& nozzle, const Vector3& exhaustDirection);
+    bool EmitBurst(const Vector3& center, float scale);
     void Update(float deltaTime);
     void Draw(const Camera& camera);
     void Reset();
@@ -29,11 +32,15 @@ private:
         Vector3 drift{};
         float birthTime = 0.0f;
         float seed = 0.0f;
+        float scale = 1.0f;
     };
     struct RenderResources;
+    float NextVariation();
+    void AppendPuff(const Vector3& origin, const Vector3& drift, float variation, float scale);
 
     DirectXCommon& dx_;
     SrvManager& srv_;
+    const Style style_;
     std::unique_ptr<RenderResources> render_;
     std::deque<Puff> puffs_;
     unsigned sequence_ = 0;

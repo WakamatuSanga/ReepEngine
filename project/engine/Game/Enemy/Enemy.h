@@ -7,8 +7,11 @@ class Camera;
 class Model;
 class Object3d;
 class Object3dCommon;
+struct EnemyBreakupPose;
 
 class Enemy {
+    static constexpr const char* kDefaultModelPath = "resources/Enemy/Enemy.obj";
+
 public:
     enum class State {
         Spawning,
@@ -31,7 +34,7 @@ public:
     Enemy();
     ~Enemy();
 
-    static bool PrepareSharedVisualResources(const std::string& modelPath = "resources/Enemy/Enemy.obj");
+    static bool PrepareSharedVisualResources(const std::string& modelPath = kDefaultModelPath);
     void Initialize(Object3dCommon* object3dCommon, Camera* camera, const std::string& enemyId);
     void Finalize();
     void Update(float deltaTime);
@@ -118,6 +121,7 @@ public:
     const std::string& GetEnemyType() const { return enemyType_; }
     const Vector3& GetPosition() const { return position_; }
     const Vector3& GetVelocity() const { return velocity_; }
+    EnemyBreakupPose CaptureBreakupPose() const;
     const Vector3& GetForward() const { return desiredForward_; }
     float GetHitRadius() const { return hitRadius_; }
     const Vector3& GetHitScale() const { return hitScale_; }
@@ -142,7 +146,7 @@ private:
 
     std::string enemyId_;
     std::string enemyType_ = "Default";
-    std::string modelPath_ = "resources/Enemy/Enemy.obj";
+    std::string modelPath_ = kDefaultModelPath;
     std::string resolvedModelPath_;
     std::string texturePath_;
     std::string loadStatus_ = "Not initialized";
@@ -163,6 +167,8 @@ private:
     Vector3 visualModelRotation_{ 0.0f, 0.0f, 0.0f };
     Vector3 scale_{ 0.8f, 0.8f, 0.8f };
     Vector3 velocity_{ 0.0f, 0.0f, 0.0f };
+    Vector3 previousMotionPosition_{};
+    Vector3 worldMotionVelocity_{};
     Vector3 desiredForward_{ 0.0f, 0.0f, -1.0f };
     float hitRadius_ = 0.6f;
     Vector3 hitScale_{ 1.6f, 1.0f, 1.0f };

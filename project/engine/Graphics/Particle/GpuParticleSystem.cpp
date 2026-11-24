@@ -87,6 +87,7 @@ bool GpuParticleSystem::Initialize(DirectXCommon* dxCommon, SrvManager* srvManag
 }
 
 void GpuParticleSystem::ApplyEffectData(const GpuParticle::ParticleEffectData& effectData) {
+	state_.burstEmitters.clear();
 	GpuParticle::ApplyParticleEffectDataToState(effectData, state_);
 	if (renderer_) {
 		renderer_->ReloadParticleTypeTextures(state_);
@@ -117,6 +118,22 @@ bool GpuParticleSystem::PlayEffectDataAt(const GpuParticle::ParticleEffectData& 
 		GpuParticle::RequestEmit(state_);
 	}
 	return true;
+}
+
+bool GpuParticleSystem::QueueBurst(const GpuParticle::ParticleEffectData& effectData, const Vector3& position) {
+	if (!isInitialized_ || !state_.useFreeListEmit) {
+		return false;
+	}
+	const size_t firstEmitter = state_.burstEmitters.size();
+	for (const GpuParticle::Emitter& source : effectData.emitters) {
+		if (!source.enabled || source.emitCount == 0) {
+			continue;
+		}
+		auto& emitter = state_.burstEmitters.emplace_back(source);
+		emitter.position = { position.x + source.position.x, position.y + source.position.y, position.z + source.position.z };
+		emitter.randomSeed += ++burstSequence_ * 97u;
+	}
+	return state_.burstEmitters.size() != firstEmitter;
 }
 
 bool GpuParticleSystem::SetEmitterRuntime(size_t index, const GpuParticle::Emitter& emitter) {
@@ -188,8 +205,9 @@ void GpuParticleSystem::SetParticleInfluenceResponseScale(float scale) {
 	state_.particleInfluenceResponseScale = std::clamp(scale, 0.0f, 10.0f);
 }
 
-void GpuParticleSystem::SetRailParticleFlow(bool enabled, const Vector3& cameraPosition, const Vector3& direction, float speed, float scale, float spawnAheadDistance, float despawnBehindDistance) {
+void GpuParticleSystem::SetRailParticleFlow(bool enabled, const Vector3& cameraPosition, const Vector3& direction, float speed, float scale, float spawnAheadDistance, float despawnBehindDistance, bool asAcceleration) {
 	state_.enableRailParticleFlow = enabled;
+	state_.railFlowAsAcceleration = asAcceleration;
 	state_.railFlowCameraPosition = cameraPosition;
 	state_.railFlowDirection = direction;
 	state_.railFlowSpeed = (std::max)(speed, 0.0f);
@@ -231,6 +249,7 @@ void GpuParticleSystem::RequestCounterReadback() {
 }
 
 void GpuParticleSystem::ResetParticlePool() {
+	state_.burstEmitters.clear();
 	GpuParticle::ResetListsForFreeListMode(state_);
 	GpuParticle::RequestInitialize(state_);
 }

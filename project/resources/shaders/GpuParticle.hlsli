@@ -54,6 +54,7 @@ struct ParticleType
     float3 chargeGatherTargetOffset;
     float streakLength;
     float streakWidth;
+    uint useTextureColor;
 };
 
 struct PerView
@@ -71,4 +72,5 @@ struct VertexShaderOutput
     float4 color : COLOR0;
     float4 typeColor : COLOR1;
     nointerpolation uint textureIndex : TEXCOORD2;
+    nointerpolation uint useTextureColor : TEXCOORD3;
 };

@@ -226,6 +226,7 @@ void GpuParticleResources::UploadParticleTypes(const GpuParticle::State& state) 
 		destination.chargeGatherTargetOffset = source.chargeGatherTargetOffset;
 		destination.streakLength = std::clamp(source.streakLength, 0.0f, 10.0f);
 		destination.streakWidth = std::clamp(source.streakWidth, 0.001f, 1.0f);
+		destination.useTextureColor = source.useTextureColor ? 1u : 0u;
 	}
 }
 

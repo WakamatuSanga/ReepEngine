@@ -6,7 +6,6 @@
 class DirectXCommon;
 class GpuParticleResources;
 namespace GpuParticle {
-struct EmitterInfo;
 struct InitializeInfo;
 struct RecycleInfo;
 struct State;
@@ -39,8 +38,6 @@ private:
 	GpuParticle::InitializeInfo* initializeInfoData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> updateInfoResource_;
 	GpuParticle::UpdateInfo* updateInfoData_ = nullptr;
-	Microsoft::WRL::ComPtr<ID3D12Resource> emitterInfoResource_;
-	GpuParticle::EmitterInfo* emitterInfoData_ = nullptr;
 	Microsoft::WRL::ComPtr<ID3D12Resource> recycleInfoResource_;
 	GpuParticle::RecycleInfo* recycleInfoData_ = nullptr;
 

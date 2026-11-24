@@ -522,6 +522,10 @@ private:
 				if (!ParseString(type.texturePath)) {
 					return false;
 				}
+			} else if (key == "useTextureColor") {
+				if (!ParseBool(type.useTextureColor)) {
+					return false;
+				}
 			} else if (key == "baseColor") {
 				if (!ParseVector4(type.baseColor)) {
 					return false;
@@ -897,6 +901,7 @@ bool GpuParticle::GpuParticleEffectSerializer::Save(const ParticleEffectData& ef
 			stream << "      \"texturePath\": ";
 			WriteJsonString(stream, type.texturePath);
 			stream << ",\n";
+			stream << "      \"useTextureColor\": " << ToJsonBool(type.useTextureColor) << ",\n";
 			stream << "      \"baseColor\": ";
 			WriteVector4(stream, type.baseColor);
 			stream << ",\n";

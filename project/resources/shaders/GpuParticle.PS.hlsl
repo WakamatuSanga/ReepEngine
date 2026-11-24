@@ -80,7 +80,7 @@ PixelShaderOutput main(VertexShaderOutput input)
 
     float luminanceMask = max(textureColor.r, max(textureColor.g, textureColor.b));
     float mask = textureColor.a;
-    if (textureColor.a > 0.99f)
+    if (input.useTextureColor == 0u && textureColor.a > 0.99f)
     {
         mask = luminanceMask;
     }
@@ -96,5 +96,6 @@ PixelShaderOutput main(VertexShaderOutput input)
         discard;
     }
 
-    return MakeOutput(float4(input.color.rgb, finalAlpha));
+    const float3 color = input.useTextureColor != 0u ? input.color.rgb * textureColor.rgb : input.color.rgb;
+    return MakeOutput(float4(color, finalAlpha));
 }

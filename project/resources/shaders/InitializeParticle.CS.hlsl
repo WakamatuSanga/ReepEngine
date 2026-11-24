@@ -54,6 +54,7 @@ struct ParticleType
     float3 chargeGatherTargetOffset;
     float streakLength;
     float streakWidth;
+    uint useTextureColor;
 };
 
 struct InitializeInfo

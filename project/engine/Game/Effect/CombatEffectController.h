@@ -5,9 +5,12 @@
 
 class Camera;
 class CameraShakeController;
+class EnemyDefeatEffectController;
 class GpuParticleEffectPlayer;
 class Player;
 class PrimitiveEffectSystem;
+class RailShooterCameraRig;
+struct EnemyBreakupPose;
 
 class CombatEffectController {
 public:
@@ -18,10 +21,14 @@ public:
     void Finalize();
     bool PrepareForPresentation();
     void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
+    void SetRailCameraRig(const RailShooterCameraRig* rig) { railCameraRig_ = rig; }
+    void SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller) { enemyDefeatEffectController_ = controller; }
     void Update(float deltaTime, const Camera* camera);
     void Draw();
+    void DrawAfterCloud();
     void DrawImGui();
 
+    void PlayStage1EnemyHit(const Vector3& hitPosition, const EnemyBreakupPose* defeatedEnemy = nullptr);
     void PlayPlayerBulletHitEnemy(const Vector3& position);
     void PlayPlayerBulletHitEnemy(const Vector3& position, bool lethalHit);
     void PlayPlayerBulletHitEnemy(
@@ -55,6 +62,8 @@ private:
     GpuParticleEffectPlayer* gpuParticleEffectPlayer_ = nullptr;
     Player* player_ = nullptr;
     CameraShakeController* cameraShakeController_ = nullptr;
+    const RailShooterCameraRig* railCameraRig_ = nullptr;
+    EnemyDefeatEffectController* enemyDefeatEffectController_ = nullptr;
     Vector3 lastEffectPosition_{ 0.0f, 0.0f, 0.0f };
     std::string lastEffectType_ = "None";
     std::string lastEffectResult_ = "Not initialized";

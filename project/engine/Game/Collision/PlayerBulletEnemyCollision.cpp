@@ -4,9 +4,8 @@
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Game/Effect/CombatEffectController.h"
-#include "Engine/Game/Effect/ImpactDistortionController.h"
-#include "Engine/Game/Enemy/EnemyDefeatEffectController.h"
 #include "Engine/Game/Enemy/Enemy.h"
+#include "Engine/Game/Enemy/EnemyBreakupEffect.h"
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Player/PlayerBulletManager.h"
 #include <algorithm>
@@ -40,16 +39,6 @@ void PlayerBulletEnemyCollision::Finalize() {
     bulletManager_ = nullptr;
     enemyManager_ = nullptr;
     combatEffectController_ = nullptr;
-    enemyDefeatEffectController_ = nullptr;
-    impactDistortionController_ = nullptr;
-}
-
-void PlayerBulletEnemyCollision::SetEnemyDefeatEffectController(EnemyDefeatEffectController* controller) {
-    enemyDefeatEffectController_ = controller;
-}
-
-void PlayerBulletEnemyCollision::SetImpactDistortionController(ImpactDistortionController* controller) {
-    impactDistortionController_ = controller;
 }
 
 void PlayerBulletEnemyCollision::Update() {
@@ -77,9 +66,10 @@ void PlayerBulletEnemyCollision::Update() {
         float lastDistance = -1.0f;
         float lastRadiusSum = 0.0f;
         const float enemyRadius = enemy->GetHitRadius();
+        const Vector3 enemyPosition = enemy->GetPosition();
         const bool hit = enemy->IsUsingEllipsoidHitShape()
             ? bulletManager_->CheckHitAndKillFirstEllipsoid(
-                enemy->GetPosition(),
+                enemyPosition,
                 enemyRadius,
                 enemy->GetHitScale(),
                 &hitPosition,
@@ -88,7 +78,7 @@ void PlayerBulletEnemyCollision::Update() {
                 &lastRadiusSum,
                 &lastBulletRadius, &projectileType)
             : bulletManager_->CheckHitAndKillFirstSphere(
-                enemy->GetPosition(),
+                enemyPosition,
                 enemyRadius,
                 &hitPosition,
                 &damage,
@@ -109,8 +99,11 @@ void PlayerBulletEnemyCollision::Update() {
         if (projectileType == PlayerBulletManager::PlayerProjectileType::LockedWingShot) {
             damage = (std::max)(damage, enemy->GetHp());
         }
+        const int appliedDamage = (std::max)(1, damage);
+        const EnemyBreakupPose defeatPose = appliedDamage >= enemy->GetHp()
+            ? enemy->CaptureBreakupPose() : EnemyBreakupPose{};
         const bool wasDeadBeforeDamage = enemy->IsDead();
-        enemy->Damage((std::max)(1, damage));
+        enemy->Damage(appliedDamage);
         lastHitResult_ = true;
         lastHitEnemy_ = enemy->GetEnemyId();
         lastHitPosition_ = hitPosition;
@@ -127,14 +120,7 @@ void PlayerBulletEnemyCollision::Update() {
             cameraShakeController_->RequestGameplayShake(CameraShakeController::GameplayEvent::EnemyDefeat);
         }
         if (combatEffectController_ && playCombatEffect_) {
-            combatEffectController_->PlayPlayerBulletHitEnemy(hitPosition, isLethalHit);
-        }
-        if (isLethalHit && enemyDefeatEffectController_) {
-            const float defeatEffectScale = std::clamp(enemy->GetHitRadius() * 1.4f, 0.8f, 1.8f);
-            enemyDefeatEffectController_->SpawnDefeatEffect(enemy->GetPosition(), defeatEffectScale);
-        }
-        if (isLethalHit && impactDistortionController_) {
-            impactDistortionController_->TriggerEnemyDefeat(enemy->GetPosition());
+            combatEffectController_->PlayStage1EnemyHit(hitPosition, isLethalHit ? &defeatPose : nullptr);
         }
     }
 }
