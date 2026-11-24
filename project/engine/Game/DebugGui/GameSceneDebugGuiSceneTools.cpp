@@ -436,10 +436,13 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         ImGui::Combo("Target", &scene_->targetObjectIndex_, "Fence\0Sphere\0");
         Object3d* targetObj = (scene_->targetObjectIndex_ == 0) ? scene_->object3d_.get() : scene_->object3dSphere_.get();
         ImGui::SeparatorText("Model Transform");
-        Transform& tf = targetObj->GetTransform();
-        ImGui::DragFloat3("Pos", &tf.translate.x, 0.1f);
-        ImGui::DragFloat3("Rot", &tf.rotate.x, 0.01f);
-        ImGui::DragFloat3("Scl", &tf.scale.x, 0.1f);
+        Transform tf = targetObj->GetTransform();
+        bool transformEdited = ImGui::DragFloat3("Pos", &tf.translate.x, 0.1f);
+        transformEdited |= ImGui::DragFloat3("Rot", &tf.rotate.x, 0.01f);
+        transformEdited |= ImGui::DragFloat3("Scl", &tf.scale.x, 0.1f);
+        if (transformEdited) {
+            targetObj->SetTransform(tf);
+        }
         ImGui::SeparatorText("Model Texture");
         const char* modelTextureNames[] = { "uvChecker", "FenceTexture", "MonsterBall" };
         if (ImGui::Combo("Texture", &scene_->currentModelTexture_, modelTextureNames, IM_ARRAYSIZE(modelTextureNames))) {
@@ -451,21 +454,15 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
             }
         }
         ImGui::SeparatorText("Lighting & Material");
-        auto* lightData = targetObj->GetDirectionalLightData();
-        if (lightData) {
-            if (ImGui::SliderFloat3("LightDir", &lightData->direction.x, -1.0f, 1.0f)) {
-                float len = std::sqrt(lightData->direction.x * lightData->direction.x +
-                    lightData->direction.y * lightData->direction.y +
-                    lightData->direction.z * lightData->direction.z);
-                if (len > 0.0f) {
-                    lightData->direction.x /= len;
-                    lightData->direction.y /= len;
-                    lightData->direction.z /= len;
-                }
+        Object3d::DirectionalLightSettings light{};
+        if (targetObj->TryGetDirectionalLightSettings(light)) {
+            bool lightEdited = ImGui::SliderFloat3("LightDir", &light.direction.x, -1.0f, 1.0f);
+            lightEdited |= ImGui::ColorEdit3("LightColor", &light.color.x);
+            lightEdited |= ImGui::DragFloat("Intensity", &light.intensity, 0.01f, 0.0f, 10.0f);
+            lightEdited |= ImGui::DragFloat("Shininess", &light.shininess, 1.0f, 1.0f, 256.0f, "%.1f");
+            if (lightEdited) {
+                targetObj->ApplyDirectionalLightSettings(light);
             }
-            ImGui::ColorEdit3("LightColor", &lightData->color.x);
-            ImGui::DragFloat("Intensity", &lightData->intensity, 0.01f, 0.0f, 10.0f);
-            ImGui::DragFloat("Shininess", &lightData->shininess, 1.0f, 1.0f, 256.0f, "%.1f");
         }
         ImGui::SeparatorText("Blend Mode");
         ImGui::Combo("Blend", &scene_->currentBlendMode_, scene_->blendModeNames_, IM_ARRAYSIZE(scene_->blendModeNames_));

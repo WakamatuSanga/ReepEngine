@@ -23,7 +23,6 @@ public:
         bool titleNoiseEnabled = true;
         float titleNoiseStrength = .22f;
     };
-    static Settings& GetTuning();
     GameOverFlowController();
     ~GameOverFlowController();
     void Initialize(PlayerDeathSequenceController*, SpriteCommon*, GameViewport*, Input*);
@@ -35,6 +34,7 @@ public:
     bool IsVisible() const;
     bool IsInputArmed() const;
 private:
+    static Settings& GetTuning();
     struct View;
     std::unique_ptr<View> view_;
 };

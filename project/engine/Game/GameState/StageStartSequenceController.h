@@ -28,7 +28,6 @@ public:
     static constexpr float kFadeInSeconds = 0.35f;
     static constexpr float kTitleSeconds = 1.35f;
     static constexpr float kFadeOutSeconds = 0.55f;
-    static Settings& GetTuning(); // Session-only; captured at the next Restart, never writes JSON.
 
     StageStartSequenceController();
     ~StageStartSequenceController();
@@ -49,6 +48,7 @@ public:
     float GetHudTopReveal() const;
     float GetHudBottomReveal() const;
 private:
+    static Settings& GetTuning(); // Session-only; captured at the next Restart, never writes JSON.
     void ApplyDisplayPose();
     void ApplyCrossingPose(float progress);
     void ApplyEntryPose(float progress);

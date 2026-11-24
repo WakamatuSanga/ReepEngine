@@ -37,10 +37,7 @@ public:
     const KrakenBoneColliderPreviewSettings& GetSettings() const {
         return settings_;
     }
-    std::vector<std::unique_ptr<
-        SkinningEditorKrakenBoneColliderPreview>>& GetChainPreviews() {
-        return chainPreviews_;
-    }
+    // Editor operations may update previews while the collection manages their lifetime.
     const std::vector<std::unique_ptr<
         SkinningEditorKrakenBoneColliderPreview>>& GetChainPreviews() const {
         return chainPreviews_;

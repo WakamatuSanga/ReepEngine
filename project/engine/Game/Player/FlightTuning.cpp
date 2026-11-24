@@ -47,8 +47,24 @@ const Field fields[] = {
     {"shakeLimit", "イベント合成振幅の上限(度)", &FlightTuning::shakeLimit, .5f, .8f},
 };
 const char* status = "未保存の調整はRestartでも保持します。保存で次回起動にも適用します。";
+
+FlightTuning& CurrentSettings() {
+    static FlightTuning settings;
+    return settings;
 }
-FlightTuning& FlightTuning::Get() { static FlightTuning settings; return settings; }
+
+void ApplySettings(FlightTuning next) {
+    const FlightTuning defaults;
+    for (const auto& field : fields) {
+        auto& value = next.*(field.value);
+        value = std::isfinite(value)
+            ? std::clamp(value, field.low, field.high)
+            : defaults.*(field.value);
+    }
+    CurrentSettings() = next;
+}
+}
+const FlightTuning& FlightTuning::Get() { return CurrentSettings(); }
 void FlightTuning::LoadOnce() { static const bool loaded = Load(kPath); (void)loaded; }
 bool FlightTuning::Load(const char* path) {
     std::ifstream file(path);
@@ -61,11 +77,11 @@ bool FlightTuning::Load(const char* path) {
         if (std::regex_search(json, match, expression)) {
             try {
                 const float value = std::stof(match[1].str());
-                if (std::isfinite(value)) next.*(field.value) = std::clamp(value, field.low, field.high);
+                if (std::isfinite(value)) next.*(field.value) = value;
             } catch (...) { return false; }
         }
     }
-    Get() = next;
+    ApplySettings(next);
     return true;
 }
 bool FlightTuning::Save(const char* path) {
@@ -86,10 +102,15 @@ void FlightTuning::DrawImGui() {
         ImGui::SameLine();
         if (ImGui::Button("設定を読み込む")) status = Load(kPath) ? "読み込みました。" : "ファイルがないか、読み込めませんでした。";
         ImGui::SameLine();
-        if (ImGui::Button("採用値へ戻す")) Get() = FlightTuning{};
+        if (ImGui::Button("採用値へ戻す")) ApplySettings(FlightTuning{});
         ImGui::TextWrapped("%s", status);
+        FlightTuning next = Get();
+        bool edited = false;
         for (const auto& field : fields) {
-            ImGui::SliderFloat(field.label, &(Get().*(field.value)), field.low, field.high, "%.3f");
+            edited |= ImGui::SliderFloat(field.label, &(next.*(field.value)), field.low, field.high, "%.3f");
+        }
+        if (edited) {
+            ApplySettings(next);
         }
         ImGui::Text("残像は最大6描画、風は最大128粒・8粒/フレームです。");
     }

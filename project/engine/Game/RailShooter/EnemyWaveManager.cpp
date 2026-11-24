@@ -583,8 +583,8 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
         return;
     }
 
-    const std::vector<Enemy*> aliveEnemies = enemyManager_->GetActiveEnemies();
-    auto isAlive = [&aliveEnemies](Enemy* enemy) {
+    const auto aliveEnemies = enemyManager_->GetActiveEnemies();
+    auto isAlive = [&aliveEnemies](const Enemy* enemy) {
         return enemy && std::find(aliveEnemies.begin(), aliveEnemies.end(), enemy) != aliveEnemies.end();
         };
     for (WaveEnemyRuntime& runtime : waveEnemies_) {
@@ -935,7 +935,7 @@ void EnemyWaveManager::ClearTrackedWaveEnemies() {
         return;
     }
 
-    const std::vector<Enemy*> aliveEnemies = enemyManager_->GetActiveEnemies();
+    const auto aliveEnemies = enemyManager_->GetActiveEnemies();
     for (const WaveEnemyRuntime& runtime : waveEnemies_) {
         if (laserController_) {
             laserController_->ClearOwner(runtime.enemy);

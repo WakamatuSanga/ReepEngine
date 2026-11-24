@@ -148,7 +148,7 @@ void EnemyAttackController::ProcessEnemyShots(float deltaTime, bool groupShotDue
         return;
     }
 
-    const std::vector<Enemy*> enemies = enemyManager_->GetActiveEnemies();
+    const auto enemies = enemyManager_->GetActiveEnemiesForCombat();
     if (groupShotDue) lastShooterCount_ = 0;
     if (enemies.empty()) {
         if (groupShotDue) lastBlockedReason_ = "No active enemies";

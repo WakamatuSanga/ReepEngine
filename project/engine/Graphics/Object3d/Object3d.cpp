@@ -1,11 +1,14 @@
 #include "Engine/Graphics/Appearance/RenderStyleComparison.h"
 #include "Object3d.h"
 #include "Engine/Core/DirectXCommon.h"
+#include "Engine/Graphics/Camera/Camera.h"
+#include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include "Engine/Utility/Logger.h"
 #include <string>
 #include <algorithm>
+#include <cmath>
 
 using namespace MatrixMath;
 
@@ -81,6 +84,34 @@ void Object3d::SetStyleTarget(RenderStyleComparison::Target target) {
     styleTarget_=target;
     if(target!=RenderStyleComparison::Target::None && !outlineTransformResource_ && object3dCommon_)
         CreateAndMapObject3dBuffer(object3dCommon_,sizeof(TransformationMatrix),outlineTransformResource_,reinterpret_cast<void**>(&outlineTransformData_),"outlineTransformResource_");
+}
+
+bool Object3d::TryGetDirectionalLightSettings(DirectionalLightSettings& out) const {
+    if (!directionalLightData_) {
+        return false;
+    }
+    const auto& light = *directionalLightData_;
+    out = { light.color, light.direction, light.intensity, light.shininess };
+    return true;
+}
+
+void Object3d::ApplyDirectionalLightSettings(const DirectionalLightSettings& settings) {
+    if (!directionalLightData_) {
+        return;
+    }
+    auto& light = *directionalLightData_;
+    const auto& direction = settings.direction;
+    if (direction.x != light.direction.x || direction.y != light.direction.y || direction.z != light.direction.z) {
+        const float length = std::sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z);
+        if (std::isfinite(length)) {
+            light.direction = length > 0.0f
+                ? Vector3{ direction.x / length, direction.y / length, direction.z / length }
+                : direction;
+        }
+    }
+    light.color = settings.color;
+    light.intensity = settings.intensity;
+    light.shininess = settings.shininess;
 }
 
 void Object3d::Update() {

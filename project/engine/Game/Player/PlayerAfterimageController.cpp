@@ -2,6 +2,7 @@
 #include "FlightTuning.h"
 #include "Engine/Graphics/Model/Model.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
+#include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include <algorithm>
 #include <array>
 
@@ -59,7 +60,7 @@ void PlayerAfterimageController::Update(float dt, bool active, bool rolling, Mod
     target->material->color.w *= tuning.ghostAlpha;
     target->material->alphaReference = 0;
     target->object.SetModel(model);
-    target->object.GetTransform() = pose;
+    target->object.SetTransform(pose);
 }
 void PlayerAfterimageController::RefreshCamera() {
     for (auto& slot : slots_) if (slot->active) slot->object.Update();

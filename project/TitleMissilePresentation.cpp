@@ -2,6 +2,7 @@
 #include "Engine/Game/Player/LockedWingMissileExhaustController.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
+#include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include <algorithm>
 #include <cmath>
 

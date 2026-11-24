@@ -60,7 +60,6 @@ public:
         float shakeStrength = 1;
         float resultDelay = .8f;
     };
-    static Settings& GetTuning();
     PlayerDeathSequenceController();
     ~PlayerDeathSequenceController();
     void Initialize(DirectXCommon*, SpriteCommon*, CameraShakeController*);
@@ -92,6 +91,7 @@ public:
     bool IsFinished() const { return isFinished_; }
     bool IsActiveOrFinished() const { return isPlaying_ || isFinished_; }
 private:
+    static Settings& GetTuning();
     struct Flight;
     void Start(bool preview, Route route);
     void ApplyPresentation();
