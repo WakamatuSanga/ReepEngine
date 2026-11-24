@@ -89,7 +89,7 @@ void ScreenSpaceFakeShadowPass::Draw(const Camera* camera) {
     }
 
     if ((targetMode_ == TargetMode::Enemy || targetMode_ == TargetMode::Both) && enemyManager_) {
-        const std::vector<Enemy*> enemies = enemyManager_->GetActiveEnemies();
+        const auto enemies = enemyManager_->GetActiveEnemies();
         for (const Enemy* enemy : enemies) {
             if (!enemy || enemy->IsDead()) {
                 continue;

@@ -1,8 +1,5 @@
 #pragma once
-#include "Object3dCommon.h"
-#include "Engine/Graphics/Model/Model.h"
 #include "Matrix4x4.h"
-#include "Engine/Graphics/Camera/Camera.h"
 #include <wrl.h>
 #include <d3d12.h>
 #include <cstdint>
@@ -10,6 +7,10 @@
 
 
 namespace RenderStyleComparison { enum class Target : uint32_t; }
+class Camera;
+class Model;
+class Object3dCommon;
+
 class Object3d {
     struct EnvironmentMapData {
         int32_t enableEnvironmentMap;
@@ -47,7 +48,6 @@ class Object3d {
         Vector4 outerColor;
     };
 
-public:
     struct TransformationMatrix {
         Matrix4x4 WVP;
         Matrix4x4 World;
@@ -65,6 +65,13 @@ public:
     };
 
 public:
+    struct DirectionalLightSettings {
+        Vector4 color;
+        Vector3 direction;
+        float intensity;
+        float shininess;
+    };
+
     void Initialize(Object3dCommon* object3dCommon);
     void Update();
     void Draw();
@@ -102,9 +109,11 @@ public:
     void SetScale(const Vector3& scale) { transform_.scale = scale; }
     void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
     void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
-    Transform& GetTransform() { return transform_; }
+    void SetTransform(const Transform& transform) { transform_ = transform; }
+    const Transform& GetTransform() const { return transform_; }
 
-    DirectionalLight* GetDirectionalLightData() { return directionalLightData_; }
+    bool TryGetDirectionalLightSettings(DirectionalLightSettings& out) const;
+    void ApplyDirectionalLightSettings(const DirectionalLightSettings& settings);
 
 private:
     bool CreateTransformationMatrixResource();

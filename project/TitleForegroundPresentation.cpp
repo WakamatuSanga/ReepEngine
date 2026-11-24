@@ -7,6 +7,8 @@
 #include "Engine/Graphics/Model/GltfSkeletonLoader.h"
 #include "Engine/Graphics/Model/GltfSkinnedModel.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
+#include "Engine/Graphics/Object3d/Object3dCommon.h"
+#include "Engine/Core/DirectXCommon.h"
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"

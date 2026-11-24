@@ -100,7 +100,7 @@ void TitleScene::Initialize() {
         aircraft_->SetModel(model_);
         aircraft_->SetStyleTarget(RenderStyleComparison::Target::Player);
         aircraft_->SetEnvironmentMapEnabled(false);
-        aircraft_->GetTransform() = aircraftStart_;
+        aircraft_->SetTransform(aircraftStart_);
         exhaust_ = std::make_unique<PlayerJetExhaustController>();
         if (!exhaust_->Initialize(game->GetObject3dCommon(), camera_.get(), nullptr, nullptr,
             game->GetDxCommon(), SrvManager::GetInstance())) {

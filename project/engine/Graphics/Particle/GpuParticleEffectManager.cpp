@@ -29,11 +29,6 @@ const GpuParticle::ParticleEffectData* GpuParticleEffectManager::GetEffect(const
 	return it == effects_.end() ? nullptr : &it->second;
 }
 
-GpuParticle::ParticleEffectData* GpuParticleEffectManager::GetEffect(const std::string& name) {
-	const auto it = effects_.find(name);
-	return it == effects_.end() ? nullptr : &it->second;
-}
-
 bool GpuParticleEffectManager::ApplyToSystem(const std::string& name, GpuParticleSystem& system) const {
 	const GpuParticle::ParticleEffectData* effectData = GetEffect(name);
 	if (!effectData) {

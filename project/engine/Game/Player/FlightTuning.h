@@ -33,7 +33,7 @@ struct FlightTuning {
     float cancelDuration = 0.18f;
     float shakeLimit = 0.65f;
 
-    static FlightTuning& Get();
+    static const FlightTuning& Get();
     static void LoadOnce();
     static void DrawImGui();
     static bool Load(const char* path);

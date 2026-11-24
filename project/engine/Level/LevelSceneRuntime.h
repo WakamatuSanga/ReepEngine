@@ -50,8 +50,8 @@ public:
         const std::string& lastError = {});
 
     const LevelSceneData& GetSceneData() const { return sceneData_; }
-    LevelEventRuntime* GetEventRuntime() const { return eventRuntime_.get(); }
-    LevelRailRuntime* GetRailRuntime() const { return railRuntime_.get(); }
+    LevelEventRuntime* GetEventRuntime() { return eventRuntime_.get(); }
+    LevelRailRuntime* GetRailRuntime() { return railRuntime_.get(); }
     const LevelCameraStart* GetEngineCameraStart() const { return hasEngineCameraStart_ ? &engineCameraStart_ : nullptr; }
     bool HasEngineCameraStart() const { return hasEngineCameraStart_; }
     bool TryFindObjectWorldPosition(

@@ -386,7 +386,7 @@ void EnemyBulletManager::RemoveDeadBullets() {
 
 void EnemyBulletManager::EvaluateEvade(const Vector3& previousPlayer, const Vector3& player, float radius, bool active,
     float bulletStepFraction) {
-    const float outerScale = std::clamp(StageCombatState::GetTuning().nearMissScale, 1.05f, 3.0f);
+    const float outerScale = StageCombatState::GetNearMissScale();
     for (auto& bullet : bullets_) {
         if (!bullet || bullet->IsDead() || !bullet->IsActive()) continue;
         if (!active) { bullet->SetNearMissArmed(false); continue; }

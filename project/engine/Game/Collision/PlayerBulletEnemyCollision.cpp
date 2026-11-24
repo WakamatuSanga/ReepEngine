@@ -53,7 +53,7 @@ void PlayerBulletEnemyCollision::Update() {
         return;
     }
 
-    const std::vector<Enemy*> activeEnemies = enemyManager_->GetActiveEnemies();
+    const auto activeEnemies = enemyManager_->GetActiveEnemiesForCombat();
     for (Enemy* enemy : activeEnemies) {
         if (!enemy || enemy->IsDead() || !enemy->CanReceivePlayerBullet()) {
             continue;

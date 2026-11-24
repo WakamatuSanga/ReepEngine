@@ -47,13 +47,13 @@ public:
     float GetBackingAlpha() const;
     LayerPose GetLayerPose(size_t layer, Vector2 viewportSize) const;
     bool HasCloudImages() const { return imagesAvailable_; }
-    static Settings& GetSettings();
     static bool LoadSettings(const char* path);
     static bool SaveSettings(const char* path);
     static void ShowSettings();
     bool DrawImGui(); // Test request; does not exchange scenes.
     bool CanFinishTestLoad() const;
 private:
+    static Settings& GetSettings();
     Phase phase_ = Phase::Idle;
     double elapsed_ = 0.0;
     bool coveredPresented_ = false;

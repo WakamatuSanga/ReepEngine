@@ -5,6 +5,7 @@
 #include "Engine/Game/Enemy/EnemyManager.h"
 #include "Engine/Game/Player/BoostController.h"
 #include "Engine/Game/Player/Player.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Model/ModelManager.h"
 #include "Engine/Graphics/Object3d/Object3d.h"
@@ -112,7 +113,7 @@ void InfluenceFieldManager::Finalize() {
     fieldCount_ = 0;
 }
 
-void InfluenceFieldManager::SetTargets(Player* player, EnemyManager* enemyManager, BoostController* boostController) {
+void InfluenceFieldManager::SetTargets(Player* player, const EnemyManager* enemyManager, BoostController* boostController) {
     player_ = player;
     enemyManager_ = enemyManager;
     boostController_ = boostController;
@@ -152,8 +153,8 @@ void InfluenceFieldManager::BuildFields() {
     }
 
     if (!enableEnemyInfluence_ || !enemyManager_) { return; }
-    const std::vector<Enemy*> enemies = enemyManager_->GetActiveEnemies();
-    for (Enemy* enemy : enemies) {
+    const auto enemies = enemyManager_->GetActiveEnemies();
+    for (const Enemy* enemy : enemies) {
         if (!enemy || enemy->IsDead()) { continue; }
         if (!includeSpawningEnemies_ && enemy->GetState() != Enemy::State::Active) { continue; }
         InfluenceField field{};

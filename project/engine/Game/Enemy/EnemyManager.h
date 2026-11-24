@@ -50,7 +50,8 @@ public:
     size_t GetEnemyCount() const;
     size_t GetActiveCount() const;
     std::vector<Vector3> GetActiveEnemyPositions() const;
-    std::vector<Enemy*> GetActiveEnemies() const;
+    std::vector<const Enemy*> GetActiveEnemies() const;
+    std::vector<Enemy*> GetActiveEnemiesForCombat();
     bool OwnsEnemy(const Enemy* enemy) const;
     void CollectTargetableEnemies(std::vector<EnemyTargetView>& outTargets) const;
     bool TryGetEnemyTargetSnapshot(

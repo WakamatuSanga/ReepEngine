@@ -13,6 +13,18 @@
 namespace {
     constexpr float kMinVectorLength = 0.00001f;
 
+    template<class EnemyPointer>
+    std::vector<EnemyPointer> CollectActiveEnemies(const std::vector<std::unique_ptr<Enemy>>& enemies) {
+        std::vector<EnemyPointer> activeEnemies;
+        activeEnemies.reserve(enemies.size());
+        for (const auto& enemy : enemies) {
+            if (enemy && enemy->IsActive() && !enemy->IsDead()) {
+                activeEnemies.push_back(enemy.get());
+            }
+        }
+        return activeEnemies;
+    }
+
     Vector3 ScaleVector3(const Vector3& value, float scale) {
         return { value.x * scale, value.y * scale, value.z * scale };
     }
@@ -326,15 +338,12 @@ std::vector<Vector3> EnemyManager::GetActiveEnemyPositions() const {
     return positions;
 }
 
-std::vector<Enemy*> EnemyManager::GetActiveEnemies() const {
-    std::vector<Enemy*> activeEnemies;
-    activeEnemies.reserve(enemies_.size());
-    for (const std::unique_ptr<Enemy>& enemy : enemies_) {
-        if (enemy && enemy->IsActive() && !enemy->IsDead()) {
-            activeEnemies.push_back(enemy.get());
-        }
-    }
-    return activeEnemies;
+std::vector<const Enemy*> EnemyManager::GetActiveEnemies() const {
+    return CollectActiveEnemies<const Enemy*>(enemies_);
+}
+
+std::vector<Enemy*> EnemyManager::GetActiveEnemiesForCombat() {
+    return CollectActiveEnemies<Enemy*>(enemies_);
 }
 
 bool EnemyManager::OwnsEnemy(const Enemy* enemy) const {

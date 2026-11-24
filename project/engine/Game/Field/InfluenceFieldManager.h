@@ -23,7 +23,7 @@ public:
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Finalize();
-    void SetTargets(Player* player, EnemyManager* enemyManager, BoostController* boostController);
+    void SetTargets(Player* player, const EnemyManager* enemyManager, BoostController* boostController);
     void SetConsumers(GpuParticleSystem* gpuParticleSystem, VolumetricCloudPass* cloudPass);
     void SetDebugVisualsEnabled(bool enabled);
     void Update(float deltaTime);
@@ -47,7 +47,7 @@ private:
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
     Player* player_ = nullptr;
-    EnemyManager* enemyManager_ = nullptr;
+    const EnemyManager* enemyManager_ = nullptr;
     BoostController* boostController_ = nullptr;
     GpuParticleSystem* gpuParticleSystem_ = nullptr;
     VolumetricCloudPass* cloudPass_ = nullptr;
