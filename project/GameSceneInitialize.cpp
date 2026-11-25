@@ -85,7 +85,7 @@ void GameScene::InitializeSceneResources() {
     gpuParticleSystem_->Initialize(MyGame::GetInstance()->GetDxCommon(), SrvManager::GetInstance());
 
     cloudVolume_ = std::make_unique<CloudVolume>();
-    cloudVolume_->GetParameters() = CloudVolume::RecommendedDefaults();
+    cloudVolume_->SetParameters(CloudVolume::RecommendedDefaults());
 
     skybox_ = std::make_unique<Skybox>();
     skybox_->Initialize(MyGame::GetInstance()->GetSkyboxCommon());

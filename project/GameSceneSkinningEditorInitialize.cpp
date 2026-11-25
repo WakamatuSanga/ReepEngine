@@ -125,9 +125,9 @@ namespace {
             previewInfo.missingTextureCount = textureInfo.missingTextureCount;
         }
         if (skeleton &&
-            skeleton->root >= 0 &&
-            skeleton->root < static_cast<int32_t>(skeleton->joints.size())) {
-            const Joint& rootJoint = skeleton->joints[static_cast<std::size_t>(skeleton->root)];
+            skeleton->GetRootIndex() >= 0 &&
+            skeleton->GetRootIndex() < static_cast<int32_t>(skeleton->GetJoints().size())) {
+            const Joint& rootJoint = skeleton->GetJoints()[static_cast<std::size_t>(skeleton->GetRootIndex())];
             previewInfo.rootNodeScale = rootJoint.sourceNodeScale;
             previewInfo.rootNodeTranslation = rootJoint.sourceNodeTranslation;
             previewInfo.skeletonRootWorldScale = ExtractMatrixScale(rootJoint.worldMatrix);
@@ -200,10 +200,10 @@ void GameScene::InitializeSkinningEditorPreview() {
     std::string loadedRootName;
     bool skeletonCompatible = false;
     if (skinningPreviewSkeleton_) {
-        loadedJointCount = static_cast<int>(skinningPreviewSkeleton_->joints.size());
-        const int32_t rootIndex = skinningPreviewSkeleton_->root;
+        loadedJointCount = static_cast<int>(skinningPreviewSkeleton_->GetJoints().size());
+        const int32_t rootIndex = skinningPreviewSkeleton_->GetRootIndex();
         if (rootIndex >= 0 && rootIndex < loadedJointCount) {
-            loadedRootName = skinningPreviewSkeleton_->joints[static_cast<std::size_t>(rootIndex)].name;
+            loadedRootName = skinningPreviewSkeleton_->GetJoints()[static_cast<std::size_t>(rootIndex)].name;
         }
         skeletonCompatible =
             loadedJointCount == static_cast<int>(kExpectedJointCount) &&

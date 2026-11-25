@@ -104,7 +104,7 @@ bool KrakenTentacleMidbossController::Impl::Initialize(
         return FailInitialization(
             "元midbossのSkeleton読込に失敗しました。");
     }
-    UpdateSkeletonWorldTransforms(*skeleton);
+    skeleton->UpdateWorldTransforms();
     if (!CaptureBindPoseAndChains()) {
         const std::string error = lastError.empty()
             ? "Bind Poseまたは触手Chainを検証できませんでした。"
@@ -213,7 +213,7 @@ void KrakenTentacleMidbossController::Impl::Reset() {
     ResetProjectileDamageState(true);
     RestoreBindPose();
     if (skeleton) {
-        UpdateSkeletonWorldTransforms(*skeleton);
+        skeleton->UpdateWorldTransforms();
     }
     UpdateObjectTransform();
     RefreshSkinningDiagnostics();
@@ -230,9 +230,9 @@ void KrakenTentacleMidbossController::Impl::Finalize() {
     state = KrakenTentacleMidbossState::Hidden;
     sweep = {};
     sweepWarningRenderer.reset();
-    if (skeleton && bindPose.size() == skeleton->joints.size()) {
+    if (skeleton && bindPose.size() == skeleton->GetJoints().size()) {
         RestoreBindPose();
-        UpdateSkeletonWorldTransforms(*skeleton);
+        skeleton->UpdateWorldTransforms();
     }
     object.reset();
     model.reset();

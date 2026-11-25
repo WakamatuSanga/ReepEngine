@@ -254,7 +254,7 @@ bool BuildKrakenTentacleWholeSlamPose(
     outDiagnostics.targetValid = IsFinite(attackTargetWorldPosition);
     if (!totals.finite || !IsFinite(modelWorldMatrix) ||
         !outDiagnostics.targetValid || chainJoints.size() < 2 ||
-        bindLocalEulerRadians.size() != bindSkeleton.joints.size() ||
+        bindLocalEulerRadians.size() != bindSkeleton.GetJoints().size() ||
         !std::isfinite(settings.tipBias) || settings.tipBias <= 0.0f) {
         return Fail(outPose, outDiagnostics,
             "触手全体叩きつけの入力値が不正です。");
@@ -271,16 +271,16 @@ bool BuildKrakenTentacleWholeSlamPose(
     const int hingeJointIndex = chainJoints[hingeBone];
     const int tipJointIndex = chainJoints.back();
     if (hingeJointIndex < 0 || tipJointIndex < 0 ||
-        static_cast<std::size_t>(hingeJointIndex) >= bindSkeleton.joints.size() ||
-        static_cast<std::size_t>(tipJointIndex) >= bindSkeleton.joints.size()) {
+        static_cast<std::size_t>(hingeJointIndex) >= bindSkeleton.GetJoints().size() ||
+        static_cast<std::size_t>(tipJointIndex) >= bindSkeleton.GetJoints().size()) {
         return Fail(outPose, outDiagnostics,
             "触手全体叩きつけの支点または先端ジョイントが範囲外です。");
     }
-    const Joint& hingeJoint = bindSkeleton.joints[
+    const Joint& hingeJoint = bindSkeleton.GetJoints()[
         static_cast<std::size_t>(hingeJointIndex)];
     if (hingeJoint.parentIndex < 0 ||
         static_cast<std::size_t>(hingeJoint.parentIndex) >=
-            bindSkeleton.joints.size()) {
+            bindSkeleton.GetJoints().size()) {
         return Fail(outPose, outDiagnostics,
             "触手全体叩きつけの支点親ジョイントが不正です。");
     }
@@ -290,7 +290,7 @@ bool BuildKrakenTentacleWholeSlamPose(
     outDiagnostics.pivotWorldPosition = TransformPosition(
         hingeJoint.worldTranslate, modelWorldMatrix);
     outDiagnostics.bindTipWorldPosition = TransformPosition(
-        bindSkeleton.joints[static_cast<std::size_t>(tipJointIndex)].worldTranslate,
+        bindSkeleton.GetJoints()[static_cast<std::size_t>(tipJointIndex)].worldTranslate,
         modelWorldMatrix);
     outDiagnostics.tipWorldPosition = outDiagnostics.bindTipWorldPosition;
     outDiagnostics.bindTentacleWorldDirection = Normalize(Subtract(
@@ -312,7 +312,7 @@ bool BuildKrakenTentacleWholeSlamPose(
         modelWorldMatrix);
     outDiagnostics.hingeParentLocalAxis = WorldAxisToParentLocal(
         outDiagnostics.hingeWorldAxis,
-        bindSkeleton.joints[static_cast<std::size_t>(hingeJoint.parentIndex)],
+        bindSkeleton.GetJoints()[static_cast<std::size_t>(hingeJoint.parentIndex)],
         modelWorldMatrix);
     if (Length(outDiagnostics.hingeWorldAxis) <= kEpsilon ||
         Length(outDiagnostics.hingeParentLocalAxis) <= kEpsilon) {
@@ -390,16 +390,16 @@ bool BuildKrakenTentacleWholeSlamPose(
                 upperWeightSum;
             pose.secondaryDegrees = (outDiagnostics.appliedUpperBendDegrees +
                 EvaluateKrakenTentacleSlamFlex(phase, outDiagnostics.slamProgress, t)) * weight;
-            const Joint& joint = bindSkeleton.joints[
+            const Joint& joint = bindSkeleton.GetJoints()[
                 static_cast<std::size_t>(jointIndex)];
             if (joint.parentIndex < 0 || static_cast<std::size_t>(
-                joint.parentIndex) >= bindSkeleton.joints.size()) {
+                joint.parentIndex) >= bindSkeleton.GetJoints().size()) {
                 return Fail(outPose, outDiagnostics,
                     "上側しなりの親ジョイントが不正です。");
             }
             const Vector3 localAxis = WorldAxisToParentLocal(
                 outDiagnostics.hingeWorldAxis,
-                bindSkeleton.joints[static_cast<std::size_t>(joint.parentIndex)],
+                bindSkeleton.GetJoints()[static_cast<std::size_t>(joint.parentIndex)],
                 modelWorldMatrix);
             pose.attackOffset = AxisRotation(localAxis, pose.secondaryDegrees);
             pose.absoluteLocalRotation = Multiply(

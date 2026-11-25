@@ -40,6 +40,165 @@ namespace {
         return std::string(begin, end);
     }
 }
+struct EnemyWaveManager::LaserFrame {
+    const EnemyWaveManager& waves;
+    EnemyLaserTelegraphController& controller;
+    Vector3 origin;
+    Vector3 trackingDirection;
+    float deltaTime;
+    float warningDuration;
+    bool useAimLock;
+    float lockStartTime;
+    float firstWarningDelay;
+
+    void StartWarning(WaveEnemyRuntime& runtime) const {
+        runtime.laserTimer = 0.0f;
+        runtime.laserAimLocked = false;
+        runtime.lockedLaserDirection = trackingDirection;
+        runtime.lockedLaserTargetPosition = waves.ComputeLaserTargetPosition(*runtime.enemy);
+        controller.StartWarning(runtime.enemy, origin, trackingDirection);
+    }
+
+    void LockWarning(WaveEnemyRuntime& runtime) const {
+        if (runtime.laserAimLocked) return;
+        CaptureAim(runtime);
+        controller.LockWarning(runtime.enemy, origin, runtime.lockedLaserTargetPosition, runtime.lockedLaserDirection);
+    }
+
+    void StartBeam(WaveEnemyRuntime& runtime) const {
+        if (!runtime.laserAimLocked) CaptureAim(runtime);
+        runtime.laserTimer = 0.0f;
+        controller.StartBeam(runtime.enemy, origin, runtime.lockedLaserDirection);
+    }
+
+    float Cooldown() const { return (std::max)(0.0f, waves.laserCooldown_); }
+
+private:
+    void CaptureAim(WaveEnemyRuntime& runtime) const {
+        runtime.lockedLaserTargetPosition = waves.ComputeLaserTargetPosition(*runtime.enemy);
+        runtime.lockedLaserDirection = Normalize(SubtractVector3(runtime.lockedLaserTargetPosition, origin), trackingDirection);
+        runtime.laserAimLocked = true;
+    }
+};
+
+class EnemyWaveManager::LaserPhase {
+public:
+    virtual ~LaserPhase() = default;
+    virtual const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const = 0;
+    virtual bool KeepsEnemyOnScreen() const { return false; }
+    virtual float TimeUntilExit(const WaveEnemyRuntime&, const EnemyLaserTelegraphController&) const { return 0.0f; }
+    static const LaserPhase& For(LaserState phase);
+
+private:
+    class Waiting;
+    class Warning;
+    class WarningTracking;
+    class WarningLocked;
+    class Beam;
+    class Cooldown;
+};
+
+class EnemyWaveManager::LaserPhase::Waiting final : public LaserPhase {
+public:
+    const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const override {
+        runtime.laserTimer += frame.deltaTime;
+        if (runtime.laserTimer >= frame.firstWarningDelay) {
+            frame.StartWarning(runtime);
+            return For(LaserState::WarningTracking);
+        }
+        return *this;
+    }
+};
+
+class EnemyWaveManager::LaserPhase::Warning : public LaserPhase {
+public:
+    bool KeepsEnemyOnScreen() const override { return true; }
+
+    float TimeUntilExit(const WaveEnemyRuntime& runtime, const EnemyLaserTelegraphController& controller) const override {
+        return controller.GetWarningDuration() - runtime.laserTimer + controller.GetBeamDuration();
+    }
+};
+
+class EnemyWaveManager::LaserPhase::WarningTracking final : public Warning {
+public:
+    const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const override {
+        runtime.laserTimer += frame.deltaTime;
+        const bool lockNow = frame.useAimLock && runtime.laserTimer >= frame.lockStartTime;
+        if (lockNow) {
+            frame.LockWarning(runtime);
+        } else {
+            frame.controller.UpdateWarning(runtime.enemy, frame.origin, frame.trackingDirection);
+        }
+        // An update can cross both thresholds. Lock before firing, without
+        // running the locked state's separate update in the same frame.
+        if (runtime.laserTimer >= frame.warningDuration) {
+            frame.StartBeam(runtime);
+            return For(LaserState::Beam);
+        }
+        return lockNow ? For(LaserState::WarningLocked) : *this;
+    }
+};
+
+class EnemyWaveManager::LaserPhase::WarningLocked final : public Warning {
+public:
+    const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const override {
+        runtime.laserTimer += frame.deltaTime;
+        frame.LockWarning(runtime);
+        frame.controller.UpdateWarning(runtime.enemy, frame.origin, runtime.lockedLaserDirection);
+        if (runtime.laserTimer >= frame.warningDuration) {
+            frame.StartBeam(runtime);
+            return For(LaserState::Beam);
+        }
+        return *this;
+    }
+};
+
+class EnemyWaveManager::LaserPhase::Beam final : public LaserPhase {
+public:
+    const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const override {
+        frame.controller.UpdateBeamOrigin(runtime.enemy, frame.origin);
+        runtime.laserTimer += frame.deltaTime;
+        if (runtime.laserTimer >= frame.controller.GetBeamDuration()) {
+            runtime.laserTimer = 0.0f;
+            return For(LaserState::Cooldown);
+        }
+        return *this;
+    }
+
+    bool KeepsEnemyOnScreen() const override { return true; }
+
+    float TimeUntilExit(const WaveEnemyRuntime& runtime, const EnemyLaserTelegraphController& controller) const override {
+        return controller.GetBeamDuration() - runtime.laserTimer;
+    }
+};
+
+class EnemyWaveManager::LaserPhase::Cooldown final : public LaserPhase {
+public:
+    const LaserPhase& Update(WaveEnemyRuntime& runtime, const LaserFrame& frame) const override {
+        if (!frame.controller.IsLoopLaserEnabled()) return *this;
+        runtime.laserTimer += frame.deltaTime;
+        if (runtime.laserTimer >= frame.Cooldown()) {
+            frame.StartWarning(runtime);
+            return For(LaserState::WarningTracking);
+        }
+        return *this;
+    }
+};
+
+const EnemyWaveManager::LaserPhase& EnemyWaveManager::LaserPhase::For(LaserState phase) {
+    static const Waiting waiting;
+    static const WarningTracking tracking;
+    static const WarningLocked locked;
+    static const Beam beam;
+    static const Cooldown cooldown;
+    static const LaserPhase* const phases[]{&waiting, &tracking, &locked, &beam, &cooldown};
+    return *phases[static_cast<std::size_t>(phase)];
+}
+
+const EnemyWaveManager::LaserPhase& EnemyWaveManager::InitialLaserPhase() {
+    return LaserPhase::For(LaserState::Waiting);
+}
+
 void EnemyWaveManager::ConfigureScreenAnchorSpawn(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, const Vector3& targetPosition) {
     if (!enemy) {
         return;
@@ -72,9 +231,7 @@ void EnemyWaveManager::UpdateScreenAnchorEnemy(WaveEnemyRuntime& runtime, float 
         enemy.SetForward(ComputeLaserDirection(enemy));
         runtime.anchorAge += deltaTime;
         const bool holdFinished = runtime.anchorHold > 0.0f && runtime.anchorAge >= runtime.anchorHold;
-        const bool attackInProgress = runtime.laserState == LaserState::WarningTracking
-            || runtime.laserState == LaserState::WarningLocked || runtime.laserState == LaserState::Beam;
-        if (!holdFinished || attackInProgress) {
+        if (!holdFinished || runtime.laserPhase->KeepsEnemyOnScreen()) {
             UpdateLaserTelegraph(runtime, deltaTime);
             return;
         }
@@ -97,16 +254,8 @@ Vector2 EnemyWaveManager::ComputeScreenAnchorLane(const WaveEnemyRuntime& runtim
 }
 
 float EnemyWaveManager::GetScreenAnchorTimeUntilExit(const WaveEnemyRuntime& runtime) const {
-    float delay = (std::max)(0.0f, runtime.anchorHold - runtime.anchorAge);
-    if (laserController_) {
-        if (runtime.laserState == LaserState::Beam) {
-            delay = (std::max)(delay, laserController_->GetBeamDuration() - runtime.laserTimer);
-        } else if (runtime.laserState == LaserState::WarningTracking || runtime.laserState == LaserState::WarningLocked) {
-            delay = (std::max)(delay, laserController_->GetWarningDuration() - runtime.laserTimer
-                + laserController_->GetBeamDuration());
-        }
-    }
-    return delay;
+    const float delay = (std::max)(0.0f, runtime.anchorHold - runtime.anchorAge);
+    return laserController_ ? (std::max)(delay, runtime.laserPhase->TimeUntilExit(runtime, *laserController_)) : delay;
 }
 
 void EnemyWaveManager::UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float deltaTime) {
@@ -122,82 +271,9 @@ void EnemyWaveManager::UpdateLaserTelegraph(WaveEnemyRuntime& runtime, float del
     const float lockStartTime = (std::max)(0.0f, warningDuration - lockBeforeFireTime);
     const float configuredFirstWarningDelay = runtime.screenX > 0.01f ? rightFirstWarningDelay_ :
         (runtime.screenX < -0.01f ? leftFirstWarningDelay_ : firstWarningDelay_);
-    const float firstWarningDelay = (std::max)(0.0f, configuredFirstWarningDelay);
-
-    auto lockAim = [&]() {
-        if (runtime.laserAimLocked) {
-            return;
-        }
-        runtime.lockedLaserTargetPosition = ComputeLaserTargetPosition(*runtime.enemy);
-        runtime.lockedLaserDirection = Normalize(SubtractVector3(runtime.lockedLaserTargetPosition, origin), trackingDirection);
-        runtime.laserAimLocked = true;
-        laserController_->LockWarning(runtime.enemy, origin, runtime.lockedLaserTargetPosition, runtime.lockedLaserDirection);
-        };
-
-    switch (runtime.laserState) {
-    case LaserState::Waiting:
-        runtime.laserTimer += deltaTime;
-        if (runtime.laserTimer >= firstWarningDelay) {
-            runtime.laserTimer = 0.0f;
-            runtime.laserAimLocked = false;
-            runtime.lockedLaserDirection = trackingDirection;
-            runtime.lockedLaserTargetPosition = ComputeLaserTargetPosition(*runtime.enemy);
-            runtime.laserState = LaserState::WarningTracking;
-            laserController_->StartWarning(runtime.enemy, origin, trackingDirection);
-        }
-        break;
-    case LaserState::WarningTracking:
-        runtime.laserTimer += deltaTime;
-        if (useAimLock && runtime.laserTimer >= lockStartTime) {
-            lockAim();
-            runtime.laserState = LaserState::WarningLocked;
-        } else {
-            laserController_->UpdateWarning(runtime.enemy, origin, trackingDirection);
-        }
-        if (runtime.laserTimer >= warningDuration) {
-            if (!runtime.laserAimLocked) {
-                runtime.lockedLaserTargetPosition = ComputeLaserTargetPosition(*runtime.enemy);
-                runtime.lockedLaserDirection = Normalize(SubtractVector3(runtime.lockedLaserTargetPosition, origin), trackingDirection);
-                runtime.laserAimLocked = true;
-            }
-            runtime.laserTimer = 0.0f;
-            runtime.laserState = LaserState::Beam;
-            laserController_->StartBeam(runtime.enemy, origin, runtime.lockedLaserDirection);
-        }
-        break;
-    case LaserState::WarningLocked:
-        runtime.laserTimer += deltaTime;
-        lockAim();
-        laserController_->UpdateWarning(runtime.enemy, origin, runtime.lockedLaserDirection);
-        if (runtime.laserTimer >= warningDuration) {
-            runtime.laserTimer = 0.0f;
-            runtime.laserState = LaserState::Beam;
-            laserController_->StartBeam(runtime.enemy, origin, runtime.lockedLaserDirection);
-        }
-        break;
-    case LaserState::Beam:
-        laserController_->UpdateBeamOrigin(runtime.enemy, origin);
-        runtime.laserTimer += deltaTime;
-        if (runtime.laserTimer >= laserController_->GetBeamDuration()) {
-            runtime.laserTimer = 0.0f;
-            runtime.laserState = LaserState::Cooldown;
-        }
-        break;
-    case LaserState::Cooldown:
-        if (!laserController_->IsLoopLaserEnabled()) {
-            break;
-        }
-        runtime.laserTimer += deltaTime;
-        if (runtime.laserTimer >= (std::max)(0.0f, laserCooldown_)) {
-            runtime.laserTimer = 0.0f;
-            runtime.laserAimLocked = false;
-            runtime.lockedLaserDirection = trackingDirection;
-            runtime.lockedLaserTargetPosition = ComputeLaserTargetPosition(*runtime.enemy);
-            runtime.laserState = LaserState::WarningTracking;
-            laserController_->StartWarning(runtime.enemy, origin, trackingDirection);
-        }
-        break;
-    }
+    const LaserFrame frame{*this, *laserController_, origin, trackingDirection, deltaTime,
+        warningDuration, useAimLock, lockStartTime, (std::max)(0.0f, configuredFirstWarningDelay)};
+    runtime.laserPhase = &runtime.laserPhase->Update(runtime, frame);
 }
 
 Vector3 EnemyWaveManager::ComputeLaserDirection(const Enemy& enemy) const {

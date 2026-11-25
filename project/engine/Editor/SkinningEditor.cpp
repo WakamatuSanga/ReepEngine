@@ -66,8 +66,8 @@ namespace {
         if (!skeleton) {
             return -1;
         }
-        for (int jointIndex = 0; jointIndex < static_cast<int>(skeleton->joints.size()); ++jointIndex) {
-            if (skeleton->joints[static_cast<size_t>(jointIndex)].name == jointName) {
+        for (int jointIndex = 0; jointIndex < static_cast<int>(skeleton->GetJoints().size()); ++jointIndex) {
+            if (skeleton->GetJoints()[static_cast<size_t>(jointIndex)].name == jointName) {
                 return jointIndex;
             }
         }
@@ -145,11 +145,11 @@ namespace {
     }
 
     void DrawJointNode(const Skeleton& skeleton, int jointIndex, int& selectedJointIndex) {
-        if (jointIndex < 0 || jointIndex >= static_cast<int>(skeleton.joints.size())) {
+        if (jointIndex < 0 || jointIndex >= static_cast<int>(skeleton.GetJoints().size())) {
             return;
         }
 
-        const Joint& joint = skeleton.joints[static_cast<size_t>(jointIndex)];
+        const Joint& joint = skeleton.GetJoints()[static_cast<size_t>(jointIndex)];
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
         if (joint.children.empty()) {
             flags |= ImGuiTreeNodeFlags_Leaf;
@@ -185,7 +185,7 @@ void SkinningEditor::Update(float unscaledDeltaTime) {
         SyncTargetFromIndex();
     }
 
-    if (!targetSkeleton_ || targetSkeleton_->joints.empty()) {
+    if (!targetSkeleton_ || targetSkeleton_->GetJoints().empty()) {
         selectedJointIndex_ = -1;
         selectedTrackIndex_ = -1;
         selectedKeyIndex_ = -1;
@@ -199,7 +199,7 @@ void SkinningEditor::Update(float unscaledDeltaTime) {
         return;
     }
 
-    selectedJointIndex_ = std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->joints.size()) - 1);
+    selectedJointIndex_ = std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->GetJoints().size()) - 1);
     if (gizmoActiveJointIndex_ != selectedJointIndex_) {
         isGizmoActive_ = false;
         isGizmoHovered_ = false;
@@ -388,9 +388,9 @@ void SkinningEditor::DrawImGui() {
                 activeTarget->previewInfo.skeletonRootWorldScale.y,
                 activeTarget->previewInfo.skeletonRootWorldScale.z);
             if (targetSkeleton_ &&
-                targetSkeleton_->root >= 0 &&
-                targetSkeleton_->root < static_cast<int32_t>(targetSkeleton_->joints.size())) {
-                const Joint& currentRoot = targetSkeleton_->joints[static_cast<size_t>(targetSkeleton_->root)];
+                targetSkeleton_->GetRootIndex() >= 0 &&
+                targetSkeleton_->GetRootIndex() < static_cast<int32_t>(targetSkeleton_->GetJoints().size())) {
+                const Joint& currentRoot = targetSkeleton_->GetJoints()[static_cast<size_t>(targetSkeleton_->GetRootIndex())];
                 const Vector3 currentRootScale = ExtractMatrixScale(currentRoot.worldMatrix);
                 const Matrix4x4 displayedRootMatrix = MatrixMath::Multipty(
                     currentRoot.worldMatrix,
@@ -436,8 +436,8 @@ void SkinningEditor::DrawImGui() {
         return;
     }
 
-    ImGui::Text("スケルトン (Skeleton): %s", targetSkeleton_->name.c_str());
-    ImGui::Text("ボーン数 (Bone Count): %d", static_cast<int>(targetSkeleton_->joints.size()));
+    ImGui::Text("スケルトン (Skeleton): %s", targetSkeleton_->GetName().c_str());
+    ImGui::Text("ボーン数 (Bone Count): %d", static_cast<int>(targetSkeleton_->GetJoints().size()));
     DrawKrakenMotionPreviewImGui();
     if (ImGui::InputText("クリップ名 (Clip Name)", clipNameBuffer_.data(), clipNameBuffer_.size())) {
         SyncClipNameFromBuffer();
@@ -506,8 +506,8 @@ void SkinningEditor::DrawImGui() {
     ImGui::BeginChild("SkinningHierarchy", ImVec2(240.0f, 360.0f), true);
     ImGui::TextUnformatted("ボーン階層 (Skinning Hierarchy)");
     ImGui::Separator();
-    for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->joints.size()); ++jointIndex) {
-        if (targetSkeleton_->joints[static_cast<size_t>(jointIndex)].parentIndex < 0) {
+    for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->GetJoints().size()); ++jointIndex) {
+        if (targetSkeleton_->GetJoints()[static_cast<size_t>(jointIndex)].parentIndex < 0) {
             DrawJointNode(*targetSkeleton_, jointIndex, selectedJointIndex_);
         }
     }
@@ -519,8 +519,8 @@ void SkinningEditor::DrawImGui() {
     ImGui::BeginChild("SkinningInspector", ImVec2(0.0f, 360.0f), true);
     ImGui::TextUnformatted("ボーン詳細 (Skinning Inspector)");
     ImGui::Separator();
-    if (selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->joints.size())) {
-        Joint& joint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
+    if (selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->GetJoints().size())) {
+        const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)];
         ImGui::Text("選択Index (Selected Index): %d", selectedJointIndex_);
         ImGui::Text("選択ボーン名 (Selected Bone Name): %s", joint.name.c_str());
         ImGui::Text("ギズモ操作中 (Gizmo Active): %s", isGizmoActive_ ? "はい (Yes)" : "いいえ (No)");
@@ -540,8 +540,9 @@ void SkinningEditor::DrawImGui() {
         ImGui::Separator();
 
         BeginKrakenLegacyPoseEditingGuard();
+        Transform edited{joint.localScale, joint.localRotate, joint.localTranslate};
         bool isJointEdited = false;
-        if (ImGui::DragFloat3("ローカル移動 (Local Translate)", &joint.localTranslate.x, 0.05f)) {
+        if (ImGui::DragFloat3("ローカル移動 (Local Translate)", &edited.translate.x, 0.05f)) {
             isJointEdited = true;
         }
 
@@ -553,7 +554,7 @@ void SkinningEditor::DrawImGui() {
             joint.localRotate.z * kRadToDeg
         };
         if (ImGui::DragFloat3("ローカル回転 (Local Rotate)", &localRotateDegrees.x, 1.0f)) {
-            joint.localRotate = {
+            edited.rotate = {
                 localRotateDegrees.x * kDegToRad,
                 localRotateDegrees.y * kDegToRad,
                 localRotateDegrees.z * kDegToRad
@@ -561,12 +562,13 @@ void SkinningEditor::DrawImGui() {
             isJointEdited = true;
         }
 
-        if (ImGui::DragFloat3("ローカル拡縮 (Local Scale)", &joint.localScale.x, 0.01f, 0.01f, 10.0f, "%.2f")) {
+        if (ImGui::DragFloat3("ローカル拡縮 (Local Scale)", &edited.scale.x, 0.01f, 0.01f, 10.0f, "%.2f")) {
             isJointEdited = true;
         }
 
         if (isJointEdited) {
-            UpdateSkeletonWorldTransforms(*targetSkeleton_);
+            targetSkeleton_->SetJointLocalTransform(selectedJointIndex_, edited);
+            targetSkeleton_->UpdateWorldTransforms();
         }
         EndKrakenLegacyPoseEditingGuard();
     } else {
@@ -692,7 +694,7 @@ void SkinningEditor::DrawTimelineCanvas() {
     constexpr float kRowHeight = 24.0f;
     constexpr float kHeaderHeight = 24.0f;
     constexpr float kLabelWidth = 140.0f;
-    const int rowCount = targetSkeleton_ ? static_cast<int>(targetSkeleton_->joints.size()) : 0;
+    const int rowCount = targetSkeleton_ ? static_cast<int>(targetSkeleton_->GetJoints().size()) : 0;
     const float canvasHeight = (std::max)(120.0f, kHeaderHeight + 16.0f + kRowHeight * static_cast<float>((std::max)(rowCount, 1)));
     const ImVec2 canvasSize = { canvasWidth, canvasHeight };
     const ImVec2 canvasMax = { canvasPosition.x + canvasSize.x, canvasPosition.y + canvasSize.y };
@@ -752,8 +754,8 @@ void SkinningEditor::DrawTimelineCanvas() {
     float clickedKeyTime = 0.0f;
     bool clickedSelectedKey = false;
     std::vector<TimelineKeyVisual> keyVisuals;
-    for (int jointIndex = 0; targetSkeleton_ && jointIndex < static_cast<int>(targetSkeleton_->joints.size()); ++jointIndex) {
-        const Joint& joint = targetSkeleton_->joints[static_cast<size_t>(jointIndex)];
+    for (int jointIndex = 0; targetSkeleton_ && jointIndex < static_cast<int>(targetSkeleton_->GetJoints().size()); ++jointIndex) {
+        const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(jointIndex)];
         const float rowMinY = headerBottomY + 8.0f + kRowHeight * static_cast<float>(jointIndex);
         const float rowMaxY = rowMinY + kRowHeight;
         const float rowCenterY = rowMinY + kRowHeight * 0.5f;
@@ -898,7 +900,7 @@ void SkinningEditor::DrawTimelineCanvas() {
         }
     }
 
-    if (!targetSkeleton_ || targetSkeleton_->joints.empty()) {
+    if (!targetSkeleton_ || targetSkeleton_->GetJoints().empty()) {
         drawList->AddText(
             { canvasPosition.x + 12.0f, canvasPosition.y + canvasHeight * 0.5f - 8.0f },
             IM_COL32(150, 150, 160, 255),
@@ -910,12 +912,12 @@ void SkinningEditor::DrawTimelineCanvas() {
 void SkinningEditor::DrawSelectedJointKeys() {
 #ifdef USE_IMGUI
     ImGui::TextUnformatted("選択ボーンのキー (Selected Joint Keys)");
-    if (!targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
+    if (!targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->GetJoints().size())) {
         ImGui::TextDisabled("ボーン階層から選択してください (Select a bone).");
         return;
     }
 
-    const Joint& joint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
+    const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)];
     ImGui::Text("ジョイント (Joint): %s", joint.name.c_str());
 
     JointTrack* track = GetSelectedJointTrack();
@@ -994,8 +996,8 @@ void SkinningEditor::RestoreTimelineSnapshot(const TimelineSnapshot& snapshot) {
     isBoxSelecting_ = false;
 
     SetBufferText(clipNameBuffer_, currentClip_.name.empty() ? "NewClip" : currentClip_.name);
-    if (targetSkeleton_ && !targetSkeleton_->joints.empty()) {
-        selectedJointIndex_ = std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->joints.size()) - 1);
+    if (targetSkeleton_ && !targetSkeleton_->GetJoints().empty()) {
+        selectedJointIndex_ = std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->GetJoints().size()) - 1);
     } else {
         selectedJointIndex_ = -1;
     }
@@ -1054,7 +1056,7 @@ void SkinningEditor::RedoTimelineEdit() {
 }
 
 void SkinningEditor::AddKeyAtCurrentTime() {
-    if (!targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
+    if (!targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->GetJoints().size())) {
         statusMessage_ = "Add key failed: no selected joint.";
         return;
     }
@@ -1075,7 +1077,7 @@ void SkinningEditor::AddKeyAtCurrentTime() {
 
     currentClip_.duration = (std::max)(currentClip_.duration, (std::max)(currentTime_, 0.0001f));
 
-    const Joint& joint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
+    const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)];
     JointTrack* track = FindJointTrack(currentClip_, joint.name);
     if (!track) {
         currentClip_.tracks.push_back({ joint.name, {} });
@@ -1120,7 +1122,7 @@ void SkinningEditor::SelectAllKeys() {
     }
 
     selectedKeys_.clear();
-    for (const Joint& joint : targetSkeleton_->joints) {
+    for (const Joint& joint : targetSkeleton_->GetJoints()) {
         const JointTrack* track = FindJointTrack(currentClip_, joint.name);
         if (!track) {
             continue;
@@ -1337,14 +1339,14 @@ void SkinningEditor::MoveSelectedKeyTime(float newTime) {
 }
 
 void SkinningEditor::RefreshSelectionState() {
-    if (!hasClip_ || !targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
+    if (!hasClip_ || !targetSkeleton_ || selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->GetJoints().size())) {
         selectedKeys_.clear();
         selectedTrackIndex_ = -1;
         selectedKeyIndex_ = -1;
         return;
     }
 
-    const std::string& selectedJointName = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)].name;
+    const std::string& selectedJointName = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)].name;
     std::vector<SelectedKeyHandle> validSelection;
     validSelection.reserve(selectedKeys_.size());
     for (const SelectedKeyHandle& handle : selectedKeys_) {
@@ -1568,14 +1570,14 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
         gizmoActiveJointIndex_ = -1;
         return;
     }
-    if (selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->joints.size())) {
+    if (selectedJointIndex_ < 0 || selectedJointIndex_ >= static_cast<int>(targetSkeleton_->GetJoints().size())) {
         isGizmoActive_ = false;
         isGizmoHovered_ = false;
         gizmoActiveJointIndex_ = -1;
         return;
     }
 
-    Joint& joint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
+    const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)];
     const Matrix4x4 previewWorldMatrix = GetActivePreviewWorldMatrix();
     Matrix4x4 editedDisplayWorldMatrix = MatrixMath::Multipty(joint.worldMatrix, previewWorldMatrix);
 
@@ -1606,19 +1608,20 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
     gizmoActiveJointIndex_ = isGizmoActive_ ? selectedJointIndex_ : -1;
 
     if (isGizmoActive_) {
+        Transform edited{joint.localScale, joint.localRotate, joint.localTranslate};
         const Matrix4x4 editedWorldMatrix = MatrixMath::Multipty(
             editedDisplayWorldMatrix,
             MatrixMath::Inverse(previewWorldMatrix));
         Matrix4x4 localMatrix = editedWorldMatrix;
-        if (joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->joints.size())) {
-            const Matrix4x4& parentWorldMatrix = targetSkeleton_->joints[static_cast<size_t>(joint.parentIndex)].worldMatrix;
+        if (joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->GetJoints().size())) {
+            const Matrix4x4& parentWorldMatrix = targetSkeleton_->GetJoints()[static_cast<size_t>(joint.parentIndex)].worldMatrix;
             localMatrix = MatrixMath::Multipty(
                 editedWorldMatrix,
                 MatrixMath::Inverse(parentWorldMatrix));
         }
 
         if (isTranslateOperation) {
-            joint.localTranslate = {
+            edited.translate = {
                 localMatrix.m[3][0],
                 localMatrix.m[3][1],
                 localMatrix.m[3][2]
@@ -1634,15 +1637,16 @@ void SkinningEditor::DrawGizmo(const Camera* camera) {
                 matrixScale);
 
             constexpr float kDegToRad = std::numbers::pi_v<float> / 180.0f;
-            joint.localTranslate = { matrixTranslation[0], matrixTranslation[1], matrixTranslation[2] };
-            joint.localRotate = {
+            edited.translate = { matrixTranslation[0], matrixTranslation[1], matrixTranslation[2] };
+            edited.rotate = {
                 matrixRotation[0] * kDegToRad,
                 matrixRotation[1] * kDegToRad,
                 matrixRotation[2] * kDegToRad
             };
-            joint.localScale = { matrixScale[0], matrixScale[1], matrixScale[2] };
+            edited.scale = { matrixScale[0], matrixScale[1], matrixScale[2] };
         }
-        UpdateSkeletonWorldTransforms(*targetSkeleton_);
+        targetSkeleton_->SetJointLocalTransform(selectedJointIndex_, edited);
+        targetSkeleton_->UpdateWorldTransforms();
     }
 #endif
 }
@@ -1673,8 +1677,8 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
     ImVec2 selectedJointScreen{};
     bool hasSelectedJointScreen = false;
 
-    for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->joints.size()); ++jointIndex) {
-        const Joint& joint = targetSkeleton_->joints[static_cast<size_t>(jointIndex)];
+    for (int jointIndex = 0; jointIndex < static_cast<int>(targetSkeleton_->GetJoints().size()); ++jointIndex) {
+        const Joint& joint = targetSkeleton_->GetJoints()[static_cast<size_t>(jointIndex)];
         const Vector3 jointDisplayPosition = TransformPosition(joint.worldTranslate, previewWorldMatrix);
         ImVec2 jointScreen{};
         if (!ProjectToScreen(jointDisplayPosition, camera, viewTopLeft, viewSize, jointScreen)) {
@@ -1688,8 +1692,8 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
             hasSelectedJointScreen = true;
         }
 
-        if (showSkeletonDebugLines_ && joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->joints.size())) {
-            const Joint& parentJoint = targetSkeleton_->joints[static_cast<size_t>(joint.parentIndex)];
+        if (showSkeletonDebugLines_ && joint.parentIndex >= 0 && joint.parentIndex < static_cast<int>(targetSkeleton_->GetJoints().size())) {
+            const Joint& parentJoint = targetSkeleton_->GetJoints()[static_cast<size_t>(joint.parentIndex)];
             const Vector3 parentDisplayPosition = TransformPosition(parentJoint.worldTranslate, previewWorldMatrix);
             ImVec2 parentScreen{};
             if (ProjectToScreen(parentDisplayPosition, camera, viewTopLeft, viewSize, parentScreen)) {
@@ -1735,8 +1739,8 @@ void SkinningEditor::DrawDebugOverlay(const Camera* camera) const {
         }
     }
 
-    if (showSelectedJointPanel_ && hasSelectedJointScreen && selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->joints.size())) {
-        const Joint& selectedJoint = targetSkeleton_->joints[static_cast<size_t>(selectedJointIndex_)];
+    if (showSelectedJointPanel_ && hasSelectedJointScreen && selectedJointIndex_ >= 0 && selectedJointIndex_ < static_cast<int>(targetSkeleton_->GetJoints().size())) {
+        const Joint& selectedJoint = targetSkeleton_->GetJoints()[static_cast<size_t>(selectedJointIndex_)];
         ImVec2 panelMin = { gameViewX_ + 16.0f, gameViewY_ + 16.0f };
         ImVec2 panelMax = { panelMin.x + 250.0f, panelMin.y + 52.0f };
         drawList->AddRectFilled(panelMin, panelMax, IM_COL32(0, 0, 0, 140), 6.0f);
@@ -1779,7 +1783,7 @@ void SkinningEditor::SetTarget(const std::string& label, Skeleton* skeleton) {
     targetLabel_ = label;
     targetSkeleton_ = skeleton;
     syncedTargetIndex_ = -1;
-    selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->joints.empty()) ? 0 : -1;
+    selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->GetJoints().empty()) ? 0 : -1;
     selectedTrackIndex_ = -1;
     selectedKeyIndex_ = -1;
     RefreshSelectionState();
@@ -1796,7 +1800,7 @@ void SkinningEditor::RegisterTarget(const std::string& label, Skeleton* skeleton
         "preview",
         {},
         {},
-        skeleton ? static_cast<int>(skeleton->joints.size()) : 0,
+        skeleton ? static_cast<int>(skeleton->GetJoints().size()) : 0,
         false);
 }
 
@@ -2011,7 +2015,7 @@ void SkinningEditor::SyncTargetFromIndex() {
     targetLabel_ = target.label;
     targetSkeleton_ = target.skeleton;
     if (targetChanged) {
-        selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->joints.empty()) ? 0 : -1;
+        selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->GetJoints().empty()) ? 0 : -1;
         selectedTrackIndex_ = -1;
         selectedKeyIndex_ = -1;
         selectedKeys_.clear();
@@ -2041,8 +2045,8 @@ void SkinningEditor::SyncTargetFromIndex() {
         statusMessage_ = BuildTargetStatusMessage(target);
         syncedTargetIndex_ = currentTargetIndex_;
     } else {
-        selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->joints.empty())
-            ? std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->joints.size()) - 1)
+        selectedJointIndex_ = (targetSkeleton_ && !targetSkeleton_->GetJoints().empty())
+            ? std::clamp(selectedJointIndex_, 0, static_cast<int>(targetSkeleton_->GetJoints().size()) - 1)
             : -1;
     }
     RefreshSelectionState();

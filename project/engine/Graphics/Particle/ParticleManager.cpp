@@ -1,5 +1,8 @@
 #include "ParticleManager.h"
+#include "Engine/Core/DirectXCommon.h"
 #include "Engine/Core/FrameTimer.h"
+#include "Engine/Core/SrvManager.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
 #include <random>
 #include <cassert>
@@ -8,9 +11,32 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 using namespace MatrixMath;
 using namespace Microsoft::WRL;
+
+namespace {
+bool IsSampleableRange(const Vector2& range) {
+    return std::isfinite(range.x) && std::isfinite(range.y) && std::isfinite(range.y - range.x);
+}
+
+bool ApplyEffectParams(ParticleManager::EffectParams& current, const ParticleManager::EffectParams& next) {
+    if (!IsSampleableRange(next.scaleXRange) || !IsSampleableRange(next.scaleYRange)
+        || !IsSampleableRange(next.rotateZRange) || !IsSampleableRange(next.lifeTimeRange)
+        || !IsSampleableRange(next.speedRange) || !IsSampleableRange(next.colorRRange)
+        || !IsSampleableRange(next.colorGRange) || !IsSampleableRange(next.colorBRange)) {
+        return false;
+    }
+
+    // Preserve typed ImGui values and the endpoint order shown in the editor.
+    // Emit orders each pair when it samples it.
+    constexpr auto maxEditableSpawnCount = static_cast<uint32_t>((std::numeric_limits<int>::max)());
+    current = next;
+    current.spawnCount = std::clamp(current.spawnCount, 1u, maxEditableSpawnCount);
+    return true;
+}
+}
 
 std::unique_ptr<ParticleManager> ParticleManager::instance_ = nullptr;
 
@@ -42,6 +68,18 @@ void ParticleManager::Initialize(DirectXCommon* dxCommon, SrvManager* srvManager
 
 void ParticleManager::Finalize() {
     particles_.clear();
+}
+
+bool ParticleManager::SetHitEffectParams(const EffectParams& params) {
+    return ApplyEffectParams(hitEffectParams_, params);
+}
+
+bool ParticleManager::SetFireballEffectParams(const EffectParams& params) {
+    return ApplyEffectParams(fireballEffectParams_, params);
+}
+
+bool ParticleManager::SetWindEffectParams(const EffectParams& params) {
+    return ApplyEffectParams(windEffectParams_, params);
 }
 
 void ParticleManager::SetTexture(const std::string& texturePath) {

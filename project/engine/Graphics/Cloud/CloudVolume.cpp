@@ -1,8 +1,47 @@
 #include "CloudVolume.h"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+
+namespace {
+bool IsFinite(const Vector3& value) {
+    return std::isfinite(value.x) && std::isfinite(value.y) && std::isfinite(value.z);
+}
+}
 
 CloudVolume::CloudVolume() = default;
+
+bool CloudVolume::SetParameters(const Parameters& parameters) {
+    if (!IsFinite(parameters.center) || !IsFinite(parameters.halfExtents) ||
+        !IsFinite(parameters.windDirection) || !IsFinite(parameters.sunDirection)) {
+        return false;
+    }
+    const float scalars[] = {
+        parameters.density, parameters.absorption, parameters.windSpeed, parameters.lightAbsorption,
+        parameters.color.x, parameters.color.y, parameters.color.z, parameters.color.w,
+        parameters.noiseScale, parameters.detailNoiseScale, parameters.detailWeight, parameters.edgeFade,
+        parameters.ambientLighting, parameters.sunIntensity,
+    };
+    for (const float value : scalars) {
+        if (!std::isfinite(value)) return false;
+    }
+
+    // Preserve the finite values accepted by the existing editor, including typed input.
+    constexpr auto maxEditableSteps = static_cast<uint32_t>((std::numeric_limits<int>::max)());
+    parameters_ = parameters;
+    parameters_.viewStepCount = std::clamp(parameters.viewStepCount, 1u, maxEditableSteps);
+    parameters_.lightStepCount = std::clamp(parameters.lightStepCount, 1u, maxEditableSteps);
+    return true;
+}
+
+void CloudVolume::SetCenter(const Vector3& center) {
+    if (IsFinite(center)) parameters_.center = center;
+}
+
+void CloudVolume::SetOpacity(float opacity) {
+    if (std::isfinite(opacity)) parameters_.color.w = opacity;
+}
 
 void CloudVolume::Update(float deltaTime)
 {

@@ -79,7 +79,6 @@ void GameScene::UpdateSceneRuntime() {
     auto particleManager = ParticleManager::GetInstance();
     auto volumetricCloudPass = MyGame::GetInstance()->GetVolumetricCloudPass();
     auto dxCommon = MyGame::GetInstance()->GetDxCommon();
-    auto& hitEffectParams = particleManager->GetHitEffectParams();
     auto audio = Audio::GetInstance();
     const FrameTimer& frameTimer = FrameTimer::GetInstance();
     const float unscaledDeltaTime = frameTimer.GetGameplayDeltaTime();
@@ -568,11 +567,11 @@ void GameScene::UpdateSceneRuntime() {
     debugSprite_->Update();
 
     if (input->PushKey(DIK_SPACE)) {
-        particleManager->Emit("Hit", object3dSphere_->GetTransform().translate, hitEffectParams.spawnCount);
+        particleManager->Emit("Hit", object3dSphere_->GetTransform().translate, 0);
     }
 
     if (input->PushKey(DIK_H)) {
-        particleManager->Emit("Hit", object3dSphere_->GetTransform().translate, hitEffectParams.spawnCount);
+        particleManager->Emit("Hit", object3dSphere_->GetTransform().translate, 0);
     }
 
     if (input->TriggerKey(DIK_P)) {
@@ -586,7 +585,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     if (shouldDrawLevelDebug && skinningEditor_) {
         if (skinningPreviewSkeleton_) {
-            UpdateSkeletonWorldTransforms(*skinningPreviewSkeleton_);
+            skinningPreviewSkeleton_->UpdateWorldTransforms();
         }
         skinningEditor_->Update(unscaledDeltaTime);
 #ifndef USE_IMGUI

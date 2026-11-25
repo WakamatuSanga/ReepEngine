@@ -73,13 +73,13 @@ void SkinningEditorKrakenMotionPreview::DrawAttackMotionImGui() {
         const int rootIndex = selectedChain->joints.front();
         const int tipIndex = selectedChain->joints.back();
         if (rootIndex >= 0 &&
-            rootIndex < static_cast<int>(skeleton_->joints.size())) {
-            chainRoot = &skeleton_->joints[
+            rootIndex < static_cast<int>(skeleton_->GetJoints().size())) {
+            chainRoot = &skeleton_->GetJoints()[
                 static_cast<std::size_t>(rootIndex)];
         }
         if (tipIndex >= 0 &&
-            tipIndex < static_cast<int>(skeleton_->joints.size())) {
-            chainTip = &skeleton_->joints[
+            tipIndex < static_cast<int>(skeleton_->GetJoints().size())) {
+            chainTip = &skeleton_->GetJoints()[
                 static_cast<std::size_t>(tipIndex)];
         }
     }

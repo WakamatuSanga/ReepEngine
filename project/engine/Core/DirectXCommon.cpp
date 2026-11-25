@@ -710,6 +710,42 @@ void DirectXCommon::CreateRenderTexture(SrvManager* srvManager)
 }
 
 // FPS固定 初期化
+void DirectXCommon::ApplyPostEffectSettings(const PostEffectParameters& settings) {
+    auto edited = settings;
+    edited.depthNear = postEffectParameters_.depthNear;
+    edited.depthFar = postEffectParameters_.depthFar;
+    edited.radialBlurAspectScale = postEffectParameters_.radialBlurAspectScale;
+    edited.radialBlurCenterClearRadius = postEffectParameters_.radialBlurCenterClearRadius;
+    edited.radialBlurOuterEffectRadius = postEffectParameters_.radialBlurOuterEffectRadius;
+    postEffectParameters_ = edited;
+}
+
+DirectXCommon::RadialBlurSettings DirectXCommon::GetRadialBlurSettings() const {
+    const auto& p = postEffectParameters_;
+    return {p.radialBlurEnabled, p.radialBlurStrength, p.radialBlurCenter,
+        p.radialBlurSampleCount, p.radialBlurCenterClearRadius, p.radialBlurOuterEffectRadius};
+}
+
+void DirectXCommon::SetRadialBlur(const RadialBlurSettings& blur) {
+    auto& p = postEffectParameters_;
+    p.radialBlurEnabled = blur.enabled;
+    p.radialBlurStrength = blur.strength;
+    p.radialBlurCenter = blur.center;
+    p.radialBlurSampleCount = blur.sampleCount;
+    p.radialBlurCenterClearRadius = blur.clearRadius;
+    p.radialBlurOuterEffectRadius = blur.outerRadius;
+}
+
+void DirectXCommon::SetVignette(uint32_t enabled, float intensity) {
+    postEffectParameters_.vignetteEnabled = enabled;
+    postEffectParameters_.vignetteIntensity = intensity;
+}
+
+void DirectXCommon::SetGrayscale(uint32_t enabled, float intensity) {
+    postEffectParameters_.grayscaleEnabled = enabled;
+    postEffectParameters_.grayscaleIntensity = intensity;
+}
+
 void DirectXCommon::SetDissolveNoiseTextureIndex(uint32_t textureIndex)
 {
     dissolveNoiseTextureSRVIndex_ = textureIndex;

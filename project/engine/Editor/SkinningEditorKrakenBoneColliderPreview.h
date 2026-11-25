@@ -23,7 +23,15 @@ struct KrakenBoneColliderPreviewSettings {
     float globalRadiusScale = 1.0f;
 };
 
-struct KrakenBoneColliderPreview {
+struct KrakenColliderPreviewPhaseState {
+    bool previewVisible = true;
+    bool phaseActive = false;
+    bool gameplayRegistered = false;
+    KrakenColliderPhaseReason phaseReason = KrakenColliderPhaseReason::MotionStateInvalid;
+    std::uint64_t lastPhaseTransitionFrame = ~std::uint64_t{0};
+};
+
+struct KrakenBoneColliderPreview : KrakenColliderPreviewPhaseState {
     std::uint32_t colliderIndex = 0;
     std::uint32_t chainIndex = 0;
     KrakenColliderPreviewRole role = KrakenColliderPreviewRole::Damage;
@@ -42,15 +50,9 @@ struct KrakenBoneColliderPreview {
     float worldLength = 0.0f;
     bool enabled = true;
     bool valid = false;
-    bool previewVisible = true;
-    bool phaseActive = false;
-    bool gameplayRegistered = false;
-    KrakenColliderPhaseReason phaseReason =
-        KrakenColliderPhaseReason::MotionStateInvalid;
-    std::uint64_t lastPhaseTransitionFrame = ~std::uint64_t{ 0 };
 };
 
-struct KrakenTipSphereColliderPreview {
+struct KrakenTipSphereColliderPreview : KrakenColliderPreviewPhaseState {
     std::uint32_t chainIndex = 0;
     KrakenColliderPreviewRole role = KrakenColliderPreviewRole::WeakPoint;
     int tipJointIndex = -1;
@@ -62,12 +64,6 @@ struct KrakenTipSphereColliderPreview {
     float distanceFromBind = 0.0f;
     bool enabled = true;
     bool valid = false;
-    bool previewVisible = true;
-    bool phaseActive = false;
-    bool gameplayRegistered = false;
-    KrakenColliderPhaseReason phaseReason =
-        KrakenColliderPhaseReason::MotionStateInvalid;
-    std::uint64_t lastPhaseTransitionFrame = ~std::uint64_t{ 0 };
 };
 
 struct KrakenBoneColliderPreviewDiagnostics {
@@ -110,10 +106,6 @@ public:
     bool MatchesChain(
         std::uint32_t chainIndex,
         const std::vector<int>& chainJoints) const;
-    bool SetCapsuleJointPair(
-        std::size_t colliderIndex,
-        int startJointIndex,
-        int endJointIndex);
     void ResetRecommendedRadii();
     void SetAllEnabled(bool enabled);
     void SelectFirst();
@@ -123,20 +115,17 @@ public:
     void RunDiagnostics(const Skeleton& skeleton);
     void RecordDebugDraw(std::uint32_t shapeCount) const;
 
-    KrakenBoneColliderPreviewSettings& GetSettings() { return settings_; }
-    const KrakenBoneColliderPreviewSettings& GetSettings() const {
-        return settings_;
-    }
-    std::vector<KrakenBoneColliderPreview>& GetCapsules() {
-        return capsules_;
-    }
+    void SetGlobalRadiusScale(float scale) { settings_.globalRadiusScale = scale; }
     const std::vector<KrakenBoneColliderPreview>& GetCapsules() const {
         return capsules_;
     }
-    KrakenTipSphereColliderPreview& GetTipSphere() { return tipSphere_; }
     const KrakenTipSphereColliderPreview& GetTipSphere() const {
         return tipSphere_;
     }
+    bool ApplyCapsuleEdit(std::size_t index, const KrakenBoneColliderPreview& edit);
+    bool ApplyTipSphereEdit(const KrakenTipSphereColliderPreview& edit);
+    void SetCapsulePhase(std::size_t index, const KrakenColliderPreviewPhaseState& phase);
+    void SetTipSpherePhase(const KrakenColliderPreviewPhaseState& phase);
     const std::vector<int>& GetChainJoints() const { return chainJoints_; }
     const KrakenBoneColliderPreviewDiagnostics& GetDiagnostics() const {
         return diagnostics_;
@@ -148,6 +137,7 @@ public:
     bool IsTipSphereSelected() const;
 
 private:
+    bool SetCapsuleJointPair(std::size_t index, int startJointIndex, int endJointIndex);
     void RefreshDiagnostics(const Skeleton& skeleton);
     void SetRebuildError(const std::string& message);
 

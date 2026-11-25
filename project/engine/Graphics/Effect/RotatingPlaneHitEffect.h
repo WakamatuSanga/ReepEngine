@@ -1,25 +1,25 @@
 #pragma once
+#include "Engine/Graphics/Effect/IPrimitiveEffect.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectTypes.h"
 #include <cstdint>
 #include <memory>
 #include <vector>
 
-class Camera;
 class Model;
 class Object3d;
 class Object3dCommon;
 
-class RotatingPlaneHitEffect {
+class RotatingPlaneHitEffect : public IPrimitiveEffect {
 public:
     RotatingPlaneHitEffect();
-    ~RotatingPlaneHitEffect();
+    ~RotatingPlaneHitEffect() override;
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Play();
     void PlayAt(const Vector3& position);
     void Stop();
-    void Update(float deltaTime);
-    void Draw();
+    void Update(float deltaTime, const Camera* camera) override;
+    void Draw() override;
     void DrawImGui();
 
     void SetVisible(bool isVisible) { isVisible_ = isVisible; }

@@ -1,12 +1,15 @@
 #pragma once
-#include "Engine/Core/DirectXCommon.h"
-#include "Engine/Core/SrvManager.h"
-#include "Engine/Graphics/Camera/Camera.h"
 #include "Matrix4x4.h"
+#include <cstdint>
+#include <d3d12.h>
 #include <wrl.h>
 #include <list>
 #include <string>
 #include <memory>
+
+class Camera;
+class DirectXCommon;
+class SrvManager;
 
 class ParticleManager {
     friend struct std::default_delete<ParticleManager>;
@@ -46,10 +49,14 @@ public:
     void Draw();
     void Finalize();
 
+    // Pass zero for a named effect to use its configured spawn count.
     void Emit(const std::string& name, const Vector3& pos, uint32_t count);
-    EffectParams& GetHitEffectParams() { return hitEffectParams_; }
-    EffectParams& GetFireballEffectParams() { return fireballEffectParams_; }
-    EffectParams& GetWindEffectParams() { return windEffectParams_; }
+    const EffectParams& GetHitEffectParams() const { return hitEffectParams_; }
+    const EffectParams& GetFireballEffectParams() const { return fireballEffectParams_; }
+    const EffectParams& GetWindEffectParams() const { return windEffectParams_; }
+    bool SetHitEffectParams(const EffectParams& params);
+    bool SetFireballEffectParams(const EffectParams& params);
+    bool SetWindEffectParams(const EffectParams& params);
     void SetTexture(const std::string& texturePath);
     const std::string& GetTexture() const { return textureName_; }
 

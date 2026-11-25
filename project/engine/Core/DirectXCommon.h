@@ -142,8 +142,20 @@ public:
     bool IsRenderScaleClearColorTestEnabled() const { return renderScaleClearColorTestEnabled_; }
     void SetRenderScaleClearColorTestEnabled(bool enabled) { renderScaleClearColorTestEnabled_ = enabled; }
     void SetDissolveNoiseTextureIndex(uint32_t textureIndex);
-    PostEffectParameters& GetPostEffectParameters() { return postEffectParameters_; }
     const PostEffectParameters& GetPostEffectParameters() const { return postEffectParameters_; }
+    void ApplyPostEffectSettings(const PostEffectParameters& settings);
+    struct RadialBlurSettings {
+        uint32_t enabled;
+        float strength;
+        std::array<float, 2> center;
+        uint32_t sampleCount;
+        float clearRadius;
+        float outerRadius;
+    };
+    RadialBlurSettings GetRadialBlurSettings() const;
+    void SetRadialBlur(const RadialBlurSettings& blur);
+    void SetVignette(uint32_t enabled, float intensity);
+    void SetGrayscale(uint32_t enabled, float intensity);
     D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUDescriptorHandle(uint32_t index);
     D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUDescriptorHandle(uint32_t index);
     void TransitionDepthBuffer(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);

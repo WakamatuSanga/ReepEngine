@@ -41,7 +41,7 @@ void SkinningEditorKrakenMotionPreview::ApplyAttackPose() {
             "\u653B\u6483Pose\u306E\u5FC5\u8981\u306A\u60C5\u5831\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3002";
         return;
     }
-    if (bindLocalEulerRadians_.size() != skeleton_->joints.size()) {
+    if (bindLocalEulerRadians_.size() != skeleton_->GetJoints().size()) {
         runtimeError_ =
             "Bind Local Rotation\u6570\u304CJoint\u6570\u3068\u4E00\u81F4\u3057\u307E\u305B\u3093\u3002";
         attackMotion_->Stop();
@@ -61,7 +61,7 @@ void SkinningEditorKrakenMotionPreview::ApplyAttackPose() {
         return;
     }
 
-    UpdateSkeletonWorldTransforms(*skeleton_);
+    skeleton_->UpdateWorldTransforms();
     const Vector3 previewTarget = TransformPosition(
         { 0.0f, 10.36f, 5.83f }, previewWorldMatrix_);
     KrakenTentacleWholeSlamPoseDiagnostics diagnostics{};
@@ -89,14 +89,12 @@ void SkinningEditorKrakenMotionPreview::ApplyAttackPose() {
         attackPoseResult_->joints) {
         if (pose.jointIndex < 0 ||
             pose.jointIndex >=
-                static_cast<int>(skeleton_->joints.size())) {
+                static_cast<int>(skeleton_->GetJoints().size())) {
             runtimeError_ =
                 "\u653B\u6483Pose\u306B\u7BC4\u56F2\u5916\u306EJoint Index\u304C\u3042\u308A\u307E\u3059\u3002";
             attackMotion_->Stop();
             return;
         }
-        skeleton_->joints[
-            static_cast<std::size_t>(pose.jointIndex)].localRotate =
-            pose.absoluteLocalEulerRadians;
+        skeleton_->SetJointLocalRotation(pose.jointIndex, pose.absoluteLocalEulerRadians);
     }
 }

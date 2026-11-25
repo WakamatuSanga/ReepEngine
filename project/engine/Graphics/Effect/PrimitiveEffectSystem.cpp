@@ -1,12 +1,14 @@
 #include "Engine/Core/DebugUiWorkspace.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
 #include "Engine/Graphics/Effect/CylinderEffect.h"
+#include "Engine/Graphics/Effect/IPrimitiveEffect.h"
 #include "Engine/Graphics/Effect/RingEffect.h"
 #include "Engine/Graphics/Effect/RotatingPlaneHitEffect.h"
 #include "Engine/Graphics/Object3d/Object3dCommon.h"
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <utility>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -26,28 +28,40 @@ PrimitiveEffectSystem::PrimitiveEffectSystem() = default;
 PrimitiveEffectSystem::~PrimitiveEffectSystem() = default;
 
 void PrimitiveEffectSystem::Initialize(Object3dCommon* object3dCommon, Camera* camera) {
+    auto rotatingPlane = std::make_unique<RotatingPlaneHitEffect>();
+    rotatingPlane->Initialize(object3dCommon, camera);
+
+    auto ring = std::make_unique<RingEffect>();
+    ring->Initialize(object3dCommon, camera);
+
+    auto cylinder = std::make_unique<CylinderEffect>();
+    cylinder->Initialize(object3dCommon, camera);
+
+    auto* rotatingPlaneEffect = rotatingPlane.get();
+    auto* ringEffect = ring.get();
+    auto* cylinderEffect = cylinder.get();
+
+    std::vector<std::unique_ptr<IPrimitiveEffect>> normalEffects;
+    normalEffects.reserve(2);
+    normalEffects.push_back(std::move(rotatingPlane));
+    normalEffects.push_back(std::move(ring));
+    std::vector<std::unique_ptr<IPrimitiveEffect>> additiveEffects;
+    additiveEffects.push_back(std::move(cylinder));
+
     object3dCommon_ = object3dCommon;
     camera_ = camera;
-
-    rotatingPlaneHitEffect_ = std::make_unique<RotatingPlaneHitEffect>();
-    rotatingPlaneHitEffect_->Initialize(object3dCommon_, camera_);
-
-    ringEffect_ = std::make_unique<RingEffect>();
-    ringEffect_->Initialize(object3dCommon_, camera_);
-
-    cylinderEffect_ = std::make_unique<CylinderEffect>();
-    cylinderEffect_->Initialize(object3dCommon_, camera_);
+    normalEffects_ = std::move(normalEffects);
+    additiveEffects_ = std::move(additiveEffects);
+    rotatingPlaneHitEffect_ = rotatingPlaneEffect;
+    ringEffect_ = ringEffect;
+    cylinderEffect_ = cylinderEffect;
 }
 
 void PrimitiveEffectSystem::Update(float deltaTime) {
-    if (rotatingPlaneHitEffect_) {
-        rotatingPlaneHitEffect_->Update(deltaTime);
-    }
-    if (ringEffect_) {
-        ringEffect_->Update(deltaTime, camera_);
-    }
-    if (cylinderEffect_) {
-        cylinderEffect_->Update(deltaTime);
+    for (const auto* effects : { &normalEffects_, &additiveEffects_ }) {
+        for (const auto& effect : *effects) {
+            effect->Update(deltaTime, camera_);
+        }
     }
 }
 
@@ -56,18 +70,18 @@ void PrimitiveEffectSystem::Draw() {
         return;
     }
 
-    object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
-    if (rotatingPlaneHitEffect_) {
-        rotatingPlaneHitEffect_->Draw();
+    using BlendMode = Object3dCommon::BlendMode;
+    const auto layers = {
+        std::pair{ &normalEffects_, BlendMode::kNormal },
+        std::pair{ &additiveEffects_, BlendMode::kAdd },
+    };
+    for (const auto& [effects, blendMode] : layers) {
+        object3dCommon_->CommonDrawSetting(blendMode);
+        for (const auto& effect : *effects) {
+            effect->Draw();
+        }
     }
-    if (ringEffect_) {
-        ringEffect_->Draw();
-    }
-    object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kAdd);
-    if (cylinderEffect_) {
-        cylinderEffect_->Draw();
-    }
-    object3dCommon_->CommonDrawSetting(Object3dCommon::BlendMode::kNormal);
+    object3dCommon_->CommonDrawSetting(BlendMode::kNormal);
 }
 
 void PrimitiveEffectSystem::DrawImGui() {
@@ -100,11 +114,7 @@ void PrimitiveEffectSystem::DrawImGui() {
 }
 
 size_t PrimitiveEffectSystem::GetEffectCount() const {
-    size_t count = 0;
-    count += rotatingPlaneHitEffect_ ? 1u : 0u;
-    count += ringEffect_ ? 1u : 0u;
-    count += cylinderEffect_ ? 1u : 0u;
-    return count;
+    return normalEffects_.size() + additiveEffects_.size();
 }
 
 void PrimitiveEffectSystem::PlayHitEffectAt(const Vector3& position) {

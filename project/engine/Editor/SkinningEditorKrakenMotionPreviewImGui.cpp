@@ -60,15 +60,15 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
         "\u89E6\u624B\u30B9\u30AD\u30CB\u30F3\u30B0\u52D5\u4F5C\u30D7\u30EC\u30D3\u30E5\u30FC##KrakenMotionPreview");
 
     const int jointCount =
-        static_cast<int>(skeleton_->joints.size());
-    const int rootIndex = skeleton_->root;
+        static_cast<int>(skeleton_->GetJoints().size());
+    const int rootIndex = skeleton_->GetRootIndex();
     const char* rootName =
         rootIndex >= 0 && rootIndex < jointCount
-        ? skeleton_->joints[static_cast<std::size_t>(rootIndex)].name.c_str()
+        ? skeleton_->GetJoints()[static_cast<std::size_t>(rootIndex)].name.c_str()
         : "\u306A\u3057";
     const char* selectedBoneName =
         selectedJointIndex >= 0 && selectedJointIndex < jointCount
-        ? skeleton_->joints[
+        ? skeleton_->GetJoints()[
             static_cast<std::size_t>(selectedJointIndex)].name.c_str()
         : "\u306A\u3057";
     const char* modeName =
@@ -118,9 +118,9 @@ void SkinningEditorKrakenMotionPreview::DrawImGui(
 
         const Chain& selectedChain = chains_[
             static_cast<std::size_t>(selectedChainIndex_)];
-        const Joint& chainRoot = skeleton_->joints[
+        const Joint& chainRoot = skeleton_->GetJoints()[
             static_cast<std::size_t>(selectedChain.joints.front())];
-        const Joint& chainTip = skeleton_->joints[
+        const Joint& chainTip = skeleton_->GetJoints()[
             static_cast<std::size_t>(selectedChain.joints.back())];
         ImGui::Text("\u9078\u629E\u30C1\u30A7\u30FC\u30F3: \u89E6\u624B %d",
             selectedChainIndex_ + 1);

@@ -76,8 +76,9 @@ void TitleScene::Initialize() {
     skybox_->SetTexture("resources/skybox/skybox.dds");
 
     cloudVolume_ = std::make_unique<CloudVolume>();
-    cloudVolume_->GetParameters() = CloudVolume::RecommendedDefaults();
-    cloudVolume_->GetParameters().windSpeed = 0.0f;
+    auto titleCloud = CloudVolume::RecommendedDefaults();
+    titleCloud.windSpeed = 0.0f;
+    cloudVolume_->SetParameters(titleCloud);
     cloudPass_ = std::make_unique<VolumetricCloudPass>();
     cloudPass_->Initialize(game->GetDxCommon(), SrvManager::GetInstance());
     cloudPass_->ConfigureTitleGameplayBackground(*game->GetVolumetricCloudPass());
@@ -91,9 +92,10 @@ void TitleScene::Initialize() {
     model_ = modelManager->FindModel(path);
     if (model_) {
         // Gameplay may have faded this shared material. Restore it before leaving the title.
-        if (auto* material = model_->GetMaterialData()) {
-            savedModelAlpha_ = material->color.w;
-            material->color.w = 1.0f;
+        Model::Material material{};
+        if (model_->TryReadMaterial(material)) {
+            savedModelAlpha_ = material.color.w;
+            model_->SetMaterialOpacity(1.0f);
         }
         aircraft_ = std::make_unique<Object3d>();
         aircraft_->Initialize(game->GetObject3dCommon());
@@ -127,7 +129,7 @@ void TitleScene::Finalize() {
     cloudVolume_.reset();
     camera_.reset();
     if (model_) {
-        if (auto* material = model_->GetMaterialData()) material->color.w = savedModelAlpha_;
+        model_->SetMaterialOpacity(savedModelAlpha_);
     }
     model_ = nullptr;
     sequence_ = {};
@@ -169,7 +171,7 @@ void TitleScene::UpdateDisplay(float deltaTime) {
             aircraftStart_.translate.z + basis.m[2][2] * distance });
         // Same model, orientation, opacity and nozzle frame across Align -> Fly.
         aircraftVisibility_ = 1.0f;
-        if (auto* material = model_->GetMaterialData()) material->color.w = 1.0f;
+        model_->SetMaterialOpacity(1.0f);
         aircraft_->Update();
         if (exhaust_) exhaust_->UpdateDisplay(deltaTime, aircraft_->GetTransform(), kGameplayModelScale,
             sequence_.phase == TitleLaunchSequence::Phase::Fly || sequence_.phase == TitleLaunchSequence::Phase::Cover

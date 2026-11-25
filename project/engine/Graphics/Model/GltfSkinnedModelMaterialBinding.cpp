@@ -17,30 +17,6 @@ namespace {
         return (sizeInBytes + 0xffu) & ~std::size_t{ 0xffu };
     }
 
-    void WriteMaterial(
-        const GltfSkinnedMaterialData& source,
-        Model::Material& destination) {
-        destination.color = source.baseColorFactor;
-        destination.enableLighting = 1;
-        destination.padding[0] = 0.0f;
-        destination.padding[1] = 0.0f;
-        destination.padding[2] = 0.0f;
-        destination.uvTransform = MatrixMath::MakeIdentity4x4();
-        destination.alphaReference =
-            source.alphaMode == GltfSkinnedAlphaMode::Mask
-            ? source.alphaCutoff
-            : -1.0f;
-
-        // Keep the existing skinned-preview branch for visual compatibility.
-        destination.usePBR = 0;
-        destination.metallicFactor = source.metallicFactor;
-        destination.roughnessFactor = source.roughnessFactor;
-        destination.normalScale = 1.0f;
-        destination.hasNormalMap = 0;
-        destination.hasMetallicRoughnessMap = 0;
-        destination.hasSpecularF0Map = 0;
-    }
-
     bool FailBinding(
         GltfSkinnedMaterialState& state,
         Model& model,
@@ -111,9 +87,13 @@ bool InitializeGltfSkinnedMaterialBindings(
         GltfSkinnedMaterialRuntime& runtime =
             state.materials[materialIndex];
         Model::Material* mappedMaterial = nullptr;
+        const auto& data = runtime.data;
+        const float alphaReference = data.alphaMode == GltfSkinnedAlphaMode::Mask ? data.alphaCutoff : -1.0f;
 
         if (materialIndex == 0) {
-            mappedMaterial = model.GetMaterialData();
+            if (!model.InitializeSkinnedMaterial(data.baseColorFactor, alphaReference, data.metallicFactor, data.roughnessFactor)) {
+                return FailBinding(state, model, "Material CBのGPU Addressを取得できませんでした。");
+            }
             runtime.data.materialConstantBufferGpuAddress =
                 model.GetMaterialBufferAddress();
         } else {
@@ -141,7 +121,7 @@ bool InitializeGltfSkinnedMaterialBindings(
                 runtime.ownedConstantBuffer->GetGPUVirtualAddress();
         }
 
-        if (!mappedMaterial ||
+        if ((materialIndex != 0 && !mappedMaterial) ||
             runtime.data.materialConstantBufferGpuAddress == 0) {
             return FailBinding(
                 state,
@@ -151,7 +131,9 @@ bool InitializeGltfSkinnedMaterialBindings(
 
         runtime.mappedMaterial = mappedMaterial;
         runtime.data.materialConstantBufferSlot = materialIndex;
-        WriteMaterial(runtime.data, *mappedMaterial);
+        if (mappedMaterial) {
+            *mappedMaterial = Model::MakeSkinnedMaterial(data.baseColorFactor, alphaReference, data.metallicFactor, data.roughnessFactor);
+        }
         state.diagnostics.materials[materialIndex] = runtime.data;
     }
 
@@ -179,7 +161,6 @@ bool InitializeGltfSkinnedMaterialBindings(
             state.materials[static_cast<std::size_t>(runtimeIndex)];
         if (!runtime.data.valid ||
             !runtime.data.textureHandleValid ||
-            !runtime.mappedMaterial ||
             runtime.data.materialConstantBufferGpuAddress == 0) {
             return FailBinding(
                 state,
@@ -190,13 +171,10 @@ bool InitializeGltfSkinnedMaterialBindings(
         Model::IndexDrawMaterialBinding binding{};
         binding.materialBufferAddress =
             runtime.data.materialConstantBufferGpuAddress;
-        binding.mappedMaterial =
-            static_cast<Model::Material*>(runtime.mappedMaterial);
         binding.baseColorTextureIndex = runtime.data.textureHandle;
         binding.normalTextureIndex = runtime.data.textureHandle;
         binding.metallicRoughnessTextureIndex = runtime.data.textureHandle;
         binding.specularF0TextureIndex = runtime.data.textureHandle;
-        binding.usePBR = false;
         drawBindings.push_back(binding);
 
         GltfSkinnedMaterialBindingDiagnostic diagnostic{};
@@ -308,14 +286,15 @@ bool Model::DrawIndexRangesWithMaterials(
             indexDrawMaterialBindings_[rangeIndex];
         const IndexDrawRange& range =
             modelData_.indexDrawRanges[rangeIndex];
-        if (!binding.mappedMaterial ||
-            binding.materialBufferAddress == 0) {
+        if (binding.materialBufferAddress == 0) {
             ++lastMaterialBindingFailureCount_;
             continue;
         }
 
-        binding.mappedMaterial->usePBR =
-            (binding.usePBR && !globalPbrLightingDisabled_) ? 1 : 0;
+        // The indexed glTF path always uses the skinned preview shading.
+        if (materialData_ && binding.materialBufferAddress == GetMaterialBufferAddress()) {
+            materialData_->usePBR = 0;
+        }
         commandList->SetGraphicsRootConstantBufferView(
             0,
             binding.materialBufferAddress);

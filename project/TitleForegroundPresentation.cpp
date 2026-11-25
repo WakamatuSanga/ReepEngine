@@ -80,7 +80,7 @@ bool TitleForegroundPresentation::Initialize(ModelCommon* modelCommon, Object3dC
         Logger::Log("[TitleForeground] Skeleton initialization failed: " + error);
         impl_.reset(); return false;
     }
-    for (const auto& j : p.skeleton->joints) p.rest.push_back({ j.localScale, j.localRotate, j.localTranslate });
+    for (const auto& j : p.skeleton->GetJoints()) p.rest.push_back({ j.localScale, j.localRotate, j.localTranslate });
     p.model = std::make_unique<GltfSkinnedModel>();
     if (!p.model->Initialize(modelCommon, p.skeleton.get(), path)) {
         Logger::Log("[TitleForeground] Model initialization failed.");
@@ -115,16 +115,15 @@ void TitleForegroundPresentation::Update(float deltaTime, const Transform& aircr
     const float dt = std::isfinite(deltaTime) ? (std::max)(0.0f, deltaTime) : 0.0f;
     if (p.departure >= 0.0f) p.departure += dt;
     else { p.time += dt; p.CaptureFrame(); }
-    auto& cloud = p.cloud->GetParameters();
     // Reconstruct the existing depth texture in this volume's coordinate frame.
     // Freeze the frame on click, so neither tentacles nor clouds chase the camera.
     p.cloudCamera.SetRenderCoordinateFrame(*p.camera, p.frame);
     if (p.departure < 0.0f) {
-        cloud.center = PlaceTitleForegroundCloud(*p.camera, aircraft, cloud.halfExtents);
+        const auto center = PlaceTitleForegroundCloud(*p.camera, aircraft, p.cloud->GetParameters().halfExtents);
         const auto& origin = p.cloudCamera.GetTranslate();
-        cloud.center = { cloud.center.x+origin.x, cloud.center.y+origin.y, cloud.center.z+origin.z };
+        p.cloud->SetCenter({center.x + origin.x, center.y + origin.y, center.z + origin.z});
     }
-    cloud.color.w = p.cloudAlpha * (p.departure < 0.0f ? 1.0f : 1.0f - Smooth(p.departure / kCloudExitSeconds));
+    p.cloud->SetOpacity(p.cloudAlpha * (p.departure < 0.0f ? 1.0f : 1.0f - Smooth(p.departure / kCloudExitSeconds)));
     for (int side = 0; side < 2; ++side) p.rise[side] = p.departure < 0.0f ? Rise(p.time, side)
         : p.departingRise[side] * (1.0f - Smooth(p.departure / kRetreatSeconds));
     const float opacity = p.departure < 0.0f ? 1.0f : 1.0f - Smooth(p.departure / kTentacleFadeSeconds);
@@ -146,26 +145,28 @@ void TitleForegroundPresentation::DrawImGui() {
 #ifdef USE_IMGUI
     if (!impl_ || !impl_->settingsVisible) return;
     if (DebugUiWorkspace::BeginPanel("タイトルの触手・調整", &impl_->settingsVisible)) {
-        auto& settings = GetTitleForegroundLayoutSettings();
         if (ImGui::Button("設定を保存")) layoutStatus = SaveTitleForegroundLayoutSettings(kLayoutPath) ? "保存しました。" : "保存できませんでした。";
         ImGui::SameLine();
         if (ImGui::Button("設定を読み込む")) layoutStatus = LoadTitleForegroundLayoutSettings(kLayoutPath) ? "読み込みました。" : "ファイルがないか読み込めませんでした。";
         ImGui::SameLine();
-        if (ImGui::Button("初期値へ戻す")) settings = TitleForegroundLayoutSettings{};
+        if (ImGui::Button("初期値へ戻す")) SetTitleForegroundLayoutSettings({});
+        auto settings = GetTitleForegroundLayoutSettings();
+        bool edited = false;
         ImGui::TextWrapped("%s", layoutStatus);
         ImGui::TextWrapped("根元は下の雲へ隠し、左右端に配置します。狭い画面では横幅を補正します。調整後はロゴ・機体・開始文字の見え方を確認してください。");
         for (int side = 0; side < 2; ++side) {
             auto& s = settings.sides[side];
             ImGui::PushID(side);
             ImGui::SeparatorText(side == 0 ? "左の触手" : "右の触手");
-            ImGui::SliderFloat("横位置(画面比)", &s.centerX, side == 0 ? .03f : .88f, side == 0 ? .12f : .97f);
-            ImGui::SliderFloat("根元の高さ(画面下=1)", &s.rootY, 1.04f, 1.20f);
-            ImGui::SliderFloat("高さ倍率", &s.height, .88f, 1.15f);
-            ImGui::SliderFloat("横幅倍率", &s.width, .65f, 1.10f);
-            ImGui::SliderFloat("向き・左右(rad)", &s.yaw, -1.2f, 1.2f);
-            ImGui::SliderFloat("向き・傾き(rad)", &s.lean, -.06f, .06f);
+            edited |= ImGui::SliderFloat("横位置(画面比)", &s.centerX, side == 0 ? .03f : .88f, side == 0 ? .12f : .97f);
+            edited |= ImGui::SliderFloat("根元の高さ(画面下=1)", &s.rootY, 1.04f, 1.20f);
+            edited |= ImGui::SliderFloat("高さ倍率", &s.height, .88f, 1.15f);
+            edited |= ImGui::SliderFloat("横幅倍率", &s.width, .65f, 1.10f);
+            edited |= ImGui::SliderFloat("向き・左右(rad)", &s.yaw, -1.2f, 1.2f);
+            edited |= ImGui::SliderFloat("向き・傾き(rad)", &s.lean, -.06f, .06f);
             ImGui::PopID();
         }
+        if (edited) SetTitleForegroundLayoutSettings(settings);
     }
     DebugUiWorkspace::EndPanel();
 #endif

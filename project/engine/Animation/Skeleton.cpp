@@ -1,6 +1,7 @@
 #include "Skeleton.h"
 #include "AnimationClip.h"
 #include <cmath>
+#include <utility>
 
 namespace {
     Quaternion NormalizeQuaternion(const Quaternion& quaternion) {
@@ -84,68 +85,96 @@ namespace {
         }
         return true;
     }
-}
 
-int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints) {
-    int32_t jointIndex = static_cast<int32_t>(joints.size());
+    void CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints) {
+        const int32_t index = static_cast<int32_t>(joints.size());
+        Joint joint{};
+        joint.name = node.name;
+        joint.transform = node.transform;
+        joint.localMatrix = IsZeroMatrix(node.localMatrix) ? MakeAffineMatrix(node.transform) : node.localMatrix;
+        joint.skeletonSpaceMatrix = MatrixMath::MakeIdentity4x4();
+        joint.parentIndex = parent.value_or(-1);
+        joint.localTranslate = node.transform.translate;
+        joint.localRotate = ConvertQuaternionToEulerXYZ(node.transform.rotate);
+        joint.localScale = node.transform.scale;
+        joint.sourceNodeTranslation = node.transform.translate;
+        joint.sourceNodeScale = node.transform.scale;
+        joints.push_back(std::move(joint));
 
-    Joint joint{};
-    joint.name = node.name;
-    joint.transform = node.transform;
-    joint.localMatrix = IsZeroMatrix(node.localMatrix) ? MakeAffineMatrix(node.transform) : node.localMatrix;
-    joint.skeletonSpaceMatrix = MatrixMath::MakeIdentity4x4();
-    joint.index = jointIndex;
-    joint.parent = parent;
-    joint.parentIndex = parent ? *parent : -1;
-    joint.localTranslate = node.transform.translate;
-    joint.localRotate = ConvertQuaternionToEulerXYZ(node.transform.rotate);
-    joint.localScale = node.transform.scale;
-    joint.sourceNodeTranslation = node.transform.translate;
-    joint.sourceNodeScale = node.transform.scale;
-    joints.push_back(joint);
-
-    for (const Node& child : node.children) {
-        int32_t childIndex = CreateJoint(child, jointIndex, joints);
-        joints[static_cast<size_t>(jointIndex)].children.push_back(childIndex);
+        for (const Node& child : node.children) {
+            CreateJoint(child, index, joints);
+        }
     }
-
-    return jointIndex;
 }
 
 Skeleton CreateSkeleton(const Node& rootNode) {
-    Skeleton skeleton{};
-    skeleton.name = rootNode.name;
-    skeleton.root = CreateJoint(rootNode, std::nullopt, skeleton.joints);
-
-    for (int32_t jointIndex = 0; jointIndex < static_cast<int32_t>(skeleton.joints.size()); ++jointIndex) {
-        Joint& joint = skeleton.joints[static_cast<size_t>(jointIndex)];
-        joint.index = jointIndex;
-        if (!joint.name.empty()) {
-            skeleton.jointMap[joint.name] = jointIndex;
-        }
-    }
-
-    Update(skeleton);
-    return skeleton;
+    std::vector<Joint> joints;
+    CreateJoint(rootNode, std::nullopt, joints);
+    return Skeleton(rootNode.name, std::move(joints));
 }
 
-void Update(Skeleton& skeleton) {
-    skeleton.jointMap.clear();
-    if (skeleton.root < 0 && !skeleton.joints.empty()) {
-        skeleton.root = 0;
+Skeleton::Skeleton(std::string name, std::vector<Joint> joints)
+    : name_(std::move(name)), joints_(std::move(joints)) {
+    for (Joint& joint : joints_) {
+        joint.children.clear();
     }
-
-    for (size_t jointIndex = 0; jointIndex < skeleton.joints.size(); ++jointIndex) {
-        Joint& joint = skeleton.joints[jointIndex];
-        joint.index = static_cast<int32_t>(jointIndex);
-        joint.parent = (joint.parentIndex >= 0) ? std::optional<int32_t>{ joint.parentIndex } : std::nullopt;
-        if (joint.parentIndex < 0 && skeleton.root < 0) {
-            skeleton.root = joint.index;
+    for (size_t index = 0; index < joints_.size(); ++index) {
+        Joint& joint = joints_[index];
+        joint.index = static_cast<int32_t>(index);
+        joint.parent = joint.parentIndex >= 0 ? std::optional<int32_t>{joint.parentIndex} : std::nullopt;
+        if (joint.parentIndex < 0 && root_ < 0) {
+            root_ = joint.index;
+        }
+        if (joint.parentIndex >= 0 && static_cast<size_t>(joint.parentIndex) < joints_.size()) {
+            joints_[static_cast<size_t>(joint.parentIndex)].children.push_back(joint.index);
         }
         if (!joint.name.empty()) {
-            skeleton.jointMap[joint.name] = joint.index;
+            jointMap_[joint.name] = joint.index;
         }
+    }
+    if (root_ < 0 && !joints_.empty()) {
+        root_ = 0;
+    }
+    UpdateWorldTransforms();
+}
 
+int32_t Skeleton::FindJointIndex(const std::string& name) const {
+    const auto match = jointMap_.find(name);
+    return match == jointMap_.end() ? -1 : match->second;
+}
+
+void Skeleton::SetJointLocalTransform(size_t index, const Transform& transform) {
+    if (index >= joints_.size()) return;
+    Joint& joint = joints_[index];
+    joint.localScale = transform.scale;
+    joint.localRotate = transform.rotate;
+    joint.localTranslate = transform.translate;
+}
+
+void Skeleton::SetJointLocalRotation(size_t index, const Vector3& rotation) {
+    if (index < joints_.size()) joints_[index].localRotate = rotation;
+}
+
+void Skeleton::SetJointLocalTranslation(size_t index, const Vector3& translation) {
+    if (index < joints_.size()) joints_[index].localTranslate = translation;
+}
+
+void Skeleton::SetJointSkeletonSpaceMatrix(size_t index, const Matrix4x4& matrix) {
+    if (index >= joints_.size()) return;
+    Joint& joint = joints_[index];
+    joint.skeletonSpaceMatrix = matrix;
+    joint.worldMatrix = joint.skeletonSpaceMatrix;
+    joint.worldTranslate = { joint.worldMatrix.m[3][0], joint.worldMatrix.m[3][1], joint.worldMatrix.m[3][2] };
+}
+
+void Skeleton::ApplyJointWorldAdjustment(size_t index, const Matrix4x4& adjustment) {
+    if (index < joints_.size()) {
+        SetJointSkeletonSpaceMatrix(index, MatrixMath::Multipty(joints_[index].skeletonSpaceMatrix, adjustment));
+    }
+}
+
+void Skeleton::UpdateWorldTransforms() {
+    for (Joint& joint : joints_) {
         joint.transform.translate = joint.localTranslate;
         joint.transform.rotate = ConvertEulerXYZToQuaternion(joint.localRotate);
         joint.transform.scale = joint.localScale;
@@ -154,12 +183,12 @@ void Update(Skeleton& skeleton) {
             joint.localRotate,
             joint.localTranslate);
 
-        if (joint.parentIndex < 0 || joint.parentIndex >= static_cast<int>(skeleton.joints.size())) {
+        if (joint.parentIndex < 0 || joint.parentIndex >= static_cast<int>(joints_.size())) {
             joint.skeletonSpaceMatrix = joint.localMatrix;
         } else {
             joint.skeletonSpaceMatrix = MatrixMath::Multipty(
                 joint.localMatrix,
-                skeleton.joints[static_cast<size_t>(joint.parentIndex)].skeletonSpaceMatrix);
+                joints_[static_cast<size_t>(joint.parentIndex)].skeletonSpaceMatrix);
         }
 
         joint.worldMatrix = joint.skeletonSpaceMatrix;
@@ -169,10 +198,6 @@ void Update(Skeleton& skeleton) {
             joint.worldMatrix.m[3][2]
         };
     }
-}
-
-void UpdateSkeletonWorldTransforms(Skeleton& skeleton) {
-    Update(skeleton);
 }
 
 void ApplyAnimation(Skeleton& skeleton, const AnimationClip& animation, float animationTime) {

@@ -2,6 +2,7 @@
 #include "GameScene.h"
 #include "Engine/Core/DirectXCommon.h"
 #include "Engine/Editor/SkinningEditor.h"
+#include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Graphics/Cloud/CloudVolume.h"
 #include "Engine/Graphics/Cloud/VolumetricCloudPass.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectSystem.h"
@@ -11,6 +12,7 @@
 #include "Engine/Graphics/Particle/ParticleManager.h"
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Graphics/Texture/TextureManager.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -108,7 +110,8 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         }
         if (!ImGui::CollapsingHeader("雲Volumeの形・光（元設定）")) return;
         if (scene_->cloudVolume_) {
-            auto& cloudParams = scene_->cloudVolume_->GetParameters();
+            auto cloudParams = scene_->cloudVolume_->GetParameters();
+            bool cloudParamsChanged = false;
             ImGui::SeparatorText("ボリューメトリック雲 (Volumetric Cloud)");
             if (volumetricCloudPass) {
                 bool isCloudPassEnabled = volumetricCloudPass->IsEnabled();
@@ -132,35 +135,39 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
             }
             if (ImGui::Button("雲プリセットを初期化 (Reset Cloud Preset)")) {
                 cloudParams = CloudVolume::RecommendedDefaults();
+                cloudParamsChanged = true;
                 if (volumetricCloudPass) {
                     volumetricCloudPass->ResetCloudDefaults();
                 }
             }
             ImGui::SameLine();
             ImGui::TextUnformatted("見えやすい初期値へ戻します");
-            ImGui::DragFloat3("雲の中心 (Cloud Center)", &cloudParams.center.x, 0.1f);
-            ImGui::DragFloat3("雲の半径範囲 (Cloud HalfExtents)", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
-            ImGui::SliderFloat("雲の濃さ (Cloud Density)", &cloudParams.density, 0.0f, 2.0f, "%.3f");
-            ImGui::SliderFloat("雲の吸収量 (Cloud Absorption)", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
-            ImGui::DragFloat3("雲の流れる方向 (Cloud Wind Dir)", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-            ImGui::SliderFloat("雲の流れる速さ (Cloud Wind Speed)", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
-            ImGui::DragFloat3("太陽方向 (Cloud Sun Dir)", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
-            ImGui::SliderFloat("光の吸収量 (Cloud Light Absorption)", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
-            ImGui::ColorEdit4("雲の色 (A = density scale)", &cloudParams.color.x);
-            ImGui::SliderFloat("雲ノイズ倍率 (Cloud Noise Scale)", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
-            ImGui::SliderFloat("細部ノイズ倍率 (Cloud Detail Noise)", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
-            ImGui::SliderFloat("細部ノイズの強さ (Cloud Detail Weight)", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
-            ImGui::SliderFloat("雲の端のぼかし (Cloud Edge Fade)", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
-            ImGui::SliderFloat("環境光の強さ (Cloud Ambient)", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
-            ImGui::SliderFloat("太陽光の強さ (Cloud Sun Intensity)", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
+            cloudParamsChanged |= ImGui::DragFloat3("雲の中心 (Cloud Center)", &cloudParams.center.x, 0.1f);
+            cloudParamsChanged |= ImGui::DragFloat3("雲の半径範囲 (Cloud HalfExtents)", &cloudParams.halfExtents.x, 0.1f, 0.1f, 100.0f, "%.2f");
+            cloudParamsChanged |= ImGui::SliderFloat("雲の濃さ (Cloud Density)", &cloudParams.density, 0.0f, 2.0f, "%.3f");
+            cloudParamsChanged |= ImGui::SliderFloat("雲の吸収量 (Cloud Absorption)", &cloudParams.absorption, 0.01f, 8.0f, "%.2f");
+            cloudParamsChanged |= ImGui::DragFloat3("雲の流れる方向 (Cloud Wind Dir)", &cloudParams.windDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+            cloudParamsChanged |= ImGui::SliderFloat("雲の流れる速さ (Cloud Wind Speed)", &cloudParams.windSpeed, 0.0f, 5.0f, "%.2f");
+            cloudParamsChanged |= ImGui::DragFloat3("太陽方向 (Cloud Sun Dir)", &cloudParams.sunDirection.x, 0.01f, -1.0f, 1.0f, "%.2f");
+            cloudParamsChanged |= ImGui::SliderFloat("光の吸収量 (Cloud Light Absorption)", &cloudParams.lightAbsorption, 0.0f, 8.0f, "%.2f");
+            cloudParamsChanged |= ImGui::ColorEdit4("雲の色 (A = density scale)", &cloudParams.color.x);
+            cloudParamsChanged |= ImGui::SliderFloat("雲ノイズ倍率 (Cloud Noise Scale)", &cloudParams.noiseScale, 0.01f, 2.0f, "%.3f");
+            cloudParamsChanged |= ImGui::SliderFloat("細部ノイズ倍率 (Cloud Detail Noise)", &cloudParams.detailNoiseScale, 0.01f, 4.0f, "%.3f");
+            cloudParamsChanged |= ImGui::SliderFloat("細部ノイズの強さ (Cloud Detail Weight)", &cloudParams.detailWeight, 0.0f, 1.5f, "%.2f");
+            cloudParamsChanged |= ImGui::SliderFloat("雲の端のぼかし (Cloud Edge Fade)", &cloudParams.edgeFade, 0.01f, 1.0f, "%.3f");
+            cloudParamsChanged |= ImGui::SliderFloat("環境光の強さ (Cloud Ambient)", &cloudParams.ambientLighting, 0.0f, 2.0f, "%.2f");
+            cloudParamsChanged |= ImGui::SliderFloat("太陽光の強さ (Cloud Sun Intensity)", &cloudParams.sunIntensity, 0.0f, 4.0f, "%.2f");
             int cloudViewStepCount = static_cast<int>(cloudParams.viewStepCount);
             if (ImGui::SliderInt("視線方向ステップ数 (Cloud View Steps)", &cloudViewStepCount, 1, 256)) {
-                cloudParams.viewStepCount = static_cast<uint32_t>(cloudViewStepCount);
+                cloudParams.viewStepCount = static_cast<uint32_t>((std::max)(cloudViewStepCount, 1));
+                cloudParamsChanged = true;
             }
             int cloudLightStepCount = static_cast<int>(cloudParams.lightStepCount);
             if (ImGui::SliderInt("光方向ステップ数 (Cloud Light Steps)", &cloudLightStepCount, 1, 32)) {
-                cloudParams.lightStepCount = static_cast<uint32_t>(cloudLightStepCount);
+                cloudParams.lightStepCount = static_cast<uint32_t>((std::max)(cloudLightStepCount, 1));
+                cloudParamsChanged = true;
             }
+            if (cloudParamsChanged) scene_->cloudVolume_->SetParameters(cloudParams);
             ImGui::SeparatorText("雲の最適化診断 (Cloud Optimization Debug)");
             auto DrawCloudFlag = [](const char* label, bool value, const ImVec4& trueColor, const ImVec4& falseColor) {
                 ImGui::TextUnformatted(label);
@@ -191,15 +198,17 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
     }
     if (tool == SceneTool::Post) {
         auto* texManager = TextureManager::GetInstance();
-        auto& postEffectParams = dxCommon->GetPostEffectParameters();
+        auto postEffectParams = dxCommon->GetPostEffectParameters();
+        bool postEffectChanged = false;
         ImGui::SeparatorText("Post Effects");
-        auto DrawPostEffectUI = [](const char* label, uint32_t& enabled, float& intensity) {
+        auto DrawPostEffectUI = [&](const char* label, uint32_t& enabled, float& intensity) {
             bool isEnabled = enabled != 0;
             if (ImGui::Checkbox(label, &isEnabled)) {
                 enabled = isEnabled ? 1u : 0u;
+                postEffectChanged = true;
             }
             std::string sliderLabel = std::string(label) + " Strength";
-            ImGui::SliderFloat(sliderLabel.c_str(), &intensity, 0.0f, 1.0f, "%.2f");
+            postEffectChanged |= ImGui::SliderFloat(sliderLabel.c_str(), &intensity, 0.0f, 1.0f, "%.2f");
             };
         auto ApplyRadialBlurPreset = [&](const RadialBlurPreset& preset) {
             postEffectParams.radialBlurEnabled = preset.enabled;
@@ -232,22 +241,26 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         bool gaussianEnabled = postEffectParams.gaussianEnabled != 0;
         if (ImGui::Checkbox("Gaussian", &gaussianEnabled)) {
             postEffectParams.gaussianEnabled = gaussianEnabled ? 1u : 0u;
+            postEffectChanged = true;
         }
-        ImGui::SliderFloat("Gaussian Strength", &postEffectParams.gaussianIntensity, 0.0f, 4.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("Gaussian Strength", &postEffectParams.gaussianIntensity, 0.0f, 4.0f, "%.2f");
         bool radialBlurEnabled = postEffectParams.radialBlurEnabled != 0;
         if (ImGui::Checkbox("RadialBlur", &radialBlurEnabled)) {
             postEffectParams.radialBlurEnabled = radialBlurEnabled ? 1u : 0u;
+            postEffectChanged = true;
         }
         static int radialBlurPresetIndex = 1;
         const char* radialBlurPresetNames[] = { "Weak", "Medium", "Strong", "Dramatic" };
         if (ImGui::Combo("RadialBlur Preset", &radialBlurPresetIndex, radialBlurPresetNames, IM_ARRAYSIZE(radialBlurPresetNames))) {
             ApplyRadialBlurPreset(kRadialBlurPresets[radialBlurPresetIndex]);
+            postEffectChanged = true;
         }
-        ImGui::SliderFloat("RadialBlur Strength", &postEffectParams.radialBlurStrength, 0.0f, 0.2f, "%.3f");
-        ImGui::SliderFloat2("RadialBlur Center", postEffectParams.radialBlurCenter.data(), 0.0f, 1.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("RadialBlur Strength", &postEffectParams.radialBlurStrength, 0.0f, 0.2f, "%.3f");
+        postEffectChanged |= ImGui::SliderFloat2("RadialBlur Center", postEffectParams.radialBlurCenter.data(), 0.0f, 1.0f, "%.2f");
         int radialBlurSampleCount = static_cast<int>(postEffectParams.radialBlurSampleCount);
         if (ImGui::SliderInt("RadialBlur Sample Count", &radialBlurSampleCount, 1, 32)) {
             postEffectParams.radialBlurSampleCount = static_cast<uint32_t>(radialBlurSampleCount);
+            postEffectChanged = true;
         }
         const char* dissolveNoiseTextureNames[] = { "noise0", "noise1" };
         const char* dissolveNoiseTexturePaths[] = {
@@ -262,17 +275,20 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         bool dissolveEnabled = postEffectParams.dissolveEnabled != 0;
         if (ImGui::Checkbox("Dissolve", &dissolveEnabled)) {
             postEffectParams.dissolveEnabled = dissolveEnabled ? 1u : 0u;
+            postEffectChanged = true;
         }
         static int dissolvePresetIndex = 1;
         const char* dissolvePresetNames[] = { "Weak", "Medium", "Strong", "Dramatic" };
         if (ImGui::Combo("Dissolve Preset", &dissolvePresetIndex, dissolvePresetNames, IM_ARRAYSIZE(dissolvePresetNames))) {
             ApplyDissolvePreset(kDissolvePresets[dissolvePresetIndex]);
+            postEffectChanged = true;
         }
-        ImGui::SliderFloat("Dissolve Threshold", &postEffectParams.dissolveThreshold, 0.0f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Dissolve Edge Width", &postEffectParams.dissolveEdgeWidth, 0.001f, 0.2f, "%.3f");
-        ImGui::ColorEdit4("Dissolve Edge Color", postEffectParams.dissolveEdgeColor.data());
+        postEffectChanged |= ImGui::SliderFloat("Dissolve Threshold", &postEffectParams.dissolveThreshold, 0.0f, 1.0f, "%.3f");
+        postEffectChanged |= ImGui::SliderFloat("Dissolve Edge Width", &postEffectParams.dissolveEdgeWidth, 0.001f, 0.2f, "%.3f");
+        postEffectChanged |= ImGui::ColorEdit4("Dissolve Edge Color", postEffectParams.dissolveEdgeColor.data());
         bool outlineEnabled = postEffectParams.outlineMode != 0;
         if (ImGui::Checkbox("Outline", &outlineEnabled)) {
+            postEffectChanged = true;
             if (!outlineEnabled) {
                 postEffectParams.outlineMode = 0;
             } else if (postEffectParams.outlineMode == 0) {
@@ -283,6 +299,7 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         int outlineMode = static_cast<int>(postEffectParams.outlineMode);
         if (ImGui::Combo("Outline Mode", &outlineMode, outlineModeNames, IM_ARRAYSIZE(outlineModeNames))) {
             postEffectParams.outlineMode = static_cast<uint32_t>(outlineMode);
+            postEffectChanged = true;
         }
         static int outlinePresetIndex = 0;
         const char* outlinePresetNames[] = {
@@ -297,67 +314,68 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         };
         if (ImGui::Combo("Outline Preset", &outlinePresetIndex, outlinePresetNames, IM_ARRAYSIZE(outlinePresetNames))) {
             ApplyOutlinePreset(kOutlinePresets[outlinePresetIndex]);
+            postEffectChanged = true;
         }
-        ImGui::SliderFloat("Outline Strength", &postEffectParams.outlineIntensity, 0.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Outline Thickness", &postEffectParams.outlineThickness, 0.5f, 4.0f, "%.2f");
-        ImGui::SliderFloat("Outline Threshold", &postEffectParams.outlineThreshold, 0.0f, 1.5f, "%.3f");
-        ImGui::SliderFloat("Outline Softness", &postEffectParams.outlineSoftness, 0.001f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Outline Depth Threshold", &postEffectParams.outlineDepthThreshold, 0.0001f, 0.05f, "%.4f");
-        ImGui::SliderFloat("Outline Depth Strength", &postEffectParams.outlineDepthStrength, 0.0f, 50.0f, "%.2f");
-        ImGui::SliderFloat("Outline Normal Threshold", &postEffectParams.outlineNormalThreshold, 0.0f, 2.0f, "%.3f");
-        ImGui::SliderFloat("Outline Normal Strength", &postEffectParams.outlineNormalStrength, 0.0f, 20.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Strength", &postEffectParams.outlineIntensity, 0.0f, 10.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Thickness", &postEffectParams.outlineThickness, 0.5f, 4.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Threshold", &postEffectParams.outlineThreshold, 0.0f, 1.5f, "%.3f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Softness", &postEffectParams.outlineSoftness, 0.001f, 1.0f, "%.3f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Depth Threshold", &postEffectParams.outlineDepthThreshold, 0.0001f, 0.05f, "%.4f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Depth Strength", &postEffectParams.outlineDepthStrength, 0.0f, 50.0f, "%.2f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Normal Threshold", &postEffectParams.outlineNormalThreshold, 0.0f, 2.0f, "%.3f");
+        postEffectChanged |= ImGui::SliderFloat("Outline Normal Strength", &postEffectParams.outlineNormalStrength, 0.0f, 20.0f, "%.2f");
         if (postEffectParams.outlineMode == 4 || postEffectParams.outlineMode == 6) {
             const char* hybridColorSourceNames[] = { "ColorDiff8", "Sobel" };
             int hybridColorSourceIndex = (postEffectParams.hybridColorSource == 1u) ? 0 : 1;
             if (ImGui::Combo("Hybrid Color Source", &hybridColorSourceIndex, hybridColorSourceNames, IM_ARRAYSIZE(hybridColorSourceNames))) {
                 postEffectParams.hybridColorSource = (hybridColorSourceIndex == 0) ? 1u : 2u;
+                postEffectChanged = true;
             }
-            ImGui::SliderFloat("Hybrid Color Weight", &postEffectParams.hybridColorWeight, 0.0f, 2.0f, "%.2f");
-            ImGui::SliderFloat("Hybrid Depth Weight", &postEffectParams.hybridDepthWeight, 0.0f, 2.0f, "%.2f");
+            postEffectChanged |= ImGui::SliderFloat("Hybrid Color Weight", &postEffectParams.hybridColorWeight, 0.0f, 2.0f, "%.2f");
+            postEffectChanged |= ImGui::SliderFloat("Hybrid Depth Weight", &postEffectParams.hybridDepthWeight, 0.0f, 2.0f, "%.2f");
             if (postEffectParams.outlineMode == 6) {
-                ImGui::SliderFloat("Hybrid Normal Weight", &postEffectParams.hybridNormalWeight, 0.0f, 2.0f, "%.2f");
+                postEffectChanged |= ImGui::SliderFloat("Hybrid Normal Weight", &postEffectParams.hybridNormalWeight, 0.0f, 2.0f, "%.2f");
             }
         }
-        ImGui::ColorEdit4("Outline Color", postEffectParams.outlineColor.data());
+        postEffectChanged |= ImGui::ColorEdit4("Outline Color", postEffectParams.outlineColor.data());
         DrawPostEffectUI("Grayscale", postEffectParams.grayscaleEnabled, postEffectParams.grayscaleIntensity);
         DrawPostEffectUI("Sepia", postEffectParams.sepiaEnabled, postEffectParams.sepiaIntensity);
         DrawPostEffectUI("Invert", postEffectParams.invertEnabled, postEffectParams.invertIntensity);
         DrawPostEffectUI("Vignette", postEffectParams.vignetteEnabled, postEffectParams.vignetteIntensity);
         DrawPostEffectUI("Smoothing", postEffectParams.smoothingEnabled, postEffectParams.smoothingIntensity);
+        if (postEffectChanged) dxCommon->ApplyPostEffectSettings(postEffectParams);
         return;
     }
     if (tool == SceneTool::Particles) {
         auto* particleManager = ParticleManager::GetInstance();
-        auto& hitEffectParams = particleManager->GetHitEffectParams();
-        auto& fireballEffectParams = particleManager->GetFireballEffectParams();
-        auto& windEffectParams = particleManager->GetWindEffectParams();
         auto DrawEffectParamsUI = [](const char* label, ParticleManager::EffectParams& params) {
             std::string prefix = label;
             int spawnCount = static_cast<int>(params.spawnCount);
-            if (ImGui::DragInt((prefix + " Spawn Count").c_str(), &spawnCount, 1.0f, 1, 100)) {
-                if (spawnCount < 1) {
-                    spawnCount = 1;
-                }
-                params.spawnCount = static_cast<uint32_t>(spawnCount);
+            bool changed = ImGui::DragInt((prefix + " Spawn Count").c_str(), &spawnCount, 1.0f, 1, 100);
+            if (changed) {
+                params.spawnCount = spawnCount > 0 ? static_cast<uint32_t>(spawnCount) : 0u;
             }
-            ImGui::DragFloat2((prefix + " Scale X").c_str(), &params.scaleXRange.x, 0.01f, 0.01f, 4.0f, "%.2f");
-            ImGui::DragFloat2((prefix + " Scale Y").c_str(), &params.scaleYRange.x, 0.01f, 0.01f, 6.0f, "%.2f");
-            ImGui::DragFloat2((prefix + " Lifetime").c_str(), &params.lifeTimeRange.x, 0.01f, 0.01f, 3.0f, "%.2f");
-            ImGui::DragFloat2((prefix + " Speed").c_str(), &params.speedRange.x, 0.01f, 0.0f, 1.0f, "%.2f");
-            ImGui::DragFloat2((prefix + " Rotate Z").c_str(), &params.rotateZRange.x, 0.01f, -6.29f, 6.29f, "%.2f");
+            changed |= ImGui::DragFloat2((prefix + " Scale X").c_str(), &params.scaleXRange.x, 0.01f, 0.01f, 4.0f, "%.2f");
+            changed |= ImGui::DragFloat2((prefix + " Scale Y").c_str(), &params.scaleYRange.x, 0.01f, 0.01f, 6.0f, "%.2f");
+            changed |= ImGui::DragFloat2((prefix + " Lifetime").c_str(), &params.lifeTimeRange.x, 0.01f, 0.01f, 3.0f, "%.2f");
+            changed |= ImGui::DragFloat2((prefix + " Speed").c_str(), &params.speedRange.x, 0.01f, 0.0f, 1.0f, "%.2f");
+            changed |= ImGui::DragFloat2((prefix + " Rotate Z").c_str(), &params.rotateZRange.x, 0.01f, -6.29f, 6.29f, "%.2f");
             Vector3 colorMin = { params.colorRRange.x, params.colorGRange.x, params.colorBRange.x };
             Vector3 colorMax = { params.colorRRange.y, params.colorGRange.y, params.colorBRange.y };
             if (ImGui::ColorEdit3((prefix + " Color Min").c_str(), &colorMin.x)) {
                 params.colorRRange.x = colorMin.x;
                 params.colorGRange.x = colorMin.y;
                 params.colorBRange.x = colorMin.z;
+                changed = true;
             }
             if (ImGui::ColorEdit3((prefix + " Color Max").c_str(), &colorMax.x)) {
                 params.colorRRange.y = colorMax.x;
                 params.colorGRange.y = colorMax.y;
                 params.colorBRange.y = colorMax.z;
+                changed = true;
             }
-            };
+            return changed;
+        };
         ImGui::SeparatorText("Primitive Preview");
         ImGui::Text("Front Row : Plane / Circle / Ring / Triangle");
         ImGui::Text("Back Row  : Box / Cylinder / Cone / Torus");
@@ -377,23 +395,32 @@ void GameSceneDebugGui::DrawSceneToolContents(DirectXCommon* dxCommon, Volumetri
         ImGui::SeparatorText("Hit Effect");
         ImGui::TextWrapped("Main submission target: plane billboard particles stretched into hit streaks.");
         if (ImGui::Button("Emit Hit")) {
-            particleManager->Emit("Hit", scene_->object3dSphere_->GetTransform().translate, hitEffectParams.spawnCount);
+            particleManager->Emit("Hit", scene_->object3dSphere_->GetTransform().translate, 0);
         }
         ImGui::Text("Hit Trigger: [Space] / [H]");
         ImGui::SeparatorText("Hit Params");
-        DrawEffectParamsUI("Hit", hitEffectParams);
+        auto hitEffectParams = particleManager->GetHitEffectParams();
+        if (DrawEffectParamsUI("Hit", hitEffectParams)) {
+            particleManager->SetHitEffectParams(hitEffectParams);
+        }
         if (ImGui::CollapsingHeader("Other Effects (Optional)")) {
             if (ImGui::Button("Emit Fireball")) {
-                particleManager->Emit("Fireball", scene_->object3dSphere_->GetTransform().translate, fireballEffectParams.spawnCount);
+                particleManager->Emit("Fireball", scene_->object3dSphere_->GetTransform().translate, 0);
             }
             ImGui::SameLine();
             if (ImGui::Button("Emit Wind")) {
-                particleManager->Emit("Wind", scene_->object3dSphere_->GetTransform().translate, windEffectParams.spawnCount);
+                particleManager->Emit("Wind", scene_->object3dSphere_->GetTransform().translate, 0);
             }
             ImGui::SeparatorText("Fireball Params");
-            DrawEffectParamsUI("Fireball", fireballEffectParams);
+            auto fireballEffectParams = particleManager->GetFireballEffectParams();
+            if (DrawEffectParamsUI("Fireball", fireballEffectParams)) {
+                particleManager->SetFireballEffectParams(fireballEffectParams);
+            }
             ImGui::SeparatorText("Wind Params");
-            DrawEffectParamsUI("Wind", windEffectParams);
+            auto windEffectParams = particleManager->GetWindEffectParams();
+            if (DrawEffectParamsUI("Wind", windEffectParams)) {
+                particleManager->SetWindEffectParams(windEffectParams);
+            }
         }
         ImGui::SeparatorText("Particle Smoke Test");
         if (ImGui::Button("Emit Basic Particle")) {

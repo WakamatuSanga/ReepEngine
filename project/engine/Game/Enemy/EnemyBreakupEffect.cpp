@@ -91,20 +91,20 @@ bool EnemyBreakupEffect::Prepare() {
         const std::string stem = std::string("resources/Enemy/EnemyBreakup") + kFragments[index].name;
         shells_[index] = LoadPiece(models, stem + ".obj");
         cutFaces_[index] = LoadPiece(models, stem + "Cut.obj");
-        if (!shells_[index] || !cutFaces_[index] || !cutFaces_[index]->GetMaterialData()) {
+        if (!shells_[index] || !cutFaces_[index] || !cutFaces_[index]->HasMaterial()) {
             return false;
         }
         shells_[index]->SetTextureIndex(enemyTextureIndex);
         cutFaces_[index]->SetTextureIndex(whiteTextureIndex);
-        cutFaces_[index]->GetMaterialData()->color = { 0.12f, 0.11f, 0.11f, 1.0f };
+        cutFaces_[index]->SetMaterialColor({0.12f, 0.11f, 0.11f, 1.0f});
     }
 
     box_ = models.CreateBox("stage1-enemy-breakup-proxy");
-    if (!box_ || !box_->GetMaterialData()) {
+    if (!box_ || !box_->HasMaterial()) {
         return false;
     }
     box_->SetTextureIndex(whiteTextureIndex);
-    box_->GetMaterialData()->color = { 0.45f, 0.11f, 0.09f, 1.0f };
+    box_->SetMaterialColor({0.45f, 0.11f, 0.09f, 1.0f});
 
     // Like the player death fragments, reuse initialized Object3d instances.
     for (auto& breakup : breakups_) {

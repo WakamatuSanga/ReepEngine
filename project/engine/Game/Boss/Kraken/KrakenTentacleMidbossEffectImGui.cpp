@@ -116,36 +116,33 @@ void KrakenTentacleMidbossController::Impl::DrawEffectImGui() {
         return;
     }
 
-    KrakenTentacleEffectSettings& settings = effectController.GetSettings();
+    auto settings = effectController.GetSettings();
+    bool edited = false;
     const KrakenTentacleEffectDiagnostics& effectDiagnostics =
         effectController.GetDiagnostics();
     ImGui::SeparatorText("設定");
-    ImGui::Checkbox(
+    edited |= ImGui::Checkbox(
         "命中エフェクトを有効化##EnableHitEffect",
         &settings.hitEffectEnabled);
-    ImGui::Checkbox(
+    edited |= ImGui::Checkbox(
         "弱点命中エフェクトを有効化##EnableWeakHitEffect",
         &settings.weakPointHitEffectEnabled);
-    ImGui::Checkbox(
+    edited |= ImGui::Checkbox(
         "撃破エフェクトを有効化##EnableDefeatEffect",
         &settings.defeatEffectEnabled);
-    ImGui::DragFloat(
+    edited |= ImGui::DragFloat(
         "本体命中倍率##BodyHitScale",
         &settings.bodyHitScale, 0.01f, 0.25f, 4.0f, "%.2f");
-    ImGui::DragFloat(
+    edited |= ImGui::DragFloat(
         "弱点命中倍率##WeakPointHitScale",
         &settings.weakPointHitScale, 0.01f, 0.25f, 4.0f, "%.2f");
-    ImGui::DragFloat(
+    edited |= ImGui::DragFloat(
         "撃破エフェクト倍率##DefeatEffectScale",
         &settings.defeatEffectScale, 0.01f, 0.25f, 4.0f, "%.2f");
-    settings.bodyHitScale = std::clamp(settings.bodyHitScale, 0.25f, 4.0f);
-    settings.weakPointHitScale = std::clamp(
-        settings.weakPointHitScale, 0.25f, 4.0f);
-    settings.defeatEffectScale = std::clamp(
-        settings.defeatEffectScale, 0.25f, 4.0f);
-    ImGui::Checkbox(
+    edited |= ImGui::Checkbox(
         "既存の衝撃歪みを使用##UseImpactDistortion",
         &settings.useImpactDistortion);
+    if (edited) effectController.SetSettings(settings);
     ImGui::Text("音未実装: はい");
     ImGui::Text("新規シェーダー未使用: はい");
     ImGui::Text("新規テクスチャ未使用: はい");

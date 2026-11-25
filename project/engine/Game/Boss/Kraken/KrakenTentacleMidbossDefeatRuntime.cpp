@@ -90,9 +90,9 @@ void KrakenTentacleMidbossController::Impl::PrepareStageClearRetreat() {
             clearRetreatDuration = delay + kClearArmSinkSeconds;
             delay += kClearArmInterval;
         }
-        const Joint& root = skeleton->joints[chains[index].joints.front()];
+        const Joint& root = skeleton->GetJoints()[chains[index].joints.front()];
         const Matrix4x4 parentToWorld = root.parentIndex >= 0
-            ? MatrixMath::Multipty(skeleton->joints[root.parentIndex].skeletonSpaceMatrix, worldMatrix) : worldMatrix;
+            ? MatrixMath::Multipty(skeleton->GetJoints()[root.parentIndex].skeletonSpaceMatrix, worldMatrix) : worldMatrix;
         const Matrix4x4 worldToParent = MatrixMath::Inverse(parentToWorld);
         arm.localSink = {-sink * worldToParent.m[1][0], -sink * worldToParent.m[1][1], -sink * worldToParent.m[1][2]};
     }
@@ -105,15 +105,18 @@ void KrakenTentacleMidbossController::Impl::ApplyStageClearRetreatPose() {
         const float localTime = clearRetreatElapsed - arm.delay;
         if (clearRetreatElapsed < kClearHitHold || (arm.visible && localTime <= 0.0f)) continue;
         const float sink = arm.visible ? Smooth((localTime - 0.13f) / (kClearArmSinkSeconds - 0.13f)) : 1.0f;
-        Joint& root = skeleton->joints[joints.front()];
-        root.localTranslate.x += arm.localSink.x * sink;
-        root.localTranslate.y += arm.localSink.y * sink;
-        root.localTranslate.z += arm.localSink.z * sink;
+        auto translation = skeleton->GetJoints()[joints.front()].localTranslate;
+        translation.x += arm.localSink.x * sink;
+        translation.y += arm.localSink.y * sink;
+        translation.z += arm.localSink.z * sink;
+        skeleton->SetJointLocalTranslation(joints.front(), translation);
         if (!arm.visible) continue;
         for (size_t jointIndex = 1; jointIndex < joints.size(); ++jointIndex) {
             const float along = static_cast<float>(jointIndex) / static_cast<float>(joints.size() - 1);
             const float curl = Smooth((localTime - (1.0f - along) * 0.28f) / 0.46f);
-            skeleton->joints[joints[jointIndex]].localRotate.x += curl * (0.04f + along * 0.11f);
+            auto rotation = skeleton->GetJoints()[joints[jointIndex]].localRotate;
+            rotation.x += curl * (0.04f + along * 0.11f);
+            skeleton->SetJointLocalRotation(joints[jointIndex], rotation);
         }
     }
 }
@@ -138,10 +141,10 @@ bool KrakenTentacleMidbossController::Impl::CaptureDefeatFrozenPose() {
     defeatFrozenPose.clear();
     defeatFrozenPoseValid = false;
     bool capturedCurrentPose = skeleton &&
-        skeleton->joints.size() == bindPose.size();
+        skeleton->GetJoints().size() == bindPose.size();
     if (capturedCurrentPose) {
-        defeatFrozenPose.reserve(skeleton->joints.size());
-        for (const Joint& joint : skeleton->joints) {
+        defeatFrozenPose.reserve(skeleton->GetJoints().size());
+        for (const Joint& joint : skeleton->GetJoints()) {
             KrakenTentacleMidbossBindLocalPose pose{
                 joint.localTranslate, joint.localRotate, joint.localScale };
             if (!IsFinitePose(pose)) {
@@ -152,7 +155,7 @@ bool KrakenTentacleMidbossController::Impl::CaptureDefeatFrozenPose() {
         }
     }
     if (capturedCurrentPose &&
-        defeatFrozenPose.size() == skeleton->joints.size()) {
+        defeatFrozenPose.size() == skeleton->GetJoints().size()) {
         defeatFrozenPoseValid = true;
         ++defeatDiagnostics.frozenPoseCaptureSuccessCount;
         return true;
@@ -161,7 +164,7 @@ bool KrakenTentacleMidbossController::Impl::CaptureDefeatFrozenPose() {
     defeatFrozenPose.clear();
     ++defeatDiagnostics.frozenPoseCaptureFailureCount;
     const bool bindPoseValid = skeleton &&
-        bindPose.size() == skeleton->joints.size() &&
+        bindPose.size() == skeleton->GetJoints().size() &&
         std::all_of(bindPose.begin(), bindPose.end(), IsFinitePose);
     if (!bindPoseValid) {
         defeatDiagnostics.lastError =
@@ -177,7 +180,7 @@ bool KrakenTentacleMidbossController::Impl::CaptureDefeatFrozenPose() {
 
 bool KrakenTentacleMidbossController::Impl::ApplyDefeatFrozenPose() {
     if (!skeleton || !defeatFrozenPoseValid ||
-        defeatFrozenPose.size() != skeleton->joints.size()) {
+        defeatFrozenPose.size() != skeleton->GetJoints().size()) {
         return false;
     }
     for (std::size_t index = 0; index < defeatFrozenPose.size(); ++index) {
@@ -186,10 +189,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyDefeatFrozenPose() {
         if (!IsFinitePose(pose)) {
             return false;
         }
-        Joint& joint = skeleton->joints[index];
-        joint.localTranslate = pose.translate;
-        joint.localRotate = pose.rotate;
-        joint.localScale = pose.scale;
+        skeleton->SetJointLocalTransform(index, {pose.scale, pose.rotate, pose.translate});
     }
     ApplyStageClearRetreatPose();
     return true;
@@ -502,7 +502,7 @@ void KrakenTentacleMidbossController::Impl::RecoverFromDefeat() {
     stateElapsedTime = 0.0f;
     RestoreBindPose();
     if (skeleton) {
-        UpdateSkeletonWorldTransforms(*skeleton);
+        skeleton->UpdateWorldTransforms();
     }
     UpdateObjectTransform();
     RefreshColliderSnapshots();

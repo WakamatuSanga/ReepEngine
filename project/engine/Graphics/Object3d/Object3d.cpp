@@ -8,11 +8,19 @@
 #include "Engine/Utility/Logger.h"
 #include <string>
 #include <algorithm>
+#include <bit>
 #include <cmath>
 
 using namespace MatrixMath;
 
 namespace {
+    bool HasSameComponents(const Vector3& left, const Vector3& right) {
+        // Keep the matrix inputs exact, including the sign of zero.
+        return std::bit_cast<std::uint32_t>(left.x) == std::bit_cast<std::uint32_t>(right.x) &&
+            std::bit_cast<std::uint32_t>(left.y) == std::bit_cast<std::uint32_t>(right.y) &&
+            std::bit_cast<std::uint32_t>(left.z) == std::bit_cast<std::uint32_t>(right.z);
+    }
+
     bool CreateAndMapObject3dBuffer(
         Object3dCommon* object3dCommon,
         size_t sizeInBytes,
@@ -66,6 +74,7 @@ void Object3d::Initialize(Object3dCommon* object3dCommon) {
     }
 
     transform_ = { {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
+    transformDirty_ = true;
 
     initialized_ =
         CreateTransformationMatrixResource() &&
@@ -114,20 +123,45 @@ void Object3d::ApplyDirectionalLightSettings(const DirectionalLightSettings& set
     light.shininess = settings.shininess;
 }
 
+void Object3d::SetScale(const Vector3& scale) {
+    if (HasSameComponents(transform_.scale, scale)) return;
+    transform_.scale = scale;
+    transformDirty_ = true;
+}
+
+void Object3d::SetRotate(const Vector3& rotate) {
+    if (HasSameComponents(transform_.rotate, rotate)) return;
+    transform_.rotate = rotate;
+    transformDirty_ = true;
+}
+
+void Object3d::SetTranslate(const Vector3& translate) {
+    if (HasSameComponents(transform_.translate, translate)) return;
+    transform_.translate = translate;
+    transformDirty_ = true;
+}
+
+void Object3d::SetTransform(const Transform& transform) {
+    SetScale(transform.scale);
+    SetRotate(transform.rotate);
+    SetTranslate(transform.translate);
+}
+
 void Object3d::Update() {
     if (!initialized_ || !transformationMatrixData_) {
         return;
     }
 
-    Matrix4x4 worldMatrix = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
-
-    // 法線変換用の逆転置行列
-    Matrix4x4 worldInverse = Inverse(worldMatrix);
-    Matrix4x4 worldInverseTranspose = Transpoce(worldInverse);
+    if (transformDirty_) {
+        worldMatrix_ = MakeAffine(transform_.scale, transform_.rotate, transform_.translate);
+        // 法線変換用の逆転置行列
+        worldInverseTranspose_ = Transpoce(Inverse(worldMatrix_));
+        transformDirty_ = false;
+    }
 
     if (camera_) {
         const Matrix4x4& viewProjection = camera_->GetViewProjectionMatrix();
-        transformationMatrixData_->WVP = Multipty(worldMatrix, viewProjection);
+        transformationMatrixData_->WVP = Multipty(worldMatrix_, viewProjection);
 
         if (directionalLightData_) {
             directionalLightData_->cameraPosition = camera_->GetTranslate();
@@ -137,8 +171,8 @@ void Object3d::Update() {
     }
 
     transformationMatrixData_->outline={};
-    transformationMatrixData_->World = worldMatrix;
-    transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose;
+    transformationMatrixData_->World = worldMatrix_;
+    transformationMatrixData_->WorldInverseTranspose = worldInverseTranspose_;
 }
 
 void Object3d::Draw() {

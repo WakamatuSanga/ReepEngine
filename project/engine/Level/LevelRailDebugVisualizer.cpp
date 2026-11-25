@@ -87,11 +87,7 @@ namespace {
             return;
         }
 
-        if (Model::Material* material = model->GetMaterialData()) {
-            material->color = { color[0], color[1], color[2], color[3] };
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        model->SetMaterialAppearance({ color[0], color[1], color[2], color[3] }, false, 0.0f);
     }
 
     void ApplyTransform(Object3d& object, const RailVisualTransform& transform) {

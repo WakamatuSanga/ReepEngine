@@ -257,6 +257,13 @@ RecordHpZeroHitEffectSuppression(std::size_t count) {
     diagnostics_.hpZeroHitEffectSuppressionCount += count;
 }
 
+void KrakenTentacleMidbossEffectController::SetSettings(const KrakenTentacleEffectSettings& settings) {
+    settings_ = settings;
+    settings_.bodyHitScale = std::clamp(settings_.bodyHitScale, 0.25f, 4.0f);
+    settings_.weakPointHitScale = std::clamp(settings_.weakPointHitScale, 0.25f, 4.0f);
+    settings_.defeatEffectScale = std::clamp(settings_.defeatEffectScale, 0.25f, 4.0f);
+}
+
 void KrakenTentacleMidbossEffectController::Reset(bool resetSettings) {
     spawnedHitKeys_.clear();
     spawnedDefeatSequenceId_ = 0;

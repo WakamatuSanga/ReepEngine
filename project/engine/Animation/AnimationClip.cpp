@@ -762,9 +762,9 @@ AnimationClip CaptureSkeletonPoseAsClip(const Skeleton& skeleton, const std::str
     AnimationClip clip{};
     clip.name = clipName.empty() ? "NewClip" : clipName;
     clip.duration = std::max(duration, 0.0001f);
-    clip.tracks.reserve(skeleton.joints.size());
+    clip.tracks.reserve(skeleton.GetJoints().size());
 
-    for (const Joint& joint : skeleton.joints) {
+    for (const Joint& joint : skeleton.GetJoints()) {
         JointTrack track{};
         track.jointName = joint.name;
         track.keys.push_back({ 0.0f, joint.localTranslate, joint.localRotate, joint.localScale });
@@ -781,19 +781,17 @@ void ApplyAnimationClipAtTime(const AnimationClip& clip, Skeleton& skeleton, flo
     }
 
     float localTime = std::clamp(time, 0.0f, std::max(clip.duration, 0.0f));
-    for (Joint& joint : skeleton.joints) {
+    for (const Joint& joint : skeleton.GetJoints()) {
         const JointTrack* track = FindJointTrack(clip, joint.name);
         if (!track || track->keys.empty()) {
             continue;
         }
 
         Keyframe sampled = SampleTrack(*track, localTime);
-        joint.localTranslate = sampled.translate;
-        joint.localRotate = sampled.rotate;
-        joint.localScale = sampled.scale;
+        skeleton.SetJointLocalTransform(joint.index, { sampled.scale, sampled.rotate, sampled.translate });
     }
 
-    UpdateSkeletonWorldTransforms(skeleton);
+    skeleton.UpdateWorldTransforms();
 }
 
 bool SaveAnimationClipToJson(const AnimationClip& clip, const std::string& filePath) {

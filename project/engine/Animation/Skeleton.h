@@ -42,14 +42,27 @@ struct Joint {
 };
 
 struct Skeleton {
-    std::string name;
-    int32_t root = -1;
-    std::map<std::string, int32_t> jointMap;
-    std::vector<Joint> joints;
+    Skeleton(std::string name, std::vector<Joint> joints);
+
+    const std::string& GetName() const { return name_; }
+    int32_t GetRootIndex() const { return root_; }
+    const std::vector<Joint>& GetJoints() const { return joints_; }
+    int32_t FindJointIndex(const std::string& name) const;
+    size_t GetNamedJointCount() const { return jointMap_.size(); }
+
+    void SetJointLocalTransform(size_t index, const Transform& transform);
+    void SetJointLocalRotation(size_t index, const Vector3& rotation);
+    void SetJointLocalTranslation(size_t index, const Vector3& translation);
+    void SetJointSkeletonSpaceMatrix(size_t index, const Matrix4x4& matrix);
+    void ApplyJointWorldAdjustment(size_t index, const Matrix4x4& adjustment);
+    void UpdateWorldTransforms();
+
+private:
+    std::string name_;
+    int32_t root_ = -1;
+    std::map<std::string, int32_t> jointMap_;
+    std::vector<Joint> joints_;
 };
 
-int32_t CreateJoint(const Node& node, const std::optional<int32_t>& parent, std::vector<Joint>& joints);
 Skeleton CreateSkeleton(const Node& rootNode);
-void Update(Skeleton& skeleton);
-void UpdateSkeletonWorldTransforms(Skeleton& skeleton);
 void ApplyAnimation(Skeleton& skeleton, const AnimationClip& animation, float animationTime);

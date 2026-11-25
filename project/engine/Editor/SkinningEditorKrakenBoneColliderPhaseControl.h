@@ -102,9 +102,6 @@ public:
     void SetSettings(const KrakenBoneColliderPhaseControlSettings& settings);
     void ResetDiagnostics();
 
-    KrakenBoneColliderPhaseControlSettings& GetSettings() {
-        return settings_;
-    }
     const KrakenBoneColliderPhaseControlSettings& GetSettings() const {
         return settings_;
     }

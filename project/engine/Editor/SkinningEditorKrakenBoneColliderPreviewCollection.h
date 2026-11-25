@@ -33,7 +33,7 @@ public:
     std::size_t GetChainCount() const { return chainPreviews_.size(); }
     bool IsConnected() const { return connected_; }
 
-    KrakenBoneColliderPreviewSettings& GetSettings() { return settings_; }
+    void SetSettings(const KrakenBoneColliderPreviewSettings& settings);
     const KrakenBoneColliderPreviewSettings& GetSettings() const {
         return settings_;
     }
@@ -71,9 +71,7 @@ public:
         return selectedLocalIndex_;
     }
     bool IsSelectedShapeTip() const { return selectedShapeIsTip_; }
-    KrakenBoneColliderPreview* GetSelectedCapsule();
     const KrakenBoneColliderPreview* GetSelectedCapsule() const;
-    KrakenTipSphereColliderPreview* GetSelectedTipSphere();
     const KrakenTipSphereColliderPreview* GetSelectedTipSphere() const;
 
 private:

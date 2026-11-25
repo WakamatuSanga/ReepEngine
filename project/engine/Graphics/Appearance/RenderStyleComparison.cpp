@@ -22,7 +22,7 @@ Vector3 referenceSun{-.52f,-.78f,.35f};
 Vector4 Color(Vector3 c,float w=0) { return {c.x,c.y,c.z,w}; }
 Vector3 Unit(Vector3 v) {const float n=std::sqrt(v.x*v.x+v.y*v.y+v.z*v.z);return n>.0001f?Vector3{v.x/n,v.y/n,v.z/n}:Vector3{0,-1,0};}
 }
-Settings& GetSettings(){return settings;}
+const Settings& GetSettings(){return settings;}
 CandidateSettings MakeEmphasizedCandidate(){
     CandidateSettings r;auto& s=r.aircraft;
     s.strength=1;s.softness=.01f;s.shadowFloor=.22f;s.shadowColor={.18f,.28f,.46f};
@@ -76,24 +76,35 @@ NormalBeamSettings MakeCoreBloomBeamSettings() {
     beam.brightness = 1.10f;
     return beam;
 }
-NormalBeamSettings& GetNormalBeamSettings() {
+namespace {
+NormalBeamSettings& ActiveNormalBeamSettings() {
     if(settings.presentation.beamVariant==BeamVariant::CoreBloom)return settings.presentation.coreBloomBeams;
     if(settings.presentation.beamVariant==BeamVariant::DepthLegacy)return settings.presentation.legacyDepthBeams;
     if(settings.presentation.beamVariant==BeamVariant::Depth)return settings.presentation.depthBeams;
     return settings.presentation.beamVariant==BeamVariant::Adjusted
         ? settings.presentation.adjustedBeams : settings.presentation.previousBeams;
 }
-CloudCompositionSettings& GetCloudSettings() {
+CloudCompositionSettings& ActiveCloudSettings() {
     if(settings.presentation.cloudVariant==CloudVariant::Depth)return settings.presentation.depthClouds;
     if(settings.presentation.cloudVariant==CloudVariant::Adjusted)return settings.presentation.adjustedClouds;
     return settings.presentation.cloudVariant==CloudVariant::Refined
         ? settings.presentation.refinedClouds : settings.presentation.clouds;
 }
+CandidateSettings& ActiveCandidateSettings(){return settings.candidate==Candidate::Initial?settings.initial:settings.candidate==Candidate::Emphasized?settings.emphasized:settings.target;}
+}
+
+const NormalBeamSettings& GetNormalBeamSettings() {
+    return ActiveNormalBeamSettings();
+}
+
+const CloudCompositionSettings& GetCloudSettings() {
+    return ActiveCloudSettings();
+}
+
 bool IsRefinedClouds() {
     return IsTargetBackground()&&settings.presentation.stage>=3
         &&settings.presentation.cloudVariant!=CloudVariant::Previous;
 }
-CandidateSettings& GetCandidateSettings(){return settings.candidate==Candidate::Initial?settings.initial:settings.candidate==Candidate::Emphasized?settings.emphasized:settings.target;}
 bool IsTargetPresentation(){return settings.mode!=Mode::Original&&settings.candidate==Candidate::CloudSeaTarget;}
 bool IsTargetBackground(){return IsTargetPresentation()&&settings.mode==Mode::AircraftAndBackground;}
 float PlayerDisplayScale(){return IsTargetPresentation()?std::clamp(settings.presentation.playerScale,.9f,1.2f):1;}
@@ -111,7 +122,7 @@ SurfaceData ResolveSurface(Target t){
     const bool aircraft=(t==Target::Player&&settings.player)||(t==Target::NormalEnemy&&settings.normalEnemies);
     const bool background=t==Target::BackgroundModel&&settings.backgroundModels&&settings.mode==Mode::AircraftAndBackground;
     if(!aircraft&&!background)return {};
-    const auto& bank=GetCandidateSettings();const auto& s=aircraft?bank.aircraft:bank.background;
+    const auto& bank=ActiveCandidateSettings();const auto& s=aircraft?bank.aircraft:bank.background;
     const float d=static_cast<float>(settings.diagnostic),low=std::clamp(s.shadowThreshold,.05f,.9f);
     SurfaceData r{{std::clamp(s.strength,0.f,1.f),s.levels==2?2.f:3.f,std::clamp(s.softness,.01f,.4f),std::clamp(s.shadowFloor,.1f,1.f)},Color(s.shadowColor,d>0?static_cast<float>(t):0),{s.highlightStrength,s.highlightWidth,s.rimStrength,s.rimPower},Color(s.rimColor,d),{low,std::clamp(s.lightThreshold,low+.02f,.995f),s.middleBrightness,s.emphasizedBands?s.bandExponent:0}};
     if(IsTargetPresentation()){r.sun=Color(Unit(settings.presentation.sunTravelDirection),1);r.sunColor=Color(settings.presentation.sunColor,1);}
@@ -119,7 +130,7 @@ SurfaceData ResolveSurface(Target t){
 }
 BackgroundData ResolveBackground(){
     if(!gameDraw||settings.mode!=Mode::AircraftAndBackground)return {};
-    const auto& s=GetCandidateSettings();BackgroundData r{{s.skyStrength,0,0,0},Color(s.skyZenith),Color(s.skyHorizon),Color(s.cloudShadow,s.cloudStrength),Color(s.cloudHighlight,s.cloudContrast)};
+    const auto& s=ActiveCandidateSettings();BackgroundData r{{s.skyStrength,0,0,0},Color(s.skyZenith),Color(s.skyHorizon),Color(s.cloudShadow,s.cloudStrength),Color(s.cloudHighlight,s.cloudContrast)};
     if(IsTargetBackground()){
         r.sun=Color(Unit(settings.presentation.sunTravelDirection),1);r.sunColor=Color(settings.presentation.sunColor,1);
         const auto& p=settings.presentation;const auto& c=GetCloudSettings();
@@ -159,7 +170,7 @@ void DrawBeamControls(){
         }
         return;
     }
-    auto& b=GetNormalBeamSettings();
+    auto& b=ActiveNormalBeamSettings();
     ImGui::BeginDisabled(b.solidPrism);
     ImGui::Checkbox("通常弾専用の有色コア",&b.opaqueCore);
     ImGui::EndDisabled();
@@ -200,7 +211,7 @@ void DrawCloudControls(){
             if(ImGui::Combo("雲の比較候補",&variant,variants,4))p.cloudVariant=static_cast<CloudVariant>(variant);
             if(ImGui::Button("改良雲Cを表示")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Refined;settings.diagnostic=Diagnostic::None;}
             ImGui::SameLine();if(ImGui::Button("前回の雲Cを表示")){settings.mode=Mode::AircraftAndBackground;settings.candidate=Candidate::CloudSeaTarget;p.stage=3;p.cloudVariant=CloudVariant::Previous;settings.diagnostic=Diagnostic::None;}
-            auto& c=GetCloudSettings();const bool refined=p.cloudVariant!=CloudVariant::Previous;
+            auto& c=ActiveCloudSettings();const bool refined=p.cloudVariant!=CloudVariant::Previous;
             if(ImGui::Button("雲構成だけ初期値へ"))c=p.cloudVariant==CloudVariant::Depth?MakeDepthCloudSettings():p.cloudVariant==CloudVariant::Adjusted?MakeAdjustedCloudSettings():refined?MakeRefinedCloudSettings():CloudCompositionSettings{};
             ImGui::TextWrapped("変更は実際の描画へ即時反映。Restartでも調整値を保持し、アプリ終了で既定値へ戻ります。元の雲JSONは変更しません。");
             if(c.depthLayout && ImGui::TreeNodeEx("奥へ続く雲の配置",ImGuiTreeNodeFlags_DefaultOpen)){
@@ -298,9 +309,9 @@ void DrawImGui(){
         }
         DrawCloudControls();
         DrawBeamControls();
-        auto& b=GetCandidateSettings();
+        auto& b=ActiveCandidateSettings();
         if(ImGui::TreeNode("機体の色面")){auto& s=b.aircraft;ImGui::SliderFloat("適用率",&s.strength,0,1);ImGui::ColorEdit3("影色",&s.shadowColor.x);ImGui::SliderFloat("影明度",&s.shadowFloor,.1f,1);ImGui::SliderFloat("中間明度",&s.middleBrightness,.15f,.9f);ImGui::SliderFloat("リム強度",&s.rimStrength,0,.5f);ImGui::TreePop();}
-        if(ImGui::TreeNode("空と雲の色")){ImGui::ColorEdit3("上空",&b.skyZenith.x);ImGui::ColorEdit3("地平線",&b.skyHorizon.x);ImGui::ColorEdit3("雲影",IsRefinedClouds()?&GetCloudSettings().seaShadowColor.x:&b.cloudShadow.x);ImGui::ColorEdit3("雲明部",IsRefinedClouds()?&GetCloudSettings().seaLightColor.x:&b.cloudHighlight.x);ImGui::TreePop();}
+        if(ImGui::TreeNode("空と雲の色")){ImGui::ColorEdit3("上空",&b.skyZenith.x);ImGui::ColorEdit3("地平線",&b.skyHorizon.x);ImGui::ColorEdit3("雲影",IsRefinedClouds()?&ActiveCloudSettings().seaShadowColor.x:&b.cloudShadow.x);ImGui::ColorEdit3("雲明部",IsRefinedClouds()?&ActiveCloudSettings().seaLightColor.x:&b.cloudHighlight.x);ImGui::TreePop();}
         if(ImGui::TreeNode("適用診断")){int d=static_cast<int>(settings.diagnostic);const char* names[]{"通常","自機:緑／通常敵:紫","N dot L"};if(ImGui::Combo("診断",&d,names,3))settings.diagnostic=static_cast<Diagnostic>(d);ImGui::TreePop();}
         ImGui::TextWrapped("HUD・中ボス・スキニング・タイトル・ロック弾・排気・粒子は機体画風の対象外。現在の起動既定はAです。");
     }DebugUiWorkspace::EndPanel();

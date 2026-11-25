@@ -214,11 +214,7 @@ namespace {
             return;
         }
 
-        if (Model::Material* material = model->GetMaterialData()) {
-            material->color = color;
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        model->SetMaterialAppearance(color, false, 0.0f);
     }
 
     void ApplyTransform(Object3d& object, const EventVisualTransform& transform) {

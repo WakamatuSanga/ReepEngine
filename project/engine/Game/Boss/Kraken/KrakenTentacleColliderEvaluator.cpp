@@ -32,7 +32,7 @@ namespace {
         const Skeleton& skeleton,
         int skeletonRootJointIndex) {
         return jointIndex >= 0 &&
-            static_cast<std::size_t>(jointIndex) < skeleton.joints.size() &&
+            static_cast<std::size_t>(jointIndex) < skeleton.GetJoints().size() &&
             jointIndex != skeletonRootJointIndex;
     }
 
@@ -121,12 +121,12 @@ bool TryGetKrakenTentacleWeakPointSkeletonPosition(
     }
     const int first = chainJoints[(chainJoints.size() - 1) / 2];
     const int second = chainJoints[chainJoints.size() / 2];
-    if (!IsJointIndexValid(first, skeleton, skeleton.root) ||
-        !IsJointIndexValid(second, skeleton, skeleton.root)) {
+    if (!IsJointIndexValid(first, skeleton, skeleton.GetRootIndex()) ||
+        !IsJointIndexValid(second, skeleton, skeleton.GetRootIndex())) {
         return false;
     }
-    const Vector3& a = skeleton.joints[first].worldTranslate;
-    const Vector3& b = skeleton.joints[second].worldTranslate;
+    const Vector3& a = skeleton.GetJoints()[first].worldTranslate;
+    const Vector3& b = skeleton.GetJoints()[second].worldTranslate;
     position = { (a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f,
         (a.z + b.z) * 0.5f };
     return IsFinite(position);
@@ -241,11 +241,11 @@ EvaluateKrakenTentacleCapsuleCollider(
         endJointIndex, skeleton, skeletonRootJointIndex);
     if (result.startJointValid && result.endJointValid) {
         result.worldStart = TransformPosition(
-            skeleton.joints[static_cast<std::size_t>(
+            skeleton.GetJoints()[static_cast<std::size_t>(
                 startJointIndex)].worldTranslate,
             worldMatrix);
         result.worldEnd = TransformPosition(
-            skeleton.joints[static_cast<std::size_t>(
+            skeleton.GetJoints()[static_cast<std::size_t>(
                 endJointIndex)].worldTranslate,
             worldMatrix);
         result.worldCenter = {
@@ -303,7 +303,7 @@ EvaluateKrakenTentacleTipSphereCollider(
     result.worldRadius = localRadius * radiusScale * globalRadiusScale *
         ExtractMaximumScale(worldMatrix);
     Vector3 skeletonPosition{};
-    result.jointValid = skeletonRootJointIndex == skeleton.root &&
+    result.jointValid = skeletonRootJointIndex == skeleton.GetRootIndex() &&
         TryGetKrakenTentacleWeakPointSkeletonPosition(
             skeleton, chainJoints, skeletonPosition);
     if (result.jointValid && hasBindTipPosition) {

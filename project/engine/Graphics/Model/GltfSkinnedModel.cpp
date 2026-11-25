@@ -1793,7 +1793,7 @@ bool GltfSkinnedModel::Initialize(
     jointPalette_.resize(
         (std::max)(
             inverseBindMatrices_.size(),
-            skeleton_->joints.size()),
+            skeleton_->GetJoints().size()),
         MatrixMath::MakeIdentity4x4());
     if (!InitializeComputeSkinningResources(modelCommon)) {
         return FailPrimitiveLoad(
@@ -1810,11 +1810,11 @@ void GltfSkinnedModel::UpdateSkinning() {
         return;
     }
 
-    const size_t paletteSize = (std::min)(inverseBindMatrices_.size(), skeleton_->joints.size());
+    const size_t paletteSize = (std::min)(inverseBindMatrices_.size(), skeleton_->GetJoints().size());
     for (size_t jointIndex = 0; jointIndex < paletteSize; ++jointIndex) {
         jointPalette_[jointIndex] = MatrixMath::Multipty(
             inverseBindMatrices_[jointIndex],
-            skeleton_->joints[jointIndex].worldMatrix);
+            skeleton_->GetJoints()[jointIndex].worldMatrix);
     }
     for (size_t jointIndex = paletteSize; jointIndex < jointPalette_.size(); ++jointIndex) {
         jointPalette_[jointIndex] = MatrixMath::MakeIdentity4x4();

@@ -364,9 +364,7 @@ void Player::UpdateCenterVisibilityAssist(float deltaTime) {
 void Player::ApplyModelAlpha(float alpha) {
     if (!model_) return;
     if (displayOpacity_>=0) alpha=displayOpacity_;
-    if (Model::Material* material = model_->GetMaterialData()) {
-        material->color.w = std::clamp(alpha, 0.0f, 1.0f);
-    }
+    model_->SetMaterialOpacity(std::clamp(alpha, 0.0f, 1.0f));
 }
 
 void Player::UpdateObjectTransform() {

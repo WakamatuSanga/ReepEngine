@@ -3,10 +3,20 @@
 #include "Engine/Animation/Skeleton.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 SkinningEditorKrakenBoneColliderPreviewCollection::
 ~SkinningEditorKrakenBoneColliderPreviewCollection() = default;
+
+void SkinningEditorKrakenBoneColliderPreviewCollection::SetSettings(
+    const KrakenBoneColliderPreviewSettings& settings) {
+    settings_ = settings;
+    settings_.depthTest = false;
+    settings_.globalRadiusScale = std::clamp(
+        std::isfinite(settings.globalRadiusScale) ? settings.globalRadiusScale : 1.0f,
+        0.05f, 5.0f);
+}
 
 void SkinningEditorKrakenBoneColliderPreviewCollection::Reset() {
     Clear();
@@ -14,19 +24,6 @@ void SkinningEditorKrakenBoneColliderPreviewCollection::Reset() {
 }
 
 void SkinningEditorKrakenBoneColliderPreviewCollection::Clear() {
-    for (const auto& preview : chainPreviews_) {
-        if (!preview) {
-            continue;
-        }
-        for (KrakenBoneColliderPreview& collider :
-            preview->GetCapsules()) {
-            collider.phaseActive = false;
-            collider.gameplayRegistered = false;
-        }
-        KrakenTipSphereColliderPreview& tip = preview->GetTipSphere();
-        tip.phaseActive = false;
-        tip.gameplayRegistered = false;
-    }
     chainPreviews_.clear();
     diagnostics_ = {};
     displayChainIndex_ = 0;
@@ -64,8 +61,7 @@ bool SkinningEditorKrakenBoneColliderPreviewCollection::Rebuild(
         auto preview = std::make_unique<
             SkinningEditorKrakenBoneColliderPreview>();
         preview->Reset();
-        preview->GetSettings().globalRadiusScale =
-            settings_.globalRadiusScale;
+        preview->SetGlobalRadiusScale(settings_.globalRadiusScale);
         if (!preview->Rebuild(
                 chainCount,
                 static_cast<std::uint32_t>(chainIndex),
@@ -100,8 +96,7 @@ void SkinningEditorKrakenBoneColliderPreviewCollection::Update(
         if (!preview) {
             continue;
         }
-        preview->GetSettings().globalRadiusScale =
-            settings_.globalRadiusScale;
+        preview->SetGlobalRadiusScale(settings_.globalRadiusScale);
         preview->Update(skeleton, previewWorldMatrix);
     }
     RefreshAggregatedDiagnostics();
@@ -260,14 +255,6 @@ ResynchronizeSelection() {
     SelectFirstForDisplayChain();
 }
 
-KrakenBoneColliderPreview*
-SkinningEditorKrakenBoneColliderPreviewCollection::GetSelectedCapsule() {
-    return const_cast<KrakenBoneColliderPreview*>(
-        static_cast<const
-            SkinningEditorKrakenBoneColliderPreviewCollection*>(this)
-            ->GetSelectedCapsule());
-}
-
 const KrakenBoneColliderPreview*
 SkinningEditorKrakenBoneColliderPreviewCollection::
 GetSelectedCapsule() const {
@@ -281,15 +268,6 @@ GetSelectedCapsule() const {
     return selectedLocalIndex_ < capsules.size()
         ? &capsules[selectedLocalIndex_]
         : nullptr;
-}
-
-KrakenTipSphereColliderPreview*
-SkinningEditorKrakenBoneColliderPreviewCollection::
-GetSelectedTipSphere() {
-    return const_cast<KrakenTipSphereColliderPreview*>(
-        static_cast<const
-            SkinningEditorKrakenBoneColliderPreviewCollection*>(this)
-            ->GetSelectedTipSphere());
 }
 
 const KrakenTipSphereColliderPreview*

@@ -61,11 +61,11 @@ void TitleSortieEffects::Initialize(DirectXCommon* dx, Camera* camera) {
     if (!dx || !camera) return;
     dx_ = dx;
     camera_ = camera;
-    auto& p = dx_->GetPostEffectParameters();
-    saved_ = { p.radialBlurEnabled, p.radialBlurStrength, p.radialBlurCenter,
-        p.radialBlurSampleCount, p.radialBlurCenterClearRadius, p.radialBlurOuterEffectRadius };
-    p.radialBlurEnabled = 0;
-    p.radialBlurStrength = 0.0f;
+    auto blur = dx_->GetRadialBlurSettings();
+    saved_ = {blur.enabled, blur.strength, blur.center, blur.sampleCount, blur.clearRadius, blur.outerRadius};
+    blur.enabled = 0;
+    blur.strength = 0.0f;
+    dx_->SetRadialBlur(blur);
     for (auto& ring : rings_) {
         ring = std::make_unique<PlayerSonicBoostRingController>();
         if (!ring->InitializeDisplay(dx_, camera_)) ring.reset();
@@ -74,13 +74,8 @@ void TitleSortieEffects::Initialize(DirectXCommon* dx, Camera* camera) {
 
 void TitleSortieEffects::Finalize() {
     if (dx_) {
-        auto& p = dx_->GetPostEffectParameters();
-        p.radialBlurEnabled = saved_.enabled;
-        p.radialBlurStrength = saved_.strength;
-        p.radialBlurCenter = saved_.center;
-        p.radialBlurSampleCount = saved_.samples;
-        p.radialBlurCenterClearRadius = saved_.clearRadius;
-        p.radialBlurOuterEffectRadius = saved_.outerRadius;
+        dx_->SetRadialBlur({saved_.enabled, saved_.strength, saved_.center,
+            saved_.samples, saved_.clearRadius, saved_.outerRadius});
     }
     for (auto& ring : rings_) ring.reset();
     dx_ = nullptr;
@@ -135,15 +130,16 @@ void TitleSortieEffects::Update(float dt, const Transform* aircraft, bool flying
         const float fade = std::clamp(blurReleaseElapsed_ / kBlurReleaseSeconds, 0.0f, 1.0f);
         strength = kEndBlurStrength * (1.0f - fade * fade * (3.0f - 2.0f * fade));
     }
-    auto& p = dx_->GetPostEffectParameters();
+    auto blur = dx_->GetRadialBlurSettings();
     if (flying && visible) {
-        p.radialBlurCenter = { center.x, center.y };
-        p.radialBlurCenterClearRadius = radius;
-        p.radialBlurOuterEffectRadius = (std::max)(0.72f, radius + 0.10f);
+        blur.center = { center.x, center.y };
+        blur.clearRadius = radius;
+        blur.outerRadius = (std::max)(0.72f, radius + 0.10f);
     } // Hold the last valid center/protection throughout the post-sortie release.
-    p.radialBlurSampleCount = 6;
-    p.radialBlurStrength = strength;
-    p.radialBlurEnabled = strength > 0.0f ? 1u : 0u;
+    blur.sampleCount = 6;
+    blur.strength = strength;
+    blur.enabled = strength > 0.0f ? 1u : 0u;
+    dx_->SetRadialBlur(blur);
 }
 
 void TitleSortieEffects::Draw() {

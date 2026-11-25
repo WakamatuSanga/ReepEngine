@@ -55,7 +55,7 @@ void BlenderRailPipelineVerification::DrawImGui(
     if (ImGui::Button("レール連携を一括確認##VerifyAll")) {
         if (selectedRailId_.empty()) SelectFirstValidRail(sceneData);
         if (renderer_) {
-            auto& config = renderer_->GetConfig();
+            auto config = renderer_->GetConfig();
             config.enabled = true;
             config.showRuntimeLine = true;
             config.showNodes = true;
@@ -63,6 +63,7 @@ void BlenderRailPipelineVerification::DrawImGui(
             config.showStartEnd = true;
             config.showLegacyLine = false;
             config.showTangents = false;
+            renderer_->SetConfig(config);
         }
         BuildPreview(sceneData, railRuntime, axisConversionEnabled, "一括確認");
     }
@@ -210,7 +211,7 @@ void BlenderRailPipelineVerification::DrawImGui(
     }
 
     if (ImGui::CollapsingHeader("6. 3Dデバッグ表示##DebugDraw", ImGuiTreeNodeFlags_DefaultOpen) && renderer_) {
-        auto& config = renderer_->GetConfig();
+        auto config = renderer_->GetConfig();
         bool rebuild = false;
         rebuild |= ImGui::Checkbox("3Dデバッグ表示##DebugEnabled", &config.enabled);
         rebuild |= ImGui::Checkbox("Runtime V2線##RuntimeLine", &config.showRuntimeLine);
@@ -225,10 +226,19 @@ void BlenderRailPipelineVerification::DrawImGui(
         rebuild |= ImGui::Checkbox("Tangent##Tangents", &config.showTangents);
         rebuild |= ImGui::SliderFloat("Marker間隔##MarkerInterval", &config.markerInterval, 1.0f, 1000.0f, "%.1f");
         rebuild |= ImGui::SliderFloat("Tangent間隔##TangentInterval", &config.tangentInterval, 1.0f, 1000.0f, "%.1f");
-        if (rebuild && buildSucceeded_) RebuildRenderer();
-        if (ImGui::Button("レール可視化を有効化##EnableVisualization")) config.enabled = true;
+        if (rebuild) {
+            renderer_->SetConfig(config);
+            if (buildSucceeded_) RebuildRenderer();
+        }
+        if (ImGui::Button("レール可視化を有効化##EnableVisualization")) {
+            config.enabled = true;
+            renderer_->SetConfig(config);
+        }
         ImGui::SameLine();
-        if (ImGui::Button("レール可視化を無効化##DisableVisualization")) config.enabled = false;
+        if (ImGui::Button("レール可視化を無効化##DisableVisualization")) {
+            config.enabled = false;
+            renderer_->SetConfig(config);
+        }
         const auto& stats = renderer_->GetStats();
         ImGui::Text("Line数: %zu / 上限: %zu / 省略: %zu", stats.lineCount, config.maximumLineCount, stats.skippedLineCount);
         ImGui::Text("Node数: %zu / 上限: %zu / 省略: %zu", stats.nodeCount, config.maximumNodeCount, stats.skippedNodeCount);

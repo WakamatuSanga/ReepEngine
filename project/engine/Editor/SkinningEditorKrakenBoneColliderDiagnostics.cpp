@@ -18,7 +18,7 @@ namespace {
         const Skeleton& skeleton,
         int skeletonRootJointIndex) {
         return jointIndex >= 0 &&
-            static_cast<std::size_t>(jointIndex) < skeleton.joints.size() &&
+            static_cast<std::size_t>(jointIndex) < skeleton.GetJoints().size() &&
             jointIndex != skeletonRootJointIndex;
     }
 }

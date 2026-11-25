@@ -45,6 +45,55 @@ namespace {
     }
 }
 
+bool Model::TryReadMaterial(Material& material) const {
+    if (!materialData_) return false;
+    material = *materialData_;
+    return true;
+}
+
+void Model::SetMaterialColor(const Vector4& color) {
+    if (materialData_) materialData_->color = color;
+}
+
+void Model::SetMaterialOpacity(float opacity) {
+    if (materialData_) materialData_->color.w = opacity;
+}
+
+void Model::SetMaterialAppearance(const Vector4& color, bool lighting, float alphaReference) {
+    SetMaterialColor(color);
+    SetMaterialLighting(lighting, alphaReference);
+}
+
+void Model::SetMaterialLighting(bool lighting, float alphaReference) {
+    if (!materialData_) return;
+    materialData_->enableLighting = lighting ? 1 : 0;
+    materialData_->alphaReference = alphaReference;
+}
+
+void Model::SetMaterialUvTransform(const Matrix4x4& transform) {
+    if (materialData_) materialData_->uvTransform = transform;
+}
+
+Model::Material Model::MakeSkinnedMaterial(
+    const Vector4& color, float alphaReference, float metallic, float roughness) {
+    Material material{};
+    material.color = color;
+    material.enableLighting = 1;
+    material.uvTransform = MatrixMath::MakeIdentity4x4();
+    material.alphaReference = alphaReference;
+    material.metallicFactor = metallic;
+    material.roughnessFactor = roughness;
+    material.normalScale = 1.0f;
+    return material;
+}
+
+bool Model::InitializeSkinnedMaterial(
+    const Vector4& color, float alphaReference, float metallic, float roughness) {
+    if (!materialData_) return false;
+    *materialData_ = MakeSkinnedMaterial(color, alphaReference, metallic, roughness);
+    return true;
+}
+
 void Model::DrawPbrMaterialImGui() {
 #ifdef USE_IMGUI
     ImGui::SeparatorText("PBR Material Debug");

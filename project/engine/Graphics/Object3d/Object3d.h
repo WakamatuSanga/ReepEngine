@@ -106,10 +106,10 @@ public:
     void SetRingInnerColor(const Vector4& innerColor) { if (ringAppearanceData_) { ringAppearanceData_->innerColor = innerColor; } }
     void SetRingOuterColor(const Vector4& outerColor) { if (ringAppearanceData_) { ringAppearanceData_->outerColor = outerColor; } }
 
-    void SetScale(const Vector3& scale) { transform_.scale = scale; }
-    void SetRotate(const Vector3& rotate) { transform_.rotate = rotate; }
-    void SetTranslate(const Vector3& translate) { transform_.translate = translate; }
-    void SetTransform(const Transform& transform) { transform_ = transform; }
+    void SetScale(const Vector3& scale);
+    void SetRotate(const Vector3& rotate);
+    void SetTranslate(const Vector3& translate);
+    void SetTransform(const Transform& transform);
     const Transform& GetTransform() const { return transform_; }
 
     bool TryGetDirectionalLightSettings(DirectionalLightSettings& out) const;
@@ -129,6 +129,9 @@ private:
     Camera* camera_ = nullptr;
 
     Transform transform_{ {1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} };
+    Matrix4x4 worldMatrix_{};
+    Matrix4x4 worldInverseTranspose_{};
+    bool transformDirty_ = true;
 
     Microsoft::WRL::ComPtr<ID3D12Resource> transformationMatrixResource_;
     TransformationMatrix* transformationMatrixData_ = nullptr;

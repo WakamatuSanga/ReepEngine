@@ -62,11 +62,7 @@ namespace {
         if (!model) {
             return;
         }
-        if (Model::Material* material = model->GetMaterialData()) {
-            material->color = color;
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        model->SetMaterialAppearance(color, false, 0.0f);
     }
 
     GpuParticle::ParticleType MakeJetParticleType(

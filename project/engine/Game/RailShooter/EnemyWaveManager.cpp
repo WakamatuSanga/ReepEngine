@@ -180,6 +180,99 @@ namespace {
     }
 }
 
+struct EnemyWaveManager::MovementFrame {
+    float deltaTime;
+    Vector3 approachTarget;
+    Vector3 cameraForward;
+    Vector3 cameraRight;
+    Vector3 cameraUp;
+    Vector3 cameraPosition;
+};
+
+class EnemyWaveManager::WaveMovement {
+public:
+    virtual ~WaveMovement() = default;
+    virtual void Update(EnemyWaveManager& waves, WaveEnemyRuntime& runtime, const MovementFrame& frame) const = 0;
+};
+
+class EnemyWaveManager::ApproachMovement final : public WaveMovement {
+public:
+    void Update(EnemyWaveManager& waves, WaveEnemyRuntime& runtime, const MovementFrame& frame) const override {
+        Enemy& enemy = *runtime.enemy;
+        if (!enemy.CanAttack()) return;
+
+        const Vector3 enemyPosition = enemy.GetPosition();
+        if (waves.camera_) {
+            const Vector3 fromCamera = SubtractVector3(enemyPosition, frame.cameraPosition);
+            const float depth = Dot(fromCamera, frame.cameraForward);
+            const float side = Dot(fromCamera, frame.cameraRight);
+            const float height = Dot(fromCamera, frame.cameraUp);
+            if (depth < -5.0f || depth > 180.0f || std::fabs(side) > 90.0f ||
+                std::fabs(height) > 70.0f || Length(fromCamera) > 220.0f) {
+                waves.EscapeWaveEnemy(runtime);
+                return;
+            }
+        }
+
+        const bool straightApproach = waves.IsStraightApproachMovePattern(runtime.movePattern);
+        const bool homingApproach = waves.IsHomingApproachMovePattern(runtime.movePattern);
+        if (!straightApproach && !homingApproach) return;
+
+        const Vector3 fallbackForward = waves.camera_ ? ScaleVector3(frame.cameraForward, -1.0f) : enemy.GetForward();
+        Vector3 direction;
+        if (straightApproach) {
+            if (!runtime.hasLockedApproachDirection) {
+                runtime.lockedApproachDirection = Normalize(SubtractVector3(frame.approachTarget, enemyPosition), fallbackForward);
+                runtime.hasLockedApproachDirection = true;
+                waves.lastLockedApproachDirection_ = runtime.lockedApproachDirection;
+                enemy.SetForward(runtime.lockedApproachDirection);
+            }
+            direction = runtime.lockedApproachDirection;
+        } else {
+            const Vector3 toTarget = SubtractVector3(frame.approachTarget, enemyPosition);
+            if (Length(toTarget) <= (std::max)(0.0f, waves.approachStopDistance_) + kMinVectorLength) return;
+            direction = Normalize(toTarget, fallbackForward);
+            enemy.SetForward(direction);
+        }
+        const float speed = (std::max)(0.0f, waves.approachSpeed_);
+        enemy.SetPosition(AddVector3(enemyPosition, ScaleVector3(direction, speed * frame.deltaTime)));
+    }
+};
+
+class EnemyWaveManager::ScreenAnchorMovement final : public WaveMovement {
+public:
+    explicit ScreenAnchorMovement(const WaveMovement& fallback) : fallback_(fallback) {}
+
+    void Update(EnemyWaveManager& waves, WaveEnemyRuntime& runtime, const MovementFrame& frame) const override {
+        if (!waves.screenAnchorEnabled_) {
+            fallback_.Update(waves, runtime, frame);
+            return;
+        }
+        ++waves.screenAnchorEnemyCount_;
+        waves.UpdateScreenAnchorEnemy(runtime, frame.deltaTime);
+    }
+
+private:
+    const WaveMovement& fallback_;
+};
+
+class EnemyWaveManager::RailFormationMovement final : public WaveMovement {
+public:
+    void Update(EnemyWaveManager& waves, WaveEnemyRuntime& runtime, const MovementFrame& frame) const override {
+        waves.UpdateRailFormation(runtime, frame.deltaTime);
+    }
+};
+
+const EnemyWaveManager::WaveMovement& EnemyWaveManager::SelectMovement(const WaveEnemyRuntime& runtime) const {
+    // Only the behavior is shared. Each enemy keeps its own movement and laser timers.
+    static const ApproachMovement approach;
+    static const ScreenAnchorMovement screenAnchor(approach);
+    static const RailFormationMovement railFormation;
+    if (IsScreenAnchorMovePattern(runtime.movePattern)) return screenAnchor;
+    if (runtime.railFormation) return railFormation;
+    return approach;
+}
+
 EnemyWaveManager::EnemyWaveManager() = default;
 
 EnemyWaveManager::~EnemyWaveManager() = default;
@@ -604,6 +697,7 @@ void EnemyWaveManager::RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry
     runtime.railPosition = spawnPosition;
     runtime.anchorHold = spawn.anchorHold;
     runtime.anchorExitDuration = spawn.anchorExitDuration;
+    runtime.movement = &SelectMovement(runtime);
     enemy->SetShotTiming(spawn.shotStartDelay, spawn.shotInterval);
     waveEnemies_.push_back(std::move(runtime));
 }
@@ -630,75 +724,20 @@ void EnemyWaveManager::UpdateWaveEnemyMovement(float deltaTime) {
         std::remove_if(waveEnemies_.begin(), waveEnemies_.end(), [](const WaveEnemyRuntime& runtime) { return runtime.ended; }),
         waveEnemies_.end());
 
-    const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
-    const Vector3 approachTarget = ResolveApproachTarget();
-    const Vector3 cameraForward = camera_ ? GetCameraForward(*camera_) : Vector3{ 0.0f, 0.0f, 1.0f };
-    const Vector3 cameraRight = camera_ ? GetCameraRight(*camera_) : Vector3{ 1.0f, 0.0f, 0.0f };
-    const Vector3 cameraUp = camera_ ? GetCameraUp(*camera_) : Vector3{ 0.0f, 1.0f, 0.0f };
-    const Vector3 cameraPosition = camera_ ? camera_->GetTranslate() : Vector3{ 0.0f, 0.0f, 0.0f };
+    const MovementFrame frame{
+        std::clamp(deltaTime, 0.0f, 1.0f / 15.0f),
+        ResolveApproachTarget(),
+        camera_ ? GetCameraForward(*camera_) : Vector3{ 0.0f, 0.0f, 1.0f },
+        camera_ ? GetCameraRight(*camera_) : Vector3{ 1.0f, 0.0f, 0.0f },
+        camera_ ? GetCameraUp(*camera_) : Vector3{ 0.0f, 1.0f, 0.0f },
+        camera_ ? camera_->GetTranslate() : Vector3{},
+    };
     screenAnchorEnemyCount_ = 0;
 
     for (WaveEnemyRuntime& runtime : waveEnemies_) {
-        Enemy* enemy = runtime.enemy;
-        if (!enemy || runtime.ended) {
-            continue;
+        if (runtime.enemy && !runtime.ended) {
+            runtime.movement->Update(*this, runtime, frame);
         }
-
-        if (screenAnchorEnabled_ && IsScreenAnchorMovePattern(runtime.movePattern)) {
-            ++screenAnchorEnemyCount_;
-            UpdateScreenAnchorEnemy(runtime, safeDeltaTime);
-            continue;
-        }
-
-        if (runtime.railFormation) {
-            UpdateRailFormation(runtime, safeDeltaTime);
-            continue;
-        }
-
-        if (!enemy->CanAttack()) {
-            continue;
-        }
-
-        const Vector3 enemyPosition = enemy->GetPosition();
-        if (camera_) {
-            const Vector3 fromCamera = SubtractVector3(enemyPosition, cameraPosition);
-            const float depth = Dot(fromCamera, cameraForward);
-            const float side = Dot(fromCamera, cameraRight);
-            const float height = Dot(fromCamera, cameraUp);
-            if (depth < -5.0f || depth > 180.0f || std::fabs(side) > 90.0f || std::fabs(height) > 70.0f || Length(fromCamera) > 220.0f) {
-                EscapeWaveEnemy(runtime);
-                continue;
-            }
-        }
-
-        const bool straightApproach = IsStraightApproachMovePattern(runtime.movePattern);
-        const bool homingApproach = IsHomingApproachMovePattern(runtime.movePattern);
-        if (!straightApproach && !homingApproach) {
-            continue;
-        }
-
-        const Vector3 fallbackForward = camera_ ? ScaleVector3(cameraForward, -1.0f) : enemy->GetForward();
-        Vector3 direction = fallbackForward;
-        if (straightApproach) {
-            if (!runtime.hasLockedApproachDirection) {
-                runtime.lockedApproachDirection = Normalize(SubtractVector3(approachTarget, enemyPosition), fallbackForward);
-                runtime.hasLockedApproachDirection = true;
-                lastLockedApproachDirection_ = runtime.lockedApproachDirection;
-                enemy->SetForward(runtime.lockedApproachDirection);
-            }
-            direction = runtime.lockedApproachDirection;
-        } else {
-            const Vector3 toTarget = SubtractVector3(approachTarget, enemyPosition);
-            const float distance = Length(toTarget);
-            if (distance <= (std::max)(0.0f, approachStopDistance_) + kMinVectorLength) {
-                continue;
-            }
-            direction = Normalize(toTarget, fallbackForward);
-            enemy->SetForward(direction);
-        }
-
-        const float speed = (std::max)(0.0f, approachSpeed_);
-        enemy->SetPosition(AddVector3(enemyPosition, ScaleVector3(direction, speed * safeDeltaTime)));
     }
 
     for (WaveEnemyRuntime& runtime : waveEnemies_) {

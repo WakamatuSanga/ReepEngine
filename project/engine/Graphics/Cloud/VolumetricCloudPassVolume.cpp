@@ -34,14 +34,15 @@ void VolumetricCloudPass::ConfigureTitleForegroundCopy(
     if (!source || !copy) return;
     ConfigureStillTitleBackground();
     const auto bounds = ResolveCloudVolume(camera, source);
-    copy->GetParameters() = source->GetParameters();
-    copy->GetParameters().center = bounds.center;
-    copy->GetParameters().halfExtents = bounds.halfExtents;
+    auto parameters = source->GetParameters();
+    parameters.center = bounds.center;
+    parameters.halfExtents = bounds.halfExtents;
     // Keep the source noise and physical dimensions. The lower-screen copy is
     // viewed at a grazing angle: the background's 10.6-unit boundary fade erased
     // nearly the entire visible slice. Use a shorter, still smooth edge here.
-    copy->GetParameters().edgeFade = 0.02f;
-    copy->GetParameters().density *= 2.0f;
+    parameters.edgeFade = 0.02f;
+    parameters.density *= 2.0f;
+    copy->SetParameters(parameters);
     passKind_ = PassKind::TitleForeground;
     settings_.ConfigureTitleForegroundCopy();
 }

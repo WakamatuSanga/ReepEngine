@@ -45,10 +45,7 @@ void RotatingPlaneHitEffect::Initialize(Object3dCommon* object3dCommon, Camera* 
         textureIndex_ = textureManager->GetTextureIndexByFilePath(kPlaneTexturePath);
         isUsingDefaultTexture_ = false;
         planeModel_->SetTextureIndex(textureIndex_);
-        if (auto* material = planeModel_->GetMaterialData()) {
-            material->enableLighting = 0;
-            material->alphaReference = 0.5f;
-        }
+        planeModel_->SetMaterialLighting(false, 0.5f);
     }
 
     planes_.clear();
@@ -80,7 +77,7 @@ void RotatingPlaneHitEffect::Stop() {
     isPlaying_ = false;
 }
 
-void RotatingPlaneHitEffect::Update(float deltaTime) {
+void RotatingPlaneHitEffect::Update(float deltaTime, const Camera*) {
     if (!isPlaying_) {
         return;
     }
@@ -162,14 +159,7 @@ void RotatingPlaneHitEffect::ApplyMaterial(float alpha) {
         return;
     }
 
-    if (auto* material = planeModel_->GetMaterialData()) {
-        material->color = {
-            settings_.color.x,
-            settings_.color.y,
-            settings_.color.z,
-            alpha
-        };
-    }
+    planeModel_->SetMaterialColor({settings_.color.x, settings_.color.y, settings_.color.z, alpha});
 }
 
 int RotatingPlaneHitEffect::GetActivePlaneCount() const {

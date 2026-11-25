@@ -300,11 +300,15 @@ void SkinningEditorKrakenBoneColliderPhaseControl::Evaluate(
             ++diagnostics_.nullChainPreviewCount;
             continue;
         }
-        auto& capsules = chainPreview->GetCapsules();
+        const auto& capsules = chainPreview->GetCapsules();
         for (std::size_t index = 0; index < capsules.size(); ++index) {
-            evaluateCollider(capsules[index], index, false);
+            auto capsule = capsules[index];
+            evaluateCollider(capsule, index, false);
+            chainPreview->SetCapsulePhase(index, capsule);
         }
-        evaluateCollider(chainPreview->GetTipSphere(), 0, true);
+        auto tip = chainPreview->GetTipSphere();
+        evaluateCollider(tip, 0, true);
+        chainPreview->SetTipSpherePhase(tip);
     }
 
     // This Step never registers preview colliders with Gameplay collision.
@@ -335,10 +339,15 @@ void SkinningEditorKrakenBoneColliderPhaseControl::DeactivateAll(
             ++diagnostics_.nullChainPreviewCount;
             continue;
         }
-        for (auto& capsule : chainPreview->GetCapsules()) {
+        const auto& capsules = chainPreview->GetCapsules();
+        for (std::size_t index = 0; index < capsules.size(); ++index) {
+            auto capsule = capsules[index];
             deactivate(capsule);
+            chainPreview->SetCapsulePhase(index, capsule);
         }
-        deactivate(chainPreview->GetTipSphere());
+        auto tip = chainPreview->GetTipSphere();
+        deactivate(tip);
+        chainPreview->SetTipSpherePhase(tip);
     }
     diagnostics_.currentGameplayRegisteredCount = 0;
 }
@@ -362,10 +371,12 @@ void SkinningEditorKrakenBoneColliderPhaseControl::ClearColliderStates(
         if (!chainPreview) {
             continue;
         }
-        for (auto& capsule : chainPreview->GetCapsules()) {
-            ClearColliderState(capsule);
+        KrakenColliderPreviewPhaseState phase;
+        ClearColliderState(phase);
+        for (std::size_t index = 0; index < chainPreview->GetCapsules().size(); ++index) {
+            chainPreview->SetCapsulePhase(index, phase);
         }
-        ClearColliderState(chainPreview->GetTipSphere());
+        chainPreview->SetTipSpherePhase(phase);
     }
 }
 

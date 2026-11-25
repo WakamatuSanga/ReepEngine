@@ -94,7 +94,7 @@ private:
     static Settings& GetTuning();
     struct Flight;
     void Start(bool preview, Route route);
-    void ApplyPresentation();
+    void ApplyPresentation(float squeeze);
     void Explode();
     std::unique_ptr<Flight> flight_;
     CameraShakeController* cameraShake_ = nullptr;

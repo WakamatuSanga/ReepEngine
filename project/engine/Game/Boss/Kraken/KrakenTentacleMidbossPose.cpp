@@ -35,20 +35,20 @@ bool KrakenTentacleMidbossController::Impl::CaptureBindPoseAndChains() {
     bindLocalEulerRadians.clear();
     chains.clear();
     colliderDefinitions.clear();
-    if (!skeleton || skeleton->joints.size() != kExpectedJointCount ||
-        skeleton->root != 0) {
+    if (!skeleton || skeleton->GetJoints().size() != kExpectedJointCount ||
+        skeleton->GetRootIndex() != 0) {
         lastError = "SkeletonのJoint数またはRoot番号が期待値と一致しません。";
         return false;
     }
-    rootName = skeleton->joints.front().name;
+    rootName = skeleton->GetJoints().front().name;
     if (rootName != kExpectedRootName) {
         lastError = "SkeletonのRoot名が期待値と一致しません。";
         return false;
     }
 
-    bindPose.reserve(skeleton->joints.size());
-    bindLocalEulerRadians.reserve(skeleton->joints.size());
-    for (const Joint& joint : skeleton->joints) {
+    bindPose.reserve(skeleton->GetJoints().size());
+    bindLocalEulerRadians.reserve(skeleton->GetJoints().size());
+    for (const Joint& joint : skeleton->GetJoints()) {
         if (!IsFinite(joint.localTranslate) ||
             !IsFinite(joint.localRotate) ||
             !IsFinite(joint.localScale)) {
@@ -86,17 +86,14 @@ bool KrakenTentacleMidbossController::Impl::CaptureBindPoseAndChains() {
 }
 
 bool KrakenTentacleMidbossController::Impl::RestoreBindPose() {
-    if (!skeleton || bindPose.size() != skeleton->joints.size()) {
+    if (!skeleton || bindPose.size() != skeleton->GetJoints().size()) {
         return false;
     }
     for (std::size_t jointIndex = 0;
-        jointIndex < skeleton->joints.size(); ++jointIndex) {
-        Joint& joint = skeleton->joints[jointIndex];
+        jointIndex < skeleton->GetJoints().size(); ++jointIndex) {
         const KrakenTentacleMidbossBindLocalPose& bind =
             bindPose[jointIndex];
-        joint.localTranslate = bind.translate;
-        joint.localRotate = bind.rotate;
-        joint.localScale = bind.scale;
+        skeleton->SetJointLocalTransform(jointIndex, {bind.scale, bind.rotate, bind.translate});
     }
     return true;
 }
@@ -133,8 +130,8 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
                 chains,
                 true,
                 selectedAttackChainIndex,
-                skeleton->joints.size(),
-                skeleton->root,
+                skeleton->GetJoints().size(),
+                skeleton->GetRootIndex(),
                 result) ||
             !result.valid) {
             lastError = result.errorMessage.empty()
@@ -145,16 +142,16 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
         for (const KrakenTentacleIdleJointPose& pose : result.joints) {
             if (!pose.finite || pose.jointIndex < 0 ||
                 static_cast<std::size_t>(pose.jointIndex) >=
-                    skeleton->joints.size() ||
-                pose.jointIndex == skeleton->root) {
+                    skeleton->GetJoints().size() ||
+                pose.jointIndex == skeleton->GetRootIndex()) {
                 lastError = "Idle Sway Poseに無効なJointがあります。";
                 return false;
             }
-            Joint& joint = skeleton->joints[
-                static_cast<std::size_t>(pose.jointIndex)];
-            joint.localRotate.x += pose.localEulerOffsetRadians.x;
-            joint.localRotate.y += pose.localEulerOffsetRadians.y;
-            joint.localRotate.z += pose.localEulerOffsetRadians.z;
+            auto rotation = skeleton->GetJoints()[pose.jointIndex].localRotate;
+            rotation.x += pose.localEulerOffsetRadians.x;
+            rotation.y += pose.localEulerOffsetRadians.y;
+            rotation.z += pose.localEulerOffsetRadians.z;
+            skeleton->SetJointLocalRotation(pose.jointIndex, rotation);
         }
         return true;
     }
@@ -191,12 +188,12 @@ bool KrakenTentacleMidbossController::Impl::ApplyCurrentPose() {
 }
 
 bool KrakenTentacleMidbossController::Impl::ValidateCurrentPose() const {
-    if (!skeleton || skeleton->root < 0 ||
-        static_cast<std::size_t>(skeleton->root) >=
-            skeleton->joints.size()) {
+    if (!skeleton || skeleton->GetRootIndex() < 0 ||
+        static_cast<std::size_t>(skeleton->GetRootIndex()) >=
+            skeleton->GetJoints().size()) {
         return false;
     }
-    for (const Joint& joint : skeleton->joints) {
+    for (const Joint& joint : skeleton->GetJoints()) {
         if (!IsFinite(joint.localTranslate) ||
             !IsFinite(joint.localRotate) ||
             !IsFinite(joint.localScale) ||
@@ -219,7 +216,7 @@ bool KrakenTentacleMidbossController::Impl::UpdateCurrentPoseAndSkinning() {
             true);
         return false;
     }
-    UpdateSkeletonWorldTransforms(*skeleton);
+    skeleton->UpdateWorldTransforms();
     if (!ValidateCurrentPose()) {
         EnterHidden(
             "Current PoseのJoint Transformに非有限値があります。",

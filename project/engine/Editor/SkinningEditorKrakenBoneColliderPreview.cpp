@@ -3,6 +3,7 @@
 #include "Engine/Animation/Skeleton.h"
 
 #include <algorithm>
+#include <cmath>
 
 void SkinningEditorKrakenBoneColliderPreview::Reset() {
     Clear();
@@ -142,6 +143,51 @@ bool SkinningEditorKrakenBoneColliderPreview::MatchesChain(
     const std::vector<int>& chainJoints) const {
     return selectedChainIndex_ == chainIndex &&
         chainJoints_ == chainJoints;
+}
+
+namespace {
+bool IsEditableRole(KrakenColliderPreviewRole role) {
+    return role == KrakenColliderPreviewRole::Attack ||
+        role == KrakenColliderPreviewRole::Damage ||
+        role == KrakenColliderPreviewRole::WeakPoint;
+}
+}
+
+bool SkinningEditorKrakenBoneColliderPreview::ApplyCapsuleEdit(
+    std::size_t index, const KrakenBoneColliderPreview& edit) {
+    if (index >= capsules_.size() || !IsEditableRole(edit.role)) {
+        return false;
+    }
+    auto& capsule = capsules_[index];
+    if ((edit.startJointIndex != capsule.startJointIndex || edit.endJointIndex != capsule.endJointIndex) &&
+        !SetCapsuleJointPair(index, edit.startJointIndex, edit.endJointIndex)) {
+        return false;
+    }
+    capsule.role = edit.role;
+    capsule.localRadius = std::clamp(std::isfinite(edit.localRadius) ? edit.localRadius : 0.25f, 0.01f, 2.0f);
+    capsule.enabled = edit.enabled;
+    return true;
+}
+
+bool SkinningEditorKrakenBoneColliderPreview::ApplyTipSphereEdit(
+    const KrakenTipSphereColliderPreview& edit) {
+    if (!IsEditableRole(edit.role)) return false;
+    tipSphere_.role = edit.role;
+    tipSphere_.localRadius = std::clamp(std::isfinite(edit.localRadius) ? edit.localRadius : 0.30f, 0.01f, 2.0f);
+    tipSphere_.enabled = edit.enabled;
+    return true;
+}
+
+void SkinningEditorKrakenBoneColliderPreview::SetCapsulePhase(
+    std::size_t index, const KrakenColliderPreviewPhaseState& phase) {
+    if (index < capsules_.size()) {
+        static_cast<KrakenColliderPreviewPhaseState&>(capsules_[index]) = phase;
+    }
+}
+
+void SkinningEditorKrakenBoneColliderPreview::SetTipSpherePhase(
+    const KrakenColliderPreviewPhaseState& phase) {
+    static_cast<KrakenColliderPreviewPhaseState&>(tipSphere_) = phase;
 }
 
 bool SkinningEditorKrakenBoneColliderPreview::SetCapsuleJointPair(

@@ -148,7 +148,7 @@ void SkinningEditorKrakenMotionPreview::RefreshDiagnostics() {
     diagnostics_.paletteUpdateSucceeded =
         skeleton_ &&
         diagnostics_.paletteMatrixCount ==
-            skeleton_->joints.size() &&
+            skeleton_->GetJoints().size() &&
         diagnostics_.nonFinitePaletteMatrixCount == 0;
     diagnostics_.skinningUpdateSucceeded =
         diagnostics_.paletteUpdateSucceeded &&

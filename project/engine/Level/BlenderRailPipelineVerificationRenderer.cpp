@@ -30,11 +30,7 @@ float Length(const Vector3& value) {
 
 void ApplyMaterial(Model* model, const Vector4& color) {
     if (!model) return;
-    if (Model::Material* material = model->GetMaterialData()) {
-        material->color = color;
-        material->enableLighting = 0;
-        material->alphaReference = 0.0f;
-    }
+    model->SetMaterialAppearance(color, false, 0.0f);
 }
 
 void ApplyLineTransform(Object3d& object, const Vector3& from, const Vector3& to, float thickness) {
@@ -103,6 +99,18 @@ void BlenderRailPipelineVerificationRenderer::Initialize(Object3dCommon* object3
     if (!markerModel_) markerModel_ = manager->CreateSphere("BlenderRailVerificationDistanceMarker", 8);
     tangentModel_ = manager->FindModel("BlenderRailVerificationTangent");
     if (!tangentModel_) tangentModel_ = manager->CreateBox("BlenderRailVerificationTangent");
+}
+
+void BlenderRailPipelineVerificationRenderer::SetConfig(const BlenderRailVerificationRenderConfig& config) {
+    config_.enabled = config.enabled;
+    config_.showRuntimeLine = config.showRuntimeLine;
+    config_.showNodes = config.showNodes;
+    config_.showDistanceMarkers = config.showDistanceMarkers;
+    config_.showStartEnd = config.showStartEnd;
+    config_.showLegacyLine = config.showLegacyLine;
+    config_.showTangents = config.showTangents;
+    if (std::isfinite(config.markerInterval)) config_.markerInterval = config.markerInterval;
+    if (std::isfinite(config.tangentInterval)) config_.tangentInterval = config.tangentInterval;
 }
 
 void BlenderRailPipelineVerificationRenderer::Clear() {
