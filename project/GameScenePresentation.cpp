@@ -47,6 +47,10 @@ void GameScene::PrepareForPresentation() {
         throw std::runtime_error("Stage structure: " + (levelSceneRuntime_ ? levelSceneRuntime_->GetLastLoadStatus() : "missing runtime"));
     if (!enemyWaveManager_ || !enemyWaveManager_->PrepareForPresentation(levelSceneRuntime_->GetSceneData()))
         throw std::runtime_error("Stage wave dependencies could not be prepared");
+    if (particleContest_) {
+        std::string result;
+        if (!enemyWaveManager_->StartParticleContestWave(result)) throw std::runtime_error(result);
+    }
     if (!enemyManager_ || !enemyManager_->PrepareForPresentation())
         throw std::runtime_error("Stage enemy shared visual could not be prepared");
     if (!playerBulletManager_ || !playerBulletManager_->PrepareForPresentation()
@@ -143,7 +147,7 @@ void GameScene::DrawOverlay() {
             player_ && player_->IsEnabled() && playerBulletManager_ && playerBulletManager_->CanShowMouseAim() &&
             aimCorridorVisualController_ && !SceneManager::GetInstance()->UsesFullscreenScenePresentationForNextUpdate();
 #ifdef USE_IMGUI
-        if (showMouseReticle && ImGui::GetCurrentContext()) {
+        if (showMouseReticle && !particleContest_ && ImGui::GetCurrentContext()) {
             const ImGuiIO& io = ImGui::GetIO();
             showMouseReticle = !io.MouseDrawCursor && !io.WantTextInput &&
                 !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);

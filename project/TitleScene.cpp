@@ -51,6 +51,7 @@ TitleScene::~TitleScene() = default;
 void TitleScene::Initialize() {
     sequence_ = {};
     transitionRequested_ = false;
+    particleContestLaunch_ = false;
     aircraftVisibility_ = 0.0f;
     auto* game = MyGame::GetInstance();
     SceneManager::GetInstance()->PreloadTitleCloudTransition();
@@ -179,27 +180,31 @@ void TitleScene::UpdateDisplay(float deltaTime) {
         aircraft_ ? &aircraft_->GetTransform() : nullptr,
         sequence_.phase == TitleLaunchSequence::Phase::Fly, aircraftVisibility_, sequence_.GetFlightProgress());
 }
+void TitleScene::StartLaunch(bool particleContest) {
+    if (!CanStartLaunch()) return;
+    particleContestLaunch_ = particleContest;
+    if (aircraft_) aircraftStart_ = aircraft_->GetTransform();
+    if (foreground_) foreground_->BeginDeparture();
+    sequence_.Start(aircraftStart_.rotate.y);
+    MyGame::GetInstance()->GetInput()->SuppressLeftMouseUntilRelease();
+}
+
 void TitleScene::Update() {
     Input* input = MyGame::GetInstance()->GetInput();
     bool startClicked = input && input->MouseLeftClientTrigger();
 #ifdef USE_IMGUI
     startClicked = startClicked && !ImGui::GetIO().WantCaptureMouse;
 #endif
-    if (sequence_.phase == TitleLaunchSequence::Phase::Idle && startClicked) {
-        if (aircraft_) aircraftStart_ = aircraft_->GetTransform();
-        if (foreground_) foreground_->BeginDeparture();
-        sequence_.Start(aircraftStart_.rotate.y);
-        input->SuppressLeftMouseUntilRelease();
-    }
+    if (startClicked) StartLaunch();
     const float deltaTime = FrameTimer::GetInstance().GetGameplayDeltaTime();
     if (logo_) logo_->Update(deltaTime, sequence_.phase != TitleLaunchSequence::Phase::Idle);
     UpdateDisplay(deltaTime);
     if (sequence_.phase == TitleLaunchSequence::Phase::Cover && !transitionRequested_) {
         transitionRequested_ = true;
-        SceneManager::GetInstance()->ChangeSceneWithTitleClouds(std::make_unique<GameScene>());
+        SceneManager::GetInstance()->ChangeSceneWithTitleClouds(std::make_unique<GameScene>(particleContestLaunch_));
     }
 #ifdef USE_IMGUI
-    if (sequence_.phase == TitleLaunchSequence::Phase::Idle) {
+    if (CanStartLaunch() && !SceneManager::GetInstance()->BlocksDebugUiForNextUpdate()) {
     const DebugUiWorkspace::Panel panels[]{ { "title", "タイトルの設定", DebugUiWorkspace::Category::Game, [this] {
         ImGui::TextUnformatted("タイトル画面を左クリックして出撃します。");
         const auto& loadError = SceneManager::GetInstance()->GetLastPreparationError();

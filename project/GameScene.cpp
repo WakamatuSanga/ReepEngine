@@ -4,6 +4,8 @@
 #include "MyGame.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
+#include "Engine/Core/RuntimeModeController.h"
+#include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/GameState/StageStartSequenceController.h"
 #include "Engine/Game/GameState/StageClearSequenceController.h"
 #include "Engine/Game/GameState/PlayerDeathSequenceController.h"
@@ -53,6 +55,15 @@ void GameScene::Update() {
     if (auto* clouds = MyGame::GetInstance()->GetVolumetricCloudPass(); clouds && clouds->UpdateResolutionComparison()) return;
     deathPresentationEntered_ = false;
     UpdateSceneRuntime();
+}
+
+bool GameScene::IsParticleContestReady() const {
+    return presentationPrepared_ && stageStart_ && !stageStart_->IsActive() &&
+        runtimeModeController_ && runtimeModeController_->IsGameMode() &&
+        (!railShooterCameraRig_ || !railShooterCameraRig_->IsGameplayPresentationActive()) &&
+        (!stageCombatState_ || !stageCombatState_->IsPaused()) &&
+        (!stageClear_ || !stageClear_->IsActive()) &&
+        (!playerDeathSequenceController_ || !playerDeathSequenceController_->IsActiveOrFinished());
 }
 
 void GameScene::Draw() {

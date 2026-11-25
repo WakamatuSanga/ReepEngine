@@ -124,7 +124,7 @@ void PlayerBulletManager::Finalize() {
     projectileRailMotionAdapter_ = nullptr;
 }
 
-void PlayerBulletManager::Update(float deltaTime) {
+std::uint64_t PlayerBulletManager::Update(float deltaTime, const AutomatedFire* automated) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::PlayerUpdateMs);
     const float safeDeltaTime = std::clamp(deltaTime, 0.0f, 1.0f / 15.0f);
     UpdateCameraVelocity(safeDeltaTime);
@@ -142,7 +142,10 @@ void PlayerBulletManager::Update(float deltaTime) {
     lastCanFire_ = false;
     lastImGuiTextInputActive_ = false;
     Input* input = MyGame::GetInstance()->GetInput();
-    if (!input) {
+    if (automated) {
+        lastLeftClickHeld_ = automated->normalFire;
+        lastRightClickPressed_ = !automated->lockedTarget.empty();
+    } else if (!input) {
         inputBlockedReason_ = "Input is missing";
     } else {
         lastLeftClickPressed_ = input->MouseTrigger(Input::MouseLeft);
@@ -150,7 +153,8 @@ void PlayerBulletManager::Update(float deltaTime) {
         lastRightClickPressed_ = input->MouseTrigger(Input::MouseRight);
     }
 
-    const bool inputBlocked = !input || ShouldBlockFireInput() || !input->IsMouseStateValid();
+    const bool inputBlocked = automated ? ShouldBlockFireInput(true) :
+        (!input || ShouldBlockFireInput(false) || !input->IsMouseStateValid());
     bool normalShotBlocked = inputBlocked;
     if (!normalShotBlocked && UsesMouseAim()) {
         if (!gameViewport_) {
@@ -169,10 +173,10 @@ void PlayerBulletManager::Update(float deltaTime) {
     }
     if (inputBlocked) {
         missileInputArmed_ = false;
-    } else if (!input->MouseDown(Input::MouseRight)) {
+    } else if (automated || !input->MouseDown(Input::MouseRight)) {
         missileInputArmed_ = true;
     }
-    const bool firing = !normalShotBlocked && normalShotInputArmed_ && lastLeftClickHeld_;
+    const bool firing = !normalShotBlocked && (automated || normalShotInputArmed_) && lastLeftClickHeld_;
     if (!firing || lastLeftClickPressed_) {
         fireTimer_ = (std::min)(fireInterval_, fireTimer_);
     }
@@ -184,8 +188,10 @@ void PlayerBulletManager::Update(float deltaTime) {
             lastCanFire_ = false;
         }
     }
-    if (!inputBlocked && missileInputArmed_ && lastRightClickPressed_) {
-        TrySpawnLockedWingShot();
+    std::uint64_t launchedMissile = 0;
+    if (!inputBlocked && (automated || missileInputArmed_) && lastRightClickPressed_) {
+        const auto result = TrySpawnLockedWingShot(automated ? automated->lockedTarget : std::string_view{});
+        if (result == LockedWingShotResult::Spawned) launchedMissile = bullets_.back().runtimeId;
     }
     for (PlayerBulletInstance& instance : bullets_) {
         if (instance.bullet) {
@@ -205,6 +211,7 @@ void PlayerBulletManager::Update(float deltaTime) {
     if (autoRemoveDeadBullets_) {
         RemoveDeadBullets();
     }
+    return launchedMissile;
 }
 
 void PlayerBulletManager::Draw() {
@@ -517,7 +524,7 @@ void PlayerBulletManager::ApplyModelRotationOffsetToBullets() {
     }
 }
 
-bool PlayerBulletManager::ShouldBlockFireInput() {
+bool PlayerBulletManager::ShouldBlockFireInput(bool automated) {
     if (!enablePlayerShot_) {
         inputBlockedReason_ = "Player shot disabled";
         return true;
@@ -526,7 +533,7 @@ bool PlayerBulletManager::ShouldBlockFireInput() {
         inputBlockedReason_ = "Game View is not hovered/focused";
         return true;
     }
-    lastImGuiTextInputActive_ = IsEditingImGuiText();
+    lastImGuiTextInputActive_ = !automated && IsEditingImGuiText();
     if (lastImGuiTextInputActive_) {
         inputBlockedReason_ = "ImGui text input is active";
         return true;

@@ -1,4 +1,5 @@
 #include "Input.h"
+#include "Engine/Core/WinApp.h"
 #include <cassert>
 #include <cstring>   // memcpy, memset
 #include <algorithm> // std::clamp
@@ -151,65 +152,65 @@ bool Input::PushKey(BYTE keyNumber) const
 {
     // DirectInput の押下フラグは 0x80（最上位ビット）
     // スライド準拠で「0 以外」を押下扱いにしている
-    return key_[keyNumber] != 0;     // 厳密にするなら：(key_[keyNumber] & 0x80) != 0
+    return !manualInputSuppressed_ && key_[keyNumber] != 0;
 }
 
 bool Input::TriggerKey(BYTE keyNumber) const
 {
     const bool prev = keyPre_[keyNumber] != 0;
     const bool curr = key_[keyNumber] != 0;
-    return (!prev && curr);
+    return !manualInputSuppressed_ && !prev && curr;
 }
 
 // ========== マウス ==========
 
 bool Input::MouseDown(MouseButton button) const
 {
-    if (button == MouseLeft && suppressLeftMouse_) return false;
+    if (manualInputSuppressed_ || (button == MouseLeft && suppressLeftMouse_)) return false;
     return (mouseNow_.rgbButtons[button] & 0x80) != 0;
 }
 
 bool Input::MouseTrigger(MouseButton button) const
 {
-    if (button == MouseLeft && suppressLeftMouse_) return false;
+    if (manualInputSuppressed_ || (button == MouseLeft && suppressLeftMouse_)) return false;
     const bool prev = (mousePrev_.rgbButtons[button] & 0x80) != 0;
     const bool curr = (mouseNow_.rgbButtons[button] & 0x80) != 0;
     return (!prev && curr);
 }
 
 bool Input::MouseLeftClientTrigger() const {
-    return !suppressLeftMouse_ && winApp_ && winApp_->WasLeftClickInClient();
+    return !manualInputSuppressed_ && !suppressLeftMouse_ && winApp_ && winApp_->WasLeftClickInClient();
 }
 
-LONG Input::MouseDeltaX() const { return mouseNow_.lX; }
-LONG Input::MouseDeltaY() const { return mouseNow_.lY; }
-LONG Input::MouseWheelDelta() const { return mouseNow_.lZ; }
+LONG Input::MouseDeltaX() const { return manualInputSuppressed_ ? 0 : mouseNow_.lX; }
+LONG Input::MouseDeltaY() const { return manualInputSuppressed_ ? 0 : mouseNow_.lY; }
+LONG Input::MouseWheelDelta() const { return manualInputSuppressed_ ? 0 : mouseNow_.lZ; }
 
 // ========== パッド ==========
 
-bool Input::PadAvailable() const { return gamepad_ != nullptr; }
+bool Input::PadAvailable() const { return !manualInputSuppressed_ && gamepad_ != nullptr; }
 
 bool Input::PadButtonDown(int index) const
 {
-    if (!gamepad_ || index < 0 || index >= 128) return false;
+    if (!PadAvailable() || index < 0 || index >= 128) return false;
     return (padNow_.rgbButtons[index] & 0x80) != 0;
 }
 
 bool Input::PadButtonTrigger(int index) const
 {
-    if (!gamepad_ || index < 0 || index >= 128) return false;
+    if (!PadAvailable() || index < 0 || index >= 128) return false;
     const bool prev = (padPrev_.rgbButtons[index] & 0x80) != 0;
     const bool curr = (padNow_.rgbButtons[index] & 0x80) != 0;
     return (!prev && curr);
 }
 
 // 軸の正規化（存在しない軸は 0 を返す前提の簡易実装）
-float Input::PadLX() const { return NormalizeAxis(padNow_.lX); }
-float Input::PadLY() const { return NormalizeAxis(padNow_.lY); }
-float Input::PadRX() const { return NormalizeAxis(padNow_.lRx); }
-float Input::PadRY() const { return NormalizeAxis(padNow_.lRy); }
+float Input::PadLX() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lX); }
+float Input::PadLY() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lY); }
+float Input::PadRX() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lRx); }
+float Input::PadRY() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lRy); }
 
 // トリガは対応デバイスにより Z / Rz / Slider 等に割り当てが違うため簡易対応
 // ここでは Z を L、Rz を R として扱う（異なる場合は適宜差し替えてください）
-float Input::PadLT() const { return NormalizeAxis(padNow_.lZ); }
-float Input::PadRT() const { return NormalizeAxis(padNow_.lRz); }
+float Input::PadLT() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lZ); }
+float Input::PadRT() const { return manualInputSuppressed_ ? 0.0f : NormalizeAxis(padNow_.lRz); }

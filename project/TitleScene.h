@@ -26,6 +26,8 @@ public:
     void DrawOverlay() override;
     void Finalize() override;
     bool UsesFullscreenScenePresentation() const override { return true; }
+    bool CanStartLaunch() const { return sequence_.phase == TitleLaunchSequence::Phase::Idle; }
+    void StartLaunch(bool particleContest = false);
 private:
     void UpdateDisplay(float deltaTime);
 
@@ -42,6 +44,7 @@ private:
     float savedModelAlpha_ = 1.0f;
     TitleLaunchSequence sequence_;
     bool transitionRequested_ = false;
+    bool particleContestLaunch_ = false;
     Transform aircraftStart_{};
     float aircraftVisibility_ = 0.0f;
 };

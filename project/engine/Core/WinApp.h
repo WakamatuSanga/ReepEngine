@@ -26,6 +26,7 @@ public:
     int32_t GetClientHeight() const;
     // A new press delivered to this window's client area in the current message pump.
     bool WasLeftClickInClient() const;
+    bool WasF8Pressed() const { return f8Pressed_; }
     void SetGameplayCursorArea(const RECT& clientArea);
 
     // getter
@@ -42,6 +43,7 @@ private:
     LONG_PTR windowedExStyle_ = 0;
     bool isFullscreen_ = false;
     bool clientLeftClick_ = false;
+    bool f8Pressed_ = false;
     POINT clientLeftClickPosition_{};
     RECT gameplayCursorArea_{};
     bool gameplayCursorHidden_ = false;

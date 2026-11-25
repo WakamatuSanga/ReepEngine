@@ -61,7 +61,7 @@ public:
     RuntimeModeController();
     ~RuntimeModeController();
 
-    void Initialize(WinApp* winApp);
+    void Initialize(WinApp* winApp, bool startInGameMode = false);
     void Update(Input* input);
     void DrawImGui();
     void DrawMenuBarImGui();

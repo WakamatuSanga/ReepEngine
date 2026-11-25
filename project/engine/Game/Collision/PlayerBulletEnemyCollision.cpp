@@ -1,5 +1,6 @@
 ﻿#include "Engine/Core/DebugUiWorkspace.h"
 #include "PlayerBulletEnemyCollision.h"
+#include "ParticleContestDemo.h"
 #include "Engine/Game/GameState/StageCombatState.h"
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Core/FrameTimer.h"
@@ -41,7 +42,7 @@ void PlayerBulletEnemyCollision::Finalize() {
     combatEffectController_ = nullptr;
 }
 
-void PlayerBulletEnemyCollision::Update() {
+void PlayerBulletEnemyCollision::Update(ParticleContestDemo* demo) {
     FrameTimer::BulletScope measurement(FrameTimer::BulletMetric::EnemyHitMs);
     lastHitResult_ = false;
     lastDamage_ = 0;
@@ -62,6 +63,7 @@ void PlayerBulletEnemyCollision::Update() {
         Vector3 hitPosition{};
         int damage = 0;
         auto projectileType = PlayerBulletManager::PlayerProjectileType::NormalShot;
+        std::uint64_t projectileId = 0;
         float lastBulletRadius = 0.0f;
         float lastDistance = -1.0f;
         float lastRadiusSum = 0.0f;
@@ -76,7 +78,7 @@ void PlayerBulletEnemyCollision::Update() {
                 &damage,
                 &lastDistance,
                 &lastRadiusSum,
-                &lastBulletRadius, &projectileType)
+                &lastBulletRadius, &projectileType, demo ? &projectileId : nullptr)
             : bulletManager_->CheckHitAndKillFirstSphere(
                 enemyPosition,
                 enemyRadius,
@@ -84,7 +86,7 @@ void PlayerBulletEnemyCollision::Update() {
                 &damage,
                 &lastDistance,
                 &lastRadiusSum,
-                &lastBulletRadius, &projectileType);
+                &lastBulletRadius, &projectileType, demo ? &projectileId : nullptr);
         if (!hit) {
             if (lastDistance_ < 0.0f || (lastDistance >= 0.0f && lastDistance < lastDistance_)) {
                 lastDistance_ = lastDistance;
@@ -121,6 +123,10 @@ void PlayerBulletEnemyCollision::Update() {
         }
         if (combatEffectController_ && playCombatEffect_) {
             combatEffectController_->PlayStage1EnemyHit(hitPosition, isLethalHit ? &defeatPose : nullptr);
+        }
+        if (demo) {
+            const bool missile = projectileType == PlayerBulletManager::PlayerProjectileType::LockedWingShot;
+            demo->RecordHit(enemy->GetEnemyId(), projectileId, missile, isLethalHit);
         }
     }
 }

@@ -1,13 +1,15 @@
 ﻿#include "SceneManager.h"
 #include "TitleCloudTransition.h"
 #include "MyGame.h"
+#include "GameScene.h"
+#include "ParticleContestDemo.h"
 #include "TitleScene.h"
 #include "Engine/Utility/Logger.h"
 #include <exception>
 #include "Engine/Core/FrameTimer.h"
 #include "Engine/Input/Input.h"
 
-SceneManager::SceneManager() = default;
+SceneManager::SceneManager() : particleContestDemo_(std::make_unique<ParticleContestDemo>()) {}
 SceneManager::~SceneManager() = default;
 
 std::unique_ptr<SceneManager> SceneManager::instance_ = nullptr;
@@ -30,6 +32,7 @@ void SceneManager::ChangeScene(std::unique_ptr<IScene> newScene) {
 }
 
 void SceneManager::Update() {
+    UpdateParticleContestDemo();
     if (!BlocksDebugUiForNextUpdate() && titleTransition_ && titleTransition_->DrawImGui() && !nextScene_) {
         testTransition_ = titleTransition_->Start();
     }
@@ -73,6 +76,41 @@ void SceneManager::Update() {
     if (currentScene_) currentScene_->Update();
 }
 
+void SceneManager::UpdateParticleContestDemo() {
+    using Screen = ParticleContestDemo::Screen;
+    using Action = ParticleContestDemo::SceneAction;
+    auto* title = dynamic_cast<TitleScene*>(currentScene_.get());
+    const auto* game = dynamic_cast<const GameScene*>(currentScene_.get());
+    Screen screen = Screen::Other;
+    if (nextScene_ || presentationRevealPending_ || IsTitleTransitionActive()) {
+        screen = Screen::Busy;
+    } else if (title) {
+        screen = title->CanStartLaunch() ? Screen::Title : Screen::TitleDeparture;
+    } else if (game && game->IsParticleContestScene()) {
+        screen = game->IsParticleContestReady() ? Screen::Game : Screen::GameIntro;
+    }
+
+    auto* app = MyGame::GetInstance();
+    auto* input = app->GetInput();
+    const bool wasSuppressingInput = particleContestDemo_->BlocksManualInput();
+    const auto action = particleContestDemo_->UpdateScreen(screen, app->GetWinApp()->WasF8Pressed(),
+        FrameTimer::GetInstance().GetRawDeltaTime(), !lastPreparationError_.empty());
+    const bool suppressInput = particleContestDemo_->BlocksManualInput();
+    input->SetManualInputSuppressed(suppressInput);
+    if (wasSuppressingInput && !suppressInput) input->SuppressLeftMouseUntilRelease();
+    if (action == Action::StartFromTitle && title) {
+        title->StartLaunch(true);
+    } else if (action == Action::ReturnToTitle) {
+        input->SuppressLeftMouseUntilRelease();
+        ChangeScene(std::make_unique<TitleScene>());
+    }
+}
+
+bool SceneManager::BlocksDebugUiForNextUpdate() const {
+    const IScene* scene = nextScene_ ? nextScene_.get() : currentScene_.get();
+    return particleContestDemo_->BlocksManualInput() || (scene && scene->BlocksDebugUiForPresentation());
+}
+
 void SceneManager::Draw() {
     if (currentScene_) {
         currentScene_->Draw();
@@ -80,6 +118,7 @@ void SceneManager::Draw() {
 }
 
 void SceneManager::Finalize() {
+    *particleContestDemo_ = ParticleContestDemo{};
     if (failedPreparationScene_) failedPreparationScene_->Finalize();
     failedPreparationScene_.reset();
     lastPreparationError_.clear();

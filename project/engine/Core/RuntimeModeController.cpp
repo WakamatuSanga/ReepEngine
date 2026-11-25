@@ -25,11 +25,11 @@ RuntimeModeController::~RuntimeModeController() {
     }
 }
 
-void RuntimeModeController::Initialize(WinApp* winApp) {
+void RuntimeModeController::Initialize(WinApp* winApp, [[maybe_unused]] bool startInGameMode) {
     winApp_ = winApp;
     activeController_ = this;
 #ifdef USE_IMGUI
-    mode_ = RuntimeMode::Debug;
+    mode_ = startInGameMode ? RuntimeMode::Game : RuntimeMode::Debug;
     RequestWindowFullscreen(false);
 #else
     mode_ = RuntimeMode::Game;

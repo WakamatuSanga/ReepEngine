@@ -235,6 +235,36 @@ bool EnemyWaveManager::PrepareForPresentation(const LevelSceneData& sceneData) {
     return true;
 }
 
+bool EnemyWaveManager::StartParticleContestWave(std::string& result) {
+    constexpr size_t kTargetCount = 4;
+    const auto base = waveIndexById_.find("wave_001");
+    if (base == waveIndexById_.end() || waves_[base->second].enemies.size() < kTargetCount) {
+        result = "Particle Contest needs four ordinary targets from wave_001";
+        return false;
+    }
+
+    EnemyWaveDefinition demoWave = waves_[base->second];
+    demoWave.waveId = "particle_contest";
+    demoWave.name = "Particle Contest";
+    demoWave.nextWaveId.clear();
+    demoWave.enemies.resize(kTargetCount);
+    for (auto& target : demoWave.enemies) {
+        // Keep the original enemy and HP. Extend the formation hold so the
+        // reticle and the homing missile can follow a target on a slow frame.
+        target.anchorHold = 45.0f;
+        target.formationApproachDepth = 0.0f;
+        target.formationForwardSpeed = 0.0f;
+    }
+    demoWave.enemies.back().depth = 42.0f;
+    demoWave.enemies.back().screenX = 0.15f;
+    demoWave.enemies.back().screenY = 0.36f;
+    const size_t index = waves_.size();
+    waveIndexById_[demoWave.waveId] = index;
+    waves_.push_back(std::move(demoWave));
+    autoStartWaveOnGameMode_ = false;
+    return StartWaveNow(index, result, false);
+}
+
 void EnemyWaveManager::Finalize() {
     finalizing_ = true;
     enemyManager_ = nullptr;

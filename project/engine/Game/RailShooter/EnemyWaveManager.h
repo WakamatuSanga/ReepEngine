@@ -30,6 +30,7 @@ public:
     void Initialize(EnemyManager* enemyManager, const Camera* camera);
     void Reset();
     bool PrepareForPresentation(const LevelSceneData& sceneData);
+    bool StartParticleContestWave(std::string& result);
     void Finalize();
     void Update(float deltaTime);
     void DrawImGui();
