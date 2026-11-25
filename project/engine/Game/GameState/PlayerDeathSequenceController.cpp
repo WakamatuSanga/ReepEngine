@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <optional>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #endif
@@ -52,14 +53,47 @@ Matrix4x4 FromTo(Vector3 a,Vector3 b){
 }
 }
 struct PlayerDeathSequenceController::Flight {
+    struct CameraShot {
+        float seconds;
+        float azimuth;
+        float distance;
+        float height;
+        Vector3 focus;
+    };
+
+    struct AttackSample {
+        std::optional<Vector3> shotMuzzle;
+        bool hit = false;
+        float squeeze = 0.0f;
+    };
+
+    class Presentation {
+    public:
+        virtual ~Presentation() = default;
+        virtual CameraShot GetCameraShot(const Flight& flight) const = 0;
+        virtual float Start(const Flight& flight) = 0;
+        virtual AttackSample Sample(const Flight& flight, float elapsedTime) const = 0;
+        virtual void ApplyActors(Flight& flight, const Transform& pose, float squeeze, float elapsedTime) = 0;
+        virtual void Draw(Flight& flight, float elapsedTime) const = 0;
+    };
+
+    class RearEnemyPresentation;
+    class KrakenGripPresentation;
+    Flight();
+    ~Flight();
+
     Player* player=nullptr; Camera* camera=nullptr; BoostController* boost=nullptr;
     PlayerDamageFeedbackController* health=nullptr; GpuParticleEffectPlayer* effects=nullptr;
     CombatEffectController* combat=nullptr; EnemyWaveManager* waves=nullptr;
     KrakenTentacleWaveEncounterController* encounter=nullptr;
     Object3dCommon* objects=nullptr; ModelCommon* models=nullptr;
     Settings settings; Camera originalCamera; Transform originalPose{};
-    Vector3 forward{0,0,1},right{1,0,0},up{0,1,0},center{},enemyPosition{},muzzle{};
+    Vector3 forward{0,0,1},right{1,0,0},up{0,1,0},center{};
     Route route=Route::RearEnemy; std::string wave;
+    std::unique_ptr<Presentation> rearEnemy;
+    std::unique_ptr<Presentation> krakenGrip;
+    Presentation* presentation = nullptr;
+    CameraShot cameraShot{};
     std::unique_ptr<Enemy> enemy; std::unique_ptr<EnemyBullet> bullet;
     std::unique_ptr<PlayerJetExhaustBeamRenderer> bulletGlow;
     std::vector<PlayerJetExhaustBeamRenderer::Vertex> bulletGlowVertices;
@@ -72,10 +106,13 @@ struct PlayerDeathSequenceController::Flight {
     GpuParticleEffectPlayer::FollowHandle smoke=0;
     bool prepared=false,captured=false,preview=false,paused=false,fired=false,hit=false,exploded=false;
     float unit=1;
-    float speed=1,fireTime=0,hitTime=0,explosionTime=0,finishTime=0;
-    float CameraSeconds()const{return route==Route::KrakenGrip?settings.bossCameraSeconds:settings.cameraSeconds;}
+    float speed=1,explosionTime=0,finishTime=0;
     Vector3 PlaceWorld(float x,float y,float z)const{return Add(center,Add(Mul(right,x),Add(Mul(up,y),Mul(forward,z))));}
     Vector3 Place(float x,float y,float z)const{return PlaceWorld(x*unit,y*unit,z*unit);}
+    void ApplyPlayerPose(const Transform& pose, float squeeze) const {
+        player->SetDisplayScale({1-squeeze*.55f,1-squeeze*.75f,1+squeeze*.10f});
+        player->SetDisplayPose(Sub(pose.translate,player->GetWorldPosition()),pose.rotate);
+    }
     Vector3 TentaclePoint(float u,float side,float rise,float approach,float squeeze)const{
         const float gap=settings.tentacleGripWidth*(1-squeeze*settings.squeezeAmount);
         const float x=side*(settings.tentacleStartSpread*std::pow(1-u,1.4f)
@@ -85,7 +122,7 @@ struct PlayerDeathSequenceController::Flight {
         return {x,y,.3f*std::sin(kPi*u)};
     }
     void UpdateTentacles(float time){
-        const float t=time-CameraSeconds();
+        const float t=time-cameraShot.seconds;
         const float rise=Smooth(t/settings.tentacleRiseSeconds);
         const float approach=Smooth((t-settings.tentacleRiseSeconds)/settings.tentacleApproachSeconds);
         const float squeeze=Smooth((t-settings.tentacleRiseSeconds-settings.tentacleApproachSeconds-settings.gripHoldSeconds)/settings.squeezeSeconds);
@@ -148,6 +185,120 @@ struct PlayerDeathSequenceController::Flight {
         tentacleObject->SetRotate(euler);tentacleObject->SetScale({unit,unit,unit});tentacleObject->SetTranslate(center);tentacleObject->Update();
     }
 };
+
+class PlayerDeathSequenceController::Flight::RearEnemyPresentation final : public Presentation {
+public:
+    CameraShot GetCameraShot(const Flight& f) const override {
+        const auto& s = f.settings;
+        return {s.cameraSeconds, 0.0f, s.cameraDistance, s.cameraHeight, f.center};
+    }
+
+    float Start(const Flight& f) override {
+        const auto& s = f.settings;
+        enemyPosition_ = f.Place(s.enemySide, s.enemyHeight, -s.enemyDistance);
+        muzzle_ = Add(enemyPosition_, Mul(Unit(Sub(f.center, enemyPosition_)), .7f * f.unit));
+        const float appear = s.cameraSeconds + s.enemyAppearDelay;
+        fireTime_ = appear + s.enemyRiseSeconds + s.fireDelay;
+        hitTime_ = fireTime_ + Length(Sub(f.center, muzzle_)) / ((std::max)(1.0f, s.bulletSpeed) * f.unit);
+        return hitTime_ + s.hitToExplosion;
+    }
+
+    AttackSample Sample(const Flight&, float elapsedTime) const override {
+        return {elapsedTime >= fireTime_ ? std::optional<Vector3>{muzzle_} : std::nullopt,
+            elapsedTime >= hitTime_, 0.0f};
+    }
+
+    void ApplyActors(Flight& f, const Transform& pose, float squeeze, float elapsedTime) override {
+        f.ApplyPlayerPose(pose, squeeze);
+        const auto& s = f.settings;
+        const float rise = Smooth((elapsedTime - s.cameraSeconds - s.enemyAppearDelay) / s.enemyRiseSeconds);
+        f.enemy->SetPosition(Add(enemyPosition_, Mul(f.up, -4 * (1 - rise) * f.unit)));
+        const float enemySize = s.enemyScale * f.unit;
+        f.enemy->SetScale({enemySize, enemySize, enemySize});
+        f.enemy->LookAt(f.center);
+        f.enemy->Update(0);
+        if (f.fired && !f.hit) {
+            const float progress = std::clamp((elapsedTime - fireTime_) / (hitTime_ - fireTime_), 0.0f, 1.0f);
+            const float bulletSize = s.bulletScale * f.unit;
+            f.bullet->SetScale({bulletSize, bulletSize, bulletSize});
+            f.bullet->SetPosition(Lerp(muzzle_, f.center, progress));
+            f.bullet->SetVisualForwardOverride(Unit(Sub(f.center, muzzle_)));
+            f.bullet->Update(0);
+        }
+    }
+
+    void Draw(Flight& f, float elapsedTime) const override {
+        if (elapsedTime >= f.settings.cameraSeconds + f.settings.enemyAppearDelay) f.enemy->Draw();
+        if (f.fired && !f.hit) {
+            f.bullet->Draw();
+            const auto head = f.bullet->GetPosition();
+            const auto direction = Unit(Sub(f.center, muzzle_));
+            const float traveled = Length(Sub(head, muzzle_));
+            const auto tail = Sub(head, Mul(direction,
+                (std::min)(f.settings.bulletTrailLength * f.unit, traveled + .15f * f.unit)));
+            const auto normal = Unit(Sub(f.camera->GetViewTranslate(), head));
+            const auto side = Mul(Unit(MatrixMath::Cross(direction, normal), f.up),
+                f.settings.bulletGlowWidth * f.unit);
+            const auto a = Add(tail, side), b = Sub(tail, side), c = Add(head, side), d = Sub(head, side);
+            auto& vertices = f.bulletGlowVertices;
+            vertices.clear();
+            vertices.push_back({a,{0,0}}); vertices.push_back({c,{1,0}}); vertices.push_back({d,{1,1}});
+            vertices.push_back({a,{0,0}}); vertices.push_back({d,{1,1}}); vertices.push_back({b,{0,1}});
+            f.bulletGlow->Draw(vertices, f.camera, 1.8f, .85f, 0, 1.5f, 1, elapsedTime, 3u);
+        }
+    }
+
+private:
+    Vector3 enemyPosition_{};
+    Vector3 muzzle_{};
+    float fireTime_ = 0.0f;
+    float hitTime_ = 0.0f;
+};
+
+class PlayerDeathSequenceController::Flight::KrakenGripPresentation final : public Presentation {
+public:
+    CameraShot GetCameraShot(const Flight& f) const override {
+        const auto& s = f.settings;
+        return {s.bossCameraSeconds, s.bossCameraAzimuth, s.bossCameraDistance,
+            s.bossCameraHeight, f.Place(0, s.bossCameraFocusY, 0)};
+    }
+
+    float Start(const Flight& f) override {
+        return SqueezeStart(f) + f.settings.squeezeSeconds;
+    }
+
+    AttackSample Sample(const Flight& f, float elapsedTime) const override {
+        AttackSample sample;
+        sample.squeeze = Smooth((elapsedTime - SqueezeStart(f)) / f.settings.squeezeSeconds) * f.settings.squeezeAmount;
+        return sample;
+    }
+
+    void ApplyActors(Flight& f, const Transform& pose, float squeeze, float elapsedTime) override {
+        f.UpdateTentacles(elapsedTime);
+        f.ApplyPlayerPose(pose, squeeze);
+    }
+
+    void Draw(Flight& f, float elapsedTime) const override {
+        if (elapsedTime >= f.cameraShot.seconds) {
+            f.tentacles->DispatchComputeSkinning(f.objects->GetDxCommon()->GetCommandList());
+            f.objects->CommonDrawSetting();
+            f.tentacleObject->Draw();
+        }
+    }
+
+private:
+    static float SqueezeStart(const Flight& f) {
+        const auto& s = f.settings;
+        return f.cameraShot.seconds + s.tentacleRiseSeconds + s.tentacleApproachSeconds + s.gripHoldSeconds;
+    }
+};
+
+PlayerDeathSequenceController::Flight::Flight()
+    : rearEnemy(std::make_unique<RearEnemyPresentation>()),
+      krakenGrip(std::make_unique<KrakenGripPresentation>()) {}
+
+PlayerDeathSequenceController::Flight::~Flight() = default;
+
 PlayerDeathSequenceController::Settings& PlayerDeathSequenceController::GetTuning(){return tuning;}
 PlayerDeathSequenceController::PlayerDeathSequenceController():flight_(std::make_unique<Flight>()){}
 PlayerDeathSequenceController::~PlayerDeathSequenceController()=default;
@@ -205,45 +356,47 @@ void PlayerDeathSequenceController::Start(bool preview,Route route){
     f.right=Unit(MatrixMath::Cross({0,1,0},f.forward),{basis.m[0][0],basis.m[0][1],basis.m[0][2]});
     f.up=Unit(MatrixMath::Cross(f.forward,f.right),{0,1,0});
     f.settings=GetTuning();f.route=route;f.wave=f.waves?f.waves->GetCurrentWaveId():"(none)";
-    f.enemyPosition=f.Place(f.settings.enemySide,f.settings.enemyHeight,-f.settings.enemyDistance);
-    f.muzzle=Add(f.enemyPosition,Mul(Unit(Sub(f.center,f.enemyPosition)),.7f*f.unit));
-    const float appear=f.settings.cameraSeconds+f.settings.enemyAppearDelay;
-    f.fireTime=appear+f.settings.enemyRiseSeconds+f.settings.fireDelay;
-    f.hitTime=f.fireTime+Length(Sub(f.center,f.muzzle))/((std::max)(1.0f,f.settings.bulletSpeed)*f.unit);
-    f.explosionTime=route==Route::RearEnemy?f.hitTime+f.settings.hitToExplosion:
-        f.CameraSeconds()+f.settings.tentacleRiseSeconds+f.settings.tentacleApproachSeconds+f.settings.gripHoldSeconds+f.settings.squeezeSeconds;
+    f.presentation = route == Route::RearEnemy ? f.rearEnemy.get() : f.krakenGrip.get();
+    f.cameraShot = f.presentation->GetCameraShot(f);
+    f.explosionTime = f.presentation->Start(f);
     f.finishTime=f.explosionTime+(std::max)(.3f,f.settings.resultDelay);
     f.captured=true;f.preview=preview;f.paused=f.fired=f.hit=f.exploded=false;
     if(f.boost)f.boost->Cancel();f.player->SetGameViewInputActive(false);f.player->SetDisplayOpacity(1);f.player->SetDamageFeedbackAlpha(1);
     if(cameraShake_)cameraShake_->SetGameplayEventsEnabled(true);
-    elapsedTime_=0;isPlaying_=true;isFinished_=false;ApplyPresentation();
+    elapsedTime_=0;isPlaying_=true;isFinished_=false;
+    ApplyPresentation(f.presentation->Sample(f, elapsedTime_).squeeze);
 }
 void PlayerDeathSequenceController::Update(float raw){
     auto& f=*flight_;if(!IsActiveOrFinished())return;
     const float dt=GetPresentationDeltaTime(raw);if(dt<=0)return;
     if(cameraShake_)cameraShake_->BeginFrame(f.camera);
     elapsedTime_=(std::min)(elapsedTime_+dt,f.finishTime+(std::max)(3.0f,f.settings.debrisLifetime));
-    if(f.route==Route::RearEnemy){
-        if(!f.fired&&elapsedTime_>=f.fireTime){f.fired=true;if(f.effects)f.effects->PlayGpuParticleEffectAt("resources/effects/gpu/hit_sparks.json",f.muzzle,f.unit*.5f,1,.3f,.6f);}
-        if(!f.hit&&elapsedTime_>=f.hitTime){f.hit=true;if(f.combat)f.combat->PlayEnemyBulletHitPlayer(f.center,f.unit);}
+    const auto attack = f.presentation->Sample(f, elapsedTime_);
+    if (!f.fired && attack.shotMuzzle) {
+        f.fired = true;
+        if (f.effects) f.effects->PlayGpuParticleEffectAt("resources/effects/gpu/hit_sparks.json", *attack.shotMuzzle, f.unit*.5f, 1, .3f, .6f);
+    }
+    if (!f.hit && attack.hit) {
+        f.hit = true;
+        if (f.combat) f.combat->PlayEnemyBulletHitPlayer(f.center, f.unit);
     }
     if(!f.exploded&&elapsedTime_>=f.explosionTime)Explode();
     if(elapsedTime_>=f.finishTime){isPlaying_=false;isFinished_=true;}
-    ApplyPresentation();
+    ApplyPresentation(attack.squeeze);
     if(cameraShake_){cameraShake_->UpdateAndApply(dt,f.camera,true);f.camera->Update();f.player->RefreshCameraPresentation(0);}
 }
-void PlayerDeathSequenceController::ApplyPresentation(){
-    auto& f=*flight_;const auto& s=f.settings;const float blend=Smooth(elapsedTime_/(std::max)(.1f,f.CameraSeconds()));
+void PlayerDeathSequenceController::ApplyPresentation(float squeeze){
+    auto& f=*flight_;const auto& s=f.settings;
+    const auto& shot = f.cameraShot;
+    const float blend=Smooth(elapsedTime_/(std::max)(.1f,shot.seconds));
     const auto start=Sub(f.originalCamera.GetTranslate(),f.center);
     const float angle0=std::atan2(Dot(start,f.right),Dot(start,f.forward));
-    const float targetAngle=f.route==Route::KrakenGrip?s.bossCameraAzimuth:0;
-    const float angle=angle0+std::remainder(targetAngle-angle0,2*kPi)*blend;
+    const float angle=angle0+std::remainder(shot.azimuth-angle0,2*kPi)*blend;
     const float initialRadius=Length(Sub(start,Mul(f.up,Dot(start,f.up))));
-    const float radius=initialRadius+((f.route==Route::KrakenGrip?s.bossCameraDistance:s.cameraDistance)*f.unit-initialRadius)*blend;
-    const float height=Dot(start,f.up)+((f.route==Route::KrakenGrip?s.bossCameraHeight:s.cameraHeight)*f.unit-Dot(start,f.up))*blend;
+    const float radius=initialRadius+(shot.distance*f.unit-initialRadius)*blend;
+    const float height=Dot(start,f.up)+(shot.height*f.unit-Dot(start,f.up))*blend;
     const auto cameraPosition=f.PlaceWorld(std::sin(angle)*radius,height,std::cos(angle)*radius);
-    const auto focus=f.route==Route::KrakenGrip?f.Place(0,s.bossCameraFocusY,0):f.center;
-    const auto direction=Sub(focus,cameraPosition);
+    const auto direction=Sub(shot.focus,cameraPosition);
     const Vector3 look{std::atan2(-direction.y,std::hypot(direction.x,direction.z)),std::atan2(direction.x,direction.z),0};
     auto rotation=f.originalCamera.GetRotate();
     rotation.x+=std::remainder(look.x-rotation.x,2*kPi)*blend;
@@ -255,20 +408,7 @@ void PlayerDeathSequenceController::ApplyPresentation(){
     auto pose=f.originalPose;const float yaw=std::atan2(f.forward.x,f.forward.z);
     pose.rotate.x+=(std::atan2(-f.forward.y,std::hypot(f.forward.x,f.forward.z))-pose.rotate.x)*blend;
     pose.rotate.y+=std::remainder(yaw-pose.rotate.y,2*kPi)*blend;pose.rotate.z*=1-blend;
-    float squeeze=0;
-    if(f.route==Route::KrakenGrip){
-        const float begin=f.CameraSeconds()+s.tentacleRiseSeconds+s.tentacleApproachSeconds+s.gripHoldSeconds;
-        squeeze=Smooth((elapsedTime_-begin)/s.squeezeSeconds)*s.squeezeAmount;f.UpdateTentacles(elapsedTime_);
-    }
-    f.player->SetDisplayScale({1-squeeze*.55f,1-squeeze*.75f,1+squeeze*.10f});
-    f.player->SetDisplayPose(Sub(pose.translate,f.player->GetWorldPosition()),pose.rotate);
-    if(f.route==Route::RearEnemy){
-        const float rise=Smooth((elapsedTime_-s.cameraSeconds-s.enemyAppearDelay)/s.enemyRiseSeconds);
-        f.enemy->SetPosition(Add(f.enemyPosition,Mul(f.up,-4*(1-rise)*f.unit)));
-        f.enemy->SetScale({s.enemyScale*f.unit,s.enemyScale*f.unit,s.enemyScale*f.unit});f.enemy->LookAt(f.center);f.enemy->Update(0);
-        if(f.fired&&!f.hit){const float u=std::clamp((elapsedTime_-f.fireTime)/(f.hitTime-f.fireTime),0.0f,1.0f);
-            const float bulletSize=s.bulletScale*f.unit;f.bullet->SetScale({bulletSize,bulletSize,bulletSize});f.bullet->SetPosition(Lerp(f.muzzle,f.center,u));f.bullet->SetVisualForwardOverride(Unit(Sub(f.center,f.muzzle)));f.bullet->Update(0);}
-    }
+    f.presentation->ApplyActors(f, pose, squeeze, elapsedTime_);
     if(f.exploded){const float age=elapsedTime_-f.explosionTime;const int count=std::clamp(s.debrisCount,0,24);
         for(int i=0;i<count;++i){const float a=i*2.399963f;const float speed=2.8f+static_cast<float>(i%4)*.5f;
             const auto v=Add(Mul(f.right,std::cos(a)*speed),Add(Mul(f.up,std::sin(a)*speed),Mul(f.forward,static_cast<float>(i%3)-1)));
@@ -287,20 +427,7 @@ void PlayerDeathSequenceController::Explode(){
 }
 void PlayerDeathSequenceController::Draw(){
     auto& f=*flight_;if(!f.captured)return;
-    if(f.route==Route::RearEnemy){if(elapsedTime_>=f.settings.cameraSeconds+f.settings.enemyAppearDelay)f.enemy->Draw();if(f.fired&&!f.hit){
-            f.bullet->Draw();
-            const auto head=f.bullet->GetPosition();const auto direction=Unit(Sub(f.center,f.muzzle));
-            const float traveled=Length(Sub(head,f.muzzle));
-            const auto tail=Sub(head,Mul(direction,(std::min)(f.settings.bulletTrailLength*f.unit,traveled+.15f*f.unit)));
-            const auto normal=Unit(Sub(f.camera->GetViewTranslate(),head));
-            const auto side=Mul(Unit(MatrixMath::Cross(direction,normal),f.up),f.settings.bulletGlowWidth*f.unit);
-            const auto a=Add(tail,side),b=Sub(tail,side),c=Add(head,side),d=Sub(head,side);
-            auto& vertices=f.bulletGlowVertices;vertices.clear();
-            vertices.push_back({a,{0,0}});vertices.push_back({c,{1,0}});vertices.push_back({d,{1,1}});
-            vertices.push_back({a,{0,0}});vertices.push_back({d,{1,1}});vertices.push_back({b,{0,1}});
-            f.bulletGlow->Draw(vertices,f.camera,1.8f,.85f,0,1.5f,1,elapsedTime_,3u);
-        }}
-    else if(elapsedTime_>=f.CameraSeconds()){f.tentacles->DispatchComputeSkinning(f.objects->GetDxCommon()->GetCommandList());f.objects->CommonDrawSetting();f.tentacleObject->Draw();}
+    f.presentation->Draw(f, elapsedTime_);
     if(f.exploded&&elapsedTime_-f.explosionTime<f.settings.debrisLifetime){f.objects->CommonDrawSetting();for(int i=0;i<std::clamp(f.settings.debrisCount,0,24);++i)f.debris[i]->Draw();}
 }
 void PlayerDeathSequenceController::Reset(){

@@ -66,7 +66,7 @@ void CylinderEffect::Stop() {
     isPlaying_ = false;
 }
 
-void CylinderEffect::Update(float deltaTime) {
+void CylinderEffect::Update(float deltaTime, const Camera*) {
     if (!cylinder_ || !isPlaying_) {
         return;
     }

@@ -1,6 +1,8 @@
 #pragma once
 #include <cstddef>
+#include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class LevelEventRuntime;
@@ -11,7 +13,6 @@ class PostEffectActionBridge;
 class PrimitiveEffectSystem;
 class RailShooterEventActionBridge;
 class WarningUIController;
-struct FiredEventAction;
 
 class EventActionDispatcher {
 public:
@@ -32,18 +33,15 @@ public:
     void DrawImGui();
 
 private:
+    class ActionHandler;
+    template<class Target, auto HandleAction>
+    class BridgeActionHandler;
+    class PlayEffectHandler;
+
     void AddLog(const std::string& message);
-    bool DispatchPlayEffect(const FiredEventAction& action, std::string& resultMessage);
-    static bool IsActionType(const std::string& actionType, const char* expectedLower);
 
     LevelEventRuntime* eventRuntime_ = nullptr;
-    RailShooterEventActionBridge* cameraRailBridge_ = nullptr;
-    EnemySpawnActionBridge* enemySpawnBridge_ = nullptr;
-    EnemyWaveManager* enemyWaveManager_ = nullptr;
-    PostEffectActionBridge* postEffectBridge_ = nullptr;
-    PrimitiveEffectSystem* primitiveEffectSystem_ = nullptr;
-    LevelSceneRuntime* levelSceneRuntime_ = nullptr;
-    WarningUIController* warningUIController_ = nullptr;
+    std::unordered_map<std::string, std::unique_ptr<ActionHandler>> handlers_;
     std::vector<std::string> dispatchLog_;
     std::string lastActionType_ = "(none)";
     std::string lastTarget_ = "(none)";

@@ -1081,6 +1081,9 @@
     <ClInclude Include="engine\Graphics\Effect\CylinderEffect.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\Graphics\Effect\IPrimitiveEffect.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="engine\Graphics\Effect\PrimitiveEffectSystem.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>

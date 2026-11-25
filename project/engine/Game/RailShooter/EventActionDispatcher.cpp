@@ -39,6 +39,42 @@ namespace {
     }
 }
 
+class EventActionDispatcher::ActionHandler {
+public:
+    struct Result {
+        bool handled = false;
+        bool missingEffectTarget = false;
+    };
+
+    virtual ~ActionHandler() = default;
+    virtual Result Execute(const FiredEventAction& action, std::string& message) = 0;
+};
+
+template<class Target, auto HandleAction>
+class EventActionDispatcher::BridgeActionHandler final : public ActionHandler {
+public:
+    explicit BridgeActionHandler(Target* target) : target_(target) {}
+
+    Result Execute(const FiredEventAction& action, std::string& message) override {
+        return { target_ && (target_->*HandleAction)(action, message), false };
+    }
+
+private:
+    Target* target_;
+};
+
+class EventActionDispatcher::PlayEffectHandler final : public ActionHandler {
+public:
+    PlayEffectHandler(PrimitiveEffectSystem* effects, const LevelSceneRuntime* level)
+        : effects_(effects), level_(level) {}
+
+    Result Execute(const FiredEventAction& action, std::string& message) override;
+
+private:
+    PrimitiveEffectSystem* effects_;
+    const LevelSceneRuntime* level_;
+};
+
 EventActionDispatcher::EventActionDispatcher() = default;
 
 EventActionDispatcher::~EventActionDispatcher() = default;
@@ -53,24 +89,22 @@ void EventActionDispatcher::Initialize(
     LevelSceneRuntime* levelSceneRuntime,
     WarningUIController* warningUIController) {
     eventRuntime_ = eventRuntime;
-    cameraRailBridge_ = cameraRailBridge;
-    enemySpawnBridge_ = enemySpawnBridge;
-    enemyWaveManager_ = enemyWaveManager;
-    postEffectBridge_ = postEffectBridge;
-    primitiveEffectSystem_ = primitiveEffectSystem;
-    levelSceneRuntime_ = levelSceneRuntime;
-    warningUIController_ = warningUIController;
+    handlers_["startcamerarail"] = std::make_unique<
+        BridgeActionHandler<RailShooterEventActionBridge, &RailShooterEventActionBridge::HandleAction>>(cameraRailBridge);
+    handlers_["playeffect"] = std::make_unique<PlayEffectHandler>(primitiveEffectSystem, levelSceneRuntime);
+    handlers_["playposteffect"] = std::make_unique<
+        BridgeActionHandler<PostEffectActionBridge, &PostEffectActionBridge::HandleAction>>(postEffectBridge);
+    handlers_["spawnenemy"] = std::make_unique<
+        BridgeActionHandler<EnemySpawnActionBridge, &EnemySpawnActionBridge::HandleAction>>(enemySpawnBridge);
+    handlers_["spawnwave"] = std::make_unique<
+        BridgeActionHandler<EnemyWaveManager, &EnemyWaveManager::HandleSpawnWaveAction>>(enemyWaveManager);
+    handlers_["showwarning"] = std::make_unique<
+        BridgeActionHandler<WarningUIController, &WarningUIController::HandleAction>>(warningUIController);
 }
 
 void EventActionDispatcher::Finalize() {
     eventRuntime_ = nullptr;
-    cameraRailBridge_ = nullptr;
-    enemySpawnBridge_ = nullptr;
-    enemyWaveManager_ = nullptr;
-    postEffectBridge_ = nullptr;
-    primitiveEffectSystem_ = nullptr;
-    levelSceneRuntime_ = nullptr;
-    warningUIController_ = nullptr;
+    handlers_.clear();
     dispatchLog_.clear();
 }
 
@@ -85,30 +119,22 @@ void EventActionDispatcher::Update() {
         lastActionType_ = action.actionType.empty() ? "(none)" : action.actionType;
         lastTarget_ = PickTargetLabel(action);
         std::string result;
-        bool handled = false;
+        ActionHandler::Result outcome;
 
-        if (IsActionType(action.actionType, "startcamerarail")) {
-            handled = cameraRailBridge_ && cameraRailBridge_->HandleAction(action, result);
-        } else if (IsActionType(action.actionType, "playeffect")) {
-            handled = DispatchPlayEffect(action, result);
-        } else if (IsActionType(action.actionType, "playposteffect")) {
-            handled = postEffectBridge_ && postEffectBridge_->HandleAction(action, result);
-        } else if (IsActionType(action.actionType, "spawnenemy")) {
-            handled = enemySpawnBridge_ && enemySpawnBridge_->HandleAction(action, result);
-        } else if (IsActionType(action.actionType, "spawnwave")) {
-            handled = enemyWaveManager_ && enemyWaveManager_->HandleSpawnWaveAction(action, result);
-        } else if (IsActionType(action.actionType, "showwarning")) {
-            handled = warningUIController_ && warningUIController_->HandleAction(action, result);
+        const auto handler = handlers_.find(ToLowerString(action.actionType));
+        if (handler != handlers_.end()) {
+            outcome = handler->second->Execute(action, result);
         } else {
             result = "Unsupported actionType: " + lastActionType_;
         }
 
-        if (handled) {
+        if (outcome.missingEffectTarget) ++missingTargetCount_;
+        if (outcome.handled) {
             ++dispatchedActionCount_;
         }
         lastResult_ = result;
         AddLog(
-            std::string(handled ? "Dispatched " : "Dispatch failed ") +
+            std::string(outcome.handled ? "Dispatched " : "Dispatch failed ") +
             lastActionType_ +
             " target=" + lastTarget_ +
             " result=" + result);
@@ -155,36 +181,32 @@ void EventActionDispatcher::AddLog(const std::string& message) {
     }
 }
 
-bool EventActionDispatcher::DispatchPlayEffect(const FiredEventAction& action, std::string& resultMessage) {
-    if (!primitiveEffectSystem_) {
+EventActionDispatcher::ActionHandler::Result EventActionDispatcher::PlayEffectHandler::Execute(
+    const FiredEventAction& action, std::string& resultMessage) {
+    if (!effects_) {
         resultMessage = "PrimitiveEffectSystem is missing.";
-        return false;
+        return {};
     }
-    if (!levelSceneRuntime_) {
+    if (!level_) {
         resultMessage = "LevelSceneRuntime is missing.";
-        return false;
+        return {};
     }
 
     Vector3 targetPosition{};
-    if (!levelSceneRuntime_->TryFindObjectWorldPosition(
+    if (!level_->TryFindObjectWorldPosition(
         action.targetObjectId,
         action.targetObjectId.empty() ? action.targetObjectName : std::string{},
         targetPosition)) {
-        ++missingTargetCount_;
         resultMessage = "Effect target not found: " + PickTargetLabel(action);
-        return false;
+        return { false, true };
     }
 
     std::string effectResult;
-    const bool played = primitiveEffectSystem_->PlayPresetAt("HitRing", targetPosition, effectResult);
+    const bool played = effects_->PlayPresetAt("HitRing", targetPosition, effectResult);
     resultMessage = effectResult + " position=(" +
         std::to_string(targetPosition.x) + ", " +
         std::to_string(targetPosition.y) + ", " +
         std::to_string(targetPosition.z) + ")";
-    return played;
-}
-
-bool EventActionDispatcher::IsActionType(const std::string& actionType, const char* expectedLower) {
-    return ToLowerString(actionType) == expectedLower;
+    return { played, false };
 }
 

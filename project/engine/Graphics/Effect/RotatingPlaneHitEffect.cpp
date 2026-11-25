@@ -80,7 +80,7 @@ void RotatingPlaneHitEffect::Stop() {
     isPlaying_ = false;
 }
 
-void RotatingPlaneHitEffect::Update(float deltaTime) {
+void RotatingPlaneHitEffect::Update(float deltaTime, const Camera*) {
     if (!isPlaying_) {
         return;
     }

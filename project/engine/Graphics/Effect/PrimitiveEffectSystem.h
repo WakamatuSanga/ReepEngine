@@ -2,12 +2,14 @@
 #include <memory>
 #include <string>
 #include <cstddef>
+#include <vector>
 
 class Camera;
 class Object3dCommon;
 class RotatingPlaneHitEffect;
 class RingEffect;
 class CylinderEffect;
+class IPrimitiveEffect;
 struct Vector3;
 
 class PrimitiveEffectSystem {
@@ -35,9 +37,12 @@ public:
 private:
     Object3dCommon* object3dCommon_ = nullptr;
     Camera* camera_ = nullptr;
-    std::unique_ptr<RotatingPlaneHitEffect> rotatingPlaneHitEffect_;
-    std::unique_ptr<RingEffect> ringEffect_;
-    std::unique_ptr<CylinderEffect> cylinderEffect_;
+    std::vector<std::unique_ptr<IPrimitiveEffect>> normalEffects_;
+    std::vector<std::unique_ptr<IPrimitiveEffect>> additiveEffects_;
+    // Playback and debug settings access the same effects owned by the draw lists.
+    RotatingPlaneHitEffect* rotatingPlaneHitEffect_ = nullptr;
+    RingEffect* ringEffect_ = nullptr;
+    CylinderEffect* cylinderEffect_ = nullptr;
     bool isVisible_ = true;
     bool diagnosticSuppressed_ = false;
 };

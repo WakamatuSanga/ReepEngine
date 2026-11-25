@@ -110,8 +110,15 @@ private:
         bool stopped = false;
     };
 
+    struct MovementFrame;
+    class WaveMovement;
+    class ApproachMovement;
+    class ScreenAnchorMovement;
+    class RailFormationMovement;
+
     struct WaveEnemyRuntime {
         Enemy* enemy = nullptr;
+        const WaveMovement* movement = nullptr;
         size_t waveIndex = 0;
         std::string movePattern;
         std::string attackPattern;
@@ -172,6 +179,7 @@ private:
     Vector3 ResolveApproachTarget() const;
     void RegisterWaveEnemy(Enemy* enemy, const EnemyWaveSpawnEntry& spawn, size_t waveIndex,
         float railDistance, const Vector3& spawnPosition);
+    const WaveMovement& SelectMovement(const WaveEnemyRuntime& runtime) const;
     void UpdateWaveEnemyMovement(float deltaTime);
     void UpdateScreenAnchorEnemy(WaveEnemyRuntime& runtime, float deltaTime);
     void EscapeWaveEnemy(WaveEnemyRuntime& runtime);

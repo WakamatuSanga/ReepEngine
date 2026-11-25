@@ -1,25 +1,25 @@
 #pragma once
+#include "Engine/Graphics/Effect/IPrimitiveEffect.h"
 #include "Engine/Graphics/Effect/PrimitiveEffectTypes.h"
 #include <cstdint>
 #include <memory>
 
-class Camera;
 class Model;
 class Object3d;
 class Object3dCommon;
 
-class RingEffect {
+class RingEffect : public IPrimitiveEffect {
 public:
     RingEffect();
-    ~RingEffect();
+    ~RingEffect() override;
 
     void Initialize(Object3dCommon* object3dCommon, Camera* camera);
     void Play();
     void PlayAt(const Vector3& position);
     void PlayAt(const Vector3& position, float scaleMultiplier, float alphaMultiplier = 1.0f);
     void Stop();
-    void Update(float deltaTime, const Camera* camera);
-    void Draw();
+    void Update(float deltaTime, const Camera* camera) override;
+    void Draw() override;
     void DrawImGui();
 
     void SetVisible(bool isVisible) { isVisible_ = isVisible; }
