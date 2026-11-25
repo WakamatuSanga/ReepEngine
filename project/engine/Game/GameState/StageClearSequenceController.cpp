@@ -11,6 +11,7 @@
 #include "TitleCloudTransition.h"
 #include "TitleScene.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <deque>
 #include <iterator>
@@ -132,7 +133,141 @@ private:
     BeamBatchRenderer renderer_;
 };
 
-StageClearSequenceController::StageClearSequenceController() = default;
+class StageClearSequenceController::State {
+public:
+    virtual ~State() = default;
+    virtual const State& Begin(StageClearSequenceController&, int, std::uint32_t) const { return *this; }
+    virtual const State& Update(StageClearSequenceController&, float, bool) const { return *this; }
+    virtual const State& OnFramePresented(StageClearSequenceController&) const { return *this; }
+    virtual void DrawOverlay(StageClearSequenceController&) const {}
+
+    Phase GetPhase() const { return phase_; }
+    static const State& For(Phase phase);
+
+protected:
+    explicit State(Phase phase) : phase_(phase) {}
+
+private:
+    class Idle;
+    class Tentacles;
+    class Departure;
+    class ExitedFrame;
+    class Clouds;
+    class Results;
+    const Phase phase_;
+};
+
+class StageClearSequenceController::State::Idle final : public State {
+public:
+    Idle() : State(Phase::Idle) {}
+
+    const State& Begin(StageClearSequenceController& clear, int score, std::uint32_t defeats) const override {
+        clear.score_ = score;
+        clear.defeats_ = defeats;
+        clear.elapsed_ = 0.0f;
+        return For(Phase::Tentacles);
+    }
+};
+
+class StageClearSequenceController::State::Tentacles final : public State {
+public:
+    Tentacles() : State(Phase::Tentacles) {}
+
+    const State& Update(StageClearSequenceController& clear, float, bool tentaclesGone) const override {
+        if (!tentaclesGone) return *this;
+        clear.StartDeparture();
+        return For(Phase::Departure);
+    }
+};
+
+class StageClearSequenceController::State::Departure final : public State {
+public:
+    Departure() : State(Phase::Departure) {}
+
+    const State& Update(StageClearSequenceController& clear, float dt, bool) const override {
+        clear.AdvanceDeparturePose(dt);
+        if (clear.HasAircraftPassedUpperEdge()) {
+            clear.dx_->SetDepartureRadialBlur({});
+            return For(Phase::ExitedFrame);
+        }
+
+        clear.UpdateDepartureEffects(dt);
+        return *this;
+    }
+};
+
+class StageClearSequenceController::State::ExitedFrame final : public State {
+public:
+    ExitedFrame() : State(Phase::ExitedFrame) {}
+
+    const State& OnFramePresented(StageClearSequenceController& clear) const override {
+        if (clear.exhaust_) clear.exhaust_->ResetDisplayState();
+        return clear.clouds_->StartAtLowerEdge() ? For(Phase::Clouds) : *this;
+    }
+};
+
+class StageClearSequenceController::State::Clouds final : public State {
+public:
+    Clouds() : State(Phase::Clouds) {}
+
+    const State& Update(StageClearSequenceController& clear, float dt, bool) const override {
+        clear.clouds_->Update(dt);
+        if (clear.clouds_->CanSwitch()) {
+            clear.resultBackground_ = true;
+            clear.clouds_->OnSceneChanged();
+        }
+        return *this;
+    }
+
+    void DrawOverlay(StageClearSequenceController& clear) const override { clear.clouds_->Draw(); }
+
+    const State& OnFramePresented(StageClearSequenceController& clear) const override {
+        clear.clouds_->OnFramePresented();
+        if (clear.clouds_->IsActive()) return *this;
+        clear.result_->Begin(clear.score_, clear.defeats_);
+        return For(Phase::Results);
+    }
+};
+
+class StageClearSequenceController::State::Results final : public State {
+public:
+    Results() : State(Phase::Results) {}
+
+    const State& Update(StageClearSequenceController& clear, float dt, bool) const override {
+        if (clear.transitionRequested_) return *this;
+
+        const auto choice = clear.result_->Update(dt);
+        if (choice == StageClearResultController::Choice::Retry) {
+            clear.transitionRequested_ = true;
+            SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
+        } else if (choice == StageClearResultController::Choice::Title) {
+            clear.transitionRequested_ = true;
+            SceneManager::GetInstance()->ChangeSceneWithTitleClouds(std::make_unique<TitleScene>());
+        }
+        // NextStage stays here until a scene is available for that action.
+        return *this;
+    }
+
+    void DrawOverlay(StageClearSequenceController& clear) const override { clear.result_->Draw(); }
+
+    const State& OnFramePresented(StageClearSequenceController& clear) const override {
+        clear.result_->OnFramePresented();
+        return *this;
+    }
+};
+
+const StageClearSequenceController::State& StageClearSequenceController::State::For(Phase phase) {
+    static const Idle idle;
+    static const Tentacles tentacles;
+    static const Departure departure;
+    static const ExitedFrame exitedFrame;
+    static const Clouds clouds;
+    static const Results results;
+    static const std::array<const State*, 6> states{&idle, &tentacles, &departure, &exitedFrame, &clouds, &results};
+    return *states[static_cast<std::size_t>(phase)];
+}
+
+StageClearSequenceController::StageClearSequenceController() : state_(&State::For(Phase::Idle)) {}
 StageClearSequenceController::~StageClearSequenceController() {
     if (dx_ && IsActive()) dx_->SetDepartureRadialBlur({});
 }
@@ -162,11 +297,7 @@ void StageClearSequenceController::Initialize(SpriteCommon* sprites, Camera* cam
 }
 
 void StageClearSequenceController::Begin(int score, std::uint32_t defeats) {
-    if (IsActive()) return;
-    score_ = score;
-    defeats_ = defeats;
-    elapsed_ = 0.0f;
-    phase_ = Phase::Tentacles;
+    state_ = &state_->Begin(*this, score, defeats);
 }
 
 void StageClearSequenceController::StartDeparture() {
@@ -179,11 +310,10 @@ void StageClearSequenceController::StartDeparture() {
     // The display model points along local +Z. Pitch is negative when +Z points up.
     aircraftEndRotation_ = {-std::asin(std::clamp(direction.y, -1.0f, 1.0f)), std::atan2(direction.x, direction.z), 0.0f};
     elapsed_ = 0.0f;
-    phase_ = Phase::Departure;
     contrails_->Emit(*player_);
 }
 
-void StageClearSequenceController::UpdateDeparture(float deltaTime) {
+void StageClearSequenceController::AdvanceDeparturePose(float deltaTime) {
     elapsed_ += deltaTime;
     const float pitch = Smooth(elapsed_ / kPitchUpSeconds);
     const Vector3 rotation{
@@ -195,11 +325,9 @@ void StageClearSequenceController::UpdateDeparture(float deltaTime) {
     const float distance = kDepartureAcceleration * (elapsed_ - 0.5f * deltaTime) * deltaTime;
     aircraftOffset_ = Add(aircraftOffset_, Scale(heading, distance));
     player_->SetDisplayPose(aircraftOffset_, rotation);
-    if (HasAircraftPassedUpperEdge()) {
-        phase_ = Phase::ExitedFrame;
-        dx_->SetDepartureRadialBlur({});
-        return;
-    }
+}
+
+void StageClearSequenceController::UpdateDepartureEffects(float deltaTime) {
     contrails_->Emit(*player_);
     if (exhaust_) {
         const auto pose = player_->GetVisualTransform();
@@ -222,7 +350,7 @@ bool StageClearSequenceController::HasAircraftPassedUpperEdge() const {
 void StageClearSequenceController::DrawDepartureEffects() {
     contrails_->Draw(*camera_, *dx_);
     DirectXCommon::DepartureRadialBlur effect{};
-    if (phase_ == Phase::Departure) {
+    if (state_->GetPhase() == Phase::Departure) {
         const auto viewport = dx_->GetOffscreenViewport();
         const float width = static_cast<float>(dx_->GetRenderTextureWidth());
         const float height = static_cast<float>(dx_->GetRenderTextureHeight());
@@ -246,67 +374,27 @@ void StageClearSequenceController::DrawDepartureEffects() {
     dx_->SetDepartureRadialBlur(effect);
 }
 
+bool StageClearSequenceController::IsActive() const {
+    return state_->GetPhase() != Phase::Idle;
+}
+
+bool StageClearSequenceController::NeedsTentacleUpdate() const {
+    return state_->GetPhase() == Phase::Tentacles;
+}
+
 bool StageClearSequenceController::IsAircraftVisible() const {
-    return phase_ == Phase::Tentacles || phase_ == Phase::Departure;
+    return NeedsTentacleUpdate() || state_->GetPhase() == Phase::Departure;
 }
 
 void StageClearSequenceController::Update(float deltaTime, bool tentaclesGone) {
     contrails_->Advance(deltaTime);
-    switch (phase_) {
-    case Phase::Tentacles:
-        if (tentaclesGone) StartDeparture();
-        break;
-    case Phase::Departure:
-        UpdateDeparture(deltaTime);
-        break;
-    case Phase::Clouds:
-        clouds_->Update(deltaTime);
-        if (clouds_->CanSwitch()) {
-            resultBackground_ = true;
-            clouds_->OnSceneChanged();
-        }
-        break;
-    case Phase::Results:
-        if (!transitionRequested_) {
-            switch (result_->Update(deltaTime)) {
-            case StageClearResultController::Choice::Retry:
-                transitionRequested_ = true;
-                SceneManager::GetInstance()->ChangeScene(std::make_unique<GameScene>());
-                break;
-            case StageClearResultController::Choice::Title:
-                transitionRequested_ = true;
-                SceneManager::GetInstance()->ChangeSceneWithTitleClouds(std::make_unique<TitleScene>());
-                break;
-            case StageClearResultController::Choice::NextStage:
-                // Stage 2 will take ownership of this action when its scene is available.
-                break;
-            case StageClearResultController::Choice::None:
-                break;
-            }
-        }
-        break;
-    case Phase::Idle:
-    case Phase::ExitedFrame:
-        break;
-    }
+    state_ = &state_->Update(*this, deltaTime, tentaclesGone);
 }
 
 void StageClearSequenceController::DrawOverlay() {
-    if (phase_ == Phase::Clouds) clouds_->Draw();
-    if (phase_ == Phase::Results) result_->Draw();
+    state_->DrawOverlay(*this);
 }
 
 void StageClearSequenceController::OnFramePresented() {
-    if (phase_ == Phase::ExitedFrame) {
-        if (exhaust_) exhaust_->ResetDisplayState();
-        if (clouds_->StartAtLowerEdge()) phase_ = Phase::Clouds;
-    } else if (phase_ == Phase::Clouds) {
-        clouds_->OnFramePresented();
-        if (!clouds_->IsActive()) {
-            result_->Begin(score_, defeats_);
-            phase_ = Phase::Results;
-        }
-    } else if (phase_ == Phase::Results) {
-        result_->OnFramePresented();
-    }
+    state_ = &state_->OnFramePresented(*this);
 }

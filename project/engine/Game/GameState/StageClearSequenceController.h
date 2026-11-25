@@ -27,16 +27,18 @@ public:
     void DrawDepartureEffects();
     void DrawOverlay();
     void OnFramePresented();
-    bool IsActive() const { return phase_ != Phase::Idle; }
-    bool NeedsTentacleUpdate() const { return phase_ == Phase::Tentacles; }
+    bool IsActive() const;
+    bool NeedsTentacleUpdate() const;
     bool IsAircraftVisible() const;
     bool IsResultBackground() const { return resultBackground_; }
 
 private:
     enum class Phase { Idle, Tentacles, Departure, ExitedFrame, Clouds, Results };
+    class State;
     class Contrails;
     void StartDeparture();
-    void UpdateDeparture(float deltaTime);
+    void AdvanceDeparturePose(float deltaTime);
+    void UpdateDepartureEffects(float deltaTime);
     bool HasAircraftPassedUpperEdge() const;
 
     std::unique_ptr<TitleCloudTransition> clouds_;
@@ -46,7 +48,7 @@ private:
     Camera* camera_ = nullptr;
     Player* player_ = nullptr;
     PlayerJetExhaustController* exhaust_ = nullptr;
-    Phase phase_ = Phase::Idle;
+    const State* state_;
     float elapsed_ = 0.0f;
     int score_ = 0;
     std::uint32_t defeats_ = 0;

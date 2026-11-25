@@ -90,6 +90,9 @@ private:
         Beam,
         Cooldown,
     };
+    class LaserPhase;
+    struct LaserFrame;
+    static const LaserPhase& InitialLaserPhase();
 
     enum class WaveEnemyEndReason {
         Unknown,
@@ -147,7 +150,7 @@ private:
         bool laserAimLocked = false;
         bool ended = false;
         WaveEnemyEndReason endReason = WaveEnemyEndReason::Unknown;
-        LaserState laserState = LaserState::Waiting;
+        const LaserPhase* laserPhase = &InitialLaserPhase();
         float laserTimer = 0.0f;
     };
 
