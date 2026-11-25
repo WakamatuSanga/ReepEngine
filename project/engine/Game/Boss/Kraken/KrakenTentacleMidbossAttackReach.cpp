@@ -226,7 +226,7 @@ void KrakenTentacleMidbossController::Impl::ResetAttackReachDiagnostics() {
 }
 
 void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
-    if (!skeleton || bindPose.size() != skeleton->joints.size() ||
+    if (!skeleton || bindPose.size() != skeleton->GetJoints().size() ||
         !camera || !collisionPlayer ||
         chains.size() != kKrakenTentacleReachChainCount ||
         colliderDefinitions.size() != chains.size()) {
@@ -324,10 +324,9 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
             for (std::size_t sampleIndex = 0; sampleIndex < phases.size(); ++sampleIndex) {
                 Skeleton predicted = *skeleton;
                 for (std::size_t jointIndex = 0;
-                    jointIndex < predicted.joints.size(); ++jointIndex) {
-                    predicted.joints[jointIndex].localTranslate = bindPose[jointIndex].translate;
-                    predicted.joints[jointIndex].localRotate = bindPose[jointIndex].rotate;
-                    predicted.joints[jointIndex].localScale = bindPose[jointIndex].scale;
+                    jointIndex < predicted.GetJoints().size(); ++jointIndex) {
+                    const auto& bind = bindPose[jointIndex];
+                    predicted.SetJointLocalTransform(jointIndex, {bind.scale, bind.rotate, bind.translate});
                 }
                 bool poseValid = ApplyKrakenTentaclePlacementToRestoredPose(
                     predicted, chains);
@@ -350,7 +349,7 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
                     allValid = false;
                     continue;
                 }
-                UpdateSkeletonWorldTransforms(predicted);
+                predicted.UpdateWorldTransforms();
                 const KrakenTentacleChain& chain = chains[chainIndex];
                 const auto attack = std::find_if(
                     colliderDefinitions[chainIndex].capsules.begin(),
@@ -365,13 +364,13 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
                 }
                 const KrakenTentacleCapsuleColliderEvaluation capsule =
                     EvaluateKrakenTentacleCapsuleCollider(
-                        predicted, worldMatrix, predicted.root,
+                        predicted, worldMatrix, predicted.GetRootIndex(),
                         attack->startJointIndex, attack->endJointIndex,
                         attack->recommendedLocalRadius, colliderRadiusScale,
                         colliderGlobalRadiusScale);
                 const int tipIndex = chain.joints.back();
                 sample.tipWorldPosition = TransformPosition(
-                    predicted.joints[static_cast<std::size_t>(tipIndex)].worldTranslate,
+                    predicted.GetJoints()[static_cast<std::size_t>(tipIndex)].worldTranslate,
                     worldMatrix);
                 sample.finalMovableBoneWorldPosition = sample.tipWorldPosition;
                 sample.attackCapsuleStart = capsule.worldStart;
@@ -394,7 +393,7 @@ void KrakenTentacleMidbossController::Impl::RefreshAttackReachDiagnostics() {
             attackReachDiagnostics.chains[chainIndex];
         const int rootIndex = chains[chainIndex].joints.front();
         chainDiagnostic.rootWorldPosition = TransformPosition(
-            skeleton->joints[static_cast<std::size_t>(rootIndex)].worldTranslate,
+            skeleton->GetJoints()[static_cast<std::size_t>(rootIndex)].worldTranslate,
             worldMatrix);
         const auto tip = std::find_if(
             tipSnapshots.begin(), tipSnapshots.end(),

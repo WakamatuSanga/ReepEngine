@@ -84,9 +84,7 @@ void PostEffectController::Update(float deltaTime, float unscaledDeltaTime) {
     if (grayscaleActive_) {
         grayscaleElapsed_ += safeDeltaTime;
         if (dxCommon_) {
-            DirectXCommon::PostEffectParameters& params = dxCommon_->GetPostEffectParameters();
-            params.grayscaleEnabled = 1;
-            params.grayscaleIntensity = grayscaleIntensity_;
+            dxCommon_->SetGrayscale(1u, grayscaleIntensity_);
         }
         if (grayscaleElapsed_ >= grayscaleDuration_) {
             grayscaleActive_ = false;
@@ -273,15 +271,14 @@ void PostEffectController::UpdateBoostPostEffect(float deltaTime) {
     const float targetVignette = enableBoostPostEffect_ ? requestedBoostPower_ : 0;
     currentVignettePower_ += (targetVignette - currentVignettePower_) * (1 - std::exp(-deltaTime / .055f));
     if (dxCommon_ && currentVignettePower_ > .001f) {
-        auto& params = dxCommon_->GetPostEffectParameters();
+        const auto& params = dxCommon_->GetPostEffectParameters();
         if (!boostVignetteSaved_) {
             previousVignetteEnabled_ = params.vignetteEnabled;
             previousVignetteIntensity_ = params.vignetteIntensity;
             boostVignetteSaved_ = true;
         }
-        params.vignetteEnabled = 1;
-        params.vignetteIntensity = (std::max)(previousVignetteEnabled_ ? previousVignetteIntensity_ : 0,
-            FlightTuning::Get().vignette * currentVignettePower_);
+        dxCommon_->SetVignette(1u, (std::max)(previousVignetteEnabled_ ? previousVignetteIntensity_ : 0,
+            FlightTuning::Get().vignette * currentVignettePower_));
     } else RestoreBoostVignette();
     const float targetIntensity = (enableBoostPostEffect_ && requestedBoostPower_ > boostEffectStartThreshold_)
         ? requestedBoostPower_ * std::clamp(maxBoostEffectIntensity_, 0.0f, 1.0f)
@@ -309,23 +306,23 @@ void PostEffectController::ApplyBoostRadialBlur(float strength) {
         boostPostEffectReason_ = "DirectXCommon missing";
         return;
     }
-    DirectXCommon::PostEffectParameters& params = dxCommon_->GetPostEffectParameters();
     if (!boostRadialSaved_) {
-        previousRadialBlurEnabled_ = params.radialBlurEnabled;
-        previousRadialBlurStrength_ = params.radialBlurStrength;
-        previousRadialBlurCenterX_ = params.radialBlurCenter[0];
-        previousRadialBlurCenterY_ = params.radialBlurCenter[1];
-        previousRadialBlurSampleCount_ = params.radialBlurSampleCount;
-        previousRadialBlurCenterClearRadius_ = params.radialBlurCenterClearRadius;
-        previousRadialBlurOuterEffectRadius_ = params.radialBlurOuterEffectRadius;
+        const auto blur = dxCommon_->GetRadialBlurSettings();
+        previousRadialBlurEnabled_ = blur.enabled;
+        previousRadialBlurStrength_ = blur.strength;
+        previousRadialBlurCenterX_ = blur.center[0];
+        previousRadialBlurCenterY_ = blur.center[1];
+        previousRadialBlurSampleCount_ = blur.sampleCount;
+        previousRadialBlurCenterClearRadius_ = blur.clearRadius;
+        previousRadialBlurOuterEffectRadius_ = blur.outerRadius;
         boostRadialSaved_ = true;
     }
-    params.radialBlurEnabled = 1u;
-    params.radialBlurStrength = (std::max)(strength, previousRadialBlurEnabled_ ? previousRadialBlurStrength_ : 0.0f);
-    params.radialBlurCenter = { currentBoostCenterX_, currentBoostCenterY_ };
-    params.radialBlurSampleCount = previousRadialBlurEnabled_ ? previousRadialBlurSampleCount_ : 6u;
-    params.radialBlurCenterClearRadius = std::clamp(boostEffectCenterClearRadius_, 0.0f, 1.0f);
-    params.radialBlurOuterEffectRadius = std::clamp((std::max)(boostEffectOuterRadius_, params.radialBlurCenterClearRadius + 0.001f), 0.001f, 2.0f);
+    const float clearRadius = std::clamp(boostEffectCenterClearRadius_, 0.0f, 1.0f);
+    dxCommon_->SetRadialBlur({1u,
+        (std::max)(strength, previousRadialBlurEnabled_ ? previousRadialBlurStrength_ : 0.0f),
+        {currentBoostCenterX_, currentBoostCenterY_},
+        previousRadialBlurEnabled_ ? previousRadialBlurSampleCount_ : 6u, clearRadius,
+        std::clamp((std::max)(boostEffectOuterRadius_, clearRadius + 0.001f), 0.001f, 2.0f)});
     boostPostEffectReason_ = requestedBoostCenterValid_ ? "Boost radial blur active" : "Boost radial blur active with center fallback";
 }
 
@@ -336,9 +333,7 @@ void PostEffectController::ClearBoostEffects() {
 }
 void PostEffectController::RestoreBoostVignette() {
     if (dxCommon_ && boostVignetteSaved_) {
-        auto& params = dxCommon_->GetPostEffectParameters();
-        params.vignetteEnabled = previousVignetteEnabled_;
-        params.vignetteIntensity = previousVignetteIntensity_;
+        dxCommon_->SetVignette(previousVignetteEnabled_, previousVignetteIntensity_);
     }
     boostVignetteSaved_ = false;
 }
@@ -347,13 +342,9 @@ void PostEffectController::RestoreBoostRadialBlur() {
         boostRadialSaved_ = false;
         return;
     }
-    DirectXCommon::PostEffectParameters& params = dxCommon_->GetPostEffectParameters();
-    params.radialBlurEnabled = previousRadialBlurEnabled_;
-    params.radialBlurStrength = previousRadialBlurStrength_;
-    params.radialBlurCenter = { previousRadialBlurCenterX_, previousRadialBlurCenterY_ };
-    params.radialBlurSampleCount = previousRadialBlurSampleCount_;
-    params.radialBlurCenterClearRadius = previousRadialBlurCenterClearRadius_;
-    params.radialBlurOuterEffectRadius = previousRadialBlurOuterEffectRadius_;
+    dxCommon_->SetRadialBlur({previousRadialBlurEnabled_, previousRadialBlurStrength_,
+        {previousRadialBlurCenterX_, previousRadialBlurCenterY_}, previousRadialBlurSampleCount_,
+        previousRadialBlurCenterClearRadius_, previousRadialBlurOuterEffectRadius_});
     boostRadialSaved_ = false;
 }
 
@@ -362,9 +353,7 @@ void PostEffectController::RestoreGrayscale() {
         return;
     }
 
-    DirectXCommon::PostEffectParameters& params = dxCommon_->GetPostEffectParameters();
-    params.grayscaleEnabled = previousGrayscaleEnabled_;
-    params.grayscaleIntensity = previousGrayscaleIntensity_;
+    dxCommon_->SetGrayscale(previousGrayscaleEnabled_, previousGrayscaleIntensity_);
     grayscaleSaved_ = false;
 }
 

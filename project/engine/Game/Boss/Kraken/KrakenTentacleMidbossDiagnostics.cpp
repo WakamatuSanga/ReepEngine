@@ -227,7 +227,7 @@ bool KrakenTentacleMidbossController::Impl::ValidateLoadedAsset() {
     }
 
     const bool skinningValid =
-        skeleton->joints.size() == kExpectedJointCount &&
+        skeleton->GetJoints().size() == kExpectedJointCount &&
         model->GetVertexCount() == kExpectedVertexCount &&
         model->GetPaletteCount() == kExpectedJointCount &&
         skinning.paletteCount == kExpectedJointCount &&
@@ -272,7 +272,7 @@ void KrakenTentacleMidbossController::Impl::RefreshSkinningDiagnostics() {
     diagnostics.vertexCount = skinning.vertexCount;
     diagnostics.indexCount = primitive.totalIndexCount;
     diagnostics.triangleCount = primitive.triangleCount;
-    diagnostics.jointCount = skeleton ? skeleton->joints.size() : 0;
+    diagnostics.jointCount = skeleton ? skeleton->GetJoints().size() : 0;
     diagnostics.paletteCount = skinning.paletteCount;
     diagnostics.nonFinitePaletteCount =
         skinning.nonFinitePaletteMatrixCount;

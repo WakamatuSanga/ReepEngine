@@ -348,14 +348,14 @@ void KrakenTentacleMidbossController::Impl::DrawImGui() {
             const char* chainRootName =
                 skeleton && rootIndex >= 0 &&
                     static_cast<std::size_t>(rootIndex) <
-                        skeleton->joints.size()
-                ? skeleton->joints[static_cast<std::size_t>(rootIndex)].name.c_str()
+                        skeleton->GetJoints().size()
+                ? skeleton->GetJoints()[static_cast<std::size_t>(rootIndex)].name.c_str()
                 : "取得不可";
             const char* chainTipName =
                 skeleton && tipIndex >= 0 &&
                     static_cast<std::size_t>(tipIndex) <
-                        skeleton->joints.size()
-                ? skeleton->joints[static_cast<std::size_t>(tipIndex)].name.c_str()
+                        skeleton->GetJoints().size()
+                ? skeleton->GetJoints()[static_cast<std::size_t>(tipIndex)].name.c_str()
                 : "取得不可";
             ImGui::Text("チェーン根元: %d / %s", rootIndex, chainRootName);
             ImGui::Text("チェーン先端: %d / %s", tipIndex, chainTipName);

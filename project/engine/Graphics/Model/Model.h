@@ -67,12 +67,10 @@ public:
 
     struct IndexDrawMaterialBinding {
         D3D12_GPU_VIRTUAL_ADDRESS materialBufferAddress = 0;
-        Material* mappedMaterial = nullptr;
         uint32_t baseColorTextureIndex = 0;
         uint32_t normalTextureIndex = 0;
         uint32_t metallicRoughnessTextureIndex = 0;
         uint32_t specularF0TextureIndex = 0;
-        bool usePBR = false;
     };
 
 public:
@@ -96,7 +94,15 @@ public:
     size_t GetIndexCount() const { return modelData_.indices.size(); }
     size_t GetMaterialCount() const { return 1; }
 
-    Material* GetMaterialData() { return materialData_; }
+    bool HasMaterial() const { return materialData_ != nullptr; }
+    bool TryReadMaterial(Material& material) const;
+    void SetMaterialColor(const Vector4& color);
+    void SetMaterialOpacity(float opacity);
+    void SetMaterialAppearance(const Vector4& color, bool lighting, float alphaReference);
+    void SetMaterialLighting(bool lighting, float alphaReference);
+    void SetMaterialUvTransform(const Matrix4x4& transform);
+    bool InitializeSkinnedMaterial(const Vector4& color, float alphaReference, float metallic, float roughness);
+    static Material MakeSkinnedMaterial(const Vector4& color, float alphaReference, float metallic, float roughness);
     D3D12_GPU_VIRTUAL_ADDRESS GetMaterialBufferAddress() const;
     size_t GetLastMaterialBindingCount() const { return lastMaterialBindingCount_; }
     size_t GetLastMaterialBindingFailureCount() const { return lastMaterialBindingFailureCount_; }

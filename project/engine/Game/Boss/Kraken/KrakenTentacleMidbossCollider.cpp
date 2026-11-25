@@ -71,8 +71,8 @@ bool KrakenTentacleMidbossController::Impl::RebuildColliderDefinitions() {
                 static_cast<std::uint32_t>(chains.size()),
                 static_cast<std::uint32_t>(chainIndex),
                 chain.joints,
-                skeleton->root,
-                skeleton->joints.size(),
+                skeleton->GetRootIndex(),
+                skeleton->GetJoints().size(),
                 bindWeakPointPosition);
         if (!result.valid ||
             result.capsules.size() != kExpectedCapsulesPerChain) {
@@ -94,19 +94,19 @@ void KrakenTentacleMidbossController::Impl::RefreshBoneSnapshots() {
     if (!skeleton) {
         return;
     }
-    boneSnapshots.reserve(skeleton->joints.size());
-    for (const Joint& joint : skeleton->joints) {
+    boneSnapshots.reserve(skeleton->GetJoints().size());
+    for (const Joint& joint : skeleton->GetJoints()) {
         KrakenTentacleMidbossBoneSnapshot snapshot{};
         snapshot.jointIndex = joint.index;
         snapshot.parentIndex = joint.parentIndex;
         snapshot.chainIndex = FindChainIndex(joint.index, chains);
         snapshot.worldPosition = TransformPosition(
             joint.worldTranslate, worldMatrix);
-        snapshot.isRoot = joint.index == skeleton->root;
+        snapshot.isRoot = joint.index == skeleton->GetRootIndex();
         snapshot.valid = IsFinite(snapshot.worldPosition) &&
             joint.index >= 0 &&
             static_cast<std::size_t>(joint.index) <
-                skeleton->joints.size();
+                skeleton->GetJoints().size();
         boneSnapshots.push_back(snapshot);
     }
 }
@@ -166,7 +166,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
                 EvaluateKrakenTentacleCapsuleCollider(
                     *skeleton,
                     worldMatrix,
-                    skeleton->root,
+                    skeleton->GetRootIndex(),
                     definition.startJointIndex,
                     definition.endJointIndex,
                     definition.recommendedLocalRadius,
@@ -234,7 +234,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
             EvaluateKrakenTentacleTipSphereCollider(
                 *skeleton,
                 worldMatrix,
-                skeleton->root,
+                skeleton->GetRootIndex(),
                 chains[definition.chainIndex].joints,
                 definition.bindTipSkeletonPosition,
                 true,
@@ -258,7 +258,7 @@ void KrakenTentacleMidbossController::Impl::RefreshColliderSnapshots() {
         snapshot.jointIndex = definition.tipJointIndex;
         snapshot.worldPosition = evaluation.worldPosition;
         snapshot.chainTipWorldPosition = TransformPosition(
-            skeleton->joints[chains[definition.chainIndex].joints.back()].worldTranslate,
+            skeleton->GetJoints()[chains[definition.chainIndex].joints.back()].worldTranslate,
             worldMatrix);
         snapshot.bindWorldPosition = evaluation.bindWorldPosition;
         snapshot.worldRadius = evaluation.worldRadius;

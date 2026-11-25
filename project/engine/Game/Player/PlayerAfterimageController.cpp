@@ -40,7 +40,7 @@ void PlayerAfterimageController::Update(float dt, bool active, bool rolling, Mod
         const float fade = std::clamp(1.0f - slot->age / slot->lifetime, 0.0f, 1.0f);
         slot->material->color.w = slot->sourceAlpha * tuning.ghostAlpha * fade * fade;
     }
-    if (!active || !rolling || !model || !model->GetMaterialData()) {
+    if (!active || !rolling || !model || !model->HasMaterial()) {
         sampleTimer_ = 0; wasRolling_ = false; return;
     }
     if (!wasRolling_) sampleTimer_ = tuning.ghostLifetime / 6;
@@ -55,7 +55,7 @@ void PlayerAfterimageController::Update(float dt, bool active, bool rolling, Mod
     }
     if (!target) return;
     target->active = true; target->age = 0; target->lifetime = tuning.ghostLifetime;
-    *target->material = *model->GetMaterialData();
+    model->TryReadMaterial(*target->material);
     target->sourceAlpha = target->material->color.w;
     target->material->color.w *= tuning.ghostAlpha;
     target->material->alphaReference = 0;

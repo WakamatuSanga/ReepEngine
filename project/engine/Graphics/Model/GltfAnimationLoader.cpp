@@ -1268,16 +1268,16 @@ bool GltfAnimationLoader::LoadFirstClipFromFile(const std::string& filePath, con
     const GltfSkinData& skin = skins.front();
     const GltfAnimationData& animation = animations.front();
 
-    if (skin.joints.empty() || referenceSkeleton.joints.empty()) {
+    if (skin.joints.empty() || referenceSkeleton.GetJoints().empty()) {
         return false;
     }
 
     std::unordered_map<int, int> nodeToJointIndex;
-    for (size_t jointIndex = 0; jointIndex < skin.joints.size() && jointIndex < referenceSkeleton.joints.size(); ++jointIndex) {
+    for (size_t jointIndex = 0; jointIndex < skin.joints.size() && jointIndex < referenceSkeleton.GetJoints().size(); ++jointIndex) {
         nodeToJointIndex[skin.joints[jointIndex]] = static_cast<int>(jointIndex);
     }
 
-    std::vector<TrackCurves> trackCurves(referenceSkeleton.joints.size());
+    std::vector<TrackCurves> trackCurves(referenceSkeleton.GetJoints().size());
     float maxTime = 0.0f;
 
     for (const GltfAnimationChannelData& channel : animation.channels) {
@@ -1337,10 +1337,10 @@ bool GltfAnimationLoader::LoadFirstClipFromFile(const std::string& filePath, con
     AnimationClip clip{};
     clip.name = animation.name.empty() ? std::filesystem::path(filePath).stem().string() : animation.name;
     clip.duration = (std::max)(maxTime, 0.0001f);
-    clip.tracks.reserve(referenceSkeleton.joints.size());
+    clip.tracks.reserve(referenceSkeleton.GetJoints().size());
 
-    for (size_t jointIndex = 0; jointIndex < referenceSkeleton.joints.size(); ++jointIndex) {
-        const Joint& referenceJoint = referenceSkeleton.joints[jointIndex];
+    for (size_t jointIndex = 0; jointIndex < referenceSkeleton.GetJoints().size(); ++jointIndex) {
+        const Joint& referenceJoint = referenceSkeleton.GetJoints()[jointIndex];
         const TrackCurves& curves = trackCurves[jointIndex];
 
         std::vector<float> keyTimes;

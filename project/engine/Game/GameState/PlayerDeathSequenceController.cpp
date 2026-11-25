@@ -160,7 +160,7 @@ struct PlayerDeathSequenceController::Flight {
                     // and inherits the parent's scale/rotation. No independent
                     // joint translations that compress or separate the mesh rings.
                     pose = MatrixMath::Multipty(bindLocalMatrices[index],
-                        skeleton->joints[chain.joints[n - 1]].skeletonSpaceMatrix);
+                        skeleton->GetJoints()[chain.joints[n - 1]].skeletonSpaceMatrix);
                 }
                 if (visible && n + 1 < count) {
                     const auto child = MatrixMath::Multipty(bindLocalMatrices[chain.joints[n + 1]], pose);
@@ -170,8 +170,7 @@ struct PlayerDeathSequenceController::Flight {
                     pose = MatrixMath::Multipty(pose, FromTo(source, directions[n]));
                     pose.m[3][0] = pivot.x; pose.m[3][1] = pivot.y; pose.m[3][2] = pivot.z;
                 }
-                auto& joint = skeleton->joints[index];
-                joint.skeletonSpaceMatrix = pose; joint.worldMatrix = pose; joint.worldTranslate = Position(pose);
+                skeleton->SetJointSkeletonSpaceMatrix(index, pose);
             }
         }
         tentacles->UpdateSkinning();
@@ -322,15 +321,15 @@ bool PlayerDeathSequenceController::PrepareForPresentation(){
     f.skeleton=GltfSkeletonLoader::LoadFromFile(asset);std::string error;
     if(!f.skeleton||!DetectKrakenTentacleChains(*f.skeleton,f.chains,error)||f.chains.size()!=4)return false;
     for(const auto& chain:f.chains)if(chain.joints.size()<2||chain.joints.size()>10)return false;
-    UpdateSkeletonWorldTransforms(*f.skeleton);
-    for(const auto& joint:f.skeleton->joints){f.bindMatrices.push_back(joint.skeletonSpaceMatrix);f.bindLocalMatrices.push_back(joint.localMatrix);}
+    f.skeleton->UpdateWorldTransforms();
+    for(const auto& joint:f.skeleton->GetJoints()){f.bindMatrices.push_back(joint.skeletonSpaceMatrix);f.bindLocalMatrices.push_back(joint.localMatrix);}
     f.tentacles=std::make_unique<GltfSkinnedModel>();if(!f.tentacles->Initialize(f.models,f.skeleton.get(),asset))return false;
     f.tentacles->SetUseComputeOutputVertices(true);
     f.tentacleObject=std::make_unique<Object3d>();f.tentacleObject->Initialize(f.objects);
     f.tentacleObject->SetModel(f.tentacles->GetModel());f.tentacleObject->SetCamera(f.camera);f.tentacleObject->SetEnvironmentMapEnabled(false);
     f.debrisModel=ModelManager::GetInstance()->CreateBox("player-death-fragment");
     if(!f.debrisModel||!f.tentacleObject->IsValid())return false;
-    f.debrisModel->GetMaterialData()->color={.32f,.36f,.4f,1};
+    f.debrisModel->SetMaterialColor({.32f,.36f,.4f,1});
     f.debrisModel->SetTextureIndex(TextureManager::GetInstance()->GetTextureIndexByFilePath("resources/human/white.png"));
     for(auto& fragment:f.debris){fragment=std::make_unique<Object3d>();fragment->Initialize(f.objects);
         fragment->SetModel(f.debrisModel);fragment->SetCamera(f.camera);fragment->SetEnvironmentMapEnabled(false);if(!fragment->IsValid())return false;}

@@ -169,10 +169,7 @@ void RingEffect::RebuildModelIfNeeded() {
         textureIndex_ = TextureManager::GetInstance()->GetTextureIndexByFilePath(kRingTexturePath);
         isUsingDefaultTexture_ = false;
         ringModel_->SetTextureIndex(textureIndex_);
-        if (auto* material = ringModel_->GetMaterialData()) {
-            material->enableLighting = 0;
-            material->alphaReference = 0.5f;
-        }
+        ringModel_->SetMaterialLighting(false, 0.5f);
         if (object3d_) {
             object3d_->SetModel(ringModel_);
         }
@@ -186,14 +183,7 @@ void RingEffect::ApplyMaterial(float alpha) {
         return;
     }
 
-    if (auto* material = ringModel_->GetMaterialData()) {
-        material->color = {
-            settings_.color.x,
-            settings_.color.y,
-            settings_.color.z,
-            alpha
-        };
-    }
+    ringModel_->SetMaterialColor({settings_.color.x, settings_.color.y, settings_.color.z, alpha});
 }
 
 float RingEffect::GetInnerRadius() const {

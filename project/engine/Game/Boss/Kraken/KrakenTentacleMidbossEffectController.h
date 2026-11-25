@@ -133,7 +133,7 @@ public:
     void Reset(bool resetSettings);
     void Finalize();
 
-    KrakenTentacleEffectSettings& GetSettings() { return settings_; }
+    void SetSettings(const KrakenTentacleEffectSettings& settings);
     const KrakenTentacleEffectSettings& GetSettings() const {
         return settings_;
     }

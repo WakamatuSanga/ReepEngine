@@ -23,20 +23,20 @@ bool DetectKrakenTentacleChains(
     std::string& outErrorMessage) {
     outChains.clear();
     outErrorMessage.clear();
-    if (skeleton.root < 0 ||
-        skeleton.root >= static_cast<int32_t>(skeleton.joints.size())) {
+    if (skeleton.GetRootIndex() < 0 ||
+        skeleton.GetRootIndex() >= static_cast<int32_t>(skeleton.GetJoints().size())) {
         return Fail(
             outChains,
             outErrorMessage,
             "ルートジョイントが不正です。");
     }
 
-    const int jointCount = static_cast<int>(skeleton.joints.size());
-    const int rootIndex = skeleton.root;
+    const int jointCount = static_cast<int>(skeleton.GetJoints().size());
+    const int rootIndex = skeleton.GetRootIndex();
     std::vector<int> incoming(static_cast<std::size_t>(jointCount), 0);
     for (int parentIndex = 0; parentIndex < jointCount; ++parentIndex) {
         const Joint& parent =
-            skeleton.joints[static_cast<std::size_t>(parentIndex)];
+            skeleton.GetJoints()[static_cast<std::size_t>(parentIndex)];
         for (int childIndex : parent.children) {
             if (childIndex < 0 || childIndex >= jointCount) {
                 return Fail(
@@ -45,7 +45,7 @@ bool DetectKrakenTentacleChains(
                     "範囲外の子ジョイントを検出しました。");
             }
             ++incoming[static_cast<std::size_t>(childIndex)];
-            if (skeleton.joints[
+            if (skeleton.GetJoints()[
                 static_cast<std::size_t>(childIndex)].parentIndex !=
                 parentIndex) {
                 return Fail(
@@ -70,7 +70,7 @@ bool DetectKrakenTentacleChains(
     }
 
     const Joint& root =
-        skeleton.joints[static_cast<std::size_t>(rootIndex)];
+        skeleton.GetJoints()[static_cast<std::size_t>(rootIndex)];
     if (root.children.empty()) {
         return Fail(
             outChains,
@@ -98,7 +98,7 @@ bool DetectKrakenTentacleChains(
             visited[static_cast<std::size_t>(jointIndex)] = true;
             chain.joints.push_back(jointIndex);
             const Joint& joint =
-                skeleton.joints[static_cast<std::size_t>(jointIndex)];
+                skeleton.GetJoints()[static_cast<std::size_t>(jointIndex)];
             if (joint.children.empty()) {
                 break;
             }
@@ -151,12 +151,12 @@ bool ApplyKrakenTentaclePlacementToRestoredPose(
             return false;
         }
         const int index = chain.joints.front();
-        if (index < 0 || static_cast<std::size_t>(index) >= skeleton.joints.size() ||
-            skeleton.joints[index].parentIndex != skeleton.root) {
+        if (index < 0 || static_cast<std::size_t>(index) >= skeleton.GetJoints().size() ||
+            skeleton.GetJoints()[index].parentIndex != skeleton.GetRootIndex()) {
             return false;
         }
         for (int slot = 0; slot < 4; ++slot) {
-            if (skeleton.joints[index].name == rootNames[slot]) {
+            if (skeleton.GetJoints()[index].name == rootNames[slot]) {
                 if (roots[slot] != -1) {
                     return false;
                 }
@@ -170,9 +170,10 @@ bool ApplyKrakenTentaclePlacementToRestoredPose(
         }
     }
     for (int slot = 0; slot < 4; ++slot) {
-        Vector3& position = skeleton.joints[roots[slot]].localTranslate;
+        Vector3 position = skeleton.GetJoints()[roots[slot]].localTranslate;
         position.x += offsets[slot].x;
         position.z += offsets[slot].z;
+        skeleton.SetJointLocalTranslation(roots[slot], position);
     }
     return true;
 }

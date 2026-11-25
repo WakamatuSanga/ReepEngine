@@ -65,7 +65,7 @@ void SkinningEditorKrakenMotionPreview::CaptureBindTipPositions() {
 
         const int tipJointIndex = chain.joints.back();
         if (tipJointIndex < 0 ||
-            tipJointIndex >= static_cast<int>(skeleton_->joints.size())) {
+            tipJointIndex >= static_cast<int>(skeleton_->GetJoints().size())) {
             bindChainTipSkeletonPositions_.clear();
             runtimeError_ =
                 "Bind Poseの触手先端Joint Indexが範囲外です。";
@@ -73,7 +73,7 @@ void SkinningEditorKrakenMotionPreview::CaptureBindTipPositions() {
         }
 
         const Vector3 tipSkeletonPosition =
-            skeleton_->joints[
+            skeleton_->GetJoints()[
                 static_cast<std::size_t>(tipJointIndex)].worldTranslate;
         if (!IsFiniteVector(tipSkeletonPosition)) {
             bindChainTipSkeletonPositions_.clear();
@@ -127,14 +127,14 @@ void SkinningEditorKrakenMotionPreview::RefreshAttackTipDiagnostics() {
 
     const int tipJointIndex = selectedChain.joints.back();
     if (tipJointIndex < 0 ||
-        tipJointIndex >= static_cast<int>(skeleton_->joints.size())) {
+        tipJointIndex >= static_cast<int>(skeleton_->GetJoints().size())) {
         runtimeError_ =
             "攻撃対象Chainの先端Joint Indexが範囲外です。";
         return;
     }
 
     const Vector3 tipSkeletonPosition =
-        skeleton_->joints[
+        skeleton_->GetJoints()[
             static_cast<std::size_t>(tipJointIndex)].worldTranslate;
     const Vector3 bindTipSkeletonPosition =
         bindChainTipSkeletonPositions_[selectedChainIndex];

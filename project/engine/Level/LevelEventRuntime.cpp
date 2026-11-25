@@ -136,11 +136,7 @@ namespace {
         if (!model) {
             return;
         }
-        if (Model::Material* material = model->GetMaterialData()) {
-            material->color = { 0.25f, 1.0f, 0.25f, 1.0f };
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        model->SetMaterialAppearance({ 0.25f, 1.0f, 0.25f, 1.0f }, false, 0.0f);
     }
 }
 

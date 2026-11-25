@@ -93,8 +93,8 @@ void SkinningEditorKrakenMotionPreview::RefreshBoneColliderPreview(
         boneColliderPhaseControl_->Reset(*boneColliderPreview_);
         if (!boneColliderPreview_->Rebuild(
                 chainJoints,
-                skeleton_->root,
-                skeleton_->joints.size(),
+                skeleton_->GetRootIndex(),
+                skeleton_->GetJoints().size(),
                 bindChainWeakPointSkeletonPositions_)) {
             RefreshBoneColliderPhaseControl();
             return;

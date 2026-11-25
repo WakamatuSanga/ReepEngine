@@ -29,8 +29,8 @@ namespace {
         const Skeleton& skeleton,
         int jointIndex) {
         return jointIndex >= 0 &&
-            static_cast<std::size_t>(jointIndex) < skeleton.joints.size()
-            ? skeleton.joints[static_cast<std::size_t>(jointIndex)].name.c_str()
+            static_cast<std::size_t>(jointIndex) < skeleton.GetJoints().size()
+            ? skeleton.GetJoints()[static_cast<std::size_t>(jointIndex)].name.c_str()
             : "なし";
     }
 
@@ -75,12 +75,12 @@ namespace {
             for (int candidate : chainJoints) {
                 if (candidate < 0 ||
                     static_cast<std::size_t>(candidate) >=
-                        skeleton.joints.size()) {
+                        skeleton.GetJoints().size()) {
                     continue;
                 }
                 const bool selected = candidate == jointIndex;
                 if (ImGui::Selectable(
-                        skeleton.joints[static_cast<std::size_t>(
+                        skeleton.GetJoints()[static_cast<std::size_t>(
                             candidate)].name.c_str(),
                         selected)) {
                     jointIndex = candidate;
@@ -114,37 +114,38 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
 
     SkinningEditorKrakenBoneColliderPreviewCollection& preview =
         *boneColliderPreview_;
-    KrakenBoneColliderPreviewSettings& settings = preview.GetSettings();
+    auto settings = preview.GetSettings();
+    bool settingsEdited = settings.depthTest;
     settings.depthTest = false;
     ImGui::SeparatorText(
         "クラーケン触手コライダープレビュー##KrakenBoneColliderPreview");
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "コライダープレビューを表示##ShowColliderPreview",
         &settings.showPreview);
     ImGui::SameLine();
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "カプセルを表示##ShowColliderCapsules",
         &settings.showCapsules);
     ImGui::SameLine();
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "先端スフィアを表示##ShowColliderTipSphere",
         &settings.showTipSphere);
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "選択中のコライダーだけ表示##ShowOnlySelectedCollider",
         &settings.showOnlySelected);
     ImGui::SameLine();
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "全チェーンを表示##ShowAllColliderChains",
         &settings.showAllChains);
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "攻撃レイヤー##ShowAttackColliderLayer",
         &settings.showAttackColliders);
     ImGui::SameLine();
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "ダメージレイヤー##ShowDamageColliderLayer",
         &settings.showDamageColliders);
     ImGui::SameLine();
-    ImGui::Checkbox(
+    settingsEdited |= ImGui::Checkbox(
         "弱点レイヤー##ShowWeakPointColliderLayer",
         &settings.showWeakPointColliders);
     DrawTooltip(
@@ -156,19 +157,14 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
     ImGui::EndDisabled();
     DrawTooltip(
         "既存のボーン表示と同じ2Dオーバーレイを使用するため、深度テストは行いません。");
-    ImGui::DragFloat(
+    settingsEdited |= ImGui::DragFloat(
         "全体半径倍率##ColliderGlobalRadiusScale",
         &settings.globalRadiusScale,
         0.01f,
         0.05f,
         5.0f,
         "%.2f");
-    settings.globalRadiusScale = std::clamp(
-        std::isfinite(settings.globalRadiusScale)
-            ? settings.globalRadiusScale
-            : 1.0f,
-        0.05f,
-        5.0f);
+    if (settingsEdited) preview.SetSettings(settings);
     DrawTooltip(
         "ローカル半径へプレビュー行列の最大軸スケールと、この倍率を1回だけ掛けます。");
 
@@ -204,13 +200,13 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
                 continue;
             }
             ImGui::PushID(static_cast<int>(chainIndex));
-            std::vector<KrakenBoneColliderPreview>& allCapsules =
+            const auto& allCapsules =
                 chainPreview->GetCapsules();
             for (std::size_t localIndex = 0;
                 localIndex < allCapsules.size();
                 ++localIndex) {
                 ImGui::PushID(static_cast<int>(localIndex));
-                KrakenBoneColliderPreview& collider =
+                const auto& collider =
                     allCapsules[localIndex];
                 const std::string label =
                     "チェーン " + std::to_string(chainIndex) +
@@ -238,8 +234,7 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
                         collider.phaseReason));
                 ImGui::PopID();
             }
-            KrakenTipSphereColliderPreview& tipSphere =
-                chainPreview->GetTipSphere();
+            const auto& tipSphere = chainPreview->GetTipSphere();
             ImGui::PushID("TipSphere");
             const std::string tipLabel =
                 "チェーン " + std::to_string(chainIndex) +
@@ -329,13 +324,13 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
 
     ImGui::SeparatorText(
         "表示対象チェーンの詳細編集##ColliderCapsuleList");
-    std::vector<KrakenBoneColliderPreview>& capsules =
+    const auto& capsules =
         editablePreview.GetCapsules();
     const std::vector<int>& chainJoints =
         editablePreview.GetChainJoints();
     for (std::size_t index = 0; index < capsules.size(); ++index) {
         ImGui::PushID(static_cast<int>(index));
-        KrakenBoneColliderPreview& collider = capsules[index];
+        auto collider = capsules[index];
         const bool selected =
             preview.IsSelected(editableChainIndex, index, false);
         const std::string selectionLabel =
@@ -346,45 +341,26 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
             preview.Select(editableChainIndex, index, false);
         }
         ImGui::Text("コライダー番号: %u", collider.colliderIndex);
-        DrawRoleCombo("役割##CapsuleRole", collider.role);
-        int startJointIndex = collider.startJointIndex;
-        int endJointIndex = collider.endJointIndex;
-        bool pairChanged = DrawJointCombo(
-            "開始ボーン##CapsuleStartBone",
-            *skeleton_,
-            chainJoints,
-            startJointIndex);
-        pairChanged |= DrawJointCombo(
-            "終了ボーン##CapsuleEndBone",
-            *skeleton_,
-            chainJoints,
-            endJointIndex);
-        if (pairChanged) {
-            editablePreview.SetCapsuleJointPair(
-                index,
-                startJointIndex,
-                endJointIndex);
-        }
-        ImGui::Text("開始ジョイント番号: %d", collider.startJointIndex);
-        ImGui::Text("終了ジョイント番号: %d", collider.endJointIndex);
-        ImGui::DragFloat(
-            "ローカル半径##CapsuleLocalRadius",
-            &collider.localRadius,
-            0.01f,
-            0.01f,
-            2.0f,
-            "%.3f");
-        collider.localRadius = std::clamp(
-            std::isfinite(collider.localRadius)
-                ? collider.localRadius
-                : 0.25f,
-            0.01f,
-            2.0f);
+        bool edited = DrawRoleCombo("役割##CapsuleRole", collider.role);
+        edited |= DrawJointCombo(
+            "開始ボーン##CapsuleStartBone", *skeleton_, chainJoints, collider.startJointIndex);
+        edited |= DrawJointCombo(
+            "終了ボーン##CapsuleEndBone", *skeleton_, chainJoints, collider.endJointIndex);
+        ImGui::Text("開始ジョイント番号: %d", capsules[index].startJointIndex);
+        ImGui::Text("終了ジョイント番号: %d", capsules[index].endJointIndex);
+        edited |= ImGui::DragFloat(
+            "ローカル半径##CapsuleLocalRadius", &collider.localRadius, 0.01f, 0.01f, 2.0f, "%.3f");
         ImGui::Text("ワールド半径: %.3f", collider.worldRadius);
         ImGui::Text("ワールド長: %.3f", collider.worldLength);
         DrawVector3("ワールド中心", collider.worldCenter);
         DrawVector3("ワールド方向", collider.worldDirection);
-        ImGui::Checkbox("有効##CapsuleEnabled", &collider.enabled);
+        edited |= ImGui::Checkbox("有効##CapsuleEnabled", &collider.enabled);
+        if (edited) {
+            if (!editablePreview.ApplyCapsuleEdit(index, collider)) {
+                ImGui::TextWrapped("%s", editablePreview.GetDiagnostics().lastError.c_str());
+            }
+            collider = capsules[index];
+        }
         ImGui::Text("診断有効: %s", YesNo(collider.valid));
         ImGui::Text("プレビュー表示中: %s", YesNo(collider.previewVisible));
         ImGui::Text("フェーズ有効予定: %s", YesNo(collider.phaseActive));
@@ -400,8 +376,7 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
 
     ImGui::SeparatorText(
         "先端スフィア##ColliderTipSphere");
-    KrakenTipSphereColliderPreview& tipSphere =
-        editablePreview.GetTipSphere();
+    auto tipSphere = editablePreview.GetTipSphere();
     const bool tipSelected =
         preview.IsSelected(editableChainIndex, 0, true);
     if (ImGui::Selectable(
@@ -409,30 +384,28 @@ void SkinningEditorKrakenMotionPreview::DrawBoneColliderPreviewImGui() {
             tipSelected)) {
         preview.Select(editableChainIndex, 0, true);
     }
-    DrawRoleCombo("役割##TipSphereRole", tipSphere.role);
+    bool tipEdited = DrawRoleCombo("役割##TipSphereRole", tipSphere.role);
     ImGui::Text(
         "先端ボーン: %s",
         FindJointName(*skeleton_, tipSphere.tipJointIndex));
     ImGui::Text("先端ジョイント番号: %d", tipSphere.tipJointIndex);
-    ImGui::DragFloat(
+    tipEdited |= ImGui::DragFloat(
         "ローカル半径##TipSphereLocalRadius",
         &tipSphere.localRadius,
         0.01f,
         0.01f,
         2.0f,
         "%.3f");
-    tipSphere.localRadius = std::clamp(
-        std::isfinite(tipSphere.localRadius)
-            ? tipSphere.localRadius
-            : 0.30f,
-        0.01f,
-        2.0f);
     ImGui::Text("ワールド半径: %.3f", tipSphere.worldRadius);
     DrawVector3("ワールド位置", tipSphere.worldPosition);
     ImGui::Text(
         "バインド位置からの移動距離: %.3f",
         tipSphere.distanceFromBind);
-    ImGui::Checkbox("有効##TipSphereEnabled", &tipSphere.enabled);
+    tipEdited |= ImGui::Checkbox("有効##TipSphereEnabled", &tipSphere.enabled);
+    if (tipEdited) {
+        editablePreview.ApplyTipSphereEdit(tipSphere);
+        tipSphere = editablePreview.GetTipSphere();
+    }
     ImGui::Text("診断有効: %s", YesNo(tipSphere.valid));
     ImGui::Text("プレビュー表示中: %s", YesNo(tipSphere.previewVisible));
     ImGui::Text("フェーズ有効予定: %s", YesNo(tipSphere.phaseActive));

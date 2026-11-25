@@ -55,14 +55,14 @@ SkinningEditorSkeletonSnapshot CaptureSkinningEditorSkeletonSnapshot(
         return snapshot;
     }
 
-    snapshot.rootIndex = skeleton->root;
+    snapshot.rootIndex = skeleton->GetRootIndex();
     if (snapshot.rootIndex >= 0 &&
-        snapshot.rootIndex < static_cast<int>(skeleton->joints.size())) {
-        snapshot.rootName = skeleton->joints[
+        snapshot.rootIndex < static_cast<int>(skeleton->GetJoints().size())) {
+        snapshot.rootName = skeleton->GetJoints()[
             static_cast<std::size_t>(snapshot.rootIndex)].name;
     }
-    snapshot.joints.reserve(skeleton->joints.size());
-    for (const Joint& joint : skeleton->joints) {
+    snapshot.joints.reserve(skeleton->GetJoints().size());
+    for (const Joint& joint : skeleton->GetJoints()) {
         SkinningEditorSkeletonJointSnapshot jointSnapshot{};
         jointSnapshot.name = joint.name;
         jointSnapshot.index = joint.index;

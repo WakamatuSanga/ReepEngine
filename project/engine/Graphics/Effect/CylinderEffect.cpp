@@ -35,10 +35,7 @@ void CylinderEffect::Initialize(Object3dCommon* object3dCommon, Camera* camera) 
         textureIndex_ = textureManager->GetTextureIndexByFilePath(kCylinderTexturePath);
         isUsingDefaultTexture_ = false;
         cylinderModel_->SetTextureIndex(textureIndex_);
-        if (auto* material = cylinderModel_->GetMaterialData()) {
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        cylinderModel_->SetMaterialLighting(false, 0.0f);
     }
 
     cylinder_ = std::make_unique<Object3d>();
@@ -138,26 +135,13 @@ void CylinderEffect::ApplyMaterial(float alpha) {
         return;
     }
 
-    if (auto* material = cylinderModel_->GetMaterialData()) {
-        material->color = {
-            settings_.color.x,
-            settings_.color.y,
-            settings_.color.z,
-            alpha
-        };
-
-        if (settings_.uvScrollEnabled) {
-            material->uvTransform = MatrixMath::MakeAffine(
-                { 1.0f, 1.0f, 1.0f },
-                { 0.0f, 0.0f, 0.0f },
-                {
-                    uvTime_ * settings_.uvScrollSpeedX,
-                    uvTime_ * settings_.uvScrollSpeedY,
-                    0.0f
-                });
-        } else {
-            material->uvTransform = MatrixMath::MakeIdentity4x4();
-        }
+    cylinderModel_->SetMaterialColor({settings_.color.x, settings_.color.y, settings_.color.z, alpha});
+    if (settings_.uvScrollEnabled) {
+        cylinderModel_->SetMaterialUvTransform(MatrixMath::MakeAffine(
+            {1.0f, 1.0f, 1.0f}, {},
+            {uvTime_ * settings_.uvScrollSpeedX, uvTime_ * settings_.uvScrollSpeedY, 0.0f}));
+    } else {
+        cylinderModel_->SetMaterialUvTransform(MatrixMath::MakeIdentity4x4());
     }
 }
 

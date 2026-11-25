@@ -1052,11 +1052,10 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(
             }
         }
 
-        auto skeleton = std::make_unique<Skeleton>();
-        skeleton->name = skin.name.empty()
+        auto skeletonName = skin.name.empty()
             ? std::filesystem::path(filePath).stem().string()
             : skin.name;
-        skeleton->joints.resize(skin.joints.size());
+        std::vector<Joint> joints(skin.joints.size());
 
         std::unordered_map<int, int> nodeToJointIndex;
         nodeToJointIndex.reserve(skin.joints.size());
@@ -1071,7 +1070,7 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(
                 continue;
             }
 
-            Joint& joint = skeleton->joints[static_cast<size_t>(jointIndex)];
+            Joint& joint = joints[static_cast<size_t>(jointIndex)];
             const GltfNodeData& node = nodes[static_cast<size_t>(nodeIndex)];
             joint.name = node.name.empty()
                 ? ("Joint_" + std::to_string(jointIndex))
@@ -1122,39 +1121,19 @@ std::unique_ptr<Skeleton> GltfSkeletonLoader::LoadFromFile(
             joint.sourceNodeScale = node.transformResult.scale;
         }
 
-        skeleton->root = -1;
-        skeleton->jointMap.clear();
-        for (size_t jointIndex = 0; jointIndex < skeleton->joints.size(); ++jointIndex) {
-            Joint& joint = skeleton->joints[jointIndex];
-            joint.index = static_cast<int32_t>(jointIndex);
-            joint.parent = (joint.parentIndex >= 0) ? std::optional<int32_t>{ joint.parentIndex } : std::nullopt;
-            if (joint.parentIndex < 0 && skeleton->root < 0) {
-                skeleton->root = joint.index;
-            }
-            if (!joint.name.empty()) {
-                skeleton->jointMap[joint.name] = joint.index;
-            }
-
-            int parentIndex = joint.parentIndex;
-            if (parentIndex >= 0 && parentIndex < static_cast<int>(skeleton->joints.size())) {
-                skeleton->joints[static_cast<size_t>(parentIndex)].children.push_back(static_cast<int>(jointIndex));
-            }
-        }
-
-        if (skeleton->root >= 0 && skeleton->root < static_cast<int32_t>(skeleton->joints.size())) {
+        const bool hasRoot = std::any_of(joints.begin(), joints.end(),
+            [](const Joint& joint) { return joint.parentIndex < 0; });
+        auto skeleton = std::make_unique<Skeleton>(std::move(skeletonName), std::move(joints));
+        if (hasRoot) {
             Logger::Log(
-                "[GltfSkeletonLoader] root joint index=" + std::to_string(skeleton->root) +
-                " name=" + skeleton->joints[static_cast<size_t>(skeleton->root)].name);
+                "[GltfSkeletonLoader] root joint index=" + std::to_string(skeleton->GetRootIndex()) +
+                " name=" + skeleton->GetJoints()[static_cast<size_t>(skeleton->GetRootIndex())].name);
         } else {
             Logger::Log("[GltfSkeletonLoader] Warning: root joint could not be inferred. Using joint 0 as fallback.");
-            if (!skeleton->joints.empty()) {
-                skeleton->root = 0;
-            }
         }
         Logger::Log(
-            "[GltfSkeletonLoader] Success: joints=" + std::to_string(skeleton->joints.size()) +
-            " jointMap=" + std::to_string(skeleton->jointMap.size()));
-        UpdateSkeletonWorldTransforms(*skeleton);
+            "[GltfSkeletonLoader] Success: joints=" + std::to_string(skeleton->GetJoints().size()) +
+            " jointMap=" + std::to_string(skeleton->GetNamedJointCount()));
         loadDiagnostics.loadSucceeded = true;
         return skeleton;
     } catch (const std::exception& exception) {

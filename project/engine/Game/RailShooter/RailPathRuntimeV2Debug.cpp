@@ -18,11 +18,7 @@ float Length(const Vector3& value) { return std::sqrt(value.x * value.x + value.
 
 void ApplyMaterial(Model* model, const Vector4& color) {
     if (model) {
-        if (Model::Material* material = model->GetMaterialData()) {
-            material->color = color;
-            material->enableLighting = 0;
-            material->alphaReference = 0.0f;
-        }
+        model->SetMaterialAppearance(color, false, 0.0f);
     }
 }
 

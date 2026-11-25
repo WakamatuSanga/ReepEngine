@@ -23,7 +23,8 @@ struct TitleForegroundLayoutSettings {
         {0.935f, 1.10f, 1.03f, 1.0f, -0.90f, 0.0f}
     }};
 };
-TitleForegroundLayoutSettings& GetTitleForegroundLayoutSettings();
+const TitleForegroundLayoutSettings& GetTitleForegroundLayoutSettings();
+bool SetTitleForegroundLayoutSettings(const TitleForegroundLayoutSettings& settings);
 bool LoadTitleForegroundLayoutSettings(const char* path);
 bool SaveTitleForegroundLayoutSettings(const char* path);
 // Rest locals are immutable; every pose is evaluated from them, never accumulated.

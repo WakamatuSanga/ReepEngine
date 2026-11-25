@@ -4,6 +4,8 @@
 #include "Engine/Graphics/Camera/Camera.h"
 #include "Engine/Animation/Skeleton.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentaclePoseEvaluator.h"
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -11,7 +13,7 @@
 #include <string>
 
 namespace {
-template<class F> void LayoutFields(TitleForegroundLayoutSettings& settings, F visit) {
+template<class Settings, class F> void LayoutFields(Settings& settings, F visit) {
     for (size_t i = 0; i < settings.sides.size(); ++i) {
         auto& s = settings.sides[i];
         const std::string prefix = i == 0 ? "left" : "right";
@@ -23,11 +25,22 @@ template<class F> void LayoutFields(TitleForegroundLayoutSettings& settings, F v
         visit(prefix+"Lean", s.lean, -0.06f, 0.06f);
     }
 }
+TitleForegroundLayoutSettings layoutSettings;
 }
-TitleForegroundLayoutSettings& GetTitleForegroundLayoutSettings() {
-    static TitleForegroundLayoutSettings settings;
-    return settings;
+
+const TitleForegroundLayoutSettings& GetTitleForegroundLayoutSettings() {
+    return layoutSettings;
 }
+
+bool SetTitleForegroundLayoutSettings(const TitleForegroundLayoutSettings& settings) {
+    bool valid = true;
+    LayoutFields(settings, [&](const std::string&, float value, float, float) {
+        valid &= std::isfinite(value);
+    });
+    if (valid) layoutSettings = settings;
+    return valid;
+}
+
 bool LoadTitleForegroundLayoutSettings(const char* path) {
     std::ifstream file(path);
     if (!file) return false;
@@ -43,8 +56,7 @@ bool LoadTitleForegroundLayoutSettings(const char* path) {
             catch (...) { valid = false; }
         }
     });
-    if (valid) GetTitleForegroundLayoutSettings() = next;
-    return valid;
+    return valid && SetTitleForegroundLayoutSettings(next);
 }
 bool SaveTitleForegroundLayoutSettings(const char* path) {
     std::error_code error;
@@ -55,7 +67,7 @@ bool SaveTitleForegroundLayoutSettings(const char* path) {
     if (!file) return false;
     file.precision(9);
     file << "{\n  \"version\": 1";
-    LayoutFields(GetTitleForegroundLayoutSettings(), [&](const std::string& key, float& v, float, float) { file << ",\n  \"" << key << "\": " << v; });
+    LayoutFields(GetTitleForegroundLayoutSettings(), [&](const std::string& key, float v, float, float) { file << ",\n  \"" << key << "\": " << v; });
     file << "\n}\n";
     return static_cast<bool>(file);
 }
@@ -95,12 +107,9 @@ bool BuildTitleForegroundPose(Skeleton& skeleton, const std::vector<Transform>& 
     const std::vector<KrakenTentacleChain>& chains, float time,
     const std::array<float, 2>& rise, float aspect, float fov) {
     using namespace TitleForegroundMotion;
-    if (chains.size() != 4 || rest.size() != skeleton.joints.size()) return false;
+    if (chains.size() != 4 || rest.size() != skeleton.GetJoints().size()) return false;
     for (size_t i = 0; i < rest.size(); ++i) {
-        auto& joint = skeleton.joints[i];
-        joint.localScale = rest[i].scale;
-        joint.localRotate = rest[i].rotate;
-        joint.localTranslate = rest[i].translate;
+        skeleton.SetJointLocalTransform(i, rest[i]);
     }
     KrakenTentacleIdlePoseSettings sway;
     sway.frequencyHz = 0.16f;
@@ -109,12 +118,13 @@ bool BuildTitleForegroundPose(Skeleton& skeleton, const std::vector<Transform>& 
     sway.secondaryAmplitudeDegrees = 1.0f;
     KrakenTentacleIdlePoseResult pose;
     if (!BuildKrakenTentacleIdlePose(sway, time, chains, true, 0,
-        skeleton.joints.size(), skeleton.root, pose)) return false;
+        skeleton.GetJoints().size(), skeleton.GetRootIndex(), pose)) return false;
     for (const auto& offset : pose.joints) {
-        auto& r = skeleton.joints[offset.jointIndex].localRotate;
+        auto r = skeleton.GetJoints()[offset.jointIndex].localRotate;
         r.x += offset.localEulerOffsetRadians.x;
         r.y += offset.localEulerOffsetRadians.y;
         r.z += offset.localEulerOffsetRadians.z;
+        skeleton.SetJointLocalRotation(offset.jointIndex, r);
     }
     const float height = 2.0f * kDepth * std::tan(fov * 0.5f);
     // Preserve height on narrow screens; compress only the title's horizontal cross-section.
@@ -122,37 +132,35 @@ bool BuildTitleForegroundPose(Skeleton& skeleton, const std::vector<Transform>& 
     const auto& layout = GetTitleForegroundLayoutSettings();
     for (size_t chain = 0; chain < chains.size(); ++chain) {
         if (chains[chain].joints.empty()) return false;
-        auto& root = skeleton.joints[chains[chain].joints.front()];
+        const auto rootIndex = chains[chain].joints.front();
+        auto rotation = skeleton.GetJoints()[rootIndex].localRotate;
         // Unused chains are wholly below the frustum; no bind data/mesh edits.
-        root.localTranslate = { 0.0f, -1000.0f, kDepth };
-        root.localScale = { 1, 1, 1 };
-        if (chain != 0 && chain != 3) continue;
+        if (chain != 0 && chain != 3) {
+            skeleton.SetJointLocalTransform(rootIndex, {{1, 1, 1}, rotation, {0.0f, -1000.0f, kDepth}});
+            continue;
+        }
         const int side = chain == 0 ? 0 : 1;
         const auto& settings = layout.sides[side];
         const float scale = settings.height * height / 10.8f;
-        root.localScale = { scale, scale, scale };
-        root.localRotate.y += settings.yaw;
-        root.localRotate.z += settings.lean;
-        root.localTranslate = { (settings.centerX + SwayX(time, side) - 0.5f) * height * aspect,
-            (0.5f - settings.rootY - (1.0f - rise[side]) * kStorageDrop) * height, kDepth };
+        rotation.y += settings.yaw;
+        rotation.z += settings.lean;
+        skeleton.SetJointLocalTransform(rootIndex, {{scale, scale, scale}, rotation, { (settings.centerX + SwayX(time, side) - 0.5f) * height * aspect,
+            (0.5f - settings.rootY - (1.0f - rise[side]) * kStorageDrop) * height, kDepth }});
     }
-    UpdateSkeletonWorldTransforms(skeleton);
+    skeleton.UpdateWorldTransforms();
     // Width is a title camera-space adjustment, applied after the rest-bone
     // orientation and sway. Scaling bone-local axes also shortens the tips.
     // Keep each root fixed and update the matrices consumed by skinning together.
     for (int side = 0; side < 2; ++side) {
         const auto& chain = chains[side == 0 ? 0 : 3];
-        const float rootX = skeleton.joints[chain.joints.front()].worldTranslate.x;
+        const float rootX = skeleton.GetJoints()[chain.joints.front()].worldTranslate.x;
         const float width = layout.sides[side].width * aspectWidth;
         const auto adjustment = MatrixMath::Multipty(
             MatrixMath::Multipty(MatrixMath::MakeTranslate({ -rootX, 0, 0 }),
                 MatrixMath::MakeScale({ width, 1, 1 })),
             MatrixMath::MakeTranslate({ rootX, 0, 0 }));
         for (const auto index : chain.joints) {
-            auto& joint = skeleton.joints[index];
-            joint.skeletonSpaceMatrix = MatrixMath::Multipty(joint.skeletonSpaceMatrix, adjustment);
-            joint.worldMatrix = joint.skeletonSpaceMatrix;
-            joint.worldTranslate = { joint.worldMatrix.m[3][0], joint.worldMatrix.m[3][1], joint.worldMatrix.m[3][2] };
+            skeleton.ApplyJointWorldAdjustment(index, adjustment);
         }
     }
     return true;

@@ -184,7 +184,7 @@ void SkinningEditor::DrawSkinnedPrimitiveDiagnosticsImGui() {
         ? state.activeModel->GetPaletteCount()
         : 0u;
     const std::size_t jointCount = targetSkeleton_
-        ? targetSkeleton_->joints.size()
+        ? targetSkeleton_->GetJoints().size()
         : 0u;
     const bool computeResourcesReady =
         state.activeModel && state.activeModel->HasComputeSkinningResources();

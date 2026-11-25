@@ -202,7 +202,7 @@ void KrakenTentacleMidbossController::Impl::EnterHidden(
     }
     RestoreBindPose();
     if (skeleton) {
-        UpdateSkeletonWorldTransforms(*skeleton);
+        skeleton->UpdateWorldTransforms();
     }
     RefreshColliderSnapshots();
     RefreshBoneSnapshots();
@@ -267,7 +267,7 @@ bool KrakenTentacleMidbossController::Impl::StartAttack(KrakenTentacleMidbossSta
     }
     attackEntryPose.clear();
     for (int joint : chains[selectedAttackChainIndex].joints) {
-        attackEntryPose.push_back(skeleton->joints[joint].localRotate);
+        attackEntryPose.push_back(skeleton->GetJoints()[joint].localRotate);
     }
     EnterState(initialState);
     BeginAttackDamageSequence();

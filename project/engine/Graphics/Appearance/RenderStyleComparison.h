@@ -94,10 +94,9 @@ struct Settings {
 };
 struct SurfaceData { Vector4 control{},shadow{},highlight{},rim{},bands{},sun{},sunColor{}; };
 struct BackgroundData { Vector4 control{},zenith{},horizon{},cloudShadow{},cloudHighlight{},sun{},sunColor{},cumulus{},cumulusExtra{},cumulusDistribution{},seaShape{},cumulusShadow{},cumulusLight{},cloudRelief{},cloudLayout{},seaRefinement{},seaContour{},depthControl{},depthStyle{}; };
-Settings& GetSettings();
-CandidateSettings& GetCandidateSettings();
-CloudCompositionSettings& GetCloudSettings();
-NormalBeamSettings& GetNormalBeamSettings();
+const Settings& GetSettings();
+const CloudCompositionSettings& GetCloudSettings();
+const NormalBeamSettings& GetNormalBeamSettings();
 bool IsRefinedClouds();
 bool IsTargetPresentation();
 bool IsTargetBackground();

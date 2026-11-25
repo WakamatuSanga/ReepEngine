@@ -13,6 +13,8 @@ void GltfSkinnedModel::SetOpacity(float opacity) {
         if (material.mappedMaterial) {
             static_cast<Model::Material*>(material.mappedMaterial)->color.w =
                 material.data.baseColorFactor.w * opacity;
+        } else if (model_ && material.data.materialConstantBufferGpuAddress != 0) {
+            model_->SetMaterialOpacity(material.data.baseColorFactor.w * opacity);
         }
     }
 }

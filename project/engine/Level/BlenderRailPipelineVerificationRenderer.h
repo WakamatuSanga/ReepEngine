@@ -56,7 +56,7 @@ public:
         const std::vector<Vector3>& legacyPoints);
     void Draw();
 
-    BlenderRailVerificationRenderConfig& GetConfig() { return config_; }
+    void SetConfig(const BlenderRailVerificationRenderConfig& config);
     const BlenderRailVerificationRenderConfig& GetConfig() const { return config_; }
     const BlenderRailVerificationRenderStats& GetStats() const { return stats_; }
 

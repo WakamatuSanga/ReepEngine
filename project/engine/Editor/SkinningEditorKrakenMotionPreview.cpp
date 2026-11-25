@@ -99,16 +99,16 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
     diagnostics_.skeletonEnabled = skeleton_ != nullptr;
 
     if (!skeleton_ ||
-        skeleton_->root < 0 ||
-        skeleton_->root >= static_cast<int32_t>(skeleton_->joints.size())) {
+        skeleton_->GetRootIndex() < 0 ||
+        skeleton_->GetRootIndex() >= static_cast<int32_t>(skeleton_->GetJoints().size())) {
         runtimeError_ = "\u6709\u52B9\u306A\u30B9\u30B1\u30EB\u30C8\u30F3\u30EB\u30FC\u30C8\u3092\u53D6\u5F97\u3067\u304D\u307E\u305B\u3093\u3002";
         return;
     }
 
     const Joint& rootJoint =
-        skeleton_->joints[static_cast<std::size_t>(skeleton_->root)];
+        skeleton_->GetJoints()[static_cast<std::size_t>(skeleton_->GetRootIndex())];
     targetCompatible_ =
-        skeleton_->joints.size() == kExpectedJointCount &&
+        skeleton_->GetJoints().size() == kExpectedJointCount &&
         rootJoint.name == kExpectedRootName;
     if (!targetCompatible_) {
         runtimeError_ = "\u4E92\u63DB\u89E6\u624B\u30B9\u30B1\u30EB\u30C8\u30F3\u3067\u306F\u3042\u308A\u307E\u305B\u3093\u3002";
@@ -137,7 +137,7 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
     motionTime_ = 0.0f;
     ResetIdleSettings();
     RestoreBindLocals();
-    UpdateSkeletonWorldTransforms(*skeleton_);
+    skeleton_->UpdateWorldTransforms();
     CaptureBindTipPositions();
     RefreshBoneColliderPreview(true);
     CaptureBindPalette();
@@ -146,9 +146,9 @@ void SkinningEditorKrakenMotionPreview::SetTarget(
 }
 
 void SkinningEditorKrakenMotionPreview::ClearTarget() {
-    if (skeleton_ && bindPose_.size() == skeleton_->joints.size()) {
+    if (skeleton_ && bindPose_.size() == skeleton_->GetJoints().size()) {
         RestoreBindLocals();
-        UpdateSkeletonWorldTransforms(*skeleton_);
+        skeleton_->UpdateWorldTransforms();
     }
 
     if (attackMotion_) {
@@ -192,10 +192,10 @@ void SkinningEditorKrakenMotionPreview::CaptureBindPose() {
         return;
     }
 
-    bindPose_.reserve(skeleton_->joints.size());
-    bindLocalEulerRadians_.reserve(skeleton_->joints.size());
-    manualRotationDegrees_.resize(skeleton_->joints.size());
-    for (const Joint& joint : skeleton_->joints) {
+    bindPose_.reserve(skeleton_->GetJoints().size());
+    bindLocalEulerRadians_.reserve(skeleton_->GetJoints().size());
+    manualRotationDegrees_.resize(skeleton_->GetJoints().size());
+    for (const Joint& joint : skeleton_->GetJoints()) {
         bindPose_.push_back({
             joint.localTranslate,
             joint.localRotate,
@@ -206,7 +206,7 @@ void SkinningEditorKrakenMotionPreview::CaptureBindPose() {
 }
 
 bool SkinningEditorKrakenMotionPreview::ValidateBindPose() const {
-    if (!skeleton_ || bindPose_.size() != skeleton_->joints.size()) {
+    if (!skeleton_ || bindPose_.size() != skeleton_->GetJoints().size()) {
         return false;
     }
     for (const BindLocalPose& pose : bindPose_) {
@@ -248,37 +248,36 @@ void SkinningEditorKrakenMotionPreview::SetHierarchyError(
 }
 
 void SkinningEditorKrakenMotionPreview::RestoreBindLocals() {
-    if (!skeleton_ || bindPose_.size() != skeleton_->joints.size()) {
+    if (!skeleton_ || bindPose_.size() != skeleton_->GetJoints().size()) {
         return;
     }
     for (std::size_t jointIndex = 0;
-        jointIndex < skeleton_->joints.size();
+        jointIndex < skeleton_->GetJoints().size();
         ++jointIndex) {
-        Joint& joint = skeleton_->joints[jointIndex];
+
         const BindLocalPose& pose = bindPose_[jointIndex];
-        joint.localTranslate = pose.translate;
-        joint.localRotate = pose.rotate;
-        joint.localScale = pose.scale;
+        skeleton_->SetJointLocalTransform(jointIndex, {pose.scale, pose.rotate, pose.translate});
     }
 }
 
 void SkinningEditorKrakenMotionPreview::ApplyManualPose() {
     if (!skeleton_ ||
-        manualRotationDegrees_.size() != skeleton_->joints.size()) {
+        manualRotationDegrees_.size() != skeleton_->GetJoints().size()) {
         return;
     }
     for (std::size_t jointIndex = 0;
-        jointIndex < skeleton_->joints.size();
+        jointIndex < skeleton_->GetJoints().size();
         ++jointIndex) {
-        if (static_cast<int>(jointIndex) == skeleton_->root &&
+        if (static_cast<int>(jointIndex) == skeleton_->GetRootIndex() &&
             !rootRotationAllowed_) {
             continue;
         }
         const Vector3 offset = manualRotationDegrees_[jointIndex];
-        Joint& joint = skeleton_->joints[jointIndex];
-        joint.localRotate.x += offset.x * kDegreesToRadians;
-        joint.localRotate.y += offset.y * kDegreesToRadians;
-        joint.localRotate.z += offset.z * kDegreesToRadians;
+        auto rotation = skeleton_->GetJoints()[jointIndex].localRotate;
+        rotation.x += offset.x * kDegreesToRadians;
+        rotation.y += offset.y * kDegreesToRadians;
+        rotation.z += offset.z * kDegreesToRadians;
+        skeleton_->SetJointLocalRotation(jointIndex, rotation);
     }
 }
 
@@ -300,8 +299,8 @@ void SkinningEditorKrakenMotionPreview::ApplyIdleSwayPose() {
         chains_,
         applyAllChains_,
         static_cast<std::size_t>(selectedChainIndex_),
-        skeleton_->joints.size(),
-        skeleton_->root,
+        skeleton_->GetJoints().size(),
+        skeleton_->GetRootIndex(),
         idlePoseResult_);
     if (!built || !idlePoseResult_.valid) {
         runtimeError_ = idlePoseResult_.errorMessage.empty()
@@ -312,11 +311,11 @@ void SkinningEditorKrakenMotionPreview::ApplyIdleSwayPose() {
 
     for (const KrakenTentacleIdleJointPose& pose :
         idlePoseResult_.joints) {
-        Joint& joint = skeleton_->joints[
-            static_cast<std::size_t>(pose.jointIndex)];
-        joint.localRotate.x += pose.localEulerOffsetRadians.x;
-        joint.localRotate.y += pose.localEulerOffsetRadians.y;
-        joint.localRotate.z += pose.localEulerOffsetRadians.z;
+        auto rotation = skeleton_->GetJoints()[pose.jointIndex].localRotate;
+        rotation.x += pose.localEulerOffsetRadians.x;
+        rotation.y += pose.localEulerOffsetRadians.y;
+        rotation.z += pose.localEulerOffsetRadians.z;
+        skeleton_->SetJointLocalRotation(pose.jointIndex, rotation);
     }
 }
 
@@ -352,7 +351,7 @@ void SkinningEditorKrakenMotionPreview::ApplyCurrentPose() {
         ReturnToBindPose(false);
         return;
     }
-    UpdateSkeletonWorldTransforms(*skeleton_);
+    skeleton_->UpdateWorldTransforms();
     if (!ValidateCurrentPose()) {
         runtimeError_ =
             "\u975E\u6709\u9650\u306E\u968E\u5C64\u884C\u5217\u3092\u691C\u51FA\u3057\u305F\u305F\u3081\u3001\u30D0\u30A4\u30F3\u30C9\u30DD\u30FC\u30BA\u3078\u623B\u3057\u307E\u3057\u305F\u3002";
@@ -364,7 +363,7 @@ bool SkinningEditorKrakenMotionPreview::ValidateCurrentPose() const {
     if (!skeleton_) {
         return false;
     }
-    for (const Joint& joint : skeleton_->joints) {
+    for (const Joint& joint : skeleton_->GetJoints()) {
         if (!IsFiniteVector(joint.localTranslate) ||
             !IsFiniteVector(joint.localRotate) ||
             !IsFiniteVector(joint.localScale) ||
@@ -481,7 +480,7 @@ void SkinningEditorKrakenMotionPreview::ReturnToBindPose(
     motionTime_ = 0.0f;
     RestoreBindLocals();
     if (skeleton_) {
-        UpdateSkeletonWorldTransforms(*skeleton_);
+        skeleton_->UpdateWorldTransforms();
     }
     RefreshAttackTipDiagnostics();
     RefreshBoneColliderPreview();

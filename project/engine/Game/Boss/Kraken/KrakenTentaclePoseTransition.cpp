@@ -90,37 +90,40 @@ bool KrakenTentacleMidbossController::Impl::ApplySweepPose() {
 
     KrakenTentacleIdlePoseResult idle{};
     if (!BuildKrakenTentacleIdlePose(idleSettings, idleTime, chains, true,
-            selectedAttackChainIndex, skeleton->joints.size(), skeleton->root, idle) || !idle.valid) {
+            selectedAttackChainIndex, skeleton->GetJoints().size(), skeleton->GetRootIndex(), idle) || !idle.valid) {
         return false;
     }
     std::array<Vector3, boneCount> idleRotations{};
     for (size_t i = 0; i < chain.size(); ++i) idleRotations[i] = bindLocalEulerRadians[chain[i]];
     for (const auto& joint : idle.joints) {
         const auto& offset = joint.localEulerOffsetRadians;
-        auto& rotation = joint.chainIndex == selectedAttackChainIndex
-            ? idleRotations[joint.chainBoneIndex] : skeleton->joints[joint.jointIndex].localRotate;
-        rotation = {rotation.x + offset.x, rotation.y + offset.y, rotation.z + offset.z};
+        const bool selected = joint.chainIndex == selectedAttackChainIndex;
+        const auto& rotation = selected
+            ? idleRotations[joint.chainBoneIndex] : skeleton->GetJoints()[joint.jointIndex].localRotate;
+        const Vector3 adjusted{rotation.x + offset.x, rotation.y + offset.y, rotation.z + offset.z};
+        if (selected) idleRotations[joint.chainBoneIndex] = adjusted;
+        else skeleton->SetJointLocalRotation(joint.jointIndex, adjusted);
     }
 
-    UpdateSkeletonWorldTransforms(*skeleton);
-    Joint& root = skeleton->joints[chain.front()];
-    const auto& parent = skeleton->joints[root.parentIndex];
+    skeleton->UpdateWorldTransforms();
+    const Joint& root = skeleton->GetJoints()[chain.front()];
+    const auto& parent = skeleton->GetJoints()[root.parentIndex];
     const auto rootParentWorld = MatrixMath::Multipty(parent.worldMatrix, worldMatrix);
     const auto moveRoot = [&](const Vector3& worldOffset) {
         const auto offset = TransformDirection(worldOffset, MatrixMath::Inverse(rootParentWorld));
-        root.localTranslate = {root.localTranslate.x + offset.x, root.localTranslate.y + offset.y,
-            root.localTranslate.z + offset.z};
+        skeleton->SetJointLocalTranslation(chain.front(), {root.localTranslate.x + offset.x, root.localTranslate.y + offset.y,
+            root.localTranslate.z + offset.z});
     };
     if (state == KrakenTentacleMidbossState::SweepPull) {
         for (size_t i = 0; i < chain.size(); ++i) {
-            skeleton->joints[chain[i]].localRotate = attackEntryPose[i];
+            skeleton->SetJointLocalRotation(chain[i], attackEntryPose[i]);
         }
         moveRoot({0.0f, -hiddenDrop * SmoothProgress(stateElapsedTime, sweep.settings.pull), 0.0f});
         return true;
     }
     if (state == KrakenTentacleMidbossState::SweepCounter || state == KrakenTentacleMidbossState::SweepReturn) {
         for (size_t i = 0; i < chain.size(); ++i) {
-            skeleton->joints[chain[i]].localRotate = idleRotations[i];
+            skeleton->SetJointLocalRotation(chain[i], idleRotations[i]);
         }
         const float rise = state == KrakenTentacleMidbossState::SweepReturn
             ? SmoothProgress(stateElapsedTime, sweep.settings.restore) : 0.0f;
@@ -145,8 +148,8 @@ bool KrakenTentacleMidbossController::Impl::ApplySweepPose() {
     const Vector3 forward = MatrixMath::Cross(sweep.right, sweep.up);
     Matrix4x4 parentWorld = rootParentWorld;
     for (size_t i = 0; i + 1 < chain.size(); ++i) {
-        Joint& joint = skeleton->joints[chain[i]];
-        const Joint& child = skeleton->joints[chain[i + 1]];
+        const Joint& joint = skeleton->GetJoints()[chain[i]];
+        const Joint& child = skeleton->GetJoints()[chain[i + 1]];
         const float along = static_cast<float>(i) / static_cast<float>(chain.size() - 2);
         const Vector3 direction = Subtract(inward, Scale(forward, std::lerp(0.55f, 0.04f, along)));
         const auto restRotation = MatrixMath::MakeAffine({1, 1, 1}, joint.localRotate, {});
@@ -154,11 +157,11 @@ bool KrakenTentacleMidbossController::Impl::ApplySweepPose() {
             child.localTranslate.y * joint.localScale.y, child.localTranslate.z * joint.localScale.z};
         const auto from = Normalize(TransformDirection(childOffset, restRotation), {0, 1, 0});
         const auto to = Normalize(TransformDirection(direction, MatrixMath::Inverse(parentWorld)), from);
-        joint.localRotate = MatrixMath::ExtractEulerXYZ(MatrixMath::Multipty(restRotation, AimChild(from, to)));
+        skeleton->SetJointLocalRotation(chain[i], MatrixMath::ExtractEulerXYZ(MatrixMath::Multipty(restRotation, AimChild(from, to))));
         parentWorld = MatrixMath::Multipty(
             MatrixMath::MakeAffine(joint.localScale, joint.localRotate, joint.localTranslate), parentWorld);
     }
-    const Vector3 tip = TransformPosition(skeleton->joints[chain.back()].localTranslate, parentWorld);
+    const Vector3 tip = TransformPosition(skeleton->GetJoints()[chain.back()].localTranslate, parentWorld);
     moveRoot(Subtract(target, tip));
     return true;
 }
@@ -190,7 +193,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyWholeSlamPoseToSkeleton(
     KrakenTentacleWholeSlamPoseDiagnostics* poseDiagnostics) const {
     if (chainIndex >= chains.size()) return false;
     // The caller restores bind locals and placement first: aiming never uses the sway.
-    UpdateSkeletonWorldTransforms(targetSkeleton);
+    targetSkeleton.UpdateWorldTransforms();
     KrakenTentacleAttackPoseResult pose{};
     KrakenTentacleWholeSlamPoseDiagnostics evaluated{};
     if (!BuildKrakenTentacleWholeSlamPose(
@@ -204,7 +207,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyWholeSlamPoseToSkeleton(
     if (idleSwayEnabled) {
         KrakenTentacleIdlePoseResult idle{};
         if (!BuildKrakenTentacleIdlePose(idleSettings, poseIdleTime, chains,
-                true, chainIndex, targetSkeleton.joints.size(), targetSkeleton.root, idle)) {
+                true, chainIndex, targetSkeleton.GetJoints().size(), targetSkeleton.GetRootIndex(), idle)) {
             return false;
         }
         for (const auto& joint : idle.joints) {
@@ -213,7 +216,7 @@ bool KrakenTentacleMidbossController::Impl::ApplyWholeSlamPoseToSkeleton(
             rotation.y += joint.localEulerOffsetRadians.y;
             rotation.z += joint.localEulerOffsetRadians.z;
             if (joint.chainIndex != chainIndex) {
-                targetSkeleton.joints[joint.jointIndex].localRotate = rotation;
+                targetSkeleton.SetJointLocalRotation(joint.jointIndex, rotation);
             }
         }
     }
@@ -231,15 +234,15 @@ bool KrakenTentacleMidbossController::Impl::ApplyWholeSlamPoseToSkeleton(
             // Blend directly to the running Idle clock, not the old entry snapshot.
             rotation = BlendRotation(rotation, idleRotations[joint.jointIndex], blend);
         }
-        targetSkeleton.joints[joint.jointIndex].localRotate = rotation;
+        targetSkeleton.SetJointLocalRotation(joint.jointIndex, rotation);
     }
-    UpdateSkeletonWorldTransforms(targetSkeleton);
+    targetSkeleton.UpdateWorldTransforms();
     const int hinge = chains[chainIndex].joints[(std::min)(
         static_cast<std::size_t>(attackSettings.fixedLeadingBoneCount),
         chains[chainIndex].joints.size() - 1)];
-    evaluated.pivotWorldPosition = TransformPosition(targetSkeleton.joints[hinge].worldTranslate, worldMatrix);
+    evaluated.pivotWorldPosition = TransformPosition(targetSkeleton.GetJoints()[hinge].worldTranslate, worldMatrix);
     evaluated.tipWorldPosition = TransformPosition(
-        targetSkeleton.joints[chains[chainIndex].joints.back()].worldTranslate, worldMatrix);
+        targetSkeleton.GetJoints()[chains[chainIndex].joints.back()].worldTranslate, worldMatrix);
     Vector3 direction = { evaluated.tipWorldPosition.x - evaluated.pivotWorldPosition.x,
         evaluated.tipWorldPosition.y - evaluated.pivotWorldPosition.y,
         evaluated.tipWorldPosition.z - evaluated.pivotWorldPosition.z };

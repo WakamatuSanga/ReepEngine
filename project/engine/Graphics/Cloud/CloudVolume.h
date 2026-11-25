@@ -41,8 +41,10 @@ public:
 
     void Update(float deltaTime);
 
-    Parameters& GetParameters() { return parameters_; }
     const Parameters& GetParameters() const { return parameters_; }
+    bool SetParameters(const Parameters& parameters);
+    void SetCenter(const Vector3& center);
+    void SetOpacity(float opacity);
 
     float GetElapsedTime() const { return elapsedTime_; }
     const Vector3& GetWindOffset() const { return windOffset_; }
