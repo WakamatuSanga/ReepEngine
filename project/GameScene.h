@@ -77,7 +77,7 @@ struct Skeleton;
 
 class GameScene : public IScene {
 public:
-    GameScene();
+    explicit GameScene(bool particleContest = false);
     ~GameScene() override;
     void Initialize() override;
     void Update() override;
@@ -89,9 +89,12 @@ public:
     void DrawOverlay() override;
     bool UsesFullscreenScenePresentation() const override;
     bool BlocksDebugUiForPresentation() const override;
+    bool IsParticleContestScene() const { return particleContest_; }
+    bool IsParticleContestReady() const;
 
 private:
     friend class GameSceneDebugGui;
+    const bool particleContest_;
     bool presentationPrepared_ = false;
     std::unique_ptr<StageStartSequenceController> stageStart_;
     std::unique_ptr<StageCombatState> stageCombatState_;

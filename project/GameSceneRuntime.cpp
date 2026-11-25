@@ -1,6 +1,7 @@
 ﻿#include "Engine/Game/GameState/StageCombatState.h"
 #include "GameScene.h"
 #include "MyGame.h"
+#include "ParticleContestDemo.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
 #include "Engine/Animation/Skeleton.h"
@@ -74,6 +75,7 @@
 
 void GameScene::UpdateSceneRuntime() {
     auto input = MyGame::GetInstance()->GetInput();
+    auto* contestDemo = particleContest_ ? &SceneManager::GetInstance()->GetParticleContestDemo() : nullptr;
     auto particleManager = ParticleManager::GetInstance();
     auto volumetricCloudPass = MyGame::GetInstance()->GetVolumetricCloudPass();
     auto dxCommon = MyGame::GetInstance()->GetDxCommon();
@@ -376,9 +378,17 @@ void GameScene::UpdateSceneRuntime() {
             isGameMode, isPlayerAliveForAim);
     }
     if (playerBulletManager_) {
-        playerBulletManager_->Update(gameplayDeltaTime);
+        PlayerBulletManager::AutomatedFire automated;
+        if (contestDemo && ordinaryCombat && aimCorridorTargetingController_ && enemyManager_ && gameViewport_) {
+            const auto command = contestDemo->UpdateGameplay(gameplayDeltaTime, *enemyManager_,
+                *aimCorridorTargetingController_, *gameViewport_);
+            automated = { command.normalFire, command.missileTarget };
+            playerBulletManager_->SetGameViewInputActive(gameViewport_->IsMouseInGameViewport());
+        }
+        const auto launched = playerBulletManager_->Update(gameplayDeltaTime, contestDemo ? &automated : nullptr);
+        if (contestDemo && launched) contestDemo->RecordMissileLaunch(launched);
     }
-    if (startupEnemySpawnController_) {
+    if (startupEnemySpawnController_ && !contestDemo) {
         startupEnemySpawnController_->Update(gameplayDeltaTime);
     }
     if (enemyManager_) {
@@ -393,9 +403,9 @@ void GameScene::UpdateSceneRuntime() {
         influenceFieldManager_->Update(gameplayDeltaTime);
     }
     if (playerBulletEnemyCollision_) {
-        playerBulletEnemyCollision_->Update();
+        playerBulletEnemyCollision_->Update(contestDemo);
     }
-    if (enemyAttackController_) {
+    if (enemyAttackController_ && !contestDemo) {
         enemyAttackController_->Update(gameplayDeltaTime);
     }
     if (enemyBulletManager_) {
@@ -417,10 +427,15 @@ void GameScene::UpdateSceneRuntime() {
         aimCorridorTargetingController_->SetPlayerAlive(isPlayerAliveForAim);
         auto* mouseViewport = playerBulletManager_ && playerBulletManager_->UsesMouseAim() ? gameViewport_.get() : nullptr;
         bool mouseAcquisition = ordinaryCombat && mouseViewport && player_ && player_->IsEnabled() &&
-            playerBulletManager_->CanShowMouseAim() && mouseViewport->IsGameWindowActive();
+            playerBulletManager_->CanShowMouseAim();
+        if (contestDemo) {
+            mouseAcquisition = mouseAcquisition && contestDemo->IsAcquiringLock();
+        } else {
+            mouseAcquisition = mouseAcquisition && mouseViewport->IsGameWindowActive();
 #ifdef USE_IMGUI
-        mouseAcquisition = mouseAcquisition && !imguiIO.MouseDrawCursor && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
+            mouseAcquisition = mouseAcquisition && !imguiIO.MouseDrawCursor && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopup);
 #endif
+        }
         aimCorridorTargetingController_->SetMouseAimViewport(mouseViewport, mouseAcquisition);
         aimCorridorTargetingController_->Update(gameplayDeltaTime, unscaledDeltaTime);
     }
@@ -442,13 +457,13 @@ void GameScene::UpdateSceneRuntime() {
     if (gameOverFlowController_) {
         gameOverFlowController_->Update();
     }
-    if (playerEventTriggerBridge_) {
+    if (playerEventTriggerBridge_ && !contestDemo) {
         playerEventTriggerBridge_->Update();
     }
     if (levelSceneRuntime_) {
         levelSceneRuntime_->Update(gameplayDeltaTime);
     }
-    if (eventActionDispatcher_) {
+    if (eventActionDispatcher_ && !contestDemo) {
         eventActionDispatcher_->Update();
     }
     if (enemyWaveManager_) {
@@ -633,7 +648,7 @@ void GameScene::UpdateSceneRuntime() {
 
 #ifdef USE_IMGUI
     const bool showDebugUi = !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi();
-    if (debugGui_) {
+    if (debugGui_ && !contestDemo) {
         debugGui_->DrawImGui(dxCommon, showDebugUi, volumetricCloudPass);
     }
 #endif

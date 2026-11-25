@@ -198,7 +198,7 @@ void PlayerBulletManager::UpdateLockedWingShotDiagnostics() {
 }
 
 PlayerBulletManager::LockedWingShotResult
-PlayerBulletManager::TrySpawnLockedWingShot() {
+PlayerBulletManager::TrySpawnLockedWingShot(std::string_view onlyTarget) {
     if (!lockedWingShotEnabled_) {
         return LockedWingShotResult::NotRequested;
     }
@@ -218,6 +218,7 @@ PlayerBulletManager::TrySpawnLockedWingShot() {
     const auto targets = aimCorridorTargetingController_->GetLockedTargetSnapshots();
     LockedWingShotResult result = LockedWingShotResult::NotRequested;
     for (const auto& target : targets) {
+        if (!onlyTarget.empty() && target.id != onlyTarget) continue;
         const Matrix4x4& world = camera_->GetWorldMatrix();
         const Vector3 forward{ world.m[2][0], world.m[2][1], world.m[2][2] };
         if (Dot(Subtract(target.worldPosition, camera_->GetTranslate()), forward) <= 0.0f) {
@@ -227,6 +228,7 @@ PlayerBulletManager::TrySpawnLockedWingShot() {
         const auto shot = SpawnLockedWingShot(nextLockedShotWing_, target.id, false);
         if (shot == LockedWingShotResult::Spawned) {
             aimCorridorTargetingController_->ReleaseFiredTarget(target.id);
+            if (!onlyTarget.empty()) return shot;
             result = shot;
         } else if (result != LockedWingShotResult::Spawned) {
             result = shot;

@@ -7,6 +7,7 @@ class EnemyManager;
 class CameraShakeController;
 class PlayerBulletManager;
 class CombatEffectController;
+class ParticleContestDemo;
 class StageCombatState;
 
 class PlayerBulletEnemyCollision {
@@ -20,7 +21,7 @@ public:
         CombatEffectController* combatEffectController);
     void Finalize();
     void SetCameraShakeController(CameraShakeController* controller) { cameraShakeController_ = controller; }
-    void Update();
+    void Update(ParticleContestDemo* demo = nullptr);
     void SetCombatState(StageCombatState* state) { combatState_ = state; }
     void DrawImGui();
 

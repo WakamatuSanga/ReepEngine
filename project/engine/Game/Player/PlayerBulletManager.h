@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class AimCorridorTargetingController;
@@ -36,6 +37,11 @@ public:
     enum class PlayerProjectileType : uint8_t {
         NormalShot,
         LockedWingShot,
+    };
+
+    struct AutomatedFire {
+        bool normalFire = false;
+        std::string_view lockedTarget;
     };
 
     enum class PlayerProjectileKillReason : uint8_t {
@@ -84,7 +90,7 @@ public:
     void Initialize(Object3dCommon* object3dCommon, Camera* camera, Player* player);
     bool PrepareForPresentation();
     void Finalize();
-    void Update(float deltaTime);
+    std::uint64_t Update(float deltaTime, const AutomatedFire* automated = nullptr);
     void Draw();
     void DrawAfterCloud(bool drawSmoke);
     void DrawImGui();
@@ -118,7 +124,8 @@ public:
         int* damage,
         float* lastDistance,
         float* lastRadiusSum,
-        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr);
+        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr,
+        std::uint64_t* projectileId = nullptr);
     bool CheckHitAndKillFirstSphere(
         const Vector3& center,
         float radius,
@@ -126,7 +133,8 @@ public:
         int* damage,
         float* lastDistance,
         float* lastRadiusSum,
-        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr);
+        float* lastBulletRadius, PlayerProjectileType* projectileType = nullptr,
+        std::uint64_t* projectileId = nullptr);
     std::vector<PlayerBulletCollisionSnapshot> GetActiveCollisionSnapshots() const;
     bool TryKillProjectileByRuntimeId(
         std::uint64_t runtimeId,
@@ -241,7 +249,7 @@ private:
 
     void FireFromPlayer();
     uint64_t AllocateBulletRuntimeId();
-    LockedWingShotResult TrySpawnLockedWingShot();
+    LockedWingShotResult TrySpawnLockedWingShot(std::string_view onlyTarget = {});
     LockedWingShotResult SpawnLockedWingShot(
         WingSide wing, const std::string& targetId, bool forcedTest);
     LockedTargetValidation ValidateLockedTarget() const;
@@ -283,7 +291,7 @@ private:
     void DrawAimImGui();
     void ResetAimDiagnostics();
     void RecordAimShot();
-    bool ShouldBlockFireInput();
+    bool ShouldBlockFireInput(bool automated);
 
     std::unique_ptr<ProjectileBeamVisual> normalBeamVisual_;
     Object3dCommon* object3dCommon_ = nullptr;

@@ -33,6 +33,10 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
     if (msg == WM_NCDESTROY) SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
 
     // Window shortcut shared by every scene; ignore key-repeat and inactive input.
+    if (app && msg == WM_KEYDOWN && wparam == VK_F8 &&
+        GetForegroundWindow() == hwnd && (lparam & (1LL << 30)) == 0) {
+        app->f8Pressed_ = true;
+    }
     if (app && msg == WM_KEYDOWN && wparam == VK_F11 &&
         GetForegroundWindow() == hwnd && (lparam & (1LL << 30)) == 0) {
         app->ToggleFullscreen();
@@ -176,6 +180,7 @@ int32_t WinApp::GetClientHeight() const {
 bool WinApp::ProcessMessage()
 {
     clientLeftClick_ = false;
+    f8Pressed_ = false;
     MSG msg{};
 
     // Drain activation and click messages before ImGui/Input/scene update.

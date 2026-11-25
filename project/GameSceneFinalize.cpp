@@ -66,8 +66,8 @@
 #include "Engine/Graphics/Sprite/Sprite.h"
 #include "Engine/Level/LevelSceneRuntime.h"
 
-GameScene::GameScene()
-    : skinningPreviewAssetMode_(KrakenPreviewAssetMode::OriginalMatrix) {}
+GameScene::GameScene(bool particleContest)
+    : particleContest_(particleContest), skinningPreviewAssetMode_(KrakenPreviewAssetMode::OriginalMatrix) {}
 
 GameScene::~GameScene() = default;
 

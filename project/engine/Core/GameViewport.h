@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Engine/math/Matrix4x4.h"
+#include <optional>
 #include <string>
 
 class Camera;
@@ -32,6 +33,7 @@ public:
     void ClearImGuiGameViewRect();
     void DrawImGui();
     void SetGameplayCursorHidden(bool hidden);
+    void SetAutomatedAim(Vector2 normalizedPosition);
 
     bool IsGameInputActive(bool editingImGuiInput, bool editorCameraFlyActive, bool gameplayBlocked);
     Ray GetMouseRayFromCamera(const Camera& camera) const;
@@ -40,6 +42,7 @@ public:
     Vector2 GetClientSize() const;
     Mode GetMode() const { return mode_; }
     bool IsGameWindowActive() const;
+    bool HasAutomatedAim() const { return automatedAim_.has_value(); }
     bool IsMouseInGameViewport() const { return mouseInGameViewport_; }
     bool IsGameViewHovered() const { return gameViewHovered_; }
     bool IsGameViewFocused() const { return gameViewFocused_; }
@@ -60,6 +63,7 @@ private:
     Vector2 mouseLocalPosition_{ 0.0f, 0.0f };
     Vector2 mouseNormalizedPosition_{ 0.0f, 0.0f };
     Vector2 mouseNdcPosition_{ 0.0f, 0.0f };
+    std::optional<Vector2> automatedAim_;
     Mode mode_ = Mode::ImGuiGameView;
     bool mouseInGameViewport_ = false;
     bool gameViewHovered_ = false;

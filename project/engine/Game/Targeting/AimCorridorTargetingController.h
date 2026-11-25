@@ -59,6 +59,7 @@ public:
         const PlayerLockOnTargetProvider* provider) const {
         return provider != nullptr && targetProvider_ == provider;
     }
+    bool ProjectWorldToScreen(const Vector3& worldPosition, Vector2& screenUv, float& clipW) const;
 
 private:
     struct HeldLock {
@@ -130,10 +131,6 @@ private:
     void ProjectTargets();
     bool ProjectKrakenTarget(const PlayerLockOnTargetSnapshot& source,
         ProjectedTarget& target, KrakenNaturalLockTargetDiagnostic& diagnostic) const;
-    bool ProjectWorldToScreen(
-        const Vector3& worldPosition,
-        Vector2& screenUv,
-        float& clipW) const;
     void UpdateSelection(float scaledDeltaTime);
     void SwitchCandidate(const ProjectedTarget& target, const char* reason);
     void ClearTarget(bool countLockBreak, const char* reason);

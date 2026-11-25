@@ -160,7 +160,8 @@ bool AimCorridorVisualController::DrawMouseReticle(const GameViewport& gameViewp
     if (!gameModeActive_ || !playerAlive_ || !enabled_ || forceHide_ ||
         displayMode_ != DisplayMode::MainReticleOnly || debugDiamondPreview_ ||
         gameViewport.GetMode() != GameViewport::Mode::FullscreenGame ||
-        !gameViewport.IsMouseInGameViewport() || !gameViewport.IsGameWindowActive()) {
+        !gameViewport.IsMouseInGameViewport() ||
+        (!gameViewport.HasAutomatedAim() && !gameViewport.IsGameWindowActive())) {
         return false;
     }
 

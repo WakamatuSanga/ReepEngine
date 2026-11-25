@@ -409,6 +409,8 @@
     <ClCompile Include="engine\Graphics\Model\ModelManager.cpp" />
     <ClCompile Include="engine\Graphics\Model\ModelMaterial.cpp" />
     <ClCompile Include="MyGame.cpp" />
+    <ClCompile Include="ParticleContestDemo.cpp" />
+    <ClCompile Include="ParticleContestDemoGameplay.cpp" />
     <ClCompile Include="engine\Graphics\Object3d\Object3d.cpp" />
     <ClCompile Include="engine\Graphics\Object3d\Object3dCommon.cpp" />
     <ClCompile Include="engine\Graphics\Particle\ParticleManager.cpp" />
@@ -609,6 +611,7 @@
     <ClInclude Include="engine\Graphics\Model\ModelCommon.h" />
     <ClInclude Include="engine\Graphics\Model\ModelManager.h" />
     <ClInclude Include="MyGame.h" />
+    <ClInclude Include="ParticleContestDemo.h" />
     <ClInclude Include="engine\Graphics\Object3d\Object3d.h" />
     <ClInclude Include="engine\Graphics\Object3d\Object3dCommon.h" />
     <ClInclude Include="engine\Graphics\Particle\ParticleManager.h" />

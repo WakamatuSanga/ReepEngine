@@ -85,6 +85,11 @@ void GameViewport::SetGameplayCursorHidden(bool hidden) {
     winApp_->SetGameplayCursorArea(area);
 }
 
+void GameViewport::SetAutomatedAim(Vector2 normalizedPosition) {
+    automatedAim_ = normalizedPosition;
+    UpdateMouseState();
+}
+
 void GameViewport::Initialize(WinApp* winApp) {
     winApp_ = winApp;
     ClearImGuiGameViewRect();
@@ -220,7 +225,7 @@ void GameViewport::SetFullscreenGameRect() {
 
     float menuBarHeight = 0.0f;
 #ifdef USE_IMGUI
-    if (ImGui::GetCurrentContext()) {
+    if (!automatedAim_ && ImGui::GetCurrentContext()) {
         menuBarHeight = ImGui::GetFrameHeight();
     }
 #endif
@@ -246,22 +251,18 @@ void GameViewport::UpdateMouseState() {
         return;
     }
 
-    POINT cursor{};
-    if (!GetCursorPos(&cursor)) {
-        return;
+    if (automatedAim_) {
+        mouseLocalPosition_ = { automatedAim_->x * gameViewportRect_.width,
+            automatedAim_->y * gameViewportRect_.height };
+        mouseScreenPosition_ = { gameViewportRect_.left + mouseLocalPosition_.x,
+            gameViewportRect_.top + mouseLocalPosition_.y };
+    } else {
+        POINT cursor{};
+        if (!GetCursorPos(&cursor) || !ScreenToClient(winApp_->GetHwnd(), &cursor)) return;
+        mouseScreenPosition_ = { static_cast<float>(cursor.x), static_cast<float>(cursor.y) };
+        mouseLocalPosition_ = { mouseScreenPosition_.x - gameViewportRect_.left,
+            mouseScreenPosition_.y - gameViewportRect_.top };
     }
-    if (!ScreenToClient(winApp_->GetHwnd(), &cursor)) {
-        return;
-    }
-
-    mouseScreenPosition_ = {
-        static_cast<float>(cursor.x),
-        static_cast<float>(cursor.y),
-    };
-    mouseLocalPosition_ = {
-        mouseScreenPosition_.x - gameViewportRect_.left,
-        mouseScreenPosition_.y - gameViewportRect_.top,
-    };
     mouseInGameViewport_ =
         mouseLocalPosition_.x >= 0.0f &&
         mouseLocalPosition_.y >= 0.0f &&

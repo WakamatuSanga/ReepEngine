@@ -206,9 +206,10 @@ void GameScene::InitializeSceneResources() {
     particleManager->SetTexture(particleTexturePath_);
 
     runtimeModeController_ = std::make_unique<RuntimeModeController>();
-    runtimeModeController_->Initialize(MyGame::GetInstance()->GetWinApp());
+    runtimeModeController_->Initialize(MyGame::GetInstance()->GetWinApp(), particleContest_);
     gameViewport_ = std::make_unique<GameViewport>();
     gameViewport_->Initialize(MyGame::GetInstance()->GetWinApp());
+    if (particleContest_) gameViewport_->SetAutomatedAim({ 0.5f, 0.5f });
     debugGui_ = std::make_unique<GameSceneDebugGui>();
     debugGui_->Initialize(this);
     editorCameraController_ = std::make_unique<EditorCameraController>();

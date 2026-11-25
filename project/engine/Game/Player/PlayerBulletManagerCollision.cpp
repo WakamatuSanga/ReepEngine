@@ -105,7 +105,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
     int* damage,
     float* lastDistance,
     float* lastRadiusSum,
-    float* lastBulletRadius, PlayerProjectileType* projectileType) {
+    float* lastBulletRadius, PlayerProjectileType* projectileType, std::uint64_t* projectileId) {
     const float safeRadius = (std::max)(0.001f, radius);
     const Vector3 safeScale{
         (std::max)(axisScale.x, 0.1f),
@@ -144,6 +144,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstEllipsoid(
             if (projectileType) {
                 *projectileType = instance.projectileType;
             }
+            if (projectileId) *projectileId = instance.runtimeId;
             RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = GetProjectileImpactPosition(instance, center, { axisX, axisY, axisZ }, bulletPosition);
@@ -184,7 +185,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
     int* damage,
     float* lastDistance,
     float* lastRadiusSum,
-    float* lastBulletRadius, PlayerProjectileType* projectileType) {
+    float* lastBulletRadius, PlayerProjectileType* projectileType, std::uint64_t* projectileId) {
     const float safeRadius = (std::max)(0.0f, radius);
     float closestDistance = -1.0f;
     float closestRadiusSum = safeRadius;
@@ -212,6 +213,7 @@ bool PlayerBulletManager::CheckHitAndKillFirstSphere(
             if (projectileType) {
                 *projectileType = instance.projectileType;
             }
+            if (projectileId) *projectileId = instance.runtimeId;
             RecordLockedWingHomingHit(instance);
             if (hitPosition) {
                 *hitPosition = GetProjectileImpactPosition(instance, center,

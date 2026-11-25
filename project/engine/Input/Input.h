@@ -17,7 +17,7 @@
 // dinput.h の前にバージョン定義が必要
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
-#include "Engine/Core/WinApp.h"
+class WinApp;
 
 // ------------------------------------------------------------
 // 入力クラス
@@ -43,6 +43,7 @@ public:
 
     // 毎フレーム更新：全デバイスの状態を取得
     void Update();
+    void SetManualInputSuppressed(bool suppressed) { manualInputSuppressed_ = suppressed; }
 
     // ------------- キーボード -------------
     // 指定キーが押されているか
@@ -89,6 +90,7 @@ private:
 private:
 
     WinApp* winApp_ = nullptr;
+    bool manualInputSuppressed_ = false;
 
     // --- DirectInput 本体 ---
     ComPtr<IDirectInput8> directInput_;
