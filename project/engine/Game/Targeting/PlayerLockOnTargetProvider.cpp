@@ -8,7 +8,9 @@
 #include "Engine/Game/Targeting/AimCorridorTargetingController.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <utility>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -70,6 +72,183 @@ const char* BoolText(bool value) {
     return value ? "はい" : "いいえ";
 }
 } // namespace
+
+class PlayerLockOnTargetProvider::TargetSource {
+public:
+    enum class Match { Missing, Found, Duplicate };
+
+    virtual ~TargetSource() = default;
+    virtual std::size_t PrepareCollection(const PlayerLockOnTargetProvider& provider) const = 0;
+    virtual void AppendCandidates(const PlayerLockOnTargetProvider& provider,
+        std::vector<PlayerLockOnTargetSnapshot>& targets) const = 0;
+    virtual Match Find(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const = 0;
+    virtual void Resolve(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const = 0;
+
+    static const std::array<const TargetSource*, 2>& All();
+
+protected:
+    static bool RejectDuplicateCandidate(const PlayerLockOnTargetProvider& provider,
+        const std::vector<PlayerLockOnTargetSnapshot>& targets, std::string_view id) {
+        if (!provider.ContainsId(targets, id)) return false;
+        ++provider.duplicateIdCount_;
+        ++provider.duplicateIdRejectionCount_;
+        ++provider.lastInvalidCandidateCount_;
+        return true;
+    }
+
+private:
+    class NormalEnemies;
+    class KrakenWeakPoints;
+};
+
+class PlayerLockOnTargetProvider::TargetSource::NormalEnemies final : public TargetSource {
+public:
+    std::size_t PrepareCollection(const PlayerLockOnTargetProvider& provider) const override {
+        provider.normalEnemyViews_.clear();
+        if (provider.enemyManager_) {
+            provider.enemyManager_->CollectTargetableEnemies(provider.normalEnemyViews_);
+        }
+        provider.lastNormalSourceCount_ = provider.normalEnemyViews_.size();
+        return provider.lastNormalSourceCount_;
+    }
+
+    void AppendCandidates(const PlayerLockOnTargetProvider& provider,
+        std::vector<PlayerLockOnTargetSnapshot>& targets) const override {
+        for (std::size_t index = 0; index < provider.normalEnemyViews_.size(); ++index) {
+            const EnemyTargetView& source = provider.normalEnemyViews_[index];
+            PlayerLockOnTargetSnapshot target{};
+            target.id = source.runtimeId;
+            target.worldPosition = source.worldPosition;
+            target.worldRadius = source.worldRadius;
+            target.kind = PlayerLockOnTargetKind::NormalEnemy;
+            target.alive = true;
+            target.targetable = true;
+            target.valid = !target.id.empty() && IsFinite(target.worldPosition);
+            if (target.id.empty()) {
+                ++provider.emptyIdCount_;
+            }
+            if (!IsFinite(target.worldPosition)) {
+                ++provider.nonFinitePositionCount_;
+            }
+            if (!target.valid) {
+                ++provider.invalidCandidateCount_;
+                ++provider.lastInvalidCandidateCount_;
+                continue;
+            }
+            if (RejectDuplicateCandidate(provider, targets, target.id)) continue;
+            if (target.id == source.runtimeId) {
+                ++provider.lastNormalIdMatchCount_;
+            }
+            if (targets.size() != index) {
+                ++provider.lastNormalOrderDifferenceCount_;
+            }
+            const float dx = target.worldPosition.x - source.worldPosition.x;
+            const float dy = target.worldPosition.y - source.worldPosition.y;
+            const float dz = target.worldPosition.z - source.worldPosition.z;
+            const float positionDifference = std::sqrt(dx * dx + dy * dy + dz * dz);
+            provider.lastNormalPositionMaximumDifference_ = (std::max)(
+                provider.lastNormalPositionMaximumDifference_, positionDifference);
+            targets.push_back(std::move(target));
+            ++provider.lastNormalEnemyCandidateCount_;
+        }
+    }
+
+    Match Find(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const override {
+        EnemyTargetSnapshot enemySnapshot{};
+        if (!provider.enemyManager_ ||
+            !provider.enemyManager_->TryGetEnemyTargetSnapshot(targetId, enemySnapshot)) {
+            return Match::Missing;
+        }
+
+        provider.normalEnemyViews_.clear();
+        provider.enemyManager_->CollectTargetableEnemies(provider.normalEnemyViews_);
+        const EnemyTargetView* normalTargetView = nullptr;
+        for (const EnemyTargetView& target : provider.normalEnemyViews_) {
+            if (target.runtimeId != targetId) continue;
+            if (normalTargetView) return Match::Duplicate;
+            normalTargetView = &target;
+        }
+
+        match.worldPosition = enemySnapshot.worldPosition;
+        match.kind = PlayerLockOnTargetKind::NormalEnemy;
+        match.alive = enemySnapshot.alive;
+        if (normalTargetView) {
+            match.worldPosition = normalTargetView->worldPosition;
+            match.worldRadius = normalTargetView->worldRadius;
+            match.targetable = true;
+        }
+        match.valid = enemySnapshot.valid && IsFinite(match.worldPosition);
+        return Match::Found;
+    }
+
+    void Resolve(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const override {
+        match.id = targetId;
+        ++provider.normalEnemyResolveCount_;
+    }
+};
+
+class PlayerLockOnTargetProvider::TargetSource::KrakenWeakPoints final : public TargetSource {
+public:
+    std::size_t PrepareCollection(const PlayerLockOnTargetProvider& provider) const override {
+        provider.SyncKrakenTargetIds();
+        return provider.krakenTargetIds_.size();
+    }
+
+    void AppendCandidates(const PlayerLockOnTargetProvider& provider,
+        std::vector<PlayerLockOnTargetSnapshot>& targets) const override {
+        for (const KrakenTargetId& source : provider.krakenTargetIds_) {
+            PlayerLockOnTargetSnapshot target{};
+            provider.BuildKrakenSnapshot(source.id, source.chainIndex, target);
+            if (!target.valid || !target.alive || !target.targetable) {
+                ++provider.invalidCandidateCount_;
+                ++provider.lastInvalidCandidateCount_;
+                if (!IsFinite(target.worldPosition)) {
+                    ++provider.nonFinitePositionCount_;
+                }
+                continue;
+            }
+            if (RejectDuplicateCandidate(provider, targets, target.id)) continue;
+            // Only selection needs the body geometry. ID queries for missiles keep the tip anchor.
+            if (!provider.krakenRuntime_->TryGetChainLockOnGeometrySnapshot(
+                    source.chainIndex, target.krakenGeometry)) {
+                ++provider.lastInvalidCandidateCount_;
+                continue;
+            }
+            targets.push_back(std::move(target));
+            ++provider.lastKrakenCandidateCount_;
+        }
+    }
+
+    Match Find(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const override {
+        const auto target = std::find_if(provider.krakenTargetIds_.begin(), provider.krakenTargetIds_.end(),
+            [targetId](const KrakenTargetId& source) { return source.id == targetId; });
+        if (target == provider.krakenTargetIds_.end()) return Match::Missing;
+        match.subTargetIndex = target->chainIndex;
+        return Match::Found;
+    }
+
+    void Resolve(const PlayerLockOnTargetProvider& provider, std::string_view targetId,
+        PlayerLockOnTargetSnapshot& match) const override {
+        provider.BuildKrakenSnapshot(targetId, match.subTargetIndex, match);
+        ++provider.krakenResolveCount_;
+        if (!match.alive) {
+            ++provider.krakenDefeatTargetLostCount_;
+        }
+    }
+};
+
+const std::array<const PlayerLockOnTargetProvider::TargetSource*, 2>&
+PlayerLockOnTargetProvider::TargetSource::All() {
+    static const NormalEnemies normalEnemies;
+    static const KrakenWeakPoints krakenWeakPoints;
+    static const std::array<const TargetSource*, 2> sources{&normalEnemies, &krakenWeakPoints};
+    return sources;
+}
 
 PlayerLockOnTargetProvider::~PlayerLockOnTargetProvider() = default;
 
@@ -153,12 +332,12 @@ void PlayerLockOnTargetProvider::SyncKrakenTargetIds() const {
 }
 
 bool PlayerLockOnTargetProvider::BuildKrakenSnapshot(
-    const KrakenTargetId& target,
+    std::string_view targetId, std::uint32_t chainIndex,
     PlayerLockOnTargetSnapshot& outSnapshot) const {
     outSnapshot = {};
-    outSnapshot.id = target.id;
+    outSnapshot.id = targetId;
     outSnapshot.kind = PlayerLockOnTargetKind::KrakenWeakPoint;
-    outSnapshot.subTargetIndex = target.chainIndex;
+    outSnapshot.subTargetIndex = chainIndex;
     if (!krakenRuntime_ || !krakenRuntime_->IsInitialized()) {
         return false;
     }
@@ -173,7 +352,7 @@ bool PlayerLockOnTargetProvider::BuildKrakenSnapshot(
     KrakenTentacleWeakPointAnchorSnapshot anchor{};
     const bool anchorFound =
         krakenRuntime_->TryGetWeakPointLockOnAnchorSnapshot(
-            target.chainIndex, anchor);
+            chainIndex, anchor);
     if (anchorFound) {
         outSnapshot.sourceColliderId = anchor.colliderId;
         outSnapshot.worldPosition = anchor.worldCenter;
@@ -217,87 +396,16 @@ void PlayerLockOnTargetProvider::CollectTargetableTargets(
         return;
     }
 
-    normalEnemyViews_.clear();
-    if (enemyManager_) {
-        enemyManager_->CollectTargetableEnemies(normalEnemyViews_);
+    const auto& sources = TargetSource::All();
+    std::size_t neededCapacity = 0;
+    for (const auto* source : sources) {
+        neededCapacity += source->PrepareCollection(*this);
     }
-    SyncKrakenTargetIds();
-    lastNormalSourceCount_ = normalEnemyViews_.size();
-    const std::size_t neededCapacity =
-        normalEnemyViews_.size() + krakenTargetIds_.size();
     if (outTargets.capacity() < neededCapacity) {
         outTargets.reserve(neededCapacity);
     }
-
-    for (std::size_t index = 0; index < normalEnemyViews_.size(); ++index) {
-        const EnemyTargetView& source = normalEnemyViews_[index];
-        PlayerLockOnTargetSnapshot target{};
-        target.id = source.runtimeId;
-        target.worldPosition = source.worldPosition;
-        target.worldRadius = source.worldRadius;
-        target.kind = PlayerLockOnTargetKind::NormalEnemy;
-        target.alive = true;
-        target.targetable = true;
-        target.valid = !target.id.empty() && IsFinite(target.worldPosition);
-        if (target.id.empty()) {
-            ++emptyIdCount_;
-        }
-        if (!IsFinite(target.worldPosition)) {
-            ++nonFinitePositionCount_;
-        }
-        if (!target.valid) {
-            ++invalidCandidateCount_;
-            ++lastInvalidCandidateCount_;
-            continue;
-        }
-        if (ContainsId(outTargets, target.id)) {
-            ++duplicateIdCount_;
-            ++duplicateIdRejectionCount_;
-            ++lastInvalidCandidateCount_;
-            continue;
-        }
-        if (target.id == source.runtimeId) {
-            ++lastNormalIdMatchCount_;
-        }
-        if (outTargets.size() != index) {
-            ++lastNormalOrderDifferenceCount_;
-        }
-        const float dx = target.worldPosition.x - source.worldPosition.x;
-        const float dy = target.worldPosition.y - source.worldPosition.y;
-        const float dz = target.worldPosition.z - source.worldPosition.z;
-        const float positionDifference = std::sqrt(
-            dx * dx + dy * dy + dz * dz);
-        lastNormalPositionMaximumDifference_ = (std::max)(
-            lastNormalPositionMaximumDifference_, positionDifference);
-        outTargets.push_back(std::move(target));
-        ++lastNormalEnemyCandidateCount_;
-    }
-
-    for (const KrakenTargetId& source : krakenTargetIds_) {
-        PlayerLockOnTargetSnapshot target{};
-        BuildKrakenSnapshot(source, target);
-        if (!target.valid || !target.alive || !target.targetable) {
-            ++invalidCandidateCount_;
-            ++lastInvalidCandidateCount_;
-            if (!IsFinite(target.worldPosition)) {
-                ++nonFinitePositionCount_;
-            }
-            continue;
-        }
-        if (ContainsId(outTargets, target.id)) {
-            ++duplicateIdCount_;
-            ++duplicateIdRejectionCount_;
-            ++lastInvalidCandidateCount_;
-            continue;
-        }
-        // Only selection needs the body geometry. ID queries for missiles keep the tip anchor.
-        if (!krakenRuntime_->TryGetChainLockOnGeometrySnapshot(
-                source.chainIndex, target.krakenGeometry)) {
-            ++lastInvalidCandidateCount_;
-            continue;
-        }
-        outTargets.push_back(std::move(target));
-        ++lastKrakenCandidateCount_;
+    for (const auto* source : sources) {
+        source->AppendCandidates(*this, outTargets);
     }
     lastCandidateCount_ = outTargets.size();
 }
@@ -316,74 +424,29 @@ bool PlayerLockOnTargetProvider::TryGetTargetSnapshot(
     }
 
     SyncKrakenTargetIds();
-    const auto krakenIt = std::find_if(
-        krakenTargetIds_.begin(), krakenTargetIds_.end(),
-        [targetId](const KrakenTargetId& target) {
-            return target.id == targetId;
-        });
-
-    EnemyTargetSnapshot enemySnapshot{};
-    const bool normalFound = enemyManager_ &&
-        enemyManager_->TryGetEnemyTargetSnapshot(targetId, enemySnapshot);
-    const EnemyTargetView* normalTargetView = nullptr;
-    if (normalFound) {
-        normalEnemyViews_.clear();
-        enemyManager_->CollectTargetableEnemies(normalEnemyViews_);
-        std::size_t matchingNormalIdCount = 0;
-        for (const EnemyTargetView& target : normalEnemyViews_) {
-            if (target.runtimeId == targetId) {
-                ++matchingNormalIdCount;
-                normalTargetView = &target;
-            }
-        }
-        if (matchingNormalIdCount > 1) {
+    const TargetSource* matchedSource = nullptr;
+    PlayerLockOnTargetSnapshot match{};
+    for (const auto* source : TargetSource::All()) {
+        const auto status = source->Find(*this, targetId, match);
+        if (status == TargetSource::Match::Missing) continue;
+        if (status == TargetSource::Match::Duplicate || matchedSource) {
             ++duplicateIdCount_;
             ++duplicateIdRejectionCount_;
             ++idQueryFailureCount_;
             return false;
         }
+        matchedSource = source;
     }
-    if (normalFound && krakenIt != krakenTargetIds_.end()) {
-        ++duplicateIdCount_;
-        ++duplicateIdRejectionCount_;
+    if (!matchedSource) {
         ++idQueryFailureCount_;
         return false;
     }
 
-    if (krakenIt != krakenTargetIds_.end()) {
-        BuildKrakenSnapshot(*krakenIt, outSnapshot);
-        ++idQuerySuccessCount_;
-        ++krakenResolveCount_;
-        if (!outSnapshot.valid || !outSnapshot.alive ||
-            !outSnapshot.targetable) {
-            ++targetLostCount_;
-            if (!outSnapshot.alive) {
-                ++krakenDefeatTargetLostCount_;
-            }
-        }
-        return true;
-    }
-
-    if (!normalFound) {
-        ++idQueryFailureCount_;
-        return false;
-    }
-
-    outSnapshot.id = std::string(targetId);
-    outSnapshot.worldPosition = enemySnapshot.worldPosition;
-    outSnapshot.kind = PlayerLockOnTargetKind::NormalEnemy;
-    outSnapshot.alive = enemySnapshot.alive;
-    if (normalTargetView) {
-        outSnapshot.worldPosition = normalTargetView->worldPosition;
-        outSnapshot.worldRadius = normalTargetView->worldRadius;
-        outSnapshot.targetable = true;
-    }
-    outSnapshot.valid = enemySnapshot.valid && !outSnapshot.id.empty() &&
-        IsFinite(outSnapshot.worldPosition);
+    // Resolve the target only once its ID has a unique source.
+    matchedSource->Resolve(*this, targetId, match);
+    outSnapshot = std::move(match);
     ++idQuerySuccessCount_;
-    ++normalEnemyResolveCount_;
-    if (!outSnapshot.valid || !outSnapshot.alive ||
-        !outSnapshot.targetable) {
+    if (!outSnapshot.valid || !outSnapshot.alive || !outSnapshot.targetable) {
         ++targetLostCount_;
     }
     return true;
@@ -449,7 +512,7 @@ void PlayerLockOnTargetProvider::DrawImGui(
         ImGui::Text("有効な弱点数: %zu", lastKrakenCandidateCount_);
         for (const KrakenTargetId& target : krakenTargetIds_) {
             PlayerLockOnTargetSnapshot snapshot{};
-            BuildKrakenSnapshot(target, snapshot);
+            BuildKrakenSnapshot(target.id, target.chainIndex, snapshot);
             const std::string label = "チェーン " +
                 std::to_string(target.chainIndex) + "##KrakenTarget" +
                 std::to_string(target.chainIndex);

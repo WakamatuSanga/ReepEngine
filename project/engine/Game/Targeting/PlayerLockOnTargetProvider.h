@@ -73,6 +73,7 @@ public:
     }
 
 private:
+    class TargetSource;
     struct KrakenTargetId {
         std::string id{};
         std::uint32_t chainIndex = 0;
@@ -81,7 +82,7 @@ private:
     void ResetDiagnostics() const;
     void SyncKrakenTargetIds() const;
     bool BuildKrakenSnapshot(
-        const KrakenTargetId& target,
+        std::string_view targetId, std::uint32_t chainIndex,
         PlayerLockOnTargetSnapshot& outSnapshot) const;
     bool ContainsId(
         const std::vector<PlayerLockOnTargetSnapshot>& targets,

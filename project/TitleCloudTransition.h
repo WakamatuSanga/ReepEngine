@@ -42,8 +42,8 @@ public:
     void OnSceneChanged();
     bool CanSwitch() const;
     bool IsCovering() const;
-    bool IsActive() const { return phase_ != Phase::Idle; }
-    Phase GetPhase() const { return phase_; }
+    bool IsActive() const { return GetPhase() != Phase::Idle; }
+    Phase GetPhase() const;
     float GetBackingAlpha() const;
     LayerPose GetLayerPose(size_t layer, Vector2 viewportSize) const;
     bool HasCloudImages() const { return imagesAvailable_; }
@@ -53,8 +53,11 @@ public:
     bool DrawImGui(); // Test request; does not exchange scenes.
     bool CanFinishTestLoad() const;
 private:
+    class State;
     static Settings& GetSettings();
-    Phase phase_ = Phase::Idle;
+    void ResetProgress();
+    bool DrawLayers();
+    const State* state_;
     double elapsed_ = 0.0;
     bool coveredPresented_ = false;
     bool newScenePresented_ = false;
