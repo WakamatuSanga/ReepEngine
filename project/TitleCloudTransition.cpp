@@ -43,7 +43,193 @@ template<class F> void Fields(TitleCloudTransition::Settings& s, F visit) {
 }
 }
 
-TitleCloudTransition::TitleCloudTransition() = default;
+class TitleCloudTransition::State {
+public:
+    struct LayerLayout {
+        const LayerSettings& layer;
+        float layerHeight;
+        float viewportHeight;
+        float margin;
+    };
+    struct LayerMotion {
+        Vector2 center;
+        float rotation;
+    };
+
+    virtual ~State() = default;
+    virtual const State& Update(TitleCloudTransition&) const { return *this; }
+    virtual const State& OnSceneChanged(TitleCloudTransition&) const { return *this; }
+    virtual const State& OnFramePresented(TitleCloudTransition&) const { return *this; }
+    virtual bool CanSwitch(const TitleCloudTransition&) const { return false; }
+    virtual void Draw(TitleCloudTransition& transition) const {
+        if (transition.DrawLayers()) transition.coveredDrawn_ = false;
+    }
+    virtual float GetBackingAlpha(const TitleCloudTransition&) const { return 0.0f; }
+    virtual LayerMotion GetLayerMotion(const TitleCloudTransition&, const LayerLayout& layout) const {
+        return {layout.layer.covered, layout.layer.rotation};
+    }
+
+    Phase GetPhase() const { return phase_; }
+    const char* GetName() const { return name_; }
+    static const State& For(Phase phase);
+
+protected:
+    State(Phase phase, const char* name) : phase_(phase), name_(name) {}
+
+private:
+    class Idle;
+    class Entering;
+    class Opaque;
+    class Covered;
+    class Waiting;
+    class Exiting;
+    const Phase phase_;
+    const char* const name_;
+};
+
+class TitleCloudTransition::State::Idle final : public State {
+public:
+    Idle() : State(Phase::Idle, "待機") {}
+    void Draw(TitleCloudTransition&) const override {}
+};
+
+class TitleCloudTransition::State::Entering final : public State {
+public:
+    Entering() : State(Phase::Entering, "進入") {}
+
+    const State& Update(TitleCloudTransition& transition) const override {
+        if (transition.elapsed_ >= transition.activeSettings_.enterSeconds) {
+            transition.elapsed_ -= transition.activeSettings_.enterSeconds;
+            return For(Phase::Covered);
+        }
+        return *this;
+    }
+
+    float GetBackingAlpha(const TitleCloudTransition& transition) const override {
+        const auto& settings = transition.activeSettings_;
+        const float p = static_cast<float>(transition.elapsed_ / settings.enterSeconds);
+        // Missing PNGs use the same full-screen opaque fade, without holes.
+        return Smooth(transition.imagesAvailable_ ? (p - settings.backingEnterStart) / (1 - settings.backingEnterStart) : p);
+    }
+
+    LayerMotion GetLayerMotion(const TitleCloudTransition& transition, const LayerLayout& layout) const override {
+        const auto& layer = layout.layer;
+        Vector2 start = layer.start;
+        start.y = (std::max)(start.y, 1 + layout.margin);
+        if (transition.enterAtLowerEdge_) {
+            // Advance the clear-only entry past the transparent margins of the cloud PNGs.
+            start.y = 1.0f + layout.layerHeight / (2.0f * layout.viewportHeight) - 0.115f;
+        }
+        const float p = Smooth(static_cast<float>((transition.elapsed_ - layer.enterDelay)
+            / (transition.activeSettings_.enterSeconds - layer.enterDelay)));
+        return {{start.x + (layer.covered.x-start.x)*p, start.y + (layer.covered.y-start.y)*p},
+            layer.rotation * p};
+    }
+};
+
+class TitleCloudTransition::State::Opaque : public State {
+public:
+    float GetBackingAlpha(const TitleCloudTransition&) const override { return 1.0f; }
+    void Draw(TitleCloudTransition& transition) const override {
+        if (transition.DrawLayers()) transition.coveredDrawn_ = true;
+    }
+
+protected:
+    Opaque(Phase phase, const char* name) : State(phase, name) {}
+};
+
+class TitleCloudTransition::State::Covered final : public Opaque {
+public:
+    Covered() : Opaque(Phase::Covered, "遮蔽・交換待ち") {}
+
+    bool CanSwitch(const TitleCloudTransition& transition) const override {
+        return transition.coveredPresented_ && transition.elapsed_ >= transition.activeSettings_.holdSeconds * 0.5;
+    }
+
+    const State& OnSceneChanged(TitleCloudTransition& transition) const override {
+        if (!CanSwitch(transition)) return *this;
+        transition.newScenePresented_ = false;
+        transition.coveredDrawn_ = false;
+        return For(Phase::Waiting);
+    }
+
+    const State& OnFramePresented(TitleCloudTransition& transition) const override {
+        if (transition.coveredDrawn_) transition.coveredPresented_ = true;
+        return *this;
+    }
+};
+
+class TitleCloudTransition::State::Waiting final : public Opaque {
+public:
+    Waiting() : Opaque(Phase::Waiting, "新シーン表示待ち") {}
+
+    const State& Update(TitleCloudTransition& transition) const override {
+        if (transition.newScenePresented_ && transition.elapsed_ >= transition.activeSettings_.holdSeconds) {
+            // Do not apply synchronous load time to the reveal animation.
+            transition.elapsed_ = 0;
+            return For(Phase::Exiting);
+        }
+        return *this;
+    }
+
+    const State& OnFramePresented(TitleCloudTransition& transition) const override {
+        if (transition.coveredDrawn_) transition.newScenePresented_ = true;
+        return *this;
+    }
+};
+
+class TitleCloudTransition::State::Exiting final : public State {
+public:
+    Exiting() : State(Phase::Exiting, "退出") {}
+
+    void Draw(TitleCloudTransition& transition) const override {
+        if (transition.elapsed_ >= transition.activeSettings_.exitSeconds) {
+            transition.clearDrawn_ = true;
+            return;
+        }
+        State::Draw(transition);
+    }
+
+    const State& OnFramePresented(TitleCloudTransition& transition) const override {
+        if (!transition.clearDrawn_) return *this;
+        transition.ResetProgress();
+        return For(Phase::Idle);
+    }
+
+    float GetBackingAlpha(const TitleCloudTransition& transition) const override {
+        const auto& settings = transition.activeSettings_;
+        return 1 - Smooth(static_cast<float>(transition.elapsed_ / settings.exitSeconds)
+            / (transition.imagesAvailable_ ? settings.backingExitEnd : 1.0f));
+    }
+
+    LayerMotion GetLayerMotion(const TitleCloudTransition& transition, const LayerLayout& layout) const override {
+        const auto& layer = layout.layer;
+        Vector2 end = layer.end;
+        end.y = (std::max)(end.y, 1 + layout.margin);
+        const float p = Smooth(static_cast<float>((transition.elapsed_ - layer.exitDelay)
+            / (transition.activeSettings_.exitSeconds - layer.exitDelay)));
+        return {{layer.covered.x + (end.x-layer.covered.x)*p, layer.covered.y + (end.y-layer.covered.y)*p},
+            layer.rotation};
+    }
+};
+
+const TitleCloudTransition::State& TitleCloudTransition::State::For(Phase phase) {
+    static const Idle idle;
+    static const Entering entering;
+    static const Covered covered;
+    static const Waiting waiting;
+    static const Exiting exiting;
+    switch (phase) {
+    case Phase::Idle: return idle;
+    case Phase::Entering: return entering;
+    case Phase::Covered: return covered;
+    case Phase::Waiting: return waiting;
+    case Phase::Exiting: return exiting;
+    }
+    return idle;
+}
+
+TitleCloudTransition::TitleCloudTransition() : state_(&State::For(Phase::Idle)) {}
 TitleCloudTransition::~TitleCloudTransition() = default;
 TitleCloudTransition::Settings& TitleCloudTransition::GetSettings() { static Settings s; return s; }
 bool TitleCloudTransition::LoadSettings(const char* path) {
@@ -114,9 +300,8 @@ bool TitleCloudTransition::Start() {
     if (IsActive()) return false;
     activeSettings_ = GetSettings();
     Fields(activeSettings_, [](const std::string&, float& v, float low, float high) { v = std::isfinite(v) ? std::clamp(v, low, high) : low; });
-    phase_ = Phase::Entering;
-    elapsed_ = 0;
-    coveredPresented_ = newScenePresented_ = coveredDrawn_ = clearDrawn_ = false;
+    state_ = &State::For(Phase::Entering);
+    ResetProgress();
     enterAtLowerEdge_ = false;
     return true;
 }
@@ -126,7 +311,10 @@ bool TitleCloudTransition::StartAtLowerEdge() {
     return true;
 }
 void TitleCloudTransition::Cancel() {
-    phase_ = Phase::Idle;
+    state_ = &State::For(Phase::Idle);
+    ResetProgress();
+}
+void TitleCloudTransition::ResetProgress() {
     elapsed_ = 0;
     coveredPresented_ = newScenePresented_ = coveredDrawn_ = clearDrawn_ = false;
 }
@@ -134,46 +322,26 @@ void TitleCloudTransition::Update(float dt) {
     coveredDrawn_ = clearDrawn_ = false;
     if (!IsActive()) return;
     if (std::isfinite(dt) && dt > 0) elapsed_ += dt;
-    if (phase_ == Phase::Entering && elapsed_ >= activeSettings_.enterSeconds) {
-        elapsed_ -= activeSettings_.enterSeconds;
-        phase_ = Phase::Covered;
-    } else if (phase_ == Phase::Waiting && newScenePresented_ && elapsed_ >= activeSettings_.holdSeconds) {
-        // Do not apply synchronous load time to the reveal animation.
-        elapsed_ = 0;
-        phase_ = Phase::Exiting;
-    }
+    state_ = &state_->Update(*this);
 }
 bool TitleCloudTransition::CanSwitch() const {
-    return phase_ == Phase::Covered && coveredPresented_ && elapsed_ >= activeSettings_.holdSeconds * 0.5;
+    return state_->CanSwitch(*this);
 }
 bool TitleCloudTransition::CanFinishTestLoad() const {
     return CanSwitch() && elapsed_ >= activeSettings_.holdSeconds * 0.5 + testLoadDelay;
 }
-bool TitleCloudTransition::IsCovering() const { return phase_ == Phase::Entering; }
+bool TitleCloudTransition::IsCovering() const { return GetPhase() == Phase::Entering; }
+TitleCloudTransition::Phase TitleCloudTransition::GetPhase() const { return state_->GetPhase(); }
 void TitleCloudTransition::OnSceneChanged() {
-    if (!CanSwitch()) return;
-    phase_ = Phase::Waiting;
-    newScenePresented_ = false;
-    coveredDrawn_ = false;
+    state_ = &state_->OnSceneChanged(*this);
 }
 void TitleCloudTransition::OnFramePresented() {
     // Draw(), then Present + fence, then this notification. Update alone is insufficient.
-    if (coveredDrawn_) {
-        if (phase_ == Phase::Covered) coveredPresented_ = true;
-        if (phase_ == Phase::Waiting) newScenePresented_ = true;
-    }
-    if (phase_ == Phase::Exiting && clearDrawn_) Cancel();
+    state_ = &state_->OnFramePresented(*this);
     coveredDrawn_ = clearDrawn_ = false;
 }
 float TitleCloudTransition::GetBackingAlpha() const {
-    if (phase_ == Phase::Idle) return 0;
-    if (phase_ == Phase::Covered || phase_ == Phase::Waiting) return 1;
-    if (phase_ == Phase::Entering) {
-        const float p = static_cast<float>(elapsed_ / activeSettings_.enterSeconds);
-        // Missing PNGs use the same full-screen opaque fade, without holes.
-        return Smooth(imagesAvailable_ ? (p - activeSettings_.backingEnterStart) / (1 - activeSettings_.backingEnterStart) : p);
-    }
-    return 1 - Smooth(static_cast<float>(elapsed_ / activeSettings_.exitSeconds) / (imagesAvailable_ ? activeSettings_.backingExitEnd : 1.0f));
+    return state_->GetBackingAlpha(*this);
 }
 TitleCloudTransition::LayerPose TitleCloudTransition::GetLayerPose(size_t i, Vector2 viewport) const {
     const auto& l = activeSettings_.layers.at(i);
@@ -182,33 +350,19 @@ TitleCloudTransition::LayerPose TitleCloudTransition::GetLayerPose(size_t i, Vec
     const Vector2 size{1672.0f * cover, 941.0f * cover};
     // Keep both endpoints outside even for very wide aspect ratios and rotated corners.
     const float margin = (size.y + std::abs(l.rotation) * size.x) / (2 * h) + 2 / h;
-    Vector2 start = l.start, end = l.end;
-    start.y = (std::max)(start.y, 1 + margin);
-    end.y = (std::max)(end.y, 1 + margin);
-    Vector2 center = l.covered;
-    float rotation = l.rotation;
-    if (phase_ == Phase::Entering) {
-        if (enterAtLowerEdge_) {
-            // Advance the clear-only entry past the transparent margins of the cloud PNGs.
-            start.y = 1.0f + size.y / (2.0f * h) - 0.115f;
-        }
-        const float p = Smooth(static_cast<float>((elapsed_ - l.enterDelay) / (activeSettings_.enterSeconds - l.enterDelay)));
-        center = {start.x + (l.covered.x-start.x)*p, start.y + (l.covered.y-start.y)*p};
-        rotation *= p;
-    } else if (phase_ == Phase::Exiting) {
-        const float p = Smooth(static_cast<float>((elapsed_ - l.exitDelay) / (activeSettings_.exitSeconds - l.exitDelay)));
-        center = {l.covered.x + (end.x-l.covered.x)*p, l.covered.y + (end.y-l.covered.y)*p};
-    }
-    return {{center.x*w, center.y*h}, size, rotation};
+    const auto motion = state_->GetLayerMotion(*this, {l, size.y, h, margin});
+    return {{motion.center.x*w, motion.center.y*h}, size, motion.rotation};
 }
 void TitleCloudTransition::Draw() {
-    if (!IsActive() || !common_ || !backing_) return;
-    if (phase_ == Phase::Exiting && elapsed_ >= activeSettings_.exitSeconds) { clearDrawn_ = true; return; }
+    if (!common_ || !backing_) return;
+    state_->Draw(*this);
+}
+bool TitleCloudTransition::DrawLayers() {
     auto* dx = common_->GetDxCommon();
     auto* cmd = dx->GetCommandList();
     const auto viewport = dx->GetBackBufferViewport();
     const auto scissor = dx->GetBackBufferScissorRect();
-    if (viewport.Width <= 0 || viewport.Height <= 0) return;
+    if (viewport.Width <= 0 || viewport.Height <= 0) return false;
     cmd->RSSetViewports(1, &viewport);
     cmd->RSSetScissorRects(1, &scissor);
     SrvManager::GetInstance()->PreDraw();
@@ -234,7 +388,7 @@ void TitleCloudTransition::Draw() {
         cloud.Update();
         cloud.Draw();
     }
-    coveredDrawn_ = (phase_ == Phase::Covered || phase_ == Phase::Waiting) && GetBackingAlpha() == 1;
+    return true;
 }
 
 void TitleCloudTransition::ShowSettings() { settingsVisible = true; }
@@ -251,7 +405,7 @@ bool TitleCloudTransition::DrawImGui() {
         ImGui::SameLine();
         if (ImGui::Button("採用値へ戻す")) s = Settings{};
         ImGui::TextWrapped("%s", status);
-        ImGui::Text("画像: %s / 状態: %s", imagesAvailable_ ? "3枚を読み込み済み" : "欠落のため全画面Fade", phase_ == Phase::Idle ? "待機" : phase_ == Phase::Entering ? "進入" : phase_ == Phase::Covered ? "遮蔽・交換待ち" : phase_ == Phase::Waiting ? "新シーン表示待ち" : "退出");
+        ImGui::Text("画像: %s / 状態: %s", imagesAvailable_ ? "3枚を読み込み済み" : "欠落のため全画面Fade", state_->GetName());
         ImGui::SliderFloat("進入時間(実秒)", &s.enterSeconds, .2f, 8);
         ImGui::SliderFloat("最低保持時間(実秒)", &s.holdSeconds, .05f, 8);
         ImGui::SliderFloat("退出時間(実秒)", &s.exitSeconds, .2f, 8);

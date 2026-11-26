@@ -41,20 +41,21 @@ public:
     void Cancel();
     void SetPaused(bool paused) { paused_ = paused; }
     bool IsPaused() const { return paused_; }
-    bool IsActive() const { return phase_ != Phase::Complete; }
+    bool IsActive() const { return GetPhase() != Phase::Complete; }
     bool IsAircraftVisible() const;
-    Phase GetPhase() const { return phase_; }
+    Phase GetPhase() const;
     float GetTitleAlpha() const;
     float GetHudTopReveal() const;
     float GetHudBottomReveal() const;
 private:
+    class State;
     static Settings& GetTuning(); // Session-only; captured at the next Restart, never writes JSON.
-    void ApplyDisplayPose();
+    void ApplyTitlePose();
     void ApplyCrossingPose(float progress);
     void ApplyEntryPose(float progress);
     void RestoreDisplayPose();
     void SetCameraLift(float lift);
-    Phase phase_ = Phase::AwaitingReveal;
+    const State* state_;
     float elapsed_ = 0.0f;
     bool paused_ = false;
     Settings settings_{};

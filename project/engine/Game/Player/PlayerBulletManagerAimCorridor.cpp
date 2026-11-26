@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
@@ -73,6 +74,161 @@ namespace {
         }
         sourceLabel = "ゲームワールド前方（+Z）";
         return { 0.0f, 0.0f, 1.0f };
+    }
+
+    struct ShotAimContext {
+        const Vector3& muzzlePosition;
+        const Vector3& cameraDirection;
+        float aimDistance;
+        const Camera* camera;
+        const Player* player;
+        const GameViewport* viewport;
+        const AimCorridorVisualController* corridor;
+        bool gameModeActive;
+        bool playerAlive;
+    };
+
+    struct ShotAimResult {
+        Vector3 direction;
+        Vector3 point;
+        std::string fallbackReason;
+    };
+
+    ShotAimResult MakeForwardAim(const ShotAimContext& context, const Vector3& direction) {
+        return { direction, Add(context.muzzlePosition, Scale(direction, context.aimDistance)), {} };
+    }
+
+    ShotAimResult MakeFallbackAim(const ShotAimContext& context, const Vector3& direction,
+        const char* reason, const char* source) {
+        auto result = MakeForwardAim(context, direction);
+        result.fallbackReason = std::string(reason) + "。" + source + "へフォールバックしました。";
+        return result;
+    }
+
+    class ShotAim {
+    public:
+        virtual ~ShotAim() = default;
+        virtual ShotAimResult Resolve(const ShotAimContext& context, Vector3& cursorRayDirection) const = 0;
+    };
+
+    class CameraForwardAim final : public ShotAim {
+    public:
+        ShotAimResult Resolve(const ShotAimContext& context, Vector3&) const override {
+            return MakeForwardAim(context, context.cameraDirection);
+        }
+    };
+
+    class CorridorAim final : public ShotAim {
+    public:
+        ShotAimResult Resolve(const ShotAimContext& context, Vector3&) const override {
+            if (!context.corridor) {
+                return Fallback(context, "エイムコリドー管理機能がありません");
+            }
+            if (!context.gameModeActive || !context.playerAlive || !context.corridor->IsGameModeActive()) {
+                return Fallback(context, "ゲームモードまたはプレイヤー生存状態が無効です");
+            }
+            if (!context.corridor->IsMainReticlePresentationValid()) {
+                return Fallback(context, "小型長方形照準が表示可能な状態ではありません");
+            }
+
+            const Vector3 targetWorldPosition = context.corridor->GetMainReticleWorldCenter();
+            const Vector2 targetScreenUv = context.corridor->GetMainReticleScreenUv();
+            if (!IsFinite(targetWorldPosition) || !IsFinite(targetScreenUv)) {
+                return Fallback(context, "小型長方形照準の座標が非有限です");
+            }
+            Vector3 direction{};
+            if (!TryNormalize(Subtract(targetWorldPosition, context.muzzlePosition), direction)) {
+                return Fallback(context, "小型長方形照準がプレイヤー位置に近すぎます");
+            }
+            return { direction, targetWorldPosition, {} };
+        }
+
+    private:
+        static ShotAimResult Fallback(const ShotAimContext& context, const char* reason) {
+            std::string source;
+            const Vector3 direction = ResolveSafeForward(context.player, context.camera, source);
+            return MakeFallbackAim(context, direction, reason, source.c_str());
+        }
+    };
+
+    class MouseAim : public ShotAim {
+    public:
+        ShotAimResult Resolve(const ShotAimContext& context, Vector3& cursorRayDirection) const override final {
+            if (!context.viewport) {
+                return Fallback(context, "ゲーム表示領域がありません");
+            }
+            if (!context.viewport->IsMouseInGameViewport()) {
+                return Fallback(context, "マウスがゲーム表示領域外です");
+            }
+            const auto mouseRay = context.viewport->GetMouseRayFromCamera(*context.camera);
+            if (!mouseRay.valid) {
+                return Fallback(context, "カーソル光線が無効です");
+            }
+            cursorRayDirection = mouseRay.direction;
+            return ResolveRay(context, mouseRay);
+        }
+
+    protected:
+        static ShotAimResult Fallback(const ShotAimContext& context, const char* reason) {
+            return MakeFallbackAim(context, context.cameraDirection, reason, "カメラ正面");
+        }
+
+    private:
+        virtual ShotAimResult ResolveRay(const ShotAimContext& context, const GameViewport::Ray& mouseRay) const = 0;
+    };
+
+    class MouseRayAim final : public MouseAim {
+        ShotAimResult ResolveRay(const ShotAimContext& context, const GameViewport::Ray& mouseRay) const override {
+            Vector3 direction{};
+            if (!TryNormalize(mouseRay.direction, direction)) {
+                return Fallback(context, "カーソル光線方向が無効です");
+            }
+            return { direction, Add(mouseRay.origin, Scale(direction, context.aimDistance)), {} };
+        }
+    };
+
+    class MousePlaneAim final : public MouseAim {
+        ShotAimResult ResolveRay(const ShotAimContext& context, const GameViewport::Ray& mouseRay) const override {
+            const Vector3 planeCenter = Add(
+                context.camera->GetTranslate(), Scale(context.cameraDirection, context.aimDistance));
+            const float denominator = Dot(mouseRay.direction, context.cameraDirection);
+            if (!std::isfinite(denominator) || std::fabs(denominator) <= kMinVectorLength) {
+                return Fallback(context, "カーソル光線が照準平面と平行です");
+            }
+
+            const float distanceOnRay =
+                Dot(Subtract(planeCenter, mouseRay.origin), context.cameraDirection) / denominator;
+            if (!std::isfinite(distanceOnRay) || distanceOnRay <= kMinVectorLength) {
+                return Fallback(context, "照準平面との交点がカメラ後方です");
+            }
+
+            const Vector3 targetWorldPosition = Add(mouseRay.origin, Scale(mouseRay.direction, distanceOnRay));
+            Vector3 direction{};
+            if (!IsFinite(targetWorldPosition)
+                || !TryNormalize(Subtract(targetWorldPosition, context.muzzlePosition), direction)) {
+                return Fallback(context, "カーソル照準のワールド座標が無効です");
+            }
+            return { direction, targetWorldPosition, {} };
+        }
+    };
+
+    const ShotAim& GetShotAim(PlayerBulletManager::AimMode mode) {
+        static const CorridorAim corridor;
+        static const CameraForwardAim cameraForward;
+        static const MouseRayAim mouseRay;
+        static const MousePlaneAim mousePlane;
+
+        switch (mode) {
+        case PlayerBulletManager::AimMode::AimCorridor:
+            return corridor;
+        case PlayerBulletManager::AimMode::CameraForward:
+            return cameraForward;
+        case PlayerBulletManager::AimMode::MouseRay:
+            return mouseRay;
+        case PlayerBulletManager::AimMode::MouseAimPlane:
+        default:
+            return mousePlane;
+        }
     }
 
     const char* ToJapaneseAimMode(PlayerBulletManager::AimMode mode) {
@@ -199,108 +355,19 @@ Vector3 PlayerBulletManager::ResolveAimDirection(
     Vector3& cursorRayDirection) {
     Vector3 cameraDirection{ 0.0f, 0.0f, 1.0f };
     TryNormalize(cameraForward, cameraDirection);
-    std::string safeForwardSource;
-    const Vector3 safeForward = ResolveSafeForward(player_, camera_, safeForwardSource);
 
     lastUsedAimMode_ = aimMode_;
-    lastAimFallbackUsed_ = false;
     lastShotSpawnDataValid_ = false;
-    lastShotFallbackReason_ = "なし";
-    lastAimDirection_ = cameraDirection;
-    lastAimPoint_ = Add(muzzleBasePosition, Scale(cameraDirection, aimDistance_));
-
-    const auto useFallback = [this, &muzzleBasePosition](
-                                 const std::string& reason,
-                                 const Vector3& direction,
-                                 const std::string& source) {
-        lastAimFallbackUsed_ = true;
-        lastShotFallbackReason_ = reason + "。" + source + "へフォールバックしました。";
-        lastAimDirection_ = direction;
-        lastAimPoint_ = Add(muzzleBasePosition, Scale(direction, aimDistance_));
-        return direction;
+    const ShotAimContext context{
+        muzzleBasePosition, cameraDirection, aimDistance_, camera_, player_, gameViewport_,
+        aimCorridorVisualController_, aimGameModeActive_, aimPlayerAlive_
     };
-
-    if (aimMode_ == AimMode::AimCorridor) {
-        if (!aimCorridorVisualController_) {
-            return useFallback("エイムコリドー管理機能がありません", safeForward, safeForwardSource);
-        }
-        if (!aimGameModeActive_ || !aimPlayerAlive_
-            || !aimCorridorVisualController_->IsGameModeActive()) {
-            return useFallback("ゲームモードまたはプレイヤー生存状態が無効です", safeForward, safeForwardSource);
-        }
-        if (!aimCorridorVisualController_->IsMainReticlePresentationValid()) {
-            return useFallback("小型長方形照準が表示可能な状態ではありません", safeForward, safeForwardSource);
-        }
-
-        const Vector3 targetWorldPosition =
-            aimCorridorVisualController_->GetMainReticleWorldCenter();
-        const Vector2 targetScreenUv =
-            aimCorridorVisualController_->GetMainReticleScreenUv();
-        Vector3 direction{};
-        if (!IsFinite(targetWorldPosition) || !IsFinite(targetScreenUv)) {
-            return useFallback("小型長方形照準の座標が非有限です", safeForward, safeForwardSource);
-        }
-        if (!TryNormalize(Subtract(targetWorldPosition, muzzleBasePosition), direction)) {
-            return useFallback("小型長方形照準がプレイヤー位置に近すぎます", safeForward, safeForwardSource);
-        }
-
-        lastAimPoint_ = targetWorldPosition;
-        lastAimDirection_ = direction;
-        return direction;
-    }
-
-    if (aimMode_ == AimMode::CameraForward) {
-        lastAimPoint_ = Add(muzzleBasePosition, Scale(cameraDirection, aimDistance_));
-        lastAimDirection_ = cameraDirection;
-        return cameraDirection;
-    }
-
-    if (!gameViewport_) {
-        return useFallback("ゲーム表示領域がありません", cameraDirection, "カメラ正面");
-    }
-    if (!gameViewport_->IsMouseInGameViewport()) {
-        return useFallback("マウスがゲーム表示領域外です", cameraDirection, "カメラ正面");
-    }
-
-    const GameViewport::Ray mouseRay = gameViewport_->GetMouseRayFromCamera(*camera_);
-    if (!mouseRay.valid) {
-        return useFallback("カーソル光線が無効です", cameraDirection, "カメラ正面");
-    }
-    cursorRayDirection = mouseRay.direction;
-
-    if (aimMode_ == AimMode::MouseRay) {
-        Vector3 rayDirection{};
-        if (!TryNormalize(mouseRay.direction, rayDirection)) {
-            return useFallback("カーソル光線方向が無効です", cameraDirection, "カメラ正面");
-        }
-        lastAimDirection_ = rayDirection;
-        lastAimPoint_ = Add(mouseRay.origin, Scale(rayDirection, aimDistance_));
-        return rayDirection;
-    }
-
-    const Vector3 planeCenter = Add(
-        camera_->GetTranslate(), Scale(cameraDirection, aimDistance_));
-    const float denominator = Dot(mouseRay.direction, cameraDirection);
-    if (!std::isfinite(denominator) || std::fabs(denominator) <= kMinVectorLength) {
-        return useFallback("カーソル光線が照準平面と平行です", cameraDirection, "カメラ正面");
-    }
-
-    const float distanceOnRay =
-        Dot(Subtract(planeCenter, mouseRay.origin), cameraDirection) / denominator;
-    if (!std::isfinite(distanceOnRay) || distanceOnRay <= kMinVectorLength) {
-        return useFallback("照準平面との交点がカメラ後方です", cameraDirection, "カメラ正面");
-    }
-
-    const Vector3 targetWorldPosition =
-        Add(mouseRay.origin, Scale(mouseRay.direction, distanceOnRay));
-    Vector3 direction{};
-    if (!IsFinite(targetWorldPosition)
-        || !TryNormalize(Subtract(targetWorldPosition, muzzleBasePosition), direction)) {
-        return useFallback("カーソル照準のワールド座標が無効です", cameraDirection, "カメラ正面");
-    }
-    lastAimPoint_ = targetWorldPosition;
-    lastAimDirection_ = direction;
-    return direction;
+    auto result = GetShotAim(aimMode_).Resolve(context, cursorRayDirection);
+    lastAimDirection_ = result.direction;
+    lastAimPoint_ = result.point;
+    lastAimFallbackUsed_ = !result.fallbackReason.empty();
+    lastShotFallbackReason_ = lastAimFallbackUsed_ ? std::move(result.fallbackReason) : "なし";
+    return result.direction;
 }
 
 Vector3 PlayerBulletManager::ResolveFinalShotDirection(
