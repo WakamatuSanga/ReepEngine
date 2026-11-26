@@ -16,7 +16,137 @@
 #include "externals/imgui/imgui.h"
 #endif
 
-BoostController::BoostController() = default;
+class BoostController::Phase {
+public:
+    struct Transition {
+        const Phase& next;
+        bool clearActiveEffects = false;
+    };
+
+    virtual ~Phase() = default;
+    virtual Transition Update(BoostController& boost, float realDt) const = 0;
+    virtual float GaugeRate(const BoostController&) const { return 1.0f; }
+
+    State Kind() const { return kind_; }
+    const char* Name() const { return name_; }
+
+    static const Phase& IdlePhase();
+    static const Phase& BoostingPhase();
+    static const Phase& CooldownPhase();
+
+protected:
+    Phase(State kind, const char* name) : kind_(kind), name_(name) {}
+
+private:
+    class Idle;
+    class Boosting;
+    class Cooldown;
+    State kind_;
+    const char* name_;
+};
+
+class BoostController::Phase::Boosting final : public Phase {
+public:
+    Boosting() : Phase(State::Boosting, "Boosting") {}
+
+    Transition Update(BoostController& boost, float realDt) const override {
+        boost.PollBoostInput(false);
+        return Advance(boost, realDt);
+    }
+
+    float GaugeRate(const BoostController& boost) const override {
+        const float duration = (std::max)(boost.boostDuration_, 0.001f);
+        return 1.0f - Saturate(boost.boostTimer_ / duration);
+    }
+
+    static Transition Advance(BoostController& boost, float realDt) {
+        const auto& tuning = FlightTuning::Get();
+        const float remaining = boost.boostDuration_ - boost.boostTimer_;
+        const bool finishes = realDt >= remaining - 0.000001f;
+        const float step = (std::min)(realDt, remaining);
+        const float previous = SmoothStep(boost.boostTimer_ / boost.boostDuration_);
+        boost.boostTimer_ = finishes ? boost.boostDuration_ : boost.boostTimer_ + step;
+        const float u = boost.boostTimer_ / boost.boostDuration_;
+        boost.boostFrameFraction_ = realDt > 0.0f ? step / realDt : 1.0f;
+        boost.movementBlend_ = finishes ? 1.0f
+            : Saturate((SmoothStep(u) - previous) / (std::max)(0.000001f, 1.0f - previous));
+        boost.steeringBlend_ = Saturate(step / .055f) * (1.0f - SmoothStep((u - .55f) / .30f));
+        if (finishes) {
+            boost.boostCooldownTimer_ = (std::max)(0.0f, boost.boostCooldown_ - (realDt - step));
+            return {boost.boostCooldownTimer_ > 0.0f ? CooldownPhase() : IdlePhase(), true};
+        }
+
+        constexpr float pi = 3.14159265358979323846f;
+        const float sine = std::sin(pi * u);
+        boost.currentBoostPower_ = sine * sine;
+        boost.currentTimeScale_ = tuning.boostTimeScale;
+        if (boost.player_) {
+            const float depth = boost.player_->GetGameplayReferenceDistance() * tuning.depthShrink * boost.currentBoostPower_;
+            const float wave = std::sin(2.0f * pi * u);
+            boost.player_->SetBoostTrajectory(boost.currentBoostPower_,
+                {-boost.startSide_ * tuning.orbitExtra, -tuning.orbitVertical * wave}, depth,
+                {.08f * wave * boost.currentBoostPower_, -boost.startSide_ * .20f * boost.currentBoostPower_, 0},
+                boost.startSide_ * 2.0f * pi * SmoothStep(u));
+        }
+        boost.currentCloudBoostExtraSpeed_ = std::clamp(boost.maxCloudBoostExtraSpeed_, 0.0f, 30.0f) * boost.currentBoostPower_;
+        boost.targetCloudBoostExtraSpeed_ = boost.currentCloudBoostExtraSpeed_;
+        const float baseCloudSpeed = boost.cloudPass_ ? boost.cloudPass_->GetCloudBaseFlowSpeed() : 0.0f;
+        boost.currentCloudFlowMultiplier_ = baseCloudSpeed > .0001f
+            ? 1.0f + boost.currentCloudBoostExtraSpeed_ / baseCloudSpeed : 1.0f;
+        boost.PushMultiplierToCloud();
+        return {BoostingPhase()};
+    }
+};
+
+class BoostController::Phase::Idle final : public Phase {
+public:
+    Idle() : Phase(State::Idle, "Idle") {}
+
+    Transition Update(BoostController& boost, float realDt) const override {
+        if (!boost.PollBoostInput(boost.boostCooldownTimer_ <= 0.0f)) {
+            return {*this};
+        }
+        boost.BeginBoost();
+        return Boosting::Advance(boost, realDt);
+    }
+};
+
+class BoostController::Phase::Cooldown final : public Phase {
+public:
+    Cooldown() : Phase(State::Cooldown, "Cooldown") {}
+
+    Transition Update(BoostController& boost, float realDt) const override {
+        boost.boostCooldownTimer_ = (std::max)(0.0f, boost.boostCooldownTimer_ - realDt);
+        if (boost.boostCooldownTimer_ == 0.0f) {
+            // The expiry frame accepts input and advances a new boost in the same update.
+            return IdlePhase().Update(boost, realDt);
+        }
+        boost.PollBoostInput(false);
+        return {*this};
+    }
+
+    float GaugeRate(const BoostController& boost) const override {
+        const float duration = (std::max)(boost.boostCooldown_, 0.001f);
+        return 1.0f - Saturate(boost.boostCooldownTimer_ / duration);
+    }
+};
+
+const BoostController::Phase& BoostController::Phase::IdlePhase() {
+    static const Idle phase;
+    return phase;
+}
+
+const BoostController::Phase& BoostController::Phase::BoostingPhase() {
+    static const Boosting phase;
+    return phase;
+}
+
+const BoostController::Phase& BoostController::Phase::CooldownPhase() {
+    static const Cooldown phase;
+    return phase;
+}
+
+BoostController::BoostController() : phase_(&Phase::IdlePhase()) {}
 
 BoostController::~BoostController() = default;
 
@@ -46,54 +176,18 @@ void BoostController::BeginFrame(float unscaledDeltaTime, bool ordinaryGameplay,
     lastInputTriggered_ = lastCanBoost_ = false;
     boostFrameFraction_ = evadeSweepFraction_ = movementBlend_ = 0.0f;
     if (!ordinaryGameplay || !enableBoost_) { Cancel(); return; }
-    if (state_ == State::Cooldown) {
-        boostCooldownTimer_ = (std::max)(0.0f, boostCooldownTimer_ - realDt);
-        if (boostCooldownTimer_ == 0) state_ = State::Idle;
-    }
+    const Phase::Transition transition = phase_->Update(*this, realDt);
+    phase_ = &transition.next;
+    if (transition.clearActiveEffects) ClearActiveEffects();
+}
+
+bool BoostController::PollBoostInput(bool canStart) {
     Input* input = MyGame::GetInstance()->GetInput();
     if (gameViewInputActive_ && input) {
         lastInputTriggered_ = input->TriggerKey(ResolveInputKey());
-        lastCanBoost_ = state_ == State::Idle && boostCooldownTimer_ <= 0;
-        if (lastInputTriggered_ && lastCanBoost_) StartBoost(false);
+        lastCanBoost_ = canStart;
     }
-    if (!IsBoosting()) return;
-
-    const auto& tuning = FlightTuning::Get();
-    const float remaining = boostDuration_ - boostTimer_;
-    const bool finishes = realDt >= remaining - 0.000001f;
-    const float step = (std::min)(realDt, remaining);
-    const float previous = SmoothStep(boostTimer_ / boostDuration_);
-    boostTimer_ = finishes ? boostDuration_ : boostTimer_ + step;
-    const float u = boostTimer_ / boostDuration_;
-    boostFrameFraction_ = realDt > 0.0f ? step / realDt : 1.0f;
-    movementBlend_ = finishes ? 1.0f
-        : Saturate((SmoothStep(u) - previous) / (std::max)(0.000001f, 1.0f - previous));
-    steeringBlend_ = Saturate(step / .055f) * (1.0f - SmoothStep((u - .55f) / .30f));
-    if (finishes) {
-        boostCooldownTimer_ = (std::max)(0.0f, boostCooldown_ - (realDt - step));
-        state_ = boostCooldownTimer_ > 0.0f ? State::Cooldown : State::Idle;
-        ClearActiveEffects();
-        return;
-    }
-
-    constexpr float pi = 3.14159265358979323846f;
-    const float sine = std::sin(pi * u);
-    currentBoostPower_ = sine * sine;
-    currentTimeScale_ = tuning.boostTimeScale;
-    if (player_) {
-        const float depth = player_->GetGameplayReferenceDistance() * tuning.depthShrink * currentBoostPower_;
-        const float wave = std::sin(2.0f * pi * u);
-        player_->SetBoostTrajectory(currentBoostPower_,
-            { -startSide_ * tuning.orbitExtra, -tuning.orbitVertical * wave }, depth,
-            { .08f * wave * currentBoostPower_, -startSide_ * .20f * currentBoostPower_, 0 },
-            startSide_ * 2.0f * pi * SmoothStep(u));
-    }
-    currentCloudBoostExtraSpeed_ = std::clamp(maxCloudBoostExtraSpeed_, 0.0f, 30.0f) * currentBoostPower_;
-    targetCloudBoostExtraSpeed_ = currentCloudBoostExtraSpeed_;
-    const float baseCloudSpeed = cloudPass_ ? cloudPass_->GetCloudBaseFlowSpeed() : 0.0f;
-    currentCloudFlowMultiplier_ = baseCloudSpeed > .0001f
-        ? 1.0f + currentCloudBoostExtraSpeed_ / baseCloudSpeed : 1.0f;
-    PushMultiplierToCloud();
+    return lastInputTriggered_ && lastCanBoost_;
 }
 
 float BoostController::ResolveGameplayDeltaTime(float deltaTime, float combatScale) {
@@ -143,7 +237,10 @@ void BoostController::DrawImGui() {
         DrawEvadeSettingsImGui();
         ImGui::SliderFloat("雲Boost追加速度", &maxCloudBoostExtraSpeed_, 0, 30);
         ImGui::Text("軌道・時間倍率の設定は飛行調整へ。");
-        if (ImGui::Button("テスト発動")) StartBoost(true);
+        if (ImGui::Button("テスト発動")) {
+            BeginBoost();
+            phase_ = &Phase::BoostingPhase();
+        }
         ImGui::SameLine(); if (ImGui::Button("中断")) Cancel();
     }
     DebugUiWorkspace::EndPanel();
@@ -163,37 +260,24 @@ float BoostController::GetCloudFlowMultiplier() const {
     return currentCloudFlowMultiplier_;
 }
 
-float BoostController::GetBoostGaugeRate() const {
-    if (state_ == State::Boosting) {
-        const float safeDuration = (std::max)(boostDuration_, 0.001f);
-        return 1.0f - Saturate(boostTimer_ / safeDuration);
-    }
-    if (state_ == State::Cooldown) {
-        const float safeCooldown = (std::max)(boostCooldown_, 0.001f);
-        return 1.0f - Saturate(boostCooldownTimer_ / safeCooldown);
-    }
-    return 1.0f;
+BoostController::State BoostController::GetState() const {
+    return phase_->Kind();
 }
+
+float BoostController::GetBoostGaugeRate() const {
+    return phase_->GaugeRate(*this);
+}
+
 float BoostController::GetVisualSpeedMultiplier() const {
     return 1.0f + (std::max)(0.0f, boostVisualSpeedMultiplier_ - 1.0f) * currentBoostPower_;
 }
 
-void BoostController::StartBoost(bool ignoreCooldown) {
-    if (!enableBoost_ && !ignoreCooldown) {
-        inputBlockedReason_ = "Boost disabled";
-        return;
-    }
-    if (!ignoreCooldown && (state_ != State::Idle || boostCooldownTimer_ > 0.0f)) {
-        inputBlockedReason_ = "Boost cooldown or already boosting";
-        return;
-    }
-
+void BoostController::BeginBoost() {
     boostDuration_ = FlightTuning::Get().boostDuration;
     startX_ = player_ ? std::clamp(player_->GetLocalOffsetX() / (std::max)(player_->GetMoveLimitX(), .001f), -1.0f, 1.0f) : 0;
     startY_ = player_ ? std::clamp(player_->GetLocalOffsetY() / (std::max)(player_->GetMoveLimitY(), .001f), -1.0f, 1.0f) : 0;
     steeringInitialized_ = false;
     startSide_ = startX_ < 0 ? -1.0f : 1.0f;
-    state_ = State::Boosting;
     boostTimer_ = 0.0f;
     boostCooldownTimer_ = 0.0f;
     currentBoostPower_ = 0.0f;
@@ -202,7 +286,7 @@ void BoostController::StartBoost(bool ignoreCooldown) {
 }
 
 void BoostController::ResetBoost() {
-    state_ = State::Idle;
+    phase_ = &Phase::IdlePhase();
     boostCooldownTimer_ = 0.0f;
     boostFrameFraction_ = evadeSweepFraction_ = movementBlend_ = 0.0f;
     ClearActiveEffects();
@@ -278,15 +362,7 @@ unsigned char BoostController::ResolveInputKey() const {
 }
 
 const char* BoostController::GetStateName() const {
-    switch (state_) {
-    case State::Boosting:
-        return "Boosting";
-    case State::Cooldown:
-        return "Cooldown";
-    case State::Idle:
-    default:
-        return "Idle";
-    }
+    return phase_->Name();
 }
 
 const char* BoostController::GetInputKeyName() const {

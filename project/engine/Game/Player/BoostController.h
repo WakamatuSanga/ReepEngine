@@ -45,9 +45,9 @@ public:
     void SetCloudPass(VolumetricCloudPass* cloudPass) { cloudPass_ = cloudPass; }
     void SetPostEffectContext(Player* player, Camera* camera, PostEffectController* postEffectController);
 
-    State GetState() const { return state_; }
-    bool IsBoosting() const { return state_ == State::Boosting; }
-    bool IsCoolingDown() const { return state_ == State::Cooldown; }
+    State GetState() const;
+    bool IsBoosting() const { return GetState() == State::Boosting; }
+    bool IsCoolingDown() const { return GetState() == State::Cooldown; }
     bool IsEvadeActive() const { return IsBoosting(); }
     float GetCooldownRemaining() const { return boostCooldownTimer_; }
     float GetCooldownDuration() const { return boostCooldown_; }
@@ -62,7 +62,9 @@ public:
     uint64_t GetBoostCount() const { return boostCount_; }
 
 private:
-    void StartBoost(bool ignoreCooldown);
+    class Phase;
+    bool PollBoostInput(bool canStart);
+    void BeginBoost();
     void ResetBoost();
     void ClearActiveEffects();
     void PushMultiplierToCloud();
@@ -80,7 +82,7 @@ private:
     Camera* camera_ = nullptr;
     PostEffectController* postEffectController_ = nullptr;
 
-    State state_ = State::Idle;
+    const Phase* phase_;
     InputKey boostInputKey_ = InputKey::LeftShift;
     bool enableBoost_ = true;
     bool gameViewInputActive_ = false;
