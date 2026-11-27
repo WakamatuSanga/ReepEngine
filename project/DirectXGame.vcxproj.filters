@@ -779,6 +779,9 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenChasePreview.cpp">
+      <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClCompile>
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp">
       <Filter>ソース ファイル\engine\Game\Boss\Kraken</Filter>
     </ClCompile>
@@ -1509,6 +1512,9 @@
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h">
+      <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenChasePreview.h">
       <Filter>ヘッダー ファイル\engine\Game\Boss\Kraken</Filter>
     </ClInclude>
     <ClInclude Include="engine\Game\KrakenTentacleWeakPointAnchorSnapshot.h">

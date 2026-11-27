@@ -237,17 +237,19 @@ void GameScene::UpdateSceneRuntime() {
         runtimeModeController_->EndCameraModeSwitchDiagnostics(camera_.get(), cameraProjectionUpdated);
     }
 
+    const bool chasePreviewActive = IsKrakenChasePreviewActive();
     const bool krakenCombatActive = krakenTentacleWaveEncounter_ &&
         krakenTentacleWaveEncounter_->GetState() == KrakenTentacleWaveEncounterState::Active;
     const bool presentationBeforeUpdate = isDeathSequenceActive
         || (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive())
         || (!krakenCombatActive && railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive());
-    const bool ordinaryCombat = isGameMode && !presentationBeforeUpdate
+    const bool ordinaryCombat = isGameMode && !presentationBeforeUpdate && !chasePreviewActive
         && !(enemyWaveManager_ && enemyWaveManager_->IsStageComplete());
     if (stageCombatState_) stageCombatState_->SetGameplayActive(ordinaryCombat);
-    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime, ordinaryCombat, frameTimer.GetRawDeltaTime());
+    if (boostController_) boostController_->BeginFrame(unscaledDeltaTime,
+        ordinaryCombat || (chasePreviewActive && isGameMode), frameTimer.GetRawDeltaTime());
     if (combatSlowMotionController_) {
-        if (presentationBeforeUpdate) combatSlowMotionController_->Reset();
+        if (presentationBeforeUpdate || chasePreviewActive) combatSlowMotionController_->Reset();
         combatSlowMotionController_->Update(unscaledDeltaTime);
     }
     // Resolve one common clock. Overlapping slows take the stronger request;
@@ -265,7 +267,7 @@ void GameScene::UpdateSceneRuntime() {
 
     if (input->PushKey(DIK_0)) audio->PlayAudio("resources/sounds/Alarm01.mp3");
 
-    PreUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
+    if (!chasePreviewActive) PreUpdateKrakenTentacleWaveEncounter(gameplayDeltaTime);
     const bool dedicatedCameraPresentation = isDeathSequenceActive ||
         (krakenTentacleWaveEncounter_ && krakenTentacleWaveEncounter_->IsDedicatedCameraPresentationActive());
     if (railShooterCameraRig_) {
@@ -275,7 +277,7 @@ void GameScene::UpdateSceneRuntime() {
         railShooterCameraRig_->Update(gameplayDeltaTime);
     }
     if (cameraShakeController_) {
-        cameraShakeController_->SetGameplayEventsEnabled(isGameMode && !dedicatedCameraPresentation
+        cameraShakeController_->SetGameplayEventsEnabled(isGameMode && !dedicatedCameraPresentation && !chasePreviewActive
             && !(railShooterCameraRig_ && railShooterCameraRig_->IsGameplayPresentationActive()));
     }
     const bool gameplayCameraFollow = railShooterCameraRig_ && railShooterCameraRig_->UsesGameplayComposition();
@@ -355,6 +357,31 @@ void GameScene::UpdateSceneRuntime() {
         playerJetExhaustController_->SetPlayerAlive(!(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()));
         playerJetExhaustController_->Update(effectDeltaTime);
     }
+    bool chasePreviewStarted = false;
+#ifdef USE_IMGUI
+    if (!contestDemo && isGameMode && (krakenChaseStartRequested_ || input->TriggerKey(DIK_F7))) {
+        krakenChaseStartRequested_ = false;
+        chasePreviewStarted = StartKrakenChasePreview();
+    }
+#endif
+    if (chasePreviewActive || chasePreviewStarted) {
+        if (!chasePreviewStarted) UpdateKrakenChasePreview(isGameMode ? unscaledDeltaTime : 0.0f);
+        if (playerHudController_) {
+            playerHudController_->SetGameModeActive(isGameMode);
+            playerHudController_->Update(unscaledDeltaTime);
+        }
+        if (postEffectController_) postEffectController_->Update(gameplayDeltaTime, unscaledDeltaTime);
+        if (gameplaySpeedLineController_) {
+            gameplaySpeedLineController_->Update(effectDeltaTime,
+                isGameMode && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle);
+        }
+        UpdateSceneScenery(gameplayDeltaTime);
+#ifdef USE_IMGUI
+        if (debugGui_) debugGui_->DrawImGui(dxCommon,
+            !runtimeModeController_ || runtimeModeController_->ShouldDrawDebugUi(), volumetricCloudPass);
+#endif
+        return;
+    }
     const bool isPlayerAliveForAim =
         !(playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished());
     if (!aimCorridorVisualController_) {
@@ -395,7 +422,7 @@ void GameScene::UpdateSceneRuntime() {
     }
     UpdateKrakenTentacleMidboss(gameplayDeltaTime);
     if (playerDeathSequenceController_ && playerDeathSequenceController_->IsActiveOrFinished()) { UpdateDeathPresentation(); return; }
-    if (TryBeginStageClear()) return;
+    if (TryBeginKrakenChaseAfterMidboss() || TryBeginStageClear()) return;
     PostKrakenUpdateKrakenTentacleWaveEncounter();
     if (influenceFieldManager_) {
         influenceFieldManager_->SetDebugVisualsEnabled(shouldDrawLevelDebug);
@@ -486,14 +513,7 @@ void GameScene::UpdateSceneRuntime() {
     if (enemyLaserTelegraphController_) {
         enemyLaserTelegraphController_->Update(gameplayDeltaTime);
     }
-    if (cloudVolume_) {
-        cloudVolume_->Update(gameplayDeltaTime);
-    }
-    if (volumetricCloudPass && cloudVolume_) {
-        cloudProjectedBounds_ = volumetricCloudPass->BuildProjectedBounds(camera_.get(), cloudVolume_.get());
-    } else {
-        cloudProjectedBounds_ = {};
-    }
+    UpdateSceneScenery(gameplayDeltaTime);
     objectRandomTime_ += gameplayDeltaTime;
     if (animatedCubeObject_ && hasAnimatedCubeAnimation_) {
         animatedCubeAnimationTime_ += gameplayDeltaTime;
@@ -516,13 +536,6 @@ void GameScene::UpdateSceneRuntime() {
         }
     }
 
-    if (isSkyboxFollowCamera_) {
-        skyboxTranslate_ = camera_->GetTranslate();
-    }
-    skybox_->SetCamera(camera_.get());
-    skybox_->SetScale(skyboxScale_);
-    skybox_->SetTranslate(skyboxTranslate_);
-    skybox_->Update();
     object3dSphere_->SetEnvironmentMapEnabled(isSphereEnvironmentMapEnabled_);
     object3dSphere_->SetEnvironmentMapIntensity(sphereEnvironmentMapIntensity_);
     object3dSphere_->SetDissolveEnabled(isObjectDissolveEnabled_);
@@ -545,6 +558,7 @@ void GameScene::UpdateSceneRuntime() {
     if (animatedCubeObject_) {
         animatedCubeObject_->Update();
     }
+
     const Skeleton* activeSkinningTarget = skinningEditor_ ? skinningEditor_->GetTargetSkeleton() : nullptr;
     const float activeSkinnedPreviewScale = skinningEditor_ ? skinningEditor_->GetActivePreviewScale() : 1.0f;
     const Vector3 activeSkinnedPreviewRotation = skinningEditor_ ? skinningEditor_->GetActivePreviewRotation() : Vector3{ 0.0f, 0.0f, 0.0f };
@@ -657,5 +671,18 @@ void GameScene::UpdateSceneRuntime() {
     } else {
         cloudProjectedBounds_ = {};
     }
-    }
+}
+
+void GameScene::UpdateSceneScenery(float deltaTime) {
+    if (cloudVolume_) cloudVolume_->Update(deltaTime);
+    const auto* clouds = MyGame::GetInstance()->GetVolumetricCloudPass();
+    cloudProjectedBounds_ = clouds && cloudVolume_ ? clouds->BuildProjectedBounds(camera_.get(), cloudVolume_.get())
+        : VolumetricCloudPass::ProjectedBounds{};
+
+    if (isSkyboxFollowCamera_) skyboxTranslate_ = camera_->GetTranslate();
+    skybox_->SetCamera(camera_.get());
+    skybox_->SetScale(skyboxScale_);
+    skybox_->SetTranslate(skyboxTranslate_);
+    skybox_->Update();
+}
 

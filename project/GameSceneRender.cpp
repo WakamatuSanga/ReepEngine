@@ -56,8 +56,9 @@ void GameScene::DrawSceneRender() {
     const bool aircraftVisible = (!stageStartActive || stageStart_->IsAircraftVisible()) &&
         (!deathActive || playerDeathSequenceController_->IsAircraftVisible()) &&
         (!clearActive || stageClear_->IsAircraftVisible());
-    const bool combatVisible = !clearActive && !deathActive;
-    const bool effectsVisible = !clearActive || (aircraftVisible && !stageClear_->IsResultBackground());
+    const bool chasePreviewActive = IsKrakenChasePreviewActive();
+    const bool combatVisible = !clearActive && !deathActive && !chasePreviewActive;
+    const bool effectsVisible = !chasePreviewActive && (!clearActive || (aircraftVisible && !stageClear_->IsResultBackground()));
     const bool shouldDrawDebugVisuals =
         !stageStartActive && combatVisible && runtimeModeController_ ? runtimeModeController_->ShouldDrawLevelDebug() : false;
     const RuntimeModeController::ShadowLikeDebugSettings shadowDebugSettings =
@@ -126,7 +127,8 @@ void GameScene::DrawSceneRender() {
     if (!clearActive && influenceFieldManager_) {
         influenceFieldManager_->DrawDebug();
     }
-    if (!deathActive && (!clearActive || stageClear_->NeedsTentacleUpdate())) DrawKrakenTentacleMidboss();
+    if (!chasePreviewActive && !deathActive && (!clearActive || stageClear_->NeedsTentacleUpdate())) DrawKrakenTentacleMidboss();
+    DrawKrakenChasePreview();
     if (deathActive) playerDeathSequenceController_->Draw();
     if (!stageStartActive && combatVisible && screenSpaceFakeShadowPass_ && !shadowDebugSettings.disableFakeShadow) {
         screenSpaceFakeShadowPass_->Draw(camera_.get());
@@ -186,7 +188,7 @@ void GameScene::DrawSceneRender() {
     if (!clearActive && gameplaySpeedLineController_ && !shadowDebugSettings.disableEffects && !shadowDebugSettings.disableGpuParticle) {
         gameplaySpeedLineController_->Draw();
     }
-    if (combatVisible && player_ && !shadowDebugSettings.disableEffects) {
+    if ((combatVisible || chasePreviewActive) && player_ && !shadowDebugSettings.disableEffects) {
         auto rtv = dxCommon->GetRenderTextureRTV();
         auto dsv = dxCommon->GetDepthStencilView();
         dxCommon->GetCommandList()->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
@@ -243,7 +245,7 @@ void GameScene::DrawSceneRender() {
     if (!clearActive && postEffectController_) {
         postEffectController_->Draw();
     }
-    if (!clearActive && warningUIController_) {
+    if (!clearActive && !chasePreviewActive && warningUIController_) {
         warningUIController_->Draw();
     }
     profiler.End(commandList, afterToken);
