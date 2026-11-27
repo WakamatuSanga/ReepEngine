@@ -14,6 +14,7 @@
 #include "Engine/Game/Camera/CameraShakeController.h"
 #include "Engine/Game/Camera/RailShooterCameraRig.h"
 #include "Engine/Game/Collision/PlayerBulletEnemyCollision.h"
+#include "Engine/Game/Boss/Kraken/KrakenChasePreview.h"
 #include "Engine/Game/Collision/PlayerEnemyBulletCollision.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleMidbossController.h"
 #include "Engine/Game/Boss/Kraken/KrakenTentacleWaveEncounterController.h"
@@ -84,6 +85,9 @@ void GameScene::FinalizeSceneResources() {
         playerLockOnTargetProvider_->Finalize();
     }
     playerLockOnTargetProvider_.reset();
+    krakenChasePreview_.reset();
+    krakenChaseAfterMidboss_ = false;
+    krakenChaseStartRequested_ = false;
     FinalizeKrakenTentacleWaveEncounter();
     FinalizeKrakenTentacleMidboss();
     FinalizeSkinningEditorPreview();

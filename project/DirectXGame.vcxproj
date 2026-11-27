@@ -341,6 +341,7 @@
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentaclePoseTransition.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.cpp" />
+    <ClCompile Include="engine\Game\Boss\Kraken\KrakenChasePreview.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossLockOnTarget.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossEncounterApi.cpp" />
     <ClCompile Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterController.cpp" />
@@ -625,6 +626,7 @@
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentaclePoseEvaluator.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleAttackWholeSlam.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleMidbossController.h" />
+    <ClInclude Include="engine\Game\Boss\Kraken\KrakenChasePreview.h" />
     <ClInclude Include="engine\Game\KrakenTentacleWeakPointAnchorSnapshot.h" />
     <ClInclude Include="engine\Game\KrakenTentacleFramingSnapshot.h" />
     <ClInclude Include="engine\Game\Boss\Kraken\KrakenTentacleWaveEncounterConfig.h" />
